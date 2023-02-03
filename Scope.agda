@@ -11,30 +11,19 @@
 
 open import Utils hiding (A; B; C; P; Q; R)
 
-module Scope where
+module Scope (Name : Set) where
 
 private variable
   @0 A B C : Set
   @0 P Q R : @0 A → Set
 
-record IScope (Name : Set) : Set₁ where
+record IScope : Set₁ where
   no-eta-equality
   field
     Scope : Set
     ∅     : Scope
     [_]   : @0 Name → Scope
     _<>_  : Scope → Scope → Scope
-
-  field
-    Empty    : Scope → Set
-    ∅-empty  : Empty ∅
-    <>-empty : Empty α → Empty β → Empty (α <> β)
-
-  field
-    Singleton       : @0 Name → Scope → Set
-    []-singleton    : Singleton x [ x ]
-    left-singleton  : Singleton x α → Empty β → Singleton x (α <> β)
-    right-singleton : Empty α → Singleton x β → Singleton x (α <> β)
 
   field
     _⋈_≡_         : (@0 α β γ : Scope) → Set
@@ -52,30 +41,20 @@ record IScope (Name : Set) : Set₁ where
   x ∈ α = [ x ] ⊆ α
 
   field
-    _⋈-≟_ : (p q : α ⋈ β ≡ γ) → Dec (p ≡ q)
-    _⊆-≟_ : (p q : α ⊆ β) → Dec (p ≡ q)
-    _∈-≟_ : (p : x ∈ α) (q : y ∈ α) → Dec (_≡_ {A = Σ Name (_∈ α)} (x , p) (y , q))
-
-  -- We should have the following equivalences:
-  -- 1. x ∈ ∅        ≃  ⊥
-  -- 2. x ∈ [ y ]    ≃  x ≡ y
-  -- 3. x ∈ (α ⋈ β)  ≃  x ∈ α ⊎ x ∈ β
-  -- Unfortunaltely, demanding equivalences is perhaps too strong (see implementation below)
-  -- However, we could prove that these are retractions, if needed
-
-  -- These are formulated in continuation-passing style to make them more efficient and easier to use.
-  field
-    empty-case : Empty α → x ∈ α → A
-    singleton-case : Singleton x α → y ∈ α → (x ≡ y → A) → A
+    -- This is formulated in continuation-passing style to make them more efficient and easier to use.
+    ∅-case  : @0 (x ∈ ∅) → A
+    []-case : @0 (x ∈ [ y ]) → (x ≡ y → A) → A
     ⋈-case : α ⋈ β ≡ γ → x ∈ γ → (x ∈ α → A) → (x ∈ β → A) → A
 
   field
-    All : (P : @0 Name → Set) → Scope → Set
-    singleton-All : Singleton x α → All P α → P x
-    ⋈-All : α ⋈ β ≡ γ → All P γ → All P α × All P β
-    -- Note: mapping and tabulation require a run-time representation of the scope!
-    mapAll : (α : Scope) (f : ∀ {@0 x} → P x → Q x) → All P α → All Q α
-    tabulateAll : {α : Scope} → (f : (@0 x : Name) → {{x ∈ α}} → P x) → All P α
+    ⋈-quad : α₁ ⋈ α₂ ≡ γ → β₁ ⋈ β₂ ≡ γ
+            → Σ0 (Scope × Scope × Scope × Scope) λ (γ₁ , γ₂ , γ₃ , γ₄) →
+              (γ₁ ⋈ γ₂ ≡ α₁) × (γ₃ ⋈ γ₄ ≡ α₂) × (γ₁ ⋈ γ₃ ≡ β₁) × (γ₂ ⋈ γ₄ ≡ β₂)
+
+  field
+    _⋈-≟_ : (p q : α ⋈ β ≡ γ) → Dec (p ≡ q)
+    _⊆-≟_ : (p q : α ⊆ β) → Dec (p ≡ q)
+    _∈-≟_ : (p : x ∈ α) (q : y ∈ α) → Dec (_≡_ {A = Σ Name (_∈ α)} (x , p) (y , q))
 
   field
     rezz-⋈ : α ⋈ β ≡ γ → Rezz γ → Rezz α × Rezz β
@@ -125,11 +104,38 @@ record IScope (Name : Set) : Set₁ where
   ⊆-◃  : α ⊆ β → (y ◃ α) ⊆ (y ◃ β)
   ⊆-◃ = ⊆-<>
 
-  ∅-case : (x ∈ ∅) → A
-  ∅-case = empty-case ∅-empty
+  Empty : Scope → Set
+  Empty α = α ⊆ ∅
 
-  []-case  : (x ∈ [ y ]) → (x ≡ y → A) → A
-  []-case p f = singleton-case []-singleton p (f ∘ sym)
+  ∅-empty : Empty ∅
+  ∅-empty = < ⋈-∅-right >
+
+  <>-empty : Empty α → Empty β → Empty (α <> β)
+  <>-empty < p > < q > = < ⋈-assoc (⋈-assoc' q ⋈-∅-left) p >
+
+  ⊆-empty : α ⊆ β → Empty β → Empty α
+  ⊆-empty p e = ⊆-trans p e
+
+  empty-case : Empty α → @0 x ∈ α → A
+  empty-case p q = ∅-case (⊆-trans q p)
+
+  Subsingleton : @0 Name → Scope → Set
+  Subsingleton x α = α ⊆ [ x ]
+
+  []-subsingleton : Subsingleton x [ x ]
+  []-subsingleton = < ⋈-∅-right >
+
+  left-subsingleton  : Subsingleton x α → Empty β → Subsingleton x (α <> β)
+  left-subsingleton < p > < q > = < ⋈-assoc (⋈-assoc' q ⋈-∅-left) p >
+
+  right-subsingleton : Empty α → Subsingleton x β → Subsingleton x (α <> β)
+  right-subsingleton < p > < q > = < ⋈-assoc (⋈-comm (⋈-assoc (⋈-comm p) ⋈-∅-left)) q >
+
+  ⊆-subsingleton : α ⊆ β → Subsingleton x β → Subsingleton x α
+  ⊆-subsingleton p q = ⊆-trans p q
+
+  subsingleton-case : Subsingleton x α → @0 y ∈ α → (x ≡ y → A) → A
+  subsingleton-case s p f = []-case (⊆-trans p s) (f ∘ sym)
 
   <>-case  : x ∈ (α <> β) → (x ∈ α → A) → (x ∈ β → A) → A
   <>-case = ⋈-case ⋈-refl
@@ -137,8 +143,6 @@ record IScope (Name : Set) : Set₁ where
   ◃-case : x ∈ (y ◃ α) → (x ≡ y → A) → (x ∈ α → A) → A
   ◃-case p f g = <>-case p (λ q → []-case q f) g
 
-  _!_ : All P α → (@0 x : Name) → {{x ∈ α}} → P x
-  (ps ! x) {{< q >}} = singleton-All []-singleton (proj₁ (⋈-All q ps))
 
   @0 diff : α ⊆ β → Scope
   diff = get ∘ proj₁
@@ -161,29 +165,67 @@ record IScope (Name : Set) : Set₁ where
   diff-case : (p : α ⊆ β) → x ∈ β → (x ∈ α → A) → (x ∈ diff p → A) → A
   diff-case p = ⋈-case (⋈-diff p)
 
+  ⊆-⋈-split : α ⊆ β → β₁ ⋈ β₂ ≡ β 
+          → Σ0 (Scope × Scope) λ (α₁ , α₂) → α₁ ⊆ β₁ × α₂ ⊆ β₂ × α₁ ⋈ α₂ ≡ α
+  ⊆-⋈-split < p > q = 
+    let < r₁ , r₂ , r₃ , r₄ > = ⋈-quad p q
+    in  < < r₃ > , < r₄ > , r₁ >
+
+  ⊆-<>-split : α ⊆ (β₁ <> β₂) → Σ0 (Scope × Scope) λ (α₁ , α₂) → α₁ ⊆ β₁ × α₂ ⊆ β₂ × α₁ ⋈ α₂ ≡ α
+  ⊆-<>-split p = ⊆-⋈-split p ⋈-refl
+
+  -- `All P α` is a first-order representation of the type `(x ∈ α) → P x`
+  data All (P : @0 Name → Set) : @0 Scope → Set where
+    constAll : (∀ {@0 x} {{@0 _ : x ∈ α}} → P x) → All P α
+    ⋈All : α ⋈ β ≡ γ → All P α → All P β → All P γ
+  
+  emptyAll : Empty α → All P α
+  emptyAll e = constAll λ {{i}} → empty-case e i
+
+  subsingleAll : Subsingleton x α → P x → All P α
+  subsingleAll s p = constAll λ {{i}} → subsingleton-case s i (λ eq → subst _ eq p)
+
+  ∅All : All P ∅
+  ∅All = emptyAll ∅-empty
+
+  []All : P x → All P [ x ]
+  []All = subsingleAll []-subsingleton
+
+  <>All : All P α → All P β → All P (α <> β)
+  <>All = ⋈All ⋈-refl
+
+  lookupAll : All P α → x ∈ α → P x
+  lookupAll (constAll p) s = p {{s}}
+  lookupAll (⋈All r ps qs) s = ⋈-case r s (lookupAll ps) (lookupAll qs)
+  
+  _!_ : All P α → (@0 x : Name) → {{x ∈ α}} → P x
+  (ps ! _) {{s}} = lookupAll ps s
+  
+  mapAll : (f : ∀ {@0 x} → P x → Q x) → All P α → All Q α
+  mapAll f (constAll p) = constAll (f p)
+  mapAll f (⋈All r ps qs) = ⋈All r (mapAll f ps) (mapAll f qs)
+
+  --tabulateAll : {α : Scope} → (f : (@0 x : Name) → {{x ∈ α}} → P x) → All P α
+  --tabulateAll {P = P} {α = α} f = ?
+  {-= ⋈-elim (λ α → (f : (@0 x : Name) → {{x ∈ α}} → P x) → All P α) 
+                      (λ f → ∅All) 
+                      (λ f → []All (f _ {{⊆-refl}})) 
+                      (λ s ps qs f → ⋈All s (ps (λ x {{i}} → f x {{coerce < s > i}})) 
+                                             (qs (λ x {{i}} → f x {{coerce < ⋈-comm s > i }}))) -}
+
   rezz-⊆ : α ⊆ β → Rezz β → Rezz α
   rezz-⊆ < p > r = proj₁ (rezz-⋈ p r)
 
-{-
-open IScope {{...}} public
+  rezz-Empty : Empty α → Rezz α
+  rezz-Empty e = rezz-⊆ e (rezz ∅)
 
-{-# DISPLAY IScope.Scope   iScope     = Scope       #-}
-{-# DISPLAY IScope._∈_     iScope x y = x ∈ y       #-}
-{-# DISPLAY IScope.∅       iScope     = ∅           #-}
-{-# DISPLAY IScope.[_]     iScope x   = [ x ]       #-}
-{-# DISPLAY IScope._◃_     iScope x y = x ◃ y       #-}
-{-# DISPLAY IScope._⋈_     iScope x y = x ⋈ y      #-}
-{-# DISPLAY IScope._⊆_     iScope x y = x ⊆ y       #-}
-{-# DISPLAY IScope.coerce  iScope f p = coerce f p  #-}
-{-# DISPLAY IScope.⊆-refl  iScope     = ⊆-refl      #-}
-{-# DISPLAY IScope.⊆-trans iScope f g = ⊆-trans f g #-}
-{-# DISPLAY IScope.⊆-∅     iScope     = ⊆-∅         #-}
-{-# DISPLAY IScope.⊆-◃     iScope f   = ⊆-◃ f       #-}
-{-# DISPLAY IScope.⊆-⋈     iScope f g = ⊆-⋈ f g    #-}
-{-# DISPLAY IScope.here    iScope     = here        #-}
-{-# DISPLAY IScope.left    iScope p   = left p      #-}
-{-# DISPLAY IScope.right   iScope p   = right p     #-}
-{-# DISPLAY IScope.nowhere iScope p   = nowhere p   #-}
-{-# DISPLAY IScope.[]-case iScope p   = []-case p   #-}
-{-# DISPLAY IScope.⋈-case  iScope p   = ⋈-case p   #-}
+  rezz-Subsingleton : Subsingleton x α → Rezz α
+  rezz-Subsingleton s = rezz-⊆ s (rezz [ _ ])
+
+
+{- Can we implement this? Or do we need to add something to the interface?
+  splitAll : α ⋈ β ≡ γ → All P γ → All P α × All P β
+  splitAll s ∅All = {!  !}
+  splitAll s ([]All x) = {!   !}
+  splitAll s (⋈All r ps qs) = {!   !}
 -}

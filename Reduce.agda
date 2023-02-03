@@ -1,3 +1,4 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 
 open import Utils
 open import Scope
@@ -21,9 +22,9 @@ substBranch : {α β : Scope} → α ⇒ β → Branch α → Branch β
 substBranches : {α β : Scope} → α ⇒ β → Branches α → Branches β
 substTop : {α : Scope} → Term α → Term (x ◃ α) → Term α
 
-substTerm f (var x)           = f ! x
+substTerm f (var x)           = {!   !} --f ! x
 substTerm f (def d)           = def d
-substTerm f (con c vs)        = con c (mapAll _ (substTerm f) vs) --(λ x → substTerm f (vs ! x))
+substTerm f (con c vs)        = con c {!   !} --(mapAll _ (substTerm f) vs) --(λ x → substTerm f (vs ! x))
 substTerm f (lam x v)         = lam x (substTerm (liftEnv f) v)
 substTerm f (appE u es)       = appE (substTerm f u) (substElims f es)
 substTerm f (pi x a b)        = pi x (substTerm f a) (substTerm (liftEnv f) b)
@@ -31,7 +32,7 @@ substTerm f (sort s)          = sort (substSort f s)
 substTerm f (let′ x u v)      = let′ x (substTerm f u) (substTerm (liftEnv f) v)
 substTerm {α} {β} f (case x {{p}} bs) = 
   case rezz-⊆ (diff-⊆ p) (rezz α) of λ where
-    (rezz δ) → let′ x ((f ! x) {{p}}) 
+    (rezz δ) → let′ x ({!(f ! x)!} {{p}}) 
       (case x {{here}} (substBranches (coerceEnv (diff-⊆ p) f) bs))
   -- ^ TODO: 
   --   * actually reduce to the corresponding branch when `f p` is a constructor?
@@ -51,9 +52,9 @@ substBranch f (branch c u) = branch c (substTerm (liftEnv f) u)
 substBranches f [] = []
 substBranches f (b ∷ bs) = substBranch f b ∷ substBranches f bs
 
-substTop {α = α} u = substTerm (tabulateAll (λ y {{p}} → ◃-case p
+substTop {α = α} u = substTerm {!   !} {-(tabulateAll (λ y {{p}} → ◃-case p
   (λ where refl → u)
-  (λ y∈α → var _ {{y∈α}})))
+  (λ y∈α → var _ {{y∈α}})))-}
 
 lookupBranch : Branches α → (@0 c : Name) {{p : c ∈ cons}} → Maybe (Term ((conArity ! c) <> α))
 lookupBranch [] c = nothing

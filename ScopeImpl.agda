@@ -50,6 +50,9 @@ module SimpleScope (Name : Set) where
 
     ⋈-assoc' : α ⋈ β ≡ δ → δ ⋈ γ ≡ ε → (γ <> α) ⋈ β ≡ ε
     ⋈-assoc' p q = <>-ll p (⋈-comm q)
+
+    ⋈-<> : α₁ ⋈ α₂ ≡ α → β₁ ⋈ β₂ ≡ β → (α₁ <> β₁) ⋈ (α₂ <> β₂) ≡ (α <> β)
+    ⋈-<> p q = <>-rr (<>-lr p join) (<>-ll q join)
     
 
 {-
@@ -167,33 +170,17 @@ module SimpleScope (Name : Set) where
     --  tofrom∈ : (p : x ∈ α) → to∈ (from∈ p) ≡ p
     --  tofrom∈ = {!   !}
 
-    is-empty′ : Empty α → x ∈′ α → A
-    is-empty′ (<>-empty e₁ e₂) (left′ p) = is-empty′ e₁ p
-    is-empty′ (<>-empty e₁ e₂) (right′ p) = is-empty′ e₂ p
+    ∅-case′ : @0 x ∈′ ∅ → A
+    ∅-case′ ()
 
-    empty-case : Empty α → x ∈ α → A
-    empty-case e p = is-empty′ e (from∈ p)
+    ∅-case : @0 x ∈ ∅ → A
+    ∅-case p = ∅-case′ (from∈ p)
 
-    []-case′ : x ∈′ [ y ] → (x ≡ y → A) → A
+    []-case′ : @0 x ∈′ [ y ] → (x ≡ y → A) → A
     []-case′ here′ f = f refl
 
-    []-case : x ∈ [ y ] → (x ≡ y → A) → A
+    []-case : @0 x ∈ [ y ] → (x ≡ y → A) → A
     []-case p = []-case′ (from∈ p)
-
-    data Singleton : @0 Name → Scope → Set where
-      []-singleton : Singleton x [ x ] 
-      left-singleton : Singleton x α → Empty β → Singleton x (α <> β)
-      right-singleton : Empty α → Singleton x β → Singleton x (α <> β)
-
-    singleton-case′ : Singleton x α → y ∈′ α → (x ≡ y → A) → A
-    singleton-case′ []-singleton here′ f = f refl
-    singleton-case′ (left-singleton p e) (left′ q) = singleton-case′ p q
-    singleton-case′ (left-singleton p e) (right′ q) = ⊥-elim (is-empty′ e q)
-    singleton-case′ (right-singleton e p) (left′ q) = ⊥-elim (is-empty′ e q)
-    singleton-case′ (right-singleton e p) (right′ q) = singleton-case′ p q
-
-    singleton-case : Singleton x α → y ∈ α → (x ≡ y → A) → A
-    singleton-case p q = singleton-case′ p (from∈ q)
 
     <>-case : x ∈ (α <> β) → (x ∈ α → A) → (x ∈ β → A) → A
     <>-case p f g = case (from∈ p) of λ where 
@@ -209,6 +196,52 @@ module SimpleScope (Name : Set) where
     ⋈-case (<>-lr p₁ p₂) q f g = ⋈-case p₂ q (λ r → ⋈-case p₁ r (f ∘ left) g) (f ∘ right)
     ⋈-case (<>-rl p₁ p₂) q f g = ⋈-case p₂ q (g ∘ left) (λ r → ⋈-case p₁ r f (g ∘ right))
     ⋈-case (<>-rr p₁ p₂) q f g = ⋈-case p₂ q (λ r → ⋈-case p₁ r f (g ∘ left)) (g ∘ right)
+
+    -- TODO: convince Agda that this is terminating
+    {-# NON_TERMINATING #-}
+    ⋈-quad : α₁ ⋈ α₂ ≡ γ → β₁ ⋈ β₂ ≡ γ
+             → Σ0 (Scope × Scope × Scope × Scope) λ (γ₁ , γ₂ , γ₃ , γ₄) →
+               (γ₁ ⋈ γ₂ ≡ α₁) × (γ₃ ⋈ γ₄ ≡ α₂) × (γ₁ ⋈ γ₃ ≡ β₁) × (γ₂ ⋈ γ₄ ≡ β₂)
+    ⋈-quad ∅-l q = < ∅-l , q , ∅-l , ∅-l >
+    ⋈-quad ∅-r q = < q , ∅-r , ∅-r , ∅-r >
+    ⋈-quad p ∅-l = < ∅-l , ∅-l , ∅-l , p >
+    ⋈-quad p ∅-r = < ∅-r , ∅-r , p , ∅-r >
+    ⋈-quad join join = < ∅-r , ∅-l , ∅-r , ∅-l >
+    ⋈-quad join swap = < ∅-l , ∅-r , ∅-l , ∅-r >
+    ⋈-quad swap join = < ∅-l , ∅-r , ∅-l , ∅-r >
+    ⋈-quad swap swap = < ∅-r , ∅-l , ∅-r , ∅-l >
+    ⋈-quad {α₃ <> α₄} {α₂} {γ} {β₁} {β₂} (<>-ll {α₂ = α₄} {δ = δ} {α₁ = α₃} p₁ p₂) q = 
+      let (erase (γ₁ , γ₂ , γ₃ , γ₄) , (q₁ , q₂ , q₃ , q₄)) = ⋈-quad {α₃} {δ} {γ} {β₁} {β₂} p₂ q
+          (erase (δ₁ , δ₂ , δ₃ , δ₄) , (r₁ , r₂ , r₃ , r₄)) = ⋈-quad {α₄} {α₂} {δ} {γ₃} {γ₄} p₁ q₂
+      in  (erase ((γ₁ <> δ₁) , (γ₂ <> δ₂) , δ₃ , δ₄) , (⋈-<> q₁ r₁ , r₂ , <>-ll r₃ q₃ , <>-ll r₄ q₄))
+    ⋈-quad {α₃ <> α₄} {α₂} {γ} {β₁} {β₂} (<>-lr {α₁ = α₃} {δ = δ} {α₂ = α₄} p₁ p₂) q = 
+      let (erase (γ₁ , γ₂ , γ₃ , γ₄) , (q₁ , q₂ , q₃ , q₄)) = ⋈-quad p₂ q
+          (erase (δ₁ , δ₂ , δ₃ , δ₄) , (r₁ , r₂ , r₃ , r₄)) = ⋈-quad {α₃} {α₂} {δ} {γ₁} {γ₂} p₁ q₁
+      in  < ⋈-<> r₁ q₂ , r₂ , <>-lr r₃ q₃ , <>-lr r₄ q₄ >
+    ⋈-quad {α₁} {β₃ <> β₄} {γ} {β₁} {β₂} (<>-rl {β₂ = β₄} {δ = δ} {β₁ = β₃} p₁ p₂) q = 
+      let (erase (γ₁ , γ₂ , γ₃ , γ₄) , (q₁ , q₂ , q₃ , q₄)) = ⋈-quad p₂ q
+          (erase (δ₁ , δ₂ , δ₃ , δ₄) , (r₁ , r₂ , r₃ , r₄)) = ⋈-quad {α₁} {β₄} {δ} {γ₃} {γ₄} p₁ q₂
+      in  < r₁ , ⋈-<> q₁ r₂ , <>-rl r₃ q₃ , <>-rl r₄ q₄ >
+    ⋈-quad {α₁} {β₃ <> β₄} {γ} {β₁} {β₂} (<>-rr {β₁ = β₃} {δ = δ} {β₂ = β₄} p₁ p₂) q = 
+      let (erase (γ₁ , γ₂ , γ₃ , γ₄) , (q₁ , q₂ , q₃ , q₄)) = ⋈-quad p₂ q
+          (erase (δ₁ , δ₂ , δ₃ , δ₄) , (r₁ , r₂ , r₃ , r₄)) = ⋈-quad {α₁} {β₃} {δ} {γ₁} {γ₂} p₁ q₁
+      in  < r₁ , ⋈-<> r₂ q₂ , <>-rr r₃ q₃ , <>-rr r₄ q₄ >
+    ⋈-quad {α₁} {α₂} {γ} {α₃ <> α₄} {β₂} p (<>-ll {α₂ = α₄} {δ = δ} {α₁ = α₃} q₁ q₂) = 
+      let (erase (γ₁ , γ₂ , γ₃ , γ₄) , (p₁ , p₂ , p₃ , p₄)) = ⋈-quad p q₂
+          (erase (δ₁ , δ₂ , δ₃ , δ₄) , (r₁ , r₂ , r₃ , r₄)) = ⋈-quad {γ₂} {γ₄} {δ} {α₄} {β₂} p₄ q₁
+      in  < <>-ll r₁ p₁ , <>-ll r₂ p₂ , ⋈-<> p₃ r₃ , r₄ >
+    ⋈-quad {α₁} {α₂} {γ} {α₃ <> α₄} {β₂} p (<>-lr {α₁ = α₃} {δ = δ} {α₂ = α₄} q₁ q₂) = 
+      let (erase (γ₁ , γ₂ , γ₃ , γ₄) , (p₁ , p₂ , p₃ , p₄)) = ⋈-quad p q₂
+          (erase (δ₁ , δ₂ , δ₃ , δ₄) , (r₁ , r₂ , r₃ , r₄)) = ⋈-quad {γ₁} {γ₃} {δ} {α₃} {β₂} p₃ q₁
+      in  < <>-lr r₁ p₁ , <>-lr r₂ p₂ , ⋈-<> r₃ p₄ , r₄ >
+    ⋈-quad {α₁} {α₂} {γ} {β₁} {β₃ <> β₄} p (<>-rl {β₂ = β₄} {δ = δ} {β₁ = β₃} q₁ q₂) = 
+      let (erase (γ₁ , γ₂ , γ₃ , γ₄) , (p₁ , p₂ , p₃ , p₄)) = ⋈-quad p q₂
+          (erase (δ₁ , δ₂ , δ₃ , δ₄) , (r₁ , r₂ , r₃ , r₄)) = ⋈-quad {γ₂} {γ₄} {δ} {β₁} {β₄} p₄ q₁
+      in  < <>-rl r₁ p₁ , <>-rl r₂ p₂ , r₃ , ⋈-<> p₃ r₄ >
+    ⋈-quad {α₁} {α₂} {γ} {β₁} {β₃ <> β₄} p (<>-rr {β₁ = β₃} {δ = δ} {β₂ = β₄} q₁ q₂) = 
+      let (erase (γ₁ , γ₂ , γ₃ , γ₄) , (p₁ , p₂ , p₃ , p₄)) = ⋈-quad p q₂
+          (erase (δ₁ , δ₂ , δ₃ , δ₄) , (r₁ , r₂ , r₃ , r₄)) = ⋈-quad {γ₁} {γ₃} {δ} {β₁} {β₃} p₃ q₁
+      in  < <>-rr r₁ p₁ , <>-rr r₂ p₂ , r₃ , ⋈-<> r₄ p₄  >
 
     module BNT where
       data BNT : Set where
@@ -334,49 +367,6 @@ module SimpleScope (Name : Set) where
     ... | yes eq = yes (∈toBNT-injective p q eq)
     ... | no f   = no (λ { refl → f refl })
 
-    -- `All P α` is a first-order representation of the type `(x ∈ α) → P x`
-    All : (P : @0 Name → Set) → Scope → Set
-    All P ∅ = ⊤
-    All P [ x ] = P x
-    All P (α <> β) = All P α × All P β
-
-    singleton-All : Singleton x α → All P α → P x
-    singleton-All []-singleton p = p
-    singleton-All (left-singleton s _) (ps , _) = singleton-All s ps
-    singleton-All (right-singleton _ s) (_ , ps) = singleton-All s ps
-
-    ⋈-All : α ⋈ β ≡ γ → All P γ → All P α × All P β
-    ⋈-All ∅-l ps = _ , ps
-    ⋈-All ∅-r ps = ps , _
-    ⋈-All join ps = ps
-    ⋈-All swap (ps , qs) = (qs , ps)
-    ⋈-All (<>-ll q₁ q₂) ps = 
-      let (ps₁ , ps₂) = ⋈-All q₂ ps
-          (ps₂₁ , ps₂₂) = ⋈-All q₁ ps₂
-      in (ps₁ , ps₂₁) , ps₂₂
-    ⋈-All (<>-lr q₁ q₂) ps = 
-      let (ps₁ , ps₂) = ⋈-All q₂ ps
-          (ps₁₁ , ps₁₂) = ⋈-All q₁ ps₁
-      in  (ps₁₁ , ps₂) , ps₁₂
-    ⋈-All (<>-rl q₁ q₂) ps = 
-      let (ps₁ , ps₂) = ⋈-All q₂ ps
-          (ps₂₁ , ps₂₂) = ⋈-All q₁ ps₂
-      in  ps₂₁ , (ps₁ , ps₂₂)
-    ⋈-All (<>-rr q₁ q₂) ps =  
-      let (ps₁ , ps₂) = ⋈-All q₂ ps
-          (ps₁₁ , ps₁₂) = ⋈-All q₁ ps₁
-      in  ps₁₁ , (ps₁₂ , ps₂)
-
-    mapAll : (α : Scope) (f : ∀ {@0 x} → P x → Q x) → All P α → All Q α
-    mapAll ∅ f _ = _
-    mapAll [ x ] f p = f p
-    mapAll (β <> γ) f (ps , qs) = (mapAll β f ps) , (mapAll γ f qs)
-
-    tabulateAll : {α : Scope} (f : (@0 x : Name) → {{x ∈ α}} → P x) → All P α
-    tabulateAll {α = ∅} f = _
-    tabulateAll {α = [ x ]} f = f x {{here}}
-    tabulateAll {α = β <> γ} f = tabulateAll (λ x {{p}} → f x {{left p}}) , tabulateAll (λ x {{q}} → f x {{right q}})
-
     rezz-<> : Rezz x → Rezz y → Rezz (x <> y)
     rezz-<> = rezz-cong₂ _<>_
 
@@ -401,6 +391,7 @@ module SimpleScope (Name : Set) where
       let (rq₁ , rq₂) = rezz-⋈ q r
           (rp₁ , rp₂) = rezz-⋈ p rq₁
       in  rp₁ , rezz-<> rp₂ rq₂
+
 
 simpleScope : (Name : Set) → IScope Name
 simpleScope Name = record { SimpleScope Name }

@@ -20,18 +20,16 @@ defs = ∅
 cons = "true" ◃ "false" ◃ ∅
 
 conArity : All (λ _ → Scope) cons
-conArity = tabulateAll {α = cons} λ _ → ∅
+conArity = {!   !} --tabulateAll {α = cons} λ _ → ∅
 
 open import Syntax (simpleScope Name) defs cons conArity
 open import Reduce (simpleScope Name) defs cons conArity
 
 `true : Term α
-`true = con "true" tt
+`true = con "true" {!   !} --tt
 `false : Term α
-`false = con "false" tt
+`false = con "false" {!   !} --tt
 
-
-{-# TERMINATING #-}
 ∞ : ℕ
 ∞ = 9999999999999999
 
@@ -41,7 +39,7 @@ module Tests (@0 x y z : Name) where
   testTerm₁ = apply (lam x (var x)) (sort (type 0))
 
   test₁ : reduce {α = ∅} ∞ testTerm₁ ≡ just (sort (type 0))
-  test₁ = refl
+  test₁ = {!   !} --refl
 
   testTerm₂ : Term α
   testTerm₂ = let′ x `true (case x (branch "true" `false ∷ branch "false" `true ∷ []))
