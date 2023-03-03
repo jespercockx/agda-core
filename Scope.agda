@@ -2,11 +2,31 @@
 
 
 {- Design constraints:
-- Well-scoped syntax
 - Abstract interface for working with scopes
-- Possibility to construct from a proof of x ∈ α a "remainder scope" α' with x removed
-- Joining two scopes α and β should only increase the size of the indices by a constant
+- Well-scoped syntax
 - Scopes are runtime-irrelevant
+- Joining two scopes α and β should only increase the size of the indices by a constant
+- Possibility to construct from a proof of x ∈ α a "remainder scope" α' with x removed
+- Empty scopes should not matter (see below)
+- Variable indices are somehow bounded in size by the size of the scope
+  (todo: add a proper notion of "size" to the interface?)
+-}
+
+{- Problem: should empty scopes matter?
+
+We say that "empty scopes matter" if the following are NOT all equivalent:
+- α ⋈ β ≡ γ
+- (∅ <> α) ⋈ β ≡ γ
+- (α <> ∅) ⋈ β ≡ γ
+- α ⋈ (∅ <> β) ≡ γ
+- α ⋈ (β <> ∅) ≡ γ
+- α ⋈ β ≡ (∅ <> γ)
+- α ⋈ β ≡ (γ <> ∅)
+
+It is clearly desirable to have empty scopes not matter, but designing a
+concrete implementation that satisfies this (as well as the other properties
+above) is challenging.
+
 -}
 
 open import Utils hiding (A; B; C; P; Q; R)
@@ -24,6 +44,8 @@ record IScope : Set₁ where
     ∅     : Scope
     [_]   : @0 Name → Scope
     _<>_  : Scope → Scope → Scope
+
+  -- TODO: explain whγ we cannot have the equality ∅ <> α ≡ α 
 
   field
     _⋈_≡_         : (@0 α β γ : Scope) → Set
@@ -182,14 +204,11 @@ record IScope : Set₁ where
   emptyAll : Empty α → All P α
   emptyAll e = constAll λ {{i}} → empty-case e i
 
-  subsingleAll : Subsingleton x α → P x → All P α
-  subsingleAll s p = constAll λ {{i}} → subsingleton-case s i (λ eq → subst _ eq p)
-
   ∅All : All P ∅
   ∅All = emptyAll ∅-empty
 
   []All : P x → All P [ x ]
-  []All = subsingleAll []-subsingleton
+  []All px = constAll λ {{i}} → []-case i λ { refl → px }
 
   <>All : All P α → All P β → All P (α <> β)
   <>All = ⋈All ⋈-refl
@@ -207,7 +226,7 @@ record IScope : Set₁ where
 
   --tabulateAll : {α : Scope} → (f : (@0 x : Name) → {{x ∈ α}} → P x) → All P α
   --tabulateAll {P = P} {α = α} f = ?
-  {-= ⋈-elim (λ α → (f : (@0 x : Name) → {{x ∈ α}} → P x) → All P α) 
+  {-= ⋈-elim (λ α → (f : (@0 x : Name) → {{x ∈ α}} → P x) → All P α)
                       (λ f → ∅All) 
                       (λ f → []All (f _ {{⊆-refl}})) 
                       (λ s ps qs f → ⋈All s (ps (λ x {{i}} → f x {{coerce < s > i}})) 
@@ -219,8 +238,8 @@ record IScope : Set₁ where
   rezz-Empty : Empty α → Rezz α
   rezz-Empty e = rezz-⊆ e (rezz ∅)
 
-  rezz-Subsingleton : Subsingleton x α → Rezz α
-  rezz-Subsingleton s = rezz-⊆ s (rezz [ _ ])
+  --rezz-Subsingleton : Subsingleton x α → Rezz α
+  --rezz-Subsingleton s = rezz-⊆ s (rezz [ _ ])
 
 
 {- Can we implement this? Or do we need to add something to the interface?

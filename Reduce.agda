@@ -14,30 +14,25 @@ module Reduce
 open import Syntax iScope defs cons conArity
 
 {-# TERMINATING #-}
-substTerm  : {α β : Scope} → α ⇒ β → Term α → Term β
-substSort  : {α β : Scope} → α ⇒ β → Sort α → Sort β
-substElim  : {α β : Scope} → α ⇒ β → Elim α → Elim β
-substElims : {α β : Scope} → α ⇒ β → Elims α → Elims β
-substBranch : {α β : Scope} → α ⇒ β → Branch α → Branch β
-substBranches : {α β : Scope} → α ⇒ β → Branches α → Branches β
-substTop : {α : Scope} → Term α → Term (x ◃ α) → Term α
+substTerm  : α ⇒ β → Term α → Term β
+substSort  : α ⇒ β → Sort α → Sort β
+substElim  : α ⇒ β → Elim α → Elim β
+substElims : α ⇒ β → Elims α → Elims β
+substBranch : α ⇒ β → Branch α → Branch β
+substBranches : α ⇒ β → Branches α → Branches β
+substEnv : α ⇒ β → γ ⇒ α → γ ⇒ β
 
-substTerm f (var x)           = {!   !} --f ! x
+substTerm f (var x)           = lookupEnv f x
 substTerm f (def d)           = def d
-substTerm f (con c vs)        = con c {!   !} --(mapAll _ (substTerm f) vs) --(λ x → substTerm f (vs ! x))
+substTerm f (con c vs)        = con c (substEnv f vs)
 substTerm f (lam x v)         = lam x (substTerm (liftEnv f) v)
 substTerm f (appE u es)       = appE (substTerm f u) (substElims f es)
 substTerm f (pi x a b)        = pi x (substTerm f a) (substTerm (liftEnv f) b)
 substTerm f (sort s)          = sort (substSort f s)
 substTerm f (let′ x u v)      = let′ x (substTerm f u) (substTerm (liftEnv f) v)
-substTerm {α} {β} f (case x {{p}} bs) = 
-  case rezz-⊆ (diff-⊆ p) (rezz α) of λ where
-    (rezz δ) → let′ x ({!(f ! x)!} {{p}}) 
+substTerm f (case x {{p}} bs) = 
+  let′ x (lookupEnv f x) 
       (case x {{here}} (substBranches (coerceEnv (diff-⊆ p) f) bs))
-  -- ^ TODO: 
-  --   * actually reduce to the corresponding branch when `f p` is a constructor?
-  --   * avoid introducing a `let` binding when `f p` is a variable?
-substTerm f error             = error
 
 substSort f (type x) = type x
 
@@ -52,9 +47,12 @@ substBranch f (branch c u) = branch c (substTerm (liftEnv f) u)
 substBranches f [] = []
 substBranches f (b ∷ bs) = substBranch f b ∷ substBranches f bs
 
-substTop {α = α} u = substTerm {!   !} {-(tabulateAll (λ y {{p}} → ◃-case p
-  (λ where refl → u)
-  (λ y∈α → var _ {{y∈α}})))-}
+substEnv f (⇒weaken x) = coerceEnv x f
+substEnv f (⇒const x) = ⇒const (substTerm f x)
+substEnv f (⇒join x g₁ g₂) = ⇒join x (substEnv f g₁) (substEnv f g₂)
+
+substTop : Term α → Term (x ◃ α) → Term α
+substTop {α = α} u = substTerm (⇒join ⋈-refl (⇒const u) (⇒weaken ⊆-refl))
 
 lookupBranch : Branches α → (@0 c : Name) {{p : c ∈ cons}} → Maybe (Term ((conArity ! c) <> α))
 lookupBranch [] c = nothing
@@ -64,7 +62,7 @@ lookupBranch (branch c₁ {{p}} v ∷ bs) c {{q}} = case c ≟ c₁ of λ where
 
 step : {α : Scope} → Term α → Maybe (Term α)
 step (var x) = nothing
-step (def x) = nothing -- TODO: add an environment for definitions
+step (def x) = nothing
 step (con c vs) = nothing
 step (lam x u) = nothing
 step (appE u []) = just u
@@ -82,7 +80,6 @@ step (let′ x u v) = case step u of λ where
   (just u') → just (let′ x u' v)
   nothing   → just (substTop u v)
 step (case x bs) = nothing
-step error = nothing
 
 reduce : {α : Scope} → ℕ → Term α → Maybe (Term α)
 reduce zero u = nothing

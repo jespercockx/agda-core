@@ -1,4 +1,3 @@
-
 open import Utils
 
 open import Scope
@@ -40,7 +39,6 @@ data Term α where
   sort   : Sort α → Term α
   let′   : (@0 x : Name) (u : Term α) (v : Term (x ◃ α)) → Term α
   case   : (@0 x : Name) {{x∈α : x ∈ α}} (bs : Branches (diff x∈α)) → Term α
-  error  : Term α -- Needed to define substitution
   -- TODO: literals
 
 data Sort α where
@@ -74,6 +72,10 @@ elimView (appE u es₂) =
   in  u' , (es₁ ++E es₂)
 elimView u = u , []
 
+lookupEnv : α ⇒ β → (@0 x : Name) → {{x ∈ α}} → Term β
+lookupEnv (⇒weaken w) x ⦃ q ⦄ = var x {{coerce w q}}
+lookupEnv (⇒const u) x = u
+lookupEnv (⇒join p f g) x ⦃ q ⦄ = ⋈-case p q (λ r → lookupEnv f x {{r}}) (λ r → lookupEnv g x {{r}})
 
 
 weaken : α ⊆ β → Term α → Term β
@@ -93,7 +95,6 @@ weaken p (pi x a b)        = pi x (weaken p a) (weaken (⊆-◃ p) b)
 weaken p (sort α)          = sort (weakenSort p α)
 weaken p (let′ x v t)      = let′ x (weaken p v) (weaken (⊆-◃ p) t)
 weaken p (case x {{q}} bs) = case x {{coerce p q}} (weakenBranches (diff-⊆-trans q p) bs)
-weaken p error             = error
 
 weakenSort p (type x) = type x
 
