@@ -1,10 +1,11 @@
 
 open import Utils
-open import Scope
+import Scope
 
-module ScopeTest (Name : Set) (s : IScope Name) where
+module ScopeTest (Name : Set) where
 
-open IScope s
+open Scope Name
+open Variables
 
 data Term (@0 α : Scope) : Set where
   var : (x : Name) → {{α ⋈ ∅ ≡ [ x ]}} → Term α
@@ -17,5 +18,10 @@ postulate
 var! : (x : Name) → Term [ x ]
 var! x = var x {{⋈-∅-right}}
 
-myterm : Term ∅
-myterm = lam i (lam j (app {{⋈-comm ⋈-refl}} (var i {{⋈-assoc' ⋈-∅-left ⋈-∅-left}}) (var! j)))
+opaque
+  unfolding [_]
+
+  myterm : Term ∅
+  myterm = lam i (lam j (app {{⋈-comm ⋈-refl}} (var i {{⋈-∅-right}}) (var! j)))
+
+  test = {! myterm !}

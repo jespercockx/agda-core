@@ -1,12 +1,12 @@
 open import Utils
+open Variables
 
-open import Scope
+import Scope
 
 open import Data.Nat.Base
 
 module Syntax 
-    {Name     : Set} 
-    (iScope   : IScope Name) (let open IScope iScope) 
+    {Name     : Set} (let open Scope Name)
     (defs     : Scope)
     (cons     : Scope)
     (conArity : All (λ _ → Scope) cons) 
@@ -23,10 +23,9 @@ data Branches (@0 α : Scope) : Set
 -- is just a term or a sort.
 Type = Term
 
-data _⇒_ : (@0 α β : Scope) → Set where
-  ⇒weaken : α ⊆ β → α ⇒ β
-  ⇒const  : Term β → α ⇒ β
-  ⇒join   : α₁ ⋈ α₂ ≡ α → α₁ ⇒ β → α₂ ⇒ β → α ⇒ β
+data _⇒_ : (α β : Scope) → Set where
+  []  : ∅ ⇒ β
+  _∷_ : Term β → (α ⇒ β) → ((x ◃ α) ⇒ β)
 
 data Term α where
   var    : (@0 x : Name) → {{x ∈ α}} → Term α
@@ -38,7 +37,7 @@ data Term α where
   pi     : (@0 x : Name) (a : Term α) (b : Term (x ◃ α)) → Term α
   sort   : Sort α → Term α
   let′   : (@0 x : Name) (u : Term α) (v : Term (x ◃ α)) → Term α
-  case   : (@0 x : Name) {{x∈α : x ∈ α}} (bs : Branches (diff x∈α)) → Term α
+  case   : (@0 x : Name) → α ≡ x ◃ β → (bs : Branches β) → Term α
   -- TODO: literals
 
 data Sort α where
@@ -73,10 +72,8 @@ elimView (appE u es₂) =
 elimView u = u , []
 
 lookupEnv : α ⇒ β → (@0 x : Name) → {{x ∈ α}} → Term β
-lookupEnv (⇒weaken w) x ⦃ q ⦄ = var x {{coerce w q}}
-lookupEnv (⇒const u) x = u
-lookupEnv (⇒join p f g) x ⦃ q ⦄ = ⋈-case p q (λ r → lookupEnv f x {{r}}) (λ r → lookupEnv g x {{r}})
-
+lookupEnv [] x ⦃ q ⦄ = ∅-case q
+lookupEnv (u ∷ f) x ⦃ q ⦄ = ◃-case q (λ _ → u) (λ r → lookupEnv f x {{r}})
 
 weaken : α ⊆ β → Term α → Term β
 weakenSort : α ⊆ β → Sort α → Sort β
@@ -86,15 +83,15 @@ weakenBranch : α ⊆ β → Branch α → Branch β
 weakenBranches : α ⊆ β → Branches α → Branches β
 weakenEnv : β ⊆ γ → α ⇒ β → α ⇒ γ
 
-weaken p (var x {{q}})     = var x {{coerce p q}}
-weaken p (def f)           = def f 
-weaken p (con c vs)        = con c (weakenEnv p vs)
-weaken p (lam x v)         = lam x (weaken (⊆-◃ p) v)
-weaken p (appE u es)       = appE (weaken p u) (weakenElims p es)
-weaken p (pi x a b)        = pi x (weaken p a) (weaken (⊆-◃ p) b)
-weaken p (sort α)          = sort (weakenSort p α)
-weaken p (let′ x v t)      = let′ x (weaken p v) (weaken (⊆-◃ p) t)
-weaken p (case x {{q}} bs) = case x {{coerce p q}} (weakenBranches (diff-⊆-trans q p) bs)
+weaken p (var x {{q}})    = var x {{coerce p q}}
+weaken p (def f)          = def f
+weaken p (con c vs)       = con c (weakenEnv p vs)
+weaken p (lam x v)        = lam x (weaken (⊆-◃-keep p) v)
+weaken p (appE u es)      = appE (weaken p u) (weakenElims p es)
+weaken p (pi x a b)       = pi x (weaken p a) (weaken (⊆-◃-keep p) b)
+weaken p (sort α)         = sort (weakenSort p α)
+weaken p (let′ x v t)     = let′ x (weaken p v) (weaken (⊆-◃-keep p) t)
+weaken p (case x refl bs) = let′ x (var x {{coerce p here}}) (case x refl (weakenBranches (<>-⊆-right p) bs))
 
 weakenSort p (type x) = type x
 
@@ -104,24 +101,33 @@ weakenElim p (proj x) = proj x
 weakenElims p []       = []
 weakenElims p (e ∷ es) = weakenElim p e ∷ weakenElims p es
 
-weakenBranch p (branch c x) = branch c (weaken (⊆-<> p) x)
+weakenBranch p (branch c x) = branch c (weaken (⊆-<>-keep p) x)
 
 weakenBranches p []       = []
 weakenBranches p (b ∷ bs) = weakenBranch p b ∷ weakenBranches p bs
 
-weakenEnv p (⇒weaken q) = ⇒weaken (⊆-trans q p)
-weakenEnv p (⇒const x) = ⇒const (weaken p x)
-weakenEnv p (⇒join q f g) = ⇒join q (weakenEnv p f) (weakenEnv p g) 
+weakenEnv p [] = []
+weakenEnv p (u ∷ e) = weaken p u ∷ weakenEnv p e
 
-liftEnv : β ⇒ γ → (α <> β) ⇒ (α <> γ)
-liftEnv f = ⇒join ⋈-refl (⇒weaken (left ⊆-refl)) (weakenEnv (right ⊆-refl) f)
+opaque
+  unfolding Scope.Scope Scope._⊆_
 
-coerceEnv : α ⊆ β → β ⇒ γ → α ⇒ γ
-coerceEnv p (⇒weaken q) = ⇒weaken (⊆-trans p q)
-coerceEnv p (⇒const x) = ⇒const x
-coerceEnv p (⇒join q f g) = 
-  let < p₁ , p₂ , r > = ⊆-⋈-split p q
-  in  ⇒join r (coerceEnv p₁ f) (coerceEnv p₂ g)
+  idEnv : {{Rezz β}} → β ⇒ β
+  idEnv {{rezz []}}    = []
+  idEnv {{rezz (x ∷ β)}} = var (get x) {{here}} ∷ weakenEnv (⊆-◃-drop ⊆-refl) idEnv
 
-raiseEnv : α ⇒ β → (α <> β) ⇒ β
-raiseEnv f = ⇒join ⋈-refl f (⇒weaken ⊆-refl)
+  liftEnv : {{Rezz α}} → β ⇒ γ → (α <> β) ⇒ (α <> γ)
+  liftEnv {{rezz []}} e = e
+  liftEnv {{rezz (x ∷ α)}} e = var (get x) {{here}} ∷ weakenEnv (⊆-◃-drop ⊆-refl) (liftEnv e)
+
+  coerceEnv : {{Rezz α}} → α ⊆ β → β ⇒ γ → α ⇒ γ
+  coerceEnv {{rezz []}} p e = []
+  coerceEnv {{rezz (x ∷ α)}} p e = lookupEnv e _ {{◃-⊆-to-∈ p}} ∷ coerceEnv (<>-⊆-right p) e
+
+  dropEnv : (x ◃ α) ⇒ β → α ⇒ β
+  dropEnv (x ∷ f) = f
+
+raiseEnv : {{Rezz β}} → α ⇒ β → (α <> β) ⇒ β
+raiseEnv {{r}} []      = subst (_⇒ _) (sym ∅-<>) (idEnv {{r}})
+raiseEnv {{r}} (u ∷ e) = subst (_⇒ _) (sym <>-assoc) (u ∷ raiseEnv {{r}} e)
+
