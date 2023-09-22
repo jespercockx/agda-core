@@ -278,17 +278,17 @@ module Erased where
     field
       @0 get : A
   open Erase public
-  
+
   Σ0 : (A : Set a) (B : @0 A → Set b) → Set (a ⊔ b)
   Σ0 A B = Σ (Erase A) (λ x → B (get x))
 
   pattern <_> x = _ , x
 
   -- Resurrection of erased values
-  @0 Rezz : {@0 A : Set ℓ} (@0 x : A) → Set ℓ
-  Rezz {A = A} x = Σ A (_≡ x)
+  Rezz : {A : Set ℓ} (@0 x : A) → Set ℓ
+  Rezz {A = A} x = Σ A (λ y → Erase (y ≡ x))
 
-  pattern rezz x = x , refl
+  pattern rezz x = x , erase refl
 
   instance
     rezz-id : {x : A} → Rezz x
