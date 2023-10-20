@@ -79,6 +79,7 @@ data Join : (α β γ : List (Erase Name)) → Set where
 opaque
   unfolding Scope
 
+  -- OPI (Order-Preserving Interleaving)
   _⋈_≡_ : (α β γ : Scope) → Set
   α ⋈ β ≡ γ = Join α β γ
 

@@ -47,40 +47,41 @@ substBranches f (b ∷ bs) = substBranch f b ∷ substBranches f bs
 substEnv f [] = []
 substEnv f (x ∷ e) = substTerm f x ∷ substEnv f e
 
-
 substTop : {{Rezz α}} → Term α → Term (x ◃ α) → Term α
 substTop {{r}} u = substTerm (u ∷ idEnv {{r}})
 
-{-
 lookupBranch : Branches α → (@0 c : Name) {{p : c ∈ cons}} → Maybe (Term ((conArity ! c) <> α))
 lookupBranch [] c = nothing
-lookupBranch (branch c₁ {{p}} v ∷ bs) c {{q}} = case c ≟ c₁ of λ where
+lookupBranch (branch c₁ v ∷ bs) c = case c ≟ c₁ of λ where
   (yes refl) → just v
   (no _)     → lookupBranch bs c
 
-step : {α : Scope} → Term α → Maybe (Term α)
-step (var x) = nothing
-step (def x) = nothing
-step (con c vs) = nothing
-step (lam x u) = nothing
-step (appE u []) = just u
-step (appE (lam x u) (arg v ∷ es)) = just (substTop v u)
-step (appE u es) = Maybe.map (λ u → appE u es) (step u)
-step (pi x a b) = nothing
-step (sort x) = nothing
-step (let′ x (con c us) (case y {{p}} bs)) =
-  case p ∈-≟ here of λ where
-    (yes refl) → case lookupBranch bs c of λ where
-      (just v) → just {!   !} --(substTerm (raiseEnv us) v)
-      nothing → nothing
-    (no _) → nothing
-step (let′ x u v) = case step u of λ where
-  (just u') → just (let′ x u' v)
-  nothing   → just (substTop u v)
-step (case x bs) = nothing
+opaque
+  unfolding Scope.Scope
+
+  step : {α : Scope} → Term α → Maybe (Term α)
+  step (var x) = nothing
+  step (def x) = nothing
+  step (con c vs) = nothing
+  step (lam x u) = nothing
+  step (appE u []) = just u
+  step (appE (lam x u) (arg v ∷ es)) = just (substTop v u)
+  step (appE u es) = Maybe.map (λ u → appE u es) (step u)
+  step (pi x a b) = nothing
+  step (sort x) = nothing
+  step (let′ x (con c us) (case y refl bs)) = 
+    case lookupBranch bs c of λ where
+      (just v) → just (substTerm (raiseEnv us) v) 
+      nothing  → nothing
+  step (let′ x u v) = case step u of λ where
+    (just u') → just (let′ x u' v)
+    nothing   → just (substTop u v)
+  step (case x p bs) = nothing
 
 reduce : {α : Scope} → ℕ → Term α → Maybe (Term α)
 reduce zero u = nothing
 reduce (suc n) u = case (step u) of λ where
   (just u') → reduce n u'
   nothing   → just u
+
+-- -}

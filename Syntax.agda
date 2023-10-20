@@ -27,6 +27,12 @@ data _⇒_ : (α β : Scope) → Set where
   []  : ∅ ⇒ β
   _∷_ : Term β → (α ⇒ β) → ((x ◃ α) ⇒ β)
 
+-- This should ideally be the following:
+--_⇒_ : (α β : Scope) → Set
+--α ⇒ β = All (λ _ → Term β) α
+-- but this would require a strict positivity annotation on All
+-- TODO: is this because All is opaque?
+
 data Term α where
   var    : (@0 x : Name) → {{x ∈ α}} → Term α
   def    : (@0 d : Name) → {{d ∈ defs}} → Term α
@@ -37,8 +43,10 @@ data Term α where
   pi     : (@0 x : Name) (a : Term α) (b : Term (x ◃ α)) → Term α
   sort   : Sort α → Term α
   let′   : (@0 x : Name) (u : Term α) (v : Term (x ◃ α)) → Term α
-  case   : (@0 x : Name) → α ≡ x ◃ β → (bs : Branches β) → Term α
+  case   : (@0 x : Name) → α ≡ x ◃ β → (bs : Branches β) → Term α -- TODO: should this go to Elim?
+  -- TODO: do we need a type annotation for the return type of case?
   -- TODO: literals
+  -- TODO: constructor for type annotation
 
 data Sort α where
   type : ℕ → Sort α -- TODO: universe polymorphism

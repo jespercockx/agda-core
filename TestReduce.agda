@@ -1,12 +1,11 @@
 {-# OPTIONS --overlapping-instances #-}
 
 open import Utils
-open import Scope
-open import ScopeImpl
 
 Name = String
 
-open IScope (simpleScope Name)
+open import Scope Name
+open Variables
 
 instance
   top : x ∈ (x ◃ α)
@@ -20,29 +19,35 @@ defs = ∅
 cons = "true" ◃ "false" ◃ ∅
 
 conArity : All (λ _ → Scope) cons
-conArity = constAll ∅
+conArity = All<> (All[] ∅) (All<> (All[] ∅) All∅)
 
-open import Syntax (simpleScope Name) defs cons conArity
-open import Reduce (simpleScope Name) defs cons conArity
+open import Syntax defs cons conArity
+open import Reduce defs cons conArity
 
-`true : Term α
-`true = con "true" (⇒weaken ⊆-∅)
-`false : Term α
-`false = con "false" (⇒weaken ⊆-∅)
+opaque
+  unfolding lookupAll here there ⋈-refl ⋈-<>-right
+
+  `true : Term α
+  `true = con "true" {{here}} []
+  `false : Term α
+  `false = con "false" {{there here}} []
 
 ∞ : ℕ
 ∞ = 9999999999999999
 
 module Tests (@0 x y z : Name) where
 
-  testTerm₁ : Term α
-  testTerm₁ = apply (lam x (var x)) (sort (type 0))
+  opaque
+    unfolding step ◃-case ⋈-case `true `false _∈-≟_
 
-  test₁ : reduce {α = ∅} ∞ testTerm₁ ≡ just (sort (type 0))
-  test₁ = refl
+    testTerm₁ : Term α
+    testTerm₁ = apply (lam x (var x {{here}})) (sort (type 0))
 
-  testTerm₂ : Term α
-  testTerm₂ = let′ x `true (case x (branch "true" `false ∷ branch "false" `true ∷ []))
+    test₁ : reduce {α = ∅} ∞ testTerm₁ ≡ just (sort (type 0))
+    test₁ = refl
 
-  test₂ : reduce {α = ∅} ∞ testTerm₂ ≡ just (con "false" _)
-  test₂ = refl
+    testTerm₂ : Term α
+    testTerm₂ = let′ x `true (case x refl (branch "true" {{here}} `false ∷ branch "false" {{there here}} `true ∷ []))
+
+    test₂ : reduce {α = ∅} ∞ testTerm₂ ≡ just `false
+    test₂ = refl
