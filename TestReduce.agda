@@ -28,9 +28,9 @@ opaque
   unfolding lookupAll here there ⋈-refl ⋈-<>-right
 
   `true : Term α
-  `true = con "true" {{here}} []
+  `true = con "true" []
   `false : Term α
-  `false = con "false" {{there here}} []
+  `false = con "false" []
 
 ∞ : ℕ
 ∞ = 9999999999999999
@@ -41,7 +41,7 @@ module Tests (@0 x y z : Name) where
     unfolding step ◃-case ⋈-case `true `false _∈-≟_
 
     testTerm₁ : Term α
-    testTerm₁ = apply (lam x (var x {{here}})) (sort (type 0))
+    testTerm₁ = apply (lam x (var x)) (sort (type 0))
 
     test₁ : reduce {α = ∅} ∞ testTerm₁ ≡ just (sort (type 0))
     test₁ = refl

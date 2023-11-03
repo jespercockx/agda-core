@@ -34,10 +34,9 @@ data _⇒_ : (α β : Scope) → Set where
 -- TODO: is this because All is opaque?
 
 data Term α where
-  var    : (@0 x : Name) → {{x ∈ α}} → Term α
-  def    : (@0 d : Name) → {{d ∈ defs}} → Term α
-  -- constructors should be fully applied
-  con    : (@0 c : Name) → {{_ : c ∈ cons}} → ((conArity ! c) ⇒ α) → Term α
+  var    : (@0 x : Name) → {@(tactic auto) x∈α : x ∈ α} → Term α
+  def    : (@0 d : Name) → {@(tactic auto) d∈defs : d ∈ defs} → Term α
+  con    : (@0 c : Name) → {@(tactic auto) c∈cons : c ∈ cons} → ((conArity ! c) ⇒ α) → Term α
   lam    : (@0 x : Name) (v : Term (x ◃ α)) → Term α
   appE   : (v : Term α) (es : Elims α) → Term α
   pi     : (@0 x : Name) (a : Term α) (b : Term (x ◃ α)) → Term α
@@ -53,7 +52,7 @@ data Sort α where
 
 data Elim α where
   arg  : Term α → Elim α
-  proj : (x : Name) → {{x ∈ defs}} → Elim α
+  proj : (x : Name) → {@(tactic auto) x∈defs : x ∈ defs} → Elim α
 
 data Elims α where
   []  : Elims α
@@ -64,7 +63,7 @@ _++E_ : Elims α → Elims α → Elims α
 (x ∷ xs) ++E ys = x ∷ (xs ++E ys)
 
 data Branch α where
-  branch : (@0 c : Name) → {{_ : c ∈ cons}} → Term ((conArity ! c) <> α) → Branch α
+  branch : (@0 c : Name) → {@(tactic auto) _ : c ∈ cons} → Term ((conArity ! c) <> α) → Branch α
 
 data Branches α where
   []  : Branches α
@@ -79,9 +78,9 @@ elimView (appE u es₂) =
   in  u' , (es₁ ++E es₂)
 elimView u = u , []
 
-lookupEnv : α ⇒ β → (@0 x : Name) → {{x ∈ α}} → Term β
-lookupEnv [] x ⦃ q ⦄ = ∅-case q
-lookupEnv (u ∷ f) x ⦃ q ⦄ = ◃-case q (λ _ → u) (λ r → lookupEnv f x {{r}})
+lookupEnv : α ⇒ β → (@0 x : Name) → {@(tactic auto) _ : x ∈ α} → Term β
+lookupEnv [] x {q} = ∅-case q
+lookupEnv (u ∷ f) x {q} = ◃-case q (λ _ → u) (λ r → lookupEnv f x)
 
 weaken : α ⊆ β → Term α → Term β
 weakenSort : α ⊆ β → Sort α → Sort β
@@ -91,7 +90,7 @@ weakenBranch : α ⊆ β → Branch α → Branch β
 weakenBranches : α ⊆ β → Branches α → Branches β
 weakenEnv : β ⊆ γ → α ⇒ β → α ⇒ γ
 
-weaken p (var x {{q}})    = var x {{coerce p q}}
+weaken p (var x {q})      = var x {coerce p q}
 weaken p (def f)          = def f
 weaken p (con c vs)       = con c (weakenEnv p vs)
 weaken p (lam x v)        = lam x (weaken (⊆-◃-keep p) v)
@@ -122,15 +121,15 @@ opaque
 
   idEnv : {{Rezz β}} → β ⇒ β
   idEnv {{rezz []}}    = []
-  idEnv {{rezz (x ∷ β)}} = var (get x) {{here}} ∷ weakenEnv (⊆-◃-drop ⊆-refl) idEnv
+  idEnv {{rezz (x ∷ β)}} = var (get x) {here} ∷ weakenEnv (⊆-◃-drop ⊆-refl) idEnv
 
   liftEnv : {{Rezz α}} → β ⇒ γ → (α <> β) ⇒ (α <> γ)
   liftEnv {{rezz []}} e = e
-  liftEnv {{rezz (x ∷ α)}} e = var (get x) {{here}} ∷ weakenEnv (⊆-◃-drop ⊆-refl) (liftEnv e)
+  liftEnv {{rezz (x ∷ α)}} e = var (get x) {here} ∷ weakenEnv (⊆-◃-drop ⊆-refl) (liftEnv e)
 
   coerceEnv : {{Rezz α}} → α ⊆ β → β ⇒ γ → α ⇒ γ
   coerceEnv {{rezz []}} p e = []
-  coerceEnv {{rezz (x ∷ α)}} p e = lookupEnv e _ {{◃-⊆-to-∈ p}} ∷ coerceEnv (<>-⊆-right p) e
+  coerceEnv {{rezz (x ∷ α)}} p e = lookupEnv e _ {◃-⊆-to-∈ p} ∷ coerceEnv (<>-⊆-right p) e
 
   dropEnv : (x ◃ α) ⇒ β → α ⇒ β
   dropEnv (x ∷ f) = f

@@ -50,7 +50,7 @@ substEnv f (x ∷ e) = substTerm f x ∷ substEnv f e
 substTop : {{Rezz α}} → Term α → Term (x ◃ α) → Term α
 substTop {{r}} u = substTerm (u ∷ idEnv {{r}})
 
-lookupBranch : Branches α → (@0 c : Name) {{p : c ∈ cons}} → Maybe (Term ((conArity ! c) <> α))
+lookupBranch : Branches α → (@0 c : Name) {@(tactic auto) p : c ∈ cons} → Maybe (Term ((conArity ! c) <> α))
 lookupBranch [] c = nothing
 lookupBranch (branch c₁ v ∷ bs) c = case c ≟ c₁ of λ where
   (yes refl) → just v

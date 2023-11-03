@@ -183,7 +183,7 @@ module Equivalence where
 open Equivalence public using (IsEquiv; _≃_)
 
 module List where
-  open import Data.List.Base public using (List; []; _∷_; _++_) hiding (module List)
+  open import Data.List.Base public using (List; []; _∷_; _++_; map; length) hiding (module List)
   open import Data.List.Relation.Unary.Any public using (Any; here; there) hiding (module Any)
   open import Data.List.Membership.Propositional public using (_∈_)
 
@@ -206,8 +206,14 @@ module List where
 
 open List public using (List; []; _∷_; _++_; xs; ys; zs)
 
-open import Data.Nat public using (ℕ; zero; suc)
-module Nat = Data.Nat
+module Nat where
+  open import Data.Nat public using (ℕ; zero; suc; _⊔_)
+
+  downFrom : ℕ → List ℕ
+  downFrom zero = []
+  downFrom (suc n) = n ∷ downFrom n
+
+open Nat public using (ℕ; zero; suc)
 
 module Maybe where
   open import Agda.Builtin.Maybe public using (Maybe; nothing; just) hiding (module Maybe)
@@ -322,3 +328,47 @@ open Erased public using
   ; inspect_by_
   )
 
+module Tactics where
+
+  open import Agda.Builtin.Reflection public
+    using ( Term ; TC )
+  open Agda.Builtin.Reflection
+    renaming ( returnTC to return ; bindTC to _>>=_ )
+
+  _>>_ : ∀ {ℓa ℓb} {A : Set ℓa} {B : Set ℓb} → TC A → TC B → TC B
+  m >> n = m >>= λ _ → n
+
+  macro
+    run : (Term → TC ⊤) → Term → TC ⊤
+    run f hole = f hole
+
+  oneOf : ∀ {ℓ} {A : Set ℓ} → List (TC A) → TC A
+  oneOf [] = typeError []
+  oneOf (a ∷ as) = catchTC a (oneOf as)
+
+  -- A simple macro that tries to resolve the goal automatically.
+  -- Currently it just tries local variables and instances.
+  auto : Term → TC ⊤
+  auto hole = do
+    hole ← reduce hole
+    case hole of λ where
+      (meta m _) → do
+        let trySolution v = do
+              debugPrint "auto" 10 (strErr "auto trying " ∷ termErr v ∷ [])
+              unify hole v
+        let debugSolutions vs = do
+              `vs ← quoteTC vs
+              debugPrint "auto" 10 (strErr "auto trying list " ∷ termErr `vs ∷ [])
+        ctx ← getContext
+        let vars = List.map (λ n → var n []) (Nat.downFrom (List.length ctx))
+        debugSolutions vars
+        catchTC (oneOf (List.map trySolution vars)) do
+          debugPrint "auto" 10 (strErr "auto getting instances" ∷ [])
+          cs ← getInstances m
+          debugSolutions cs
+          catchTC (oneOf (List.map trySolution cs)) do
+            goal ← inferType hole
+            typeError (strErr "auto could not find a value of type " ∷ termErr goal ∷ [])
+      _ → typeError (strErr "auto called on already solved hole " ∷ termErr hole ∷ [])
+
+open Tactics public using ( run ; auto )

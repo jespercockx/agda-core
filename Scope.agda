@@ -243,8 +243,9 @@ opaque
   coerce : α ⊆ β → x ∈ α → x ∈ β
   coerce p q = ⊆-trans q p
 
-  here : x ∈ (x ◃ α)
-  here = ⊆-left ⋈-refl
+  instance
+    here : x ∈ (x ◃ α)
+    here = ⊆-left ⋈-refl
 
   there : x ∈ α → x ∈ (y ◃ α)
   there = ⊆-◃-drop
@@ -352,9 +353,9 @@ opaque
             _≡_ {A = Σ0 Name (_∈ (erase z ∷ γ))} (erase x , erase (erase z ∷ α) , ConsR z p) (erase y , erase (erase z ∷ β) , ConsR z q)
       aux refl = refl
 
-_≟_ : (@0 x y : Name) {{p : x ∈ α}} {{q : y ∈ α}}
+_≟_ : (@0 x y : Name) {@(tactic auto) p : x ∈ α} {@(tactic auto) q : y ∈ α}
     → Dec (_≡_ {A = Σ0 Name (_∈ α)} < p > < q >)
-x ≟ y = it ∈-≟ it
+(x ≟ y) {p} {q} = p ∈-≟ q
 
 opaque
   unfolding _⊆_
@@ -496,8 +497,8 @@ opaque
   lookupAll ps < ConsR x q > = case ps of λ where
     (_  ∷ ps) → lookupAll ps < q >
 
-_!_ : All P α → (@0 x : Name) → {{x ∈ α}} → P x
-(ps ! _) {{s}} = lookupAll ps s
+_!_ : All P α → (@0 x : Name) → {@(tactic auto) _ : x ∈ α} → P x
+(ps ! _) {s} = lookupAll ps s
 
 opaque
   unfolding All
