@@ -38,12 +38,10 @@ data Term α where
   def    : (@0 d : Name) → {@(tactic auto) d∈defs : d ∈ defs} → Term α
   con    : (@0 c : Name) → {@(tactic auto) c∈cons : c ∈ cons} → ((conArity ! c) ⇒ α) → Term α
   lam    : (@0 x : Name) (v : Term (x ◃ α)) → Term α
-  appE   : (v : Term α) (es : Elims α) → Term α
+  appE   : (u : Term α) (es : Elims α) → Term α
   pi     : (@0 x : Name) (a : Term α) (b : Term (x ◃ α)) → Term α
   sort   : Sort α → Term α
   let′   : (@0 x : Name) (u : Term α) (v : Term (x ◃ α)) → Term α
-  case   : (@0 x : Name) → α ≡ x ◃ β → (bs : Branches β) → Term α -- TODO: should this go to Elim?
-  -- TODO: do we need a type annotation for the return type of case?
   -- TODO: literals
   -- TODO: constructor for type annotation
 
@@ -53,6 +51,8 @@ data Sort α where
 data Elim α where
   arg  : Term α → Elim α
   proj : (x : Name) → {@(tactic auto) x∈defs : x ∈ defs} → Elim α
+  case : (bs : Branches α) → Elim α
+  -- TODO: do we need a type annotation for the return type of case?
 
 data Elims α where
   []  : Elims α
@@ -98,12 +98,12 @@ weaken p (appE u es)      = appE (weaken p u) (weakenElims p es)
 weaken p (pi x a b)       = pi x (weaken p a) (weaken (⊆-◃-keep p) b)
 weaken p (sort α)         = sort (weakenSort p α)
 weaken p (let′ x v t)     = let′ x (weaken p v) (weaken (⊆-◃-keep p) t)
-weaken p (case x refl bs) = let′ x (var x {{coerce p here}}) (case x refl (weakenBranches (<>-⊆-right p) bs))
 
 weakenSort p (type x) = type x
 
-weakenElim p (arg x)  = arg (weaken p x)
-weakenElim p (proj x) = proj x
+weakenElim p (arg x)   = arg (weaken p x)
+weakenElim p (proj x)  = proj x
+weakenElim p (case bs) = case (weakenBranches p bs)
 
 weakenElims p []       = []
 weakenElims p (e ∷ es) = weakenElim p e ∷ weakenElims p es

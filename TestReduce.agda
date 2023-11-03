@@ -47,7 +47,7 @@ module Tests (@0 x y z : Name) where
     test₁ = refl
 
     testTerm₂ : Term α
-    testTerm₂ = let′ x `true (case x refl (branch "true" {{here}} `false ∷ branch "false" {{there here}} `true ∷ []))
+    testTerm₂ = appE `true (case (branch "true" `false ∷ branch "false" `true ∷ []) ∷ [])
 
     test₂ : reduce {α = ∅} ∞ testTerm₂ ≡ just `false
     test₂ = refl

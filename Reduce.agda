@@ -29,12 +29,12 @@ substTerm f (appE u es)       = appE (substTerm f u) (substElims f es)
 substTerm f (pi x a b)        = pi x (substTerm f a) (substTerm (liftEnv f) b)
 substTerm f (sort s)          = sort (substSort f s)
 substTerm f (let′ x u v)      = let′ x (substTerm f u) (substTerm (liftEnv f) v)
-substTerm f (case x refl bs)  = let′ x (lookupEnv f x {{here}}) (case x refl (substBranches (dropEnv f) bs))
 
 substSort f (type x) = type x
 
 substElim f (arg u) = arg (substTerm f u)
 substElim f (proj p) = proj p
+substElim f (case bs) = case (substBranches f bs)
 
 substElims f [] = []
 substElims f (e ∷ es) = substElim f e ∷ substElims f es
@@ -64,19 +64,18 @@ opaque
   step (def x) = nothing
   step (con c vs) = nothing
   step (lam x u) = nothing
-  step (appE u []) = just u
+  step (appE u []) = step u
   step (appE (lam x u) (arg v ∷ es)) = just (substTop v u)
-  step (appE u es) = Maybe.map (λ u → appE u es) (step u)
-  step (pi x a b) = nothing
-  step (sort x) = nothing
-  step (let′ x (con c us) (case y refl bs)) = 
+  step (appE (con c us) (case bs ∷ es)) =
     case lookupBranch bs c of λ where
       (just v) → just (substTerm (raiseEnv us) v) 
       nothing  → nothing
+  step (appE u es) = Maybe.map (λ u → appE u es) (step u)
+  step (pi x a b) = nothing
+  step (sort x) = nothing
   step (let′ x u v) = case step u of λ where
     (just u') → just (let′ x u' v)
     nothing   → just (substTop u v)
-  step (case x p bs) = nothing
 
 reduce : {α : Scope} → ℕ → Term α → Maybe (Term α)
 reduce zero u = nothing
