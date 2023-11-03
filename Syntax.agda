@@ -138,3 +138,7 @@ raiseEnv : {{Rezz β}} → α ⇒ β → (α <> β) ⇒ β
 raiseEnv {{r}} []      = subst (_⇒ _) (sym ∅-<>) (idEnv {{r}})
 raiseEnv {{r}} (u ∷ e) = subst (_⇒ _) (sym <>-assoc) (u ∷ raiseEnv {{r}} e)
 
+raise : {{Rezz α}} → Term β → Term (α <> β)
+raise {{r}} = weaken (⊆-right (⋈-refl {{r}}))
+
+-- -}
