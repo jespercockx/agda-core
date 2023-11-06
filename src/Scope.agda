@@ -30,86 +30,107 @@ above) is challenging.
 
 {-# OPTIONS --no-forcing #-} -- temporary until #6867 is fixed
 
-open import Utils
+-- open import Utils
+open import Utils.Erase
+open import Haskell.Prim
+open import Haskell.Prim.Tuple
+open import Haskell.Prim.List
+open import Haskell.Law.Equality
+import Haskell.Law.List as List
 
-module Scope (Name : Set) where
+  -- NOTE(flupe): because of the module parameter, explicit foralls pop up everywhere
+module Scope where
 
 private variable
-  @0 A B C : Set
-  @0 P Q R : @0 A → Set
-open Variables hiding (A; B; C; P; Q; R)
+  @0 A B C name : Set
+  @0 P Q R      : @0 A → Set
+  @0 α β γ      : List (Erase name)
 
 opaque
-  Scope : Set
-  Scope = List (Erase Name)
 
-  ∅ : Scope
-  ∅ = []
+  Scope : (@0 name : Set) → Set
+  Scope name = List (Erase name)
+  {-# COMPILE AGDA2HS Scope #-}
 
-  [_] : @0 Name → Scope
-  [ x ] = erase x ∷ []
+  empty : Scope name
+  empty = []
+  {-# COMPILE AGDA2HS empty #-}
+  
+  singleton : @0 name → Scope name
+  singleton x = Erased x ∷ []
+  {-# COMPILE AGDA2HS singleton #-}
 
-  _<>_ : Scope → Scope → Scope
+  _<>_ : Scope name → Scope name → Scope name
   _<>_ = _++_
+  {-# COMPILE AGDA2HS _<>_ #-}
 
-  <>-∅ : ∀ {α} → α <> ∅ ≡ α
-  <>-∅ = List.++[] _
+  -- properties (not compiled)
+  ----------------------------
 
-  ∅-<> : ∀ {α} → ∅ <> α ≡ α
+  <>-∅ : {α : Scope name} → α <> empty ≡ α
+  <>-∅ = List.++-[] _
+
+  ∅-<> : {α : Scope name} → empty <> α ≡ α
   ∅-<> = refl
 
-  <>-assoc : ∀ {α β γ} → (α <> β) <> γ ≡ α <> (β <> γ)
-  <>-assoc {[]} = refl
-  <>-assoc {x ∷ α} = cong (x ∷_) (<>-assoc {α})
+  <>-assoc : {α β γ : Scope name} → (α <> β) <> γ ≡ α <> (β <> γ)
+  <>-assoc {α = []} = refl
+  <>-assoc {α = x ∷ α} = cong (x ∷_) (<>-assoc {α = α})
 
-_◃_   : @0 Name → Scope → Scope
-x ◃ α = [ x ] <> α
+  ---------------------------
 
-infixr 10 _◃_
+  insert : @0 name → Scope name → Scope name
+  insert x α = singleton x <> α
+  {-# COMPILE AGDA2HS insert #-}
 
 -- This datatype has to use the actual [] and _∷_ constructors instead of
 -- ∅ and _◃_, because otherwise the erased constructor arguments are not
 -- recognized as being forced (see https://github.com/agda/agda/issues/6744).
-data Join : (α β γ : List (Erase Name)) → Set where
-  EmptyL : Join [] β  β
-  EmptyR : Join α  [] α
-  ConsL  : (@0 x : Name) → Join α β γ → Join (erase x ∷ α) β (erase x ∷ γ)
-  ConsR  : (@0 y : Name) → Join α β γ → Join α (erase y ∷ β) (erase y ∷ γ)
+
+data Join {@0 name : Set} : (@0 α β γ : List (Erase name)) → Set where
+  EmptyL : Join [] β β
+  EmptyR : Join α [] α
+  ConsL  : (@0 x : name) → Join α β γ → Join (Erased x ∷ α) β (Erased x ∷ γ)
+  ConsR  : (@0 y : name) → Join α β γ → Join α (Erased y ∷ β) (Erased y ∷ γ)
+{-# COMPILE AGDA2HS Join #-}
 
 opaque
   unfolding Scope
 
   -- OPI (Order-Preserving Interleaving)
-  _⋈_≡_ : (α β γ : Scope) → Set
+  _⋈_≡_ : (α β γ : Scope name) → Set
   α ⋈ β ≡ γ = Join α β γ
 
+-- NOTE(flupe): should those be compiled? (answer: probably)
 opaque
   unfolding _⋈_≡_
 
-  ⋈-∅-left : ∅ ⋈ β ≡ β
+  ⋈-∅-left : {@0 β : Scope name} → empty ⋈ β ≡ β
   ⋈-∅-left = EmptyL
 
-  ⋈-∅-right : α ⋈ ∅ ≡ α
+  ⋈-∅-right : {@0 α : Scope name} → α ⋈ empty ≡ α
   ⋈-∅-right = EmptyR
 
-  ⋈-refl : {{Rezz α}} → α ⋈ β ≡ (α <> β)
+  ⋈-refl : {@0 α β : Scope name} → {{Rezz _ α}} → α ⋈ β ≡ (α <> β)
   ⋈-refl {{rezz []}} = ⋈-∅-left
-  ⋈-refl {{rezz (erase x ∷ α)}} = ConsL x (⋈-refl)
+  ⋈-refl {{rezz (Erased x ∷ α)}} = ConsL x (⋈-refl)
 
 opaque
   unfolding _⋈_≡_
 
-  ⋈-comm : α ⋈ β ≡ γ → β ⋈ α ≡ γ
+  ⋈-comm : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → β ⋈ α ≡ γ
   ⋈-comm EmptyL = EmptyR
   ⋈-comm EmptyR = EmptyL
   ⋈-comm (ConsL x p) = ConsR x (⋈-comm p)
   ⋈-comm (ConsR y p) = ConsL y (⋈-comm p)
 
+
 opaque
   unfolding _⋈_≡_
 
-  ⋈-assoc : α ⋈ β ≡ γ → γ ⋈ δ ≡ ε
-           → Σ0 _ λ ζ → (α ⋈ ζ ≡ ε) × (β ⋈ δ ≡ ζ)
+  ⋈-assoc : {@0 α β γ δ ε : Scope name}
+          → α ⋈ β ≡ γ → γ ⋈ δ ≡ ε
+          → Σ0 _ λ ζ → (α ⋈ ζ ≡ ε) × (β ⋈ δ ≡ ζ)
   ⋈-assoc EmptyL q = < EmptyL , q >
   ⋈-assoc EmptyR q = < q , EmptyL >
   ⋈-assoc p EmptyR = < p , EmptyR >
@@ -123,23 +144,25 @@ opaque
     let < r , s > = ⋈-assoc p q
     in  < ConsR y r , ConsR y s >
 
-
 opaque
   unfolding _⋈_≡_
 
   private
-    rezz-◃ : Rezz α → Rezz (x ◃ α)
-    rezz-◃ = rezz-cong₂ _∷_ rezz-erase
+    rezz-insert : {@0 α : Scope name} {@0 x : name} → Rezz _ α → Rezz _ (insert x α)
+    rezz-insert {name = name} = rezzCong2 _∷_ (rezzErase {a = name})
 
-  rezz-⋈ : α ⋈ β ≡ γ → Rezz γ → Rezz α × Rezz β
-  rezz-⋈ EmptyL r = rezz ∅ , r
-  rezz-⋈ EmptyR r = r , rezz ∅
+  rezz-⋈ : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → Rezz _ γ → Rezz _ α × Rezz _ β
+  rezz-⋈ EmptyL r = rezz empty , r
+  rezz-⋈ EmptyR r = r , rezz empty
   rezz-⋈ (ConsL x p) r =
-    let (r₁ , r₂) = rezz-⋈ p (rezz-tail r)
-    in  (rezz-◃ r₁) , r₂
+    let (r₁ , r₂) = rezz-⋈ p (rezzTail r)
+    in  (rezz-insert r₁) , r₂
   rezz-⋈ (ConsR x p) r =
-    let (r₁ , r₂) = rezz-⋈ p (rezz-tail r)
-    in  r₁ , rezz-◃ r₂
+    let (r₁ , r₂) = rezz-⋈ p (rezzTail r)
+    in  r₁ , rezz-insert r₂
+
+{-
+
 
   rezz-⋈-left : α ⋈ β ≡ γ → Rezz γ → Rezz α
   rezz-⋈-left p r = proj₁ (rezz-⋈ p r)
@@ -520,3 +543,5 @@ opaque
   splitAll (ConsL x q) (p ∷ ps) = Product.map₁ (p ∷_) (splitAll q ps)
   splitAll (ConsR x q) (p ∷ ps) = Product.map₂ (p ∷_) (splitAll q ps)
 
+
+-}
