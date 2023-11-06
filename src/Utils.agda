@@ -3,32 +3,20 @@
 module Utils where
 
 open import Agda.Primitive
+open import Haskell.Prelude public
 
 module Variables where
   variable
-    @0 a b c d ℓ : Level
+    @0 ℓ : Level
     @0 A B C D : Set ℓ
     @0 P Q R : A → Set ℓ
     @0 x y z x₁ x₂ x₃ y₁ y₂ y₃ z₁ z₂ z₃ : A
     @0 α α₁ α₂ β β₁ β₂ γ γ₁ γ₂ δ δ₁ δ₂ ε ε₁ ε₂ ζ ζ₁ ζ₂ : A
-    @0 f g h : A → B
 open Variables
 
-id : A → A
-id x = x
-
-const : A → B → A
-const x _ = x
-
-infixr 9 _∘_
-_∘_ : ∀ {@0 A : Set a} {@0 B : A → Set b} {@0 C : {x : A} → B x → Set c} →
-      (∀ {x} (y : B x) → C y) → (g : (x : A) → B x) →
-      ((x : A) → C (g x))
-f ∘ g = λ x → f (g x)
-{-# INLINE _∘_ #-}
+{-
 
 module Bottom where
-  open import Data.Empty as Empty public using (⊥)
 
   ⊥-elim : @0 ⊥ → A
   ⊥-elim ()
@@ -44,6 +32,8 @@ open import Data.Bool.Base as Bool public using (Bool; true; false)
 
 open import Data.String.Base as String public using (String)
 
+{-
+
 module Product where
 
   record Σ (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
@@ -55,13 +45,6 @@ module Product where
 
   infixr 8 _,_
 
-  _×_ : Set a → Set b → Set (a ⊔ b)
-  A × B = Σ A (λ _ → B)
-
-  infixr 5 _×_
-
-  _,,_ : A → B → A × B
-  x ,, y = x , y
 
   map₁ : (f : A → B) → A × C → B × C
   map₁ f (x , y) = (f x , y)
@@ -78,8 +61,9 @@ module Product where
           → (((x , y) : Σ A B) → C x y)
           → (x : A) (y : B x) → C x y
   uncurry f x y = f (x , y)
+  -}
 
-open Product public using (Σ; _×_; _,_; _,,_; proj₁; proj₂; curry; uncurry)
+-- open Product public using (Σ; _×_; _,_; _,,_; proj₁; proj₂; curry; uncurry)
 
 module Equality where
 
@@ -372,3 +356,5 @@ module Tactics where
       _ → typeError (strErr "auto called on already solved hole " ∷ termErr hole ∷ [])
 
 open Tactics public using ( run ; auto )
+
+-}
