@@ -7,7 +7,7 @@ module Utils.Erase where
 
   private variable 
     ℓ′    : Level
-    @0 a b c : Set ℓ
+    a b c : Set ℓ
     @0 x  : a
     @0 y  : b
     @0 xs : List a
@@ -42,7 +42,6 @@ module Utils.Erase where
     rezz-id : {a : Set ℓ} {x : a} → Rezz a x
     rezz-id = rezz _
 
-  -- NOTE(flupe): those probably don't need to be compiled to Haskell
   rezzCong : (f : a → b) → Rezz a x → Rezz b (f x)
   rezzCong f (rezz x) = rezz (f x)
   {-# COMPILE AGDA2HS rezzCong #-}
@@ -60,7 +59,9 @@ module Utils.Erase where
   {-# COMPILE AGDA2HS rezzTail #-}
 
   rezzErase : Rezz (Erase a) (Erased x)
-  rezzErase = it
+  rezzErase {x = x} = Rezzed (Erased x) refl
+
+  {-# COMPILE AGDA2HS rezzErase #-}
 
   erase-injective : Erased x ≡ Erased y → x ≡ y
   erase-injective refl = refl
