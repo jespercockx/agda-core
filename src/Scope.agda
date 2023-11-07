@@ -32,9 +32,7 @@ above) is challenging.
 
 -- open import Utils
 open import Utils.Erase
-open import Haskell.Prim
-open import Haskell.Prim.Tuple
-open import Haskell.Prim.List
+open import Haskell.Prelude
 open import Haskell.Law.Equality
 import Haskell.Law.List as List
 
@@ -62,10 +60,11 @@ opaque
 
   {-# COMPILE AGDA2HS singleton #-}
 
-  _<>_ : Scope name → Scope name → Scope name
-  _<>_ = _++_
+  syntax singleton x = [ x ]
 
-  {-# COMPILE AGDA2HS _<>_ #-}
+  instance
+    iSemigroupScope : Semigroup (Scope name)
+    iSemigroupScope = iSemigroupList
 
   -- properties (not compiled)
   ----------------------------
@@ -86,6 +85,8 @@ opaque
   bind x α = singleton x <> α
 
   {-# COMPILE AGDA2HS bind #-}
+
+  syntax bind x α = x ◃ α
 
 -- This datatype has to use the actual [] and _∷_ constructors instead of
 -- ∅ and _◃_, because otherwise the erased constructor arguments are not
@@ -113,18 +114,18 @@ opaque
 opaque
   unfolding Split
 
-  splitLeft : {@0 β : Scope name} → empty ⋈ β ≡ β
-  splitLeft = EmptyL
+  splitEmptyLeft : {@0 β : Scope name} → empty ⋈ β ≡ β
+  splitEmptyLeft = EmptyL
 
-  {-# COMPILE AGDA2HS splitLeft #-}
+  {-# COMPILE AGDA2HS splitEmptyLeft #-}
 
-  splitRight : {@0 α : Scope name} → α ⋈ empty ≡ α
-  splitRight = EmptyR
+  splitEmptyRight : {@0 α : Scope name} → α ⋈ empty ≡ α
+  splitEmptyRight = EmptyR
 
-  {-# COMPILE AGDA2HS splitRight #-}
+  {-# COMPILE AGDA2HS splitEmptyRight #-}
 
   splitRefl : {@0 α β : Scope name} → Rezz _ α → α ⋈ β ≡ (α <> β)
-  splitRefl (rezz []) = splitLeft
+  splitRefl (rezz []) = splitEmptyLeft
   splitRefl (rezz (Erased x ∷ α)) = ConsL x (splitRefl (rezz α))
 
   {-# COMPILE AGDA2HS splitRefl #-}
@@ -223,15 +224,19 @@ opaque
   splitJoin r (ConsR x p) q = ConsR x (splitJoin (rezzTail r) p q)
 
   {-# COMPILE AGDA2HS splitJoin #-}
-{-
-
 
 opaque
-  ⋈-◃-left : α ⋈ β ≡ γ → (x ◃ α) ⋈ β ≡ (x ◃ γ)
-  ⋈-◃-left = ⋈-<>-left
+  unfolding bind
 
-  ⋈-◃-right : α ⋈ β ≡ γ → α ⋈ (x ◃ β) ≡ (x ◃ γ)
-  ⋈-◃-right = ⋈-<>-right
+  splitBindLeft : {@0 α β γ : Scope name} {@0 x : name} → α ⋈ β ≡ γ → (bind x α) ⋈ β ≡ (bind x γ)
+  splitBindLeft {x = x} = splitJoinLeft (rezz (singleton x))
+
+  {-# COMPILE AGDA2HS splitBindLeft #-}
+
+  splitBindRight : {@0 α β γ : Scope name} {@0 x : name} → α ⋈ β ≡ γ → α ⋈ (bind x β) ≡ (bind x γ)
+  splitBindRight {x = x} = splitJoinRight (rezz (singleton x))
+
+  {-# COMPILE AGDA2HS splitBindRight #-}
 
 {-
 The following statement is FALSE:
@@ -244,103 +249,174 @@ Counterexample:
 
 -}
 
-
 opaque
-  @0 _⊆_ : (α β  : Scope) → Set
-  α ⊆ β = Σ0 Scope (λ γ → α ⋈ γ ≡ β)
 
-  ⊆-trans : α ⊆ β → β ⊆ γ → α ⊆ γ
-  ⊆-trans < p > < q > =
-    let < r , _ > = ⋈-assoc p q
+  Sub : {name : Set} (@0 α β  : Scope name) → Set
+  Sub α β = Σ0 _ (λ γ → α ⋈ γ ≡ β)
+
+  {-# COMPILE AGDA2HS Sub #-}
+
+  syntax Sub α β = α ⊆ β
+
+  subTrans : {@0 α β γ : Scope name} → α ⊆ β → β ⊆ γ → α ⊆ γ
+  subTrans < p > < q > =
+    let < r , _ > = splitAssoc p q
     in  < r >
 
-  ⊆-left : α ⋈ β ≡ γ → α ⊆ γ
-  ⊆-left p = < p >
+  {-# COMPILE AGDA2HS subTrans #-}
 
-  ⊆-right : α ⋈ β ≡ γ → β ⊆ γ
-  ⊆-right p = < ⋈-comm p >
+  subLeft : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → α ⊆ γ
+  subLeft p = < p >
 
-  ⊆-weaken : α ⊆ β → α ⊆ (x ◃ β)
-  ⊆-weaken < p > = < ⋈-◃-right p >
+  {-# COMPILE AGDA2HS subLeft transparent #-}
 
-  ⊆-∅ : ∅ ⊆ α
-  ⊆-∅ = ⊆-left ⋈-∅-left
+  subRight : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → β ⊆ γ
+  subRight p = < splitComm p >
 
-  ⊆-refl : α ⊆ α
-  ⊆-refl = ⊆-left ⋈-∅-right
+  {-# COMPILE AGDA2HS subRight #-}
 
-  rezz-⊆ : α ⊆ β → Rezz β → Rezz α
-  rezz-⊆ < p > = rezz-⋈-left p
+  subWeaken : {@0 α β : Scope name} {@0 x : name} → α ⊆ β → α ⊆ (bind x β)
+  subWeaken < p > = < splitBindRight p >
 
-  ⊆-<> : {{Rezz α₂}} → α₁ ⊆ α₂ → β₁ ⊆ β₂ → (α₁ <> β₁) ⊆ (α₂ <> β₂)
-  ⊆-<> {{r}} < p > < q > = < ⋈-<> {{r}} p q >
+  {-# COMPILE AGDA2HS subWeaken #-}
 
-  ⊆-<>-keep : {{Rezz α}} → β₁ ⊆ β₂ → (α <> β₁) ⊆ (α <> β₂)
-  ⊆-<>-keep {{r}} < p > = < ⋈-<>-left {{r}} p >
+  subEmpty : {@0 α : Scope name} → empty ⊆ α
+  subEmpty = subLeft splitEmptyLeft
 
-  ⊆-<>-drop : {{Rezz α}} → β₁ ⊆ β₂ → β₁ ⊆ (α <> β₂)
-  ⊆-<>-drop {{r}} < p > = < ⋈-<>-right {{r}} p >
+  {-# COMPILE AGDA2HS subEmpty #-}
 
-  ⊆-◃-keep  : α ⊆ β → (y ◃ α) ⊆ (y ◃ β)
-  ⊆-◃-keep = ⊆-<>-keep
+  subRefl : {@0 α : Scope name} → α ⊆ α
+  subRefl = subLeft splitEmptyRight
 
-  ⊆-◃-drop  : α ⊆ β → α ⊆ (y ◃ β)
-  ⊆-◃-drop = ⊆-<>-drop
+  {-# COMPILE AGDA2HS subRefl #-}
 
-  -- The instance argument here should be resolved automatically,
-  -- but currently it is not because of Agda issue #5703.
-  <>-⊆-left : {{Rezz α₁}} → (α₁ <> α₂) ⊆ β → α₁ ⊆ β
-  <>-⊆-left {{r}} < p > =
-    let < q , _ > = ⋈-assoc (⋈-refl {{r}}) p
-    in  < q >
+  rezzSub : {@0 α β : Scope name} → α ⊆ β → Rezz _ β → Rezz _ α
+  rezzSub < p > = rezzSplitLeft p
 
-  <>-⊆-right : {{Rezz α₁}} → (α₁ <> α₂) ⊆ β → α₂ ⊆ β
-  <>-⊆-right {{r}} < p > =
-    let < q , _ > = ⋈-assoc (⋈-comm (⋈-refl {{r}})) p
-    in  < q >
+  {-# COMPILE AGDA2HS rezzSub #-}
 
+  subJoin : {@0 α₁ α₂ β₁ β₂ : Scope name}
+          → Rezz _ α₂
+          → α₁ ⊆ α₂
+          → β₁ ⊆ β₂
+          → (α₁ <> β₁) ⊆ (α₂ <> β₂)
+  subJoin r < p > < q > = < splitJoin r p q >
 
-@0 _∈_ : @0 Name → Scope → Set
-x ∈ α = [ x ] ⊆ α
+  {-# COMPILE AGDA2HS subJoin #-}
 
+  subJoinKeep : {@0 α β₁ β₂ : Scope name} → Rezz _ α → β₁ ⊆ β₂ → (α <> β₁) ⊆ (α <> β₂)
+  subJoinKeep r < p > = < splitJoinLeft r p >
 
-opaque
-  coerce : α ⊆ β → x ∈ α → x ∈ β
-  coerce p q = ⊆-trans q p
+  {-# COMPILE AGDA2HS subJoinKeep #-}
 
-  instance
-    here : x ∈ (x ◃ α)
-    here = ⊆-left ⋈-refl
+  subJoinDrop : {@0 α β₁ β₂ : Scope name} → Rezz _ α → β₁ ⊆ β₂ → β₁ ⊆ (α <> β₂)
+  subJoinDrop r < p > = < splitJoinRight r p >
 
-  there : x ∈ α → x ∈ (y ◃ α)
-  there = ⊆-◃-drop
-
-  ◃-⊆-to-∈ : (x ◃ α) ⊆ β → x ∈ β
-  ◃-⊆-to-∈ = <>-⊆-left
+  {-# COMPILE AGDA2HS subJoinDrop #-}
 
 opaque
-  unfolding _⋈_≡_ _⊆_
 
-  ∅-case  : @0 (x ∈ ∅) → A
-  ∅-case ()
+  unfolding Sub bind
 
-  []-case : x ∈ [ y ] → (x ≡ y → A) → A
-  []-case < EmptyR    > f = f refl
-  []-case < ConsL _ _ > f = f refl
+  subBindKeep : {@0 α β : Scope name} {@0 y : name} → α ⊆ β → (bind y α) ⊆ (bind y β)
+  subBindKeep {y = y} = subJoinKeep (rezz (singleton y))
 
-  ⋈-case : α ⋈ β ≡ γ → x ∈ γ → (x ∈ α → A) → (x ∈ β → A) → A
-  ⋈-case EmptyL      < EmptyR     > f g = g here
-  ⋈-case EmptyL      < ConsL x q  > f g = g here
-  ⋈-case EmptyL      < ConsR x q  > f g = g (there < q >)
-  ⋈-case EmptyR      < EmptyR     > f g = f here
-  ⋈-case EmptyR      < ConsL x q  > f g = f here
-  ⋈-case EmptyR      < ConsR x q  > f g = f (there < q >)
-  ⋈-case (ConsL x p) < EmptyR     > f g = f here
-  ⋈-case (ConsL x p) < ConsL .x q > f g = f here
-  ⋈-case (ConsL x p) < ConsR .x q > f g = ⋈-case p < q > (f ∘ there) g
-  ⋈-case (ConsR x p) < EmptyR     > f g = g here
-  ⋈-case (ConsR x p) < ConsL .x q > f g = g here
-  ⋈-case (ConsR x p) < ConsR .x q > f g = ⋈-case p < q > f (g ∘ there)
+  {-# COMPILE AGDA2HS subBindKeep #-}
+
+  subBindDrop : {@0 α β : Scope name} {@0 y : name} → α ⊆ β → α ⊆ (bind y β)
+  subBindDrop {y = y} = subJoinDrop (rezz (singleton y))
+
+  {-# COMPILE AGDA2HS subBindDrop #-}
+
+opaque
+
+  unfolding Sub
+
+  joinSubLeft : {@0 α₁ α₂ β : Scope name} → Rezz _ α₁ → (α₁ <> α₂) ⊆ β → α₁ ⊆ β
+  joinSubLeft r < p > =
+    let < q , _ > = splitAssoc (splitRefl r) p
+    in  < q >
+
+  {-# COMPILE AGDA2HS joinSubLeft #-}
+
+  joinSubRight : {@0 α₁ α₂ β : Scope name} → Rezz _ α₁ → (α₁ <> α₂) ⊆ β → α₂ ⊆ β
+  joinSubRight r < p > =
+    let < q , _ > = splitAssoc (splitComm (splitRefl r)) p
+    in  < q >
+
+  {-# COMPILE AGDA2HS joinSubRight #-}
+
+In : @0 name → @0 Scope name → Set
+In x α = singleton x ⊆ α
+
+{-# COMPILE AGDA2HS In #-}
+
+syntax In x α = x ∈ α
+
+opaque
+
+  unfolding bind
+
+  coerce : {@0 α β : Scope name} {@0 x : name} → α ⊆ β → x ∈ α → x ∈ β
+  coerce p q = subTrans q p
+
+  {-# COMPILE AGDA2HS coerce #-}
+
+  -- instance
+  here : {@0 α : Scope name} {@0 x : name} → x ∈ (x ◃ α)
+  here {x = x} = subLeft (splitRefl (rezz [ x ]))
+
+  {-# COMPILE AGDA2HS here #-}
+
+  there : {@0 α : Scope name} {@0 x y : name} → x ∈ α → x ∈ (y ◃ α)
+  there = subBindDrop
+
+  {-# COMPILE AGDA2HS there #-}
+
+  bindSubToIn : {@0 α β : Scope name} {@0 x : name} → (x ◃ α) ⊆ β → x ∈ β
+  bindSubToIn {x = x} = joinSubLeft (rezz ([ x ]))
+
+  {-# COMPILE AGDA2HS bindSubToIn #-}
+
+opaque
+
+  unfolding Split Sub
+
+  -- NOTE(flupe): cannot be compiled because no clauses
+
+  emptyCase  : {@0 x : name} → @0 (x ∈ empty) → a
+  emptyCase ()
+
+  -- NOTE(flupe): had to erase the equality there
+
+  singCase : {@0 x y : name} → x ∈ [ y ] → (@0 x ≡ y → a) → a
+  singCase < EmptyR    > f = f refl
+  singCase < ConsL _ _ > f = f refl
+
+  {-# COMPILE AGDA2HS singCase #-}
+
+  splitCase : {@0 α β γ : Scope name} {@0 x : name}
+            → α ⋈ β ≡ γ → x ∈ γ → (x ∈ α → a) → (x ∈ β → a) → a
+  splitCase EmptyL      < EmptyR     > f g = g here
+  splitCase EmptyL      < ConsL x q  > f g = g here
+  splitCase EmptyL      < ConsR x q  > f g = g (there < q >)
+  splitCase EmptyR      < EmptyR     > f g = f here
+  splitCase EmptyR      < ConsL x q  > f g = f here
+  splitCase EmptyR      < ConsR x q  > f g = f (there < q >)
+  splitCase (ConsL x p) < EmptyR     > f g = f here
+  splitCase (ConsL x p) < ConsL .x q > f g = f here
+  splitCase (ConsL x p) < ConsR .x q > f g = splitCase p < q > (f ∘ there) g
+  splitCase (ConsR x p) < EmptyR     > f g = g here
+  splitCase (ConsR x p) < ConsL .x q > f g = g here
+  splitCase (ConsR x p) < ConsR .x q > f g = splitCase p < q > f (g ∘ there)
+
+  {-# COMPILE AGDA2HS splitCase #-}
+
+{-
+
+
+
+
 
 <>-case : {{Rezz α}} → x ∈ (α <> β) → (x ∈ α → A) → (x ∈ β → A) → A
 <>-case {{r}} = ⋈-case (⋈-refl {{r}})
