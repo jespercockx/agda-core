@@ -159,3 +159,27 @@ splitCase (ConsR p) EmptyR f g = g here
 splitCase (ConsR p) (ConsL q) f g = g here
 splitCase (ConsR p) (ConsR q) f g = splitCase p q f (g . there)
 
+joinCase :: Scope name -> In -> (In -> a) -> (In -> a) -> a
+joinCase r = splitCase (splitRefl r)
+
+bindCase :: In -> a -> (In -> a) -> a
+bindCase p f g = joinCase singleton p (\ q -> singCase q f) g
+
+splitQuad :: Split -> Split -> ((Split, Split), (Split, Split))
+splitQuad EmptyL q = ((EmptyL, q), (EmptyL, EmptyL))
+splitQuad EmptyR q = ((q, EmptyR), (EmptyR, EmptyR))
+splitQuad p EmptyL = ((EmptyL, EmptyL), (EmptyL, p))
+splitQuad p EmptyR = ((EmptyR, EmptyR), (p, EmptyR))
+splitQuad (ConsL p) (ConsL q)
+  = ((ConsL (fst (fst (splitQuad p q))), snd (fst (splitQuad p q))),
+     (ConsL (fst (snd (splitQuad p q))), snd (snd (splitQuad p q))))
+splitQuad (ConsL p) (ConsR q)
+  = ((ConsR (fst (fst (splitQuad p q))), snd (fst (splitQuad p q))),
+     (fst (snd (splitQuad p q)), ConsL (snd (snd (splitQuad p q)))))
+splitQuad (ConsR p) (ConsL q)
+  = ((fst (fst (splitQuad p q)), ConsL (snd (fst (splitQuad p q)))),
+     (ConsR (fst (snd (splitQuad p q))), snd (snd (splitQuad p q))))
+splitQuad (ConsR p) (ConsR q)
+  = ((fst (fst (splitQuad p q)), ConsR (snd (fst (splitQuad p q)))),
+     (fst (snd (splitQuad p q)), ConsR (snd (snd (splitQuad p q)))))
+

@@ -412,49 +412,63 @@ opaque
 
   {-# COMPILE AGDA2HS splitCase #-}
 
+joinCase : {@0 α β : Scope name} {@0 x : name}
+         → Rezz _ α
+         → x ∈ (α <> β) → (x ∈ α → a) → (x ∈ β → a) → a
+joinCase r = splitCase (splitRefl r)
+
+{-# COMPILE AGDA2HS joinCase #-}
+
+opaque
+
+  unfolding Scope Sub
+
+  -- NOTE(flupe): had to erase the equality there
+
+  bindCase : {@0 α : Scope name} {@0 x y : name}
+           → x ∈ (y ◃ α) → (@0 x ≡ y → a) → (x ∈ α → a) → a
+  bindCase {y = y} p f g = joinCase (rezz [ y ]) p (λ q → (singCase q f)) g
+
+  {-# COMPILE AGDA2HS bindCase #-}
+
+opaque
+  unfolding Split
+
+  -- NOTE(flupe): we force the use of 2-uples instead of 3/4-uples
+  --              because compilation of the latter is buggy
+
+  splitQuad
+    : {@0 α₁ α₂ β₁ β₂ γ : Scope name}
+    → α₁ ⋈ α₂ ≡ γ
+    → β₁ ⋈ β₂ ≡ γ
+    → Σ0 ((Scope name × Scope name) × (Scope name × Scope name)) λ ((γ₁ , γ₂) , (γ₃ , γ₄)) →
+        ((γ₁ ⋈ γ₂ ≡ α₁) × (γ₃ ⋈ γ₄ ≡ α₂)) ×
+        ((γ₁ ⋈ γ₃ ≡ β₁) × (γ₂ ⋈ γ₄ ≡ β₂))
+  splitQuad EmptyL q = < (EmptyL , q) , (EmptyL , EmptyL) >
+  splitQuad EmptyR q = < (q , EmptyR) , (EmptyR , EmptyR) >
+  splitQuad p EmptyL = < (EmptyL , EmptyL) , (EmptyL , p) >
+  splitQuad p EmptyR = < (EmptyR , EmptyR) , (p , EmptyR) >
+  splitQuad (ConsL x p) (ConsL x q) =
+    let < (        r , s) , (        t , u) > = splitQuad p q
+    in  < (ConsL x r , s) , (ConsL x t , u) >
+  splitQuad (ConsL x p) (ConsR x q) =
+    let < (        r , s) , (t ,         u) > = splitQuad p q
+    in  < (ConsR x r , s) , (t , ConsL x u) >
+  splitQuad (ConsR x p) (ConsL x q) =
+    let < (r ,         s) , (        t , u) > = splitQuad p q
+    in  < (r , ConsL x s) , (ConsR x t , u) >
+  splitQuad (ConsR x p) (ConsR x q) =
+    let < (r ,         s) , (t ,         u) > = splitQuad p q
+    in  < (r , ConsR x s) , (t , ConsR x u) >
+
+  {-# COMPILE AGDA2HS splitQuad #-}
+
 {-
 
-
-
-
-
-<>-case : {{Rezz α}} → x ∈ (α <> β) → (x ∈ α → A) → (x ∈ β → A) → A
-<>-case {{r}} = ⋈-case (⋈-refl {{r}})
-
 opaque
-  unfolding Scope _⊆_
+  unfolding Split Sub
 
-  ◃-case : x ∈ (y ◃ α) → (x ≡ y → A) → (x ∈ α → A) → A
-  ◃-case p f g = <>-case p (λ q → ([]-case q f)) g
-
-opaque
-  unfolding _⋈_≡_
-
-  ⋈-quad : α₁ ⋈ α₂ ≡ γ → β₁ ⋈ β₂ ≡ γ
-          → Σ0 (Scope × Scope × Scope × Scope) λ (γ₁ , γ₂ , γ₃ , γ₄) →
-            (γ₁ ⋈ γ₂ ≡ α₁) × (γ₃ ⋈ γ₄ ≡ α₂) ×
-            (γ₁ ⋈ γ₃ ≡ β₁) × (γ₂ ⋈ γ₄ ≡ β₂)
-  ⋈-quad EmptyL q = < EmptyL , q , EmptyL , EmptyL >
-  ⋈-quad EmptyR q = < q , EmptyR , EmptyR , EmptyR >
-  ⋈-quad p EmptyL = < EmptyL , EmptyL , EmptyL , p >
-  ⋈-quad p EmptyR = < EmptyR , EmptyR , p , EmptyR >
-  ⋈-quad (ConsL x p) (ConsL x q) =
-    let <         r , s ,         t , u > = ⋈-quad p q
-    in  < ConsL x r , s , ConsL x t , u >
-  ⋈-quad (ConsL x p) (ConsR x q) =
-    let <         r , s , t ,         u > = ⋈-quad p q
-    in  < ConsR x r , s , t , ConsL x u >
-  ⋈-quad (ConsR x p) (ConsL x q) =
-    let < r ,         s ,         t , u > = ⋈-quad p q
-    in  < r , ConsL x s , ConsR x t , u >
-  ⋈-quad (ConsR x p) (ConsR x q) =
-    let < r ,         s , t ,         u > = ⋈-quad p q
-    in  < r , ConsR x s , t , ConsR x u >
-
-opaque
-  unfolding _⋈_≡_ _⊆_
-
-  _⋈-≟_ : (p q : α ⋈ β ≡ γ) → Dec (p ≡ q)
+  _⋈-≟_ : {@0 α β γ : Scope name} → (p q : α ⋈ β ≡ γ) → Dec (p ≡ q)
   EmptyL     ⋈-≟ EmptyL    = yes refl
   EmptyR     ⋈-≟ EmptyR    = yes refl
   ConsL x p  ⋈-≟ ConsL x q = Dec.map (cong (ConsL x)) (λ where refl → refl) (p ⋈-≟ q)
@@ -467,6 +481,10 @@ opaque
   ConsL x p  ⋈-≟ ConsR x q = no λ ()
   ConsR x p  ⋈-≟ EmptyL    = no λ ()
   ConsR x p  ⋈-≟ ConsL x q = no λ ()
+
+
+
+
 
   private
     ∅-⋈-injective : ∅ ⋈ α ≡ β → α ≡ β
