@@ -1,31 +1,35 @@
-open import Utils
-open Variables
+open import Haskell.Prelude
+open import Scope
 
-import Scope
-
-open import Data.Nat.Base
-
-module Syntax 
-    {Name     : Set} (let open Scope Name)
-    (defs     : Scope)
-    (cons     : Scope)
-    (conArity : All (λ _ → Scope) cons) 
+module Syntax
+  {name : Set}
+  -- NOTE(flupe): we probably DON't want to erase those?
+  (@0 defs : Scope name)
+  (@0 cons : Scope name)
+  -- (conArity : All (λ _ → Scope) cons) 
   where
 
-data Term  (@0 α : Scope) : Set
-data Sort  (@0 α : Scope) : Set
-data Elim  (@0 α : Scope) : Set
-data Elims (@0 α : Scope) : Set
-data Branch (@0 α : Scope) : Set
-data Branches (@0 α : Scope) : Set
+data Term (@0 α : Scope name) : Set
+data Sort  (@0 α : Scope name) : Set
+data Elim  (@0 α : Scope name) : Set
+data Elims (@0 α : Scope name) : Set
+data Branch (@0 α : Scope name) : Set
+data Branches (@0 α : Scope name) : Set
+
 
 -- Design choice: no separate syntactic class for types. Everything
 -- is just a term or a sort.
 Type = Term
 
-data _⇒_ : (α β : Scope) → Set where
-  []  : ∅ ⇒ β
-  _∷_ : Term β → (α ⇒ β) → ((x ◃ α) ⇒ β)
+{-# COMPILE AGDA2HS Type #-}
+
+data Subst : (@0 α β : Scope name) → Set where
+  SNil  : {@0 β : Scope name} → Subst empty β
+  SCons : {@0 α β : Scope name} {@0 x : name} → Term β → Subst α β → Subst (x ◃ α) β
+
+{-# COMPILE AGDA2HS Subst #-}
+
+syntax Subst α β = α ⇒ β
 
 -- This should ideally be the following:
 --_⇒_ : (α β : Scope) → Set
@@ -34,40 +38,56 @@ data _⇒_ : (α β : Scope) → Set where
 -- TODO: is this because All is opaque?
 
 data Term α where
-  var    : (@0 x : Name) → {@(tactic auto) x∈α : x ∈ α} → Term α
-  def    : (@0 d : Name) → {@(tactic auto) d∈defs : d ∈ defs} → Term α
-  con    : (@0 c : Name) → {@(tactic auto) c∈cons : c ∈ cons} → ((conArity ! c) ⇒ α) → Term α
-  lam    : (@0 x : Name) (v : Term (x ◃ α)) → Term α
-  appE   : (u : Term α) (es : Elims α) → Term α
-  pi     : (@0 x : Name) (a : Term α) (b : Term (x ◃ α)) → Term α
-  sort   : Sort α → Term α
-  let′   : (@0 x : Name) (u : Term α) (v : Term (x ◃ α)) → Term α
+  -- NOTE(flupe): removed tactic arguments for now (for scope belongship)
+  -- NOTE(flupe): made some arguments explicit because somehow hidden are not supported?
+  TVar  : (@0 x : name) → x ∈ α → Term α
+  TDef  : (@0 d : name) → d ∈ defs → Term α
+  -- NOTE(flupe): removed conarity for now
+  TCon  : (@0 c : name) → c ∈ cons → Term α
+  TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
+  TApp  : (u : Term α) (es : Elims α) → Term α
+  TPi   : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
+  TSort : Sort α → Term α
+  TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   -- TODO: literals
   -- TODO: constructor for type annotation
 
 data Sort α where
-  type : ℕ → Sort α -- TODO: universe polymorphism
+  STyp : Nat → Sort α -- TODO: universe polymorphism
 
 data Elim α where
-  arg  : Term α → Elim α
-  proj : (x : Name) → {@(tactic auto) x∈defs : x ∈ defs} → Elim α
-  case : (bs : Branches α) → Elim α
+  EArg  : Term α → Elim α
+  EProj : (@0 x : name) → x ∈ defs → Elim α
+  ECase : (bs : Branches α) → Elim α
   -- TODO: do we need a type annotation for the return type of case?
 
 data Elims α where
-  []  : Elims α
-  _∷_ : Elim α → Elims α → Elims α
+  ESNil  : Elims α
+  ESCons : Elim α → Elims α → Elims α
+
+data Branch α where
+  BBranch : (@0 c : name) → c ∈ cons {- → Term ((conArity ! c) <> α)-} → Branch α
+
+data Branches α where
+  BNil  : Branches α
+  BCons : Branch α → Branches α → Branches α
+
+{-# COMPILE AGDA2HS Term     #-}
+{-# COMPILE AGDA2HS Sort     #-}
+{-# COMPILE AGDA2HS Elim     #-}
+{-# COMPILE AGDA2HS Elims    #-}
+{-# COMPILE AGDA2HS Branch   #-}
+{-# COMPILE AGDA2HS Branches #-}
+{-
+
+
+data Term α where
+  var    : (@0 x : name) → {@(tactic auto) x∈α : x ∈ α} → term α
+  con    : (@0 c : Name) → {@(tactic auto) c∈cons : c ∈ cons} → ((conArity ! c) ⇒ α) → Term α
 
 _++E_ : Elims α → Elims α → Elims α
 []       ++E ys = ys
 (x ∷ xs) ++E ys = x ∷ (xs ++E ys)
-
-data Branch α where
-  branch : (@0 c : Name) → {@(tactic auto) _ : c ∈ cons} → Term ((conArity ! c) <> α) → Branch α
-
-data Branches α where
-  []  : Branches α
-  _∷_ : Branch α → Branches α → Branches α
 
 apply : Term α → Term α → Term α
 apply u v = appE u (arg v ∷ [])
@@ -141,4 +161,5 @@ raiseEnv {{r}} (u ∷ e) = subst (_⇒ _) (sym <>-assoc) (u ∷ raiseEnv {{r}} e
 raise : {{Rezz α}} → Term β → Term (α <> β)
 raise {{r}} = weaken (⊆-right (⋈-refl {{r}}))
 
--- -}
+
+-}
