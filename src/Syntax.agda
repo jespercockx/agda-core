@@ -1,4 +1,4 @@
-open import Haskell.Prelude
+open import Haskell.Prelude hiding (All)
 open import Scope
 
 module Syntax
@@ -6,7 +6,7 @@ module Syntax
   -- NOTE(flupe): we probably DON't want to erase those?
   (@0 defs : Scope name)
   (@0 cons : Scope name)
-  -- (conArity : All (λ _ → Scope) cons) 
+  (@0 conArity : All (λ _ → Scope name) cons) 
   where
 
 data Term (@0 α : Scope name) : Set
@@ -15,7 +15,6 @@ data Elim  (@0 α : Scope name) : Set
 data Elims (@0 α : Scope name) : Set
 data Branch (@0 α : Scope name) : Set
 data Branches (@0 α : Scope name) : Set
-
 
 -- Design choice: no separate syntactic class for types. Everything
 -- is just a term or a sort.
@@ -43,7 +42,7 @@ data Term α where
   TVar  : (@0 x : name) → x ∈ α → Term α
   TDef  : (@0 d : name) → d ∈ defs → Term α
   -- NOTE(flupe): removed conarity for now
-  TCon  : (@0 c : name) → c ∈ cons → Term α
+  TCon  : (@0 c : name) (c∈cons : c ∈ cons) → {!!} → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (es : Elims α) → Term α
   TPi   : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α

@@ -31,10 +31,12 @@ above) is challenging.
 {-# OPTIONS --no-forcing #-} -- temporary until #6867 is fixed
 
 -- open import Utils
-open import Utils.Erase
-open import Haskell.Prelude
+open import Haskell.Prelude hiding (All)
 open import Haskell.Law.Equality
 import Haskell.Law.List as List
+
+open import Utils.Erase
+import Utils.List as List
 
 module Scope where
 
@@ -45,7 +47,7 @@ private variable
 
 opaque
 
-  Scope : (name : Set) → Set
+  Scope : (@0 name : Set) → Set
   Scope name = List (Erase name)
 
   {-# COMPILE AGDA2HS Scope #-}
@@ -54,7 +56,7 @@ opaque
   empty = []
 
   {-# COMPILE AGDA2HS empty #-}
-  
+
   singleton : @0 name → Scope name
   singleton x = Erased x ∷ []
 
@@ -66,16 +68,15 @@ opaque
     iSemigroupScope : Semigroup (Scope name)
     iSemigroupScope = iSemigroupList
 
-  -- properties (not compiled)
   ----------------------------
 
-  <>-∅ : {α : Scope name} → α <> empty ≡ α
+  @0 <>-∅ : {α : Scope name} → α <> empty ≡ α
   <>-∅ = List.++-[] _
 
-  ∅-<> : {α : Scope name} → empty <> α ≡ α
+  @0 ∅-<> : {α : Scope name} → empty <> α ≡ α
   ∅-<> = refl
 
-  <>-assoc : {α β γ : Scope name} → (α <> β) <> γ ≡ α <> (β <> γ)
+  @0 <>-assoc : {α β γ : Scope name} → (α <> β) <> γ ≡ α <> (β <> γ)
   <>-assoc {α = []} = refl
   <>-assoc {α = x ∷ α} = cong (x ∷_) (<>-assoc {α = α})
 
@@ -463,6 +464,35 @@ opaque
 
   {-# COMPILE AGDA2HS splitQuad #-}
 
+opaque
+  unfolding Scope
+
+  All : (p : @0 name → Set) → @0 Scope name → Set
+  All p = List.All λ x → p (get x)
+
+  {-# COMPILE AGDA2HS All #-}
+
+  allEmpty : {p : @0 name → Set} → All p empty
+  allEmpty = List.ANil
+
+  {-# COMPILE AGDA2HS allEmpty #-}
+
+  allSingl : {p : @0 name → Set} {@0 x : name} → p x → All p [ x ]
+  allSingl p = List.ACons p List.ANil
+
+  {-# COMPILE AGDA2HS allSingl #-}
+
+  getAllSingl : {p : @0 name → Set} {@0 x : name} → All p [ x ] → p x
+  getAllSingl (List.ACons p List.ANil) = p
+
+  {-# COMPILE AGDA2HS getAllSingl #-}
+
+  allJoin : {p : @0 name → Set} {@0 α β : Scope name} → All p α → All p β → All p (α <> β)
+  allJoin List.ANil pbs = pbs
+  allJoin (List.ACons px pas) pbs = List.ACons px (allJoin pas pbs)
+
+  {-# COMPILE AGDA2HS allJoin #-}
+
 {-
 
 opaque
@@ -619,24 +649,6 @@ opaque
     → Σ0 (Scope × Scope) λ (α₁ , α₂) → α₁ ⊆ β₁ × α₂ ⊆ β₂ × α₁ ⋈ α₂ ≡ α
   ⊆-<>-split {{r}} p = ⊆-⋈-split p (⋈-refl {{r}})
 
-opaque
-  unfolding Scope
-
-  All : (P : @0 Name → Set) → Scope → Set
-  All P = List.All λ x → P (get x)
-
-  All∅ : All P ∅
-  All∅ = []
-
-  All[] : P x → All P [ x ]
-  All[] p = p ∷ []
-
-  getAll[] : All P [ x ] → P x
-  getAll[] (p ∷ []) = p
-
-  All<> : All P α → All P β → All P (α <> β)
-  All<> [] pbs = pbs
-  All<> (px ∷ pas) pbs = px ∷ All<> pas pbs
 
 
 opaque

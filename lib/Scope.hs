@@ -1,16 +1,17 @@
 module Scope where
 
 import Utils.Erase (Erase(Erased), rezzCong2, rezzErase, rezzTail)
+import qualified Utils.List (All(ACons, ANil))
 
-type Scope name = [Erase]
+type Scope = [Erase]
 
-empty :: Scope name
+empty :: Scope
 empty = []
 
-singleton :: Scope name
+singleton :: Scope
 singleton = [Erased]
 
-bind :: Scope name -> Scope name
+bind :: Scope -> Scope
 bind α = singleton <> α
 
 data Join = EmptyL
@@ -26,7 +27,7 @@ splitEmptyLeft = EmptyL
 splitEmptyRight :: Split
 splitEmptyRight = EmptyR
 
-splitRefl :: Scope name -> Split
+splitRefl :: Scope -> Split
 splitRefl [] = splitEmptyLeft
 splitRefl (Erased : α) = ConsL (splitRefl α)
 
@@ -47,10 +48,10 @@ splitAssoc (ConsR p) (ConsL q)
 splitAssoc p (ConsR q)
   = (ConsR (fst (splitAssoc p q)), ConsR (snd (splitAssoc p q)))
 
-rezzBind :: Scope name -> Scope name
+rezzBind :: Scope -> Scope
 rezzBind = rezzCong2 (:) rezzErase
 
-rezzSplit :: Split -> Scope name -> (Scope name, Scope name)
+rezzSplit :: Split -> Scope -> (Scope, Scope)
 rezzSplit EmptyL r = (empty, r)
 rezzSplit EmptyR r = (r, empty)
 rezzSplit (ConsL p) r
@@ -60,21 +61,21 @@ rezzSplit (ConsR p) r
   = (fst (rezzSplit p (rezzTail r)),
      rezzBind (snd (rezzSplit p (rezzTail r))))
 
-rezzSplitLeft :: Split -> Scope name -> Scope name
+rezzSplitLeft :: Split -> Scope -> Scope
 rezzSplitLeft p r = fst (rezzSplit p r)
 
-rezzSplitRight :: Split -> Scope name -> Scope name
+rezzSplitRight :: Split -> Scope -> Scope
 rezzSplitRight p r = snd (rezzSplit p r)
 
-splitJoinLeft :: Scope name -> Split -> Split
+splitJoinLeft :: Scope -> Split -> Split
 splitJoinLeft [] p = p
 splitJoinLeft (Erased : α) p = ConsL (splitJoinLeft α p)
 
-splitJoinRight :: Scope name -> Split -> Split
+splitJoinRight :: Scope -> Split -> Split
 splitJoinRight [] p = p
 splitJoinRight (Erased : α) p = ConsR (splitJoinRight α p)
 
-splitJoin :: Scope name -> Split -> Split -> Split
+splitJoin :: Scope -> Split -> Split -> Split
 splitJoin r EmptyL q = splitJoinRight r q
 splitJoin r EmptyR q = splitJoinLeft r q
 splitJoin r (ConsL p) q = ConsL (splitJoin (rezzTail r) p q)
@@ -103,16 +104,16 @@ subEmpty = splitEmptyLeft
 subRefl :: Sub
 subRefl = splitEmptyRight
 
-rezzSub :: Sub -> Scope name -> Scope name
+rezzSub :: Sub -> Scope -> Scope
 rezzSub p = rezzSplitLeft p
 
-subJoin :: Scope name -> Sub -> Sub -> Sub
+subJoin :: Scope -> Sub -> Sub -> Sub
 subJoin r p q = splitJoin r p q
 
-subJoinKeep :: Scope name -> Sub -> Sub
+subJoinKeep :: Scope -> Sub -> Sub
 subJoinKeep r p = splitJoinLeft r p
 
-subJoinDrop :: Scope name -> Sub -> Sub
+subJoinDrop :: Scope -> Sub -> Sub
 subJoinDrop r p = splitJoinRight r p
 
 subBindKeep :: Sub -> Sub
@@ -121,10 +122,10 @@ subBindKeep = subJoinKeep singleton
 subBindDrop :: Sub -> Sub
 subBindDrop = subJoinDrop singleton
 
-joinSubLeft :: Scope name -> Sub -> Sub
+joinSubLeft :: Scope -> Sub -> Sub
 joinSubLeft r p = fst (splitAssoc (splitRefl r) p)
 
-joinSubRight :: Scope name -> Sub -> Sub
+joinSubRight :: Scope -> Sub -> Sub
 joinSubRight r p = fst (splitAssoc (splitComm (splitRefl r)) p)
 
 type In = Sub
@@ -159,7 +160,7 @@ splitCase (ConsR p) EmptyR f g = g here
 splitCase (ConsR p) (ConsL q) f g = g here
 splitCase (ConsR p) (ConsR q) f g = splitCase p q f (g . there)
 
-joinCase :: Scope name -> In -> (In -> a) -> (In -> a) -> a
+joinCase :: Scope -> In -> (In -> a) -> (In -> a) -> a
 joinCase r = splitCase (splitRefl r)
 
 bindCase :: In -> a -> (In -> a) -> a
@@ -182,4 +183,20 @@ splitQuad (ConsR p) (ConsL q)
 splitQuad (ConsR p) (ConsR q)
   = ((fst (fst (splitQuad p q)), ConsR (snd (fst (splitQuad p q)))),
      (fst (snd (splitQuad p q)), ConsR (snd (snd (splitQuad p q)))))
+
+type All p = Utils.List.All p
+
+allEmpty :: All p
+allEmpty = Utils.List.ANil
+
+allSingl :: p -> All p
+allSingl p = Utils.List.ACons p Utils.List.ANil
+
+getAllSingl :: All p -> p
+getAllSingl (Utils.List.ACons p Utils.List.ANil) = p
+
+allJoin :: All p -> All p -> All p
+allJoin Utils.List.ANil pbs = pbs
+allJoin (Utils.List.ACons px pas) pbs
+  = Utils.List.ACons px (allJoin pas pbs)
 
