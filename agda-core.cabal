@@ -21,6 +21,7 @@ common warnings
 library
     import:           warnings
     exposed-modules:  Utils.Erase
+                    , Utils.List
                     , Scope
                     , Syntax
                       
