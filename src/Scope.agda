@@ -36,13 +36,15 @@ open import Haskell.Law.Equality
 import Haskell.Law.List as List
 
 open import Utils.Erase
+open import Utils.Tactics
 import Utils.List as List
 
 module Scope where
 
 private variable
-  A B C name    : Set
-  @0 P Q R      : @0 A → Set
+  @0 A B C  : Set
+  @0 name   : Set
+  @0 P Q R  : @0 A → Set
   @0 α β γ α₁ α₂ β₁ β₂     : List (Erase name)
 
 opaque
@@ -93,7 +95,7 @@ opaque
 -- ∅ and _◃_, because otherwise the erased constructor arguments are not
 -- recognized as being forced (see https://github.com/agda/agda/issues/6744).
 
-data Join {name : Set} : (@0 α β γ : List (Erase name)) → Set where
+data Join {@0 name : Set} : (@0 α β γ : List (Erase name)) → Set where
   EmptyL : Join [] β β
   EmptyR : Join α [] α
   ConsL  : (@0 x : name) → Join α β γ → Join (Erased x ∷ α) β (Erased x ∷ γ)
@@ -252,7 +254,7 @@ Counterexample:
 
 opaque
 
-  Sub : {name : Set} (@0 α β  : Scope name) → Set
+  Sub : {@0 name : Set} (@0 α β  : Scope name) → Set
   Sub α β = Σ0 _ (λ γ → α ⋈ γ ≡ β)
 
   {-# COMPILE AGDA2HS Sub #-}
@@ -493,6 +495,23 @@ opaque
 
   {-# COMPILE AGDA2HS allJoin #-}
 
+opaque
+
+  unfolding All Sub Split
+
+  lookupAll : {p : @0 name → Set} {@0 α : Scope name} {@0 x : name} → All p α → x ∈ α → p x
+  lookupAll ps                < EmptyR    > = getAllSingl ps
+  lookupAll (List.ACons px _) < ConsL x _ > = px
+  lookupAll (List.ACons _ ps) < ConsR x q > = lookupAll ps < q >
+
+  {-# COMPILE AGDA2HS lookupAll #-}
+
+_!_ : {p : @0 name → Set} {@0 α : Scope name}
+    → All p α → (@0 x : name) → {@(tactic auto) ok : x ∈ α} → p x
+(ps ! _) {s} = lookupAll ps s
+
+-- {-# COMPILE AGDA2HS _!!!_ #-}
+
 {-
 
 opaque
@@ -658,18 +677,6 @@ opaque
   emptyAll < EmptyL > = All∅
   emptyAll < EmptyR > = All∅
 
-opaque
-  unfolding All _⊆_ _⋈_≡_
-
-  lookupAll : All P α → x ∈ α → P x
-  lookupAll ps < EmptyR    > = getAll[] ps
-  lookupAll ps < ConsL x _ > = case ps of λ where
-    (px ∷ _ ) → px
-  lookupAll ps < ConsR x q > = case ps of λ where
-    (_  ∷ ps) → lookupAll ps < q >
-
-_!_ : All P α → (@0 x : Name) → {@(tactic auto) _ : x ∈ α} → P x
-(ps ! _) {s} = lookupAll ps s
 
 opaque
   unfolding All

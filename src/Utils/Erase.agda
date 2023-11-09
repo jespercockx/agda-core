@@ -7,7 +7,7 @@ module Utils.Erase where
 
   private variable 
     ℓ′    : Level
-    a b c : Set ℓ
+    @0 a b c : Set ℓ
     @0 x  : a
     @0 y  : b
     @0 xs : List a
@@ -39,10 +39,10 @@ module Utils.Erase where
   pattern rezz x = Rezzed x refl
 
   instance
-    rezz-id : {a : Set ℓ} {x : a} → Rezz a x
+    rezz-id : {x : a} → Rezz a x
     rezz-id = rezz _
 
-  rezzCong : (f : a → b) → Rezz a x → Rezz b (f x)
+  rezzCong : {@0 a : Set} {@0 x : a} (f : a → b) → Rezz a x → Rezz b (f x)
   rezzCong f (rezz x) = rezz (f x)
   {-# COMPILE AGDA2HS rezzCong #-}
 

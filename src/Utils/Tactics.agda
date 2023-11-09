@@ -30,26 +30,26 @@ oneOf (a ∷ as) = catchTC a (oneOf as)
 
 -- A simple macro that tries to resolve the goal automatically.
 -- Currently it just tries local variables and instances.
-macro
-  auto : Term → TC ⊤
-  auto hole = do
-    hole ← reduce hole
-    case hole of λ where
-      (meta m _) → do
-        let trySolution v = do
-              debugPrint "auto" 10 (strErr "auto trying " ∷ termErr v ∷ [])
-              unify hole v
-        let debugSolutions vs = do
-              `vs ← quoteTC vs
-              debugPrint "auto" 10 (strErr "auto trying list " ∷ termErr `vs ∷ [])
-        ctx ← getContext
-        let vars = map (λ n → var n []) (downFrom (lengthNat ctx))
-        debugSolutions vars
-        catchTC (oneOf (map trySolution vars)) do
-          debugPrint "auto" 10 (strErr "auto getting instances" ∷ [])
-          cs ← getInstances m
-          debugSolutions cs
-          catchTC (oneOf (map trySolution cs)) do
-            goal ← inferType hole
-            typeError (strErr "auto could not find a value of type " ∷ termErr goal ∷ [])
-      _ → typeError (strErr "auto called on already solved hole " ∷ termErr hole ∷ [])
+
+auto : Term → TC ⊤
+auto hole = do
+  hole ← reduce hole
+  case hole of λ where
+    (meta m _) → do
+      let trySolution v = do
+            debugPrint "auto" 10 (strErr "auto trying " ∷ termErr v ∷ [])
+            unify hole v
+      let debugSolutions vs = do
+            `vs ← quoteTC vs
+            debugPrint "auto" 10 (strErr "auto trying list " ∷ termErr `vs ∷ [])
+      ctx ← getContext
+      let vars = map (λ n → var n []) (downFrom (lengthNat ctx))
+      debugSolutions vars
+      catchTC (oneOf (map trySolution vars)) do
+        debugPrint "auto" 10 (strErr "auto getting instances" ∷ [])
+        cs ← getInstances m
+        debugSolutions cs
+        catchTC (oneOf (map trySolution cs)) do
+          goal ← inferType hole
+          typeError (strErr "auto could not find a value of type " ∷ termErr goal ∷ [])
+    _ → typeError (strErr "auto called on already solved hole " ∷ termErr hole ∷ [])
