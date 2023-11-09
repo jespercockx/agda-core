@@ -200,3 +200,8 @@ allJoin Utils.List.ANil pbs = pbs
 allJoin (Utils.List.ACons px pas) pbs
   = Utils.List.ACons px (allJoin pas pbs)
 
+lookupAll :: All p -> In -> p
+lookupAll ps EmptyR = getAllSingl ps
+lookupAll (Utils.List.ACons px _) (ConsL _) = px
+lookupAll (Utils.List.ACons _ ps) (ConsR q) = lookupAll ps q
+

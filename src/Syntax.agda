@@ -1,31 +1,31 @@
 open import Haskell.Prelude hiding (All)
 open import Scope
+open import Utils.Tactics using (auto)
+open import Utils.Erase
 
 module Syntax
-  {name : Set}
+  {@0 name : Set}
   -- NOTE(flupe): we probably DON't want to erase those?
-  (@0 defs : Scope name)
-  (@0 cons : Scope name)
-  (@0 conArity : All (λ _ → Scope name) cons) 
+  (@0 defs     : Scope name)
+  (@0 cons     : Scope name)
+  (@0 conArity : All (λ _ → Scope name) cons)
   where
 
 data Term (@0 α : Scope name) : Set
-data Sort  (@0 α : Scope name) : Set
-data Elim  (@0 α : Scope name) : Set
-data Elims (@0 α : Scope name) : Set
+data Sort (@0 α : Scope name) : Set
+data Elim (@0 α : Scope name) : Set
+Elims : (@0 α : Scope name) → Set
 data Branch (@0 α : Scope name) : Set
-data Branches (@0 α : Scope name) : Set
+Branches : (@0 α : Scope name) → Set
 
 -- Design choice: no separate syntactic class for types. Everything
 -- is just a term or a sort.
 Type = Term
-
 {-# COMPILE AGDA2HS Type #-}
 
 data Subst : (@0 α β : Scope name) → Set where
   SNil  : {@0 β : Scope name} → Subst empty β
   SCons : {@0 α β : Scope name} {@0 x : name} → Term β → Subst α β → Subst (x ◃ α) β
-
 {-# COMPILE AGDA2HS Subst #-}
 
 syntax Subst α β = α ⇒ β
@@ -37,12 +37,10 @@ syntax Subst α β = α ⇒ β
 -- TODO: is this because All is opaque?
 
 data Term α where
-  -- NOTE(flupe): removed tactic arguments for now (for scope belongship)
-  -- NOTE(flupe): made some arguments explicit because somehow hidden are not supported?
+  -- NOTE(flupe): removed tactic arguments for now because hidden arguments not supported yet #217
   TVar  : (@0 x : name) → x ∈ α → Term α
   TDef  : (@0 d : name) → d ∈ defs → Term α
-  -- NOTE(flupe): removed conarity for now
-  TCon  : (@0 c : name) (c∈cons : c ∈ cons) → {!!} → Term α
+  TCon  : (@0 c : name) (c∈cons : c ∈ cons) → (lookupAll conArity c∈cons) ⇒ α → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (es : Elims α) → Term α
   TPi   : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
@@ -50,90 +48,102 @@ data Term α where
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   -- TODO: literals
   -- TODO: constructor for type annotation
+{-# COMPILE AGDA2HS Term     #-}
 
 data Sort α where
   STyp : Nat → Sort α -- TODO: universe polymorphism
+{-# COMPILE AGDA2HS Sort     #-}
 
 data Elim α where
   EArg  : Term α → Elim α
   EProj : (@0 x : name) → x ∈ defs → Elim α
   ECase : (bs : Branches α) → Elim α
   -- TODO: do we need a type annotation for the return type of case?
+{-# COMPILE AGDA2HS Elim     #-}
 
-data Elims α where
-  ESNil  : Elims α
-  ESCons : Elim α → Elims α → Elims α
+Elims α = List (Elim α)
+{-# COMPILE AGDA2HS Elims #-}
 
 data Branch α where
-  BBranch : (@0 c : name) → c ∈ cons {- → Term ((conArity ! c) <> α)-} → Branch α
-
-data Branches α where
-  BNil  : Branches α
-  BCons : Branch α → Branches α → Branches α
-
-{-# COMPILE AGDA2HS Term     #-}
-{-# COMPILE AGDA2HS Sort     #-}
-{-# COMPILE AGDA2HS Elim     #-}
-{-# COMPILE AGDA2HS Elims    #-}
+  BBranch : (@0 c : name) → (c∈cons : c ∈ cons)
+          → Rezz _ (lookupAll conArity c∈cons)
+          → Term (lookupAll conArity c∈cons <> α) → Branch α
 {-# COMPILE AGDA2HS Branch   #-}
+
+Branches α = List (Branch α)
 {-# COMPILE AGDA2HS Branches #-}
-{-
 
+apply : {@0 α : Scope name} → Term α → Term α → Term α
+apply u v = TApp u (EArg v ∷ [])
 
-data Term α where
-  var    : (@0 x : name) → {@(tactic auto) x∈α : x ∈ α} → term α
-  con    : (@0 c : Name) → {@(tactic auto) c∈cons : c ∈ cons} → ((conArity ! c) ⇒ α) → Term α
+-- NOTE(flupe): agda2hs internal error
+-- {-# COMPILE AGDA2HS apply #-}
 
-_++E_ : Elims α → Elims α → Elims α
-[]       ++E ys = ys
-(x ∷ xs) ++E ys = x ∷ (xs ++E ys)
+elimView : {@0 α : Scope name} → Term α → Term α × Elims α
+elimView (TApp u es2) = 
+  case elimView u of λ where
+    (u' , es1) → (u' , (es1 ++ es2))
+elimView u = (u , [])
+{-# COMPILE AGDA2HS elimView #-}
 
-apply : Term α → Term α → Term α
-apply u v = appE u (arg v ∷ [])
+lookupEnv : {@0 α β : Scope name}
+          → α ⇒ β
+          → (@0 x : name)
+          → (@(tactic auto) _ : x ∈ α)
+          → Term β
+lookupEnv SNil x q = emptyCase q
+lookupEnv (SCons u f) x q = bindCase q (λ _ → u) (lookupEnv f x) 
 
-elimView : Term α → Term α × Elims α
-elimView (appE u es₂) = 
-  let (u' , es₁) = elimView u
-  in  u' , (es₁ ++E es₂)
-elimView u = u , []
+{-# COMPILE AGDA2HS lookupEnv #-}
 
-lookupEnv : α ⇒ β → (@0 x : Name) → {@(tactic auto) _ : x ∈ α} → Term β
-lookupEnv [] x {q} = ∅-case q
-lookupEnv (u ∷ f) x {q} = ◃-case q (λ _ → u) (λ r → lookupEnv f x)
+weaken         : {@0 α β   : Scope name} → α ⊆ β → Term α → Term β
+weakenSort     : {@0 α β   : Scope name} → α ⊆ β → Sort α → Sort β
+weakenElim     : {@0 α β   : Scope name} → α ⊆ β → Elim α → Elim β
+weakenElims    : {@0 α β   : Scope name} → α ⊆ β → Elims α → Elims β
+weakenBranch   : {@0 α β   : Scope name} → α ⊆ β → Branch α → Branch β
+weakenBranches : {@0 α β   : Scope name} → α ⊆ β → Branches α → Branches β
+weakenEnv      : {@0 α β γ : Scope name} → β ⊆ γ → Subst α β → Subst α γ
 
-weaken : α ⊆ β → Term α → Term β
-weakenSort : α ⊆ β → Sort α → Sort β
-weakenElim : α ⊆ β → Elim α → Elim β
-weakenElims : α ⊆ β → Elims α → Elims β
-weakenBranch : α ⊆ β → Branch α → Branch β
-weakenBranches : α ⊆ β → Branches α → Branches β
-weakenEnv : β ⊆ γ → α ⇒ β → α ⇒ γ
+weaken p (TVar x k)    = TVar x (coerce p k)
+weaken p (TDef d k)    = TDef d k
+weaken p (TCon c k vs) = TCon c k (weakenEnv p vs)
+weaken p (TLam x v)    = TLam x (weaken (subBindKeep p) v)
+weaken p (TApp u es)   = TApp (weaken p u) (weakenElims p es)
+weaken p (TPi x a b)   = TPi x (weaken p a) (weaken (subBindKeep p) b)
+weaken p (TSort α)     = TSort (weakenSort p α)
+weaken p (TLet x v t)  = TLet x (weaken p v) (weaken (subBindKeep p) t)
+{-# COMPILE AGDA2HS weaken #-}
 
-weaken p (var x {q})      = var x {coerce p q}
-weaken p (def f)          = def f
-weaken p (con c vs)       = con c (weakenEnv p vs)
-weaken p (lam x v)        = lam x (weaken (⊆-◃-keep p) v)
-weaken p (appE u es)      = appE (weaken p u) (weakenElims p es)
-weaken p (pi x a b)       = pi x (weaken p a) (weaken (⊆-◃-keep p) b)
-weaken p (sort α)         = sort (weakenSort p α)
-weaken p (let′ x v t)     = let′ x (weaken p v) (weaken (⊆-◃-keep p) t)
+weakenSort p (STyp x) = STyp x
+{-# COMPILE AGDA2HS weakenSort #-}
 
-weakenSort p (type x) = type x
-
-weakenElim p (arg x)   = arg (weaken p x)
-weakenElim p (proj x)  = proj x
-weakenElim p (case bs) = case (weakenBranches p bs)
+weakenElim p (EArg x)   = EArg (weaken p x)
+weakenElim p (EProj x k)  = EProj x k
+weakenElim p (ECase bs) = ECase (weakenBranches p bs)
+{-# COMPILE AGDA2HS weakenElim #-}
 
 weakenElims p []       = []
 weakenElims p (e ∷ es) = weakenElim p e ∷ weakenElims p es
+{-# COMPILE AGDA2HS weakenElims #-}
 
-weakenBranch p (branch c x) = branch c (weaken (⊆-<>-keep p) x)
+weakenBranch p (BBranch c k r x) = BBranch c k r (weaken (subJoinKeep r p) x)
+{-# COMPILE AGDA2HS weakenBranch #-}
 
 weakenBranches p []       = []
 weakenBranches p (b ∷ bs) = weakenBranch p b ∷ weakenBranches p bs
+{-# COMPILE AGDA2HS weakenBranches #-}
 
-weakenEnv p [] = []
-weakenEnv p (u ∷ e) = weaken p u ∷ weakenEnv p e
+weakenEnv p SNil = SNil
+weakenEnv p (SCons u e) = SCons (weaken p u) (weakenEnv p e)
+{-# COMPILE AGDA2HS weakenEnv #-}
+
+{-
+
+
+
+
+
+
 
 opaque
   unfolding Scope.Scope Scope._⊆_
