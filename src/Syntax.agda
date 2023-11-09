@@ -4,7 +4,7 @@ open import Utils.Tactics using (auto)
 open import Utils.Erase
 
 module Syntax
-  {@0 name : Set}
+  {@0 name     : Set}
   -- NOTE(flupe): we probably DON't want to erase those?
   (@0 defs     : Scope name)
   (@0 cons     : Scope name)
@@ -137,38 +137,46 @@ weakenEnv p SNil = SNil
 weakenEnv p (SCons u e) = SCons (weaken p u) (weakenEnv p e)
 {-# COMPILE AGDA2HS weakenEnv #-}
 
-{-
+opaque
+  unfolding Scope.Scope Scope.Sub
 
+  idEnv : {@0 β : Scope name} → Rezz _ β → β ⇒ β
+  idEnv (rezz [])      = SNil
+  idEnv (rezz (x ∷ β)) = SCons (TVar (get x) here) (weakenEnv (subBindDrop subRefl) (idEnv (rezz β)))
+  {-# COMPILE AGDA2HS idEnv #-}
 
+  liftEnv : {@0 α β γ : Scope name} → Rezz _ α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
+  liftEnv (rezz []) e = e
+  liftEnv (rezz (x ∷ α)) e =
+    SCons (TVar (get x) here)
+          (weakenEnv (subBindDrop subRefl) (liftEnv (rezz α) e))
+  {-# COMPILE AGDA2HS liftEnv #-}
 
+  coerceEnv : {@0 α β γ : Scope name} → Rezz _ α → α ⊆ β → β ⇒ γ → α ⇒ γ
+  coerceEnv (rezz []) p e = SNil
+  coerceEnv (rezz (x ∷ α)) p e =
+    SCons (lookupEnv e _ (bindSubToIn p))
+          (coerceEnv (rezz α) (joinSubRight (rezz [ get x ]) p) e)
+  {-# COMPILE AGDA2HS coerceEnv #-}
 
+  dropEnv : {@0 α β : Scope name} {@0 x : name} → (x ◃ α) ⇒ β → α ⇒ β
+  dropEnv (SCons x f) = f
+  {-# COMPILE AGDA2HS dropEnv #-}
 
-
+subst : ∀ {ℓ ℓ′} {@0 a : Set ℓ} (f : @0 a → Set ℓ′) {@0 x y : a} → @0 x ≡ y → f x → f y
+subst f refl x = x
+{-# COMPILE AGDA2HS subst transparent #-}
 
 opaque
-  unfolding Scope.Scope Scope._⊆_
+  unfolding bind
 
-  idEnv : {{Rezz β}} → β ⇒ β
-  idEnv {{rezz []}}    = []
-  idEnv {{rezz (x ∷ β)}} = var (get x) {here} ∷ weakenEnv (⊆-◃-drop ⊆-refl) idEnv
+  raiseEnv : {@0 α β : Scope name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
+  raiseEnv {α = α} {β} r SNil = subst (λ α → α ⇒ β) (sym ∅-<>) (idEnv r)
+  raiseEnv {α = α} {β} r (SCons u e) =
+    subst (λ α → α ⇒ β) (sym (<>-assoc {α = []} {β = α} {γ = β}))
+                        (SCons u (raiseEnv r e))
+  {-# COMPILE AGDA2HS subst raiseEnv #-}
 
-  liftEnv : {{Rezz α}} → β ⇒ γ → (α <> β) ⇒ (α <> γ)
-  liftEnv {{rezz []}} e = e
-  liftEnv {{rezz (x ∷ α)}} e = var (get x) {here} ∷ weakenEnv (⊆-◃-drop ⊆-refl) (liftEnv e)
-
-  coerceEnv : {{Rezz α}} → α ⊆ β → β ⇒ γ → α ⇒ γ
-  coerceEnv {{rezz []}} p e = []
-  coerceEnv {{rezz (x ∷ α)}} p e = lookupEnv e _ {◃-⊆-to-∈ p} ∷ coerceEnv (<>-⊆-right p) e
-
-  dropEnv : (x ◃ α) ⇒ β → α ⇒ β
-  dropEnv (x ∷ f) = f
-
-raiseEnv : {{Rezz β}} → α ⇒ β → (α <> β) ⇒ β
-raiseEnv {{r}} []      = subst (_⇒ _) (sym ∅-<>) (idEnv {{r}})
-raiseEnv {{r}} (u ∷ e) = subst (_⇒ _) (sym <>-assoc) (u ∷ raiseEnv {{r}} e)
-
-raise : {{Rezz α}} → Term β → Term (α <> β)
-raise {{r}} = weaken (⊆-right (⋈-refl {{r}}))
-
-
--}
+raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
+raise r = weaken (subRight (splitRefl r))
+{-# COMPILE AGDA2HS subst raise #-}
