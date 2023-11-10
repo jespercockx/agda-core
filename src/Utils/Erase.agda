@@ -18,7 +18,9 @@ module Utils.Erase where
   open Erase public
   {-# COMPILE AGDA2HS Erase #-}
 
+  infixr 4 ⟨_⟩_
   record Σ0 (@0 A : Set ℓ) (B : @0 A → Set ℓ′) : Set (ℓ ⊔ ℓ′) where
+    constructor ⟨_⟩_
     field
       @0 proj₁ : A
       proj₂ : B proj₁

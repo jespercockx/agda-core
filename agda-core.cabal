@@ -20,11 +20,13 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  Utils.Erase
+    exposed-modules:  Utils.Dec
+                    , Utils.Erase
                     , Utils.List
                     , Scope
                     , Syntax
-                      
+                    , Reduce
+
     -- other-modules:
     -- other-extensions:
     build-depends:    base ^>=4.17.0.0

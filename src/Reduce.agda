@@ -1,17 +1,22 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 
-open import Utils
-open Variables
-import Scope
+open import Scope
+
+open import Haskell.Prelude hiding (All)
 
 module Reduce
-    {Name : Set} (let open Scope Name)
-    (defs : Scope)
-    (cons     : Scope)
-    (conArity : All (λ _ → Scope) cons)
+    {@0 name  : Set}
+    (defs     : Scope name)
+    (cons     : Scope name)
+    (conArity : All (λ _ → Scope name) cons)
   where
 
 open import Syntax defs cons conArity
+open import Utils.Erase
+
+private variable
+  @0 α β γ : Scope name
+  @0 x     : name
 
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β
@@ -21,40 +26,45 @@ substBranch   : α ⇒ β → Branch α → Branch β
 substBranches : α ⇒ β → Branches α → Branches β
 substEnv      : α ⇒ β → γ ⇒ α → γ ⇒ β
 
-substTerm f (var x)           = lookupEnv f x
-substTerm f (def d)           = def d
-substTerm f (con c vs)        = con c (substEnv f vs)
-substTerm f (lam x v)         = lam x (substTerm (liftEnv f) v)
-substTerm f (appE u es)       = appE (substTerm f u) (substElims f es)
-substTerm f (pi x a b)        = pi x (substTerm f a) (substTerm (liftEnv f) b)
-substTerm f (sort s)          = sort (substSort f s)
-substTerm f (let′ x u v)      = let′ x (substTerm f u) (substTerm (liftEnv f) v)
+substSort f (STyp x) = STyp x
+{-# COMPILE AGDA2HS substSort transparent #-}
 
-substSort f (type x) = type x
+substTerm f (TVar x k)    = lookupEnv f x k
+substTerm f (TDef d k)    = TDef d k
+substTerm f (TCon c k vs) = TCon c k (substEnv f vs)
+substTerm f (TLam x v)    = TLam x (substTerm (liftBindEnv f) v)
+substTerm f (TApp u es)   = TApp (substTerm f u) (substElims f es)
+substTerm f (TPi x a b)   = TPi x (substTerm f a) (substTerm (liftBindEnv f) b)
+substTerm f (TSort s)     = TSort (substSort f s)
+substTerm f (TLet x u v)  = TLet x (substTerm f u) (substTerm (liftBindEnv f) v)
 
-substElim f (arg u) = arg (substTerm f u)
-substElim f (proj p) = proj p
-substElim f (case bs) = case (substBranches f bs)
+substElim f (EArg u)    = EArg (substTerm f u)
+substElim f (EProj p k) = EProj p k
+substElim f (ECase bs)  = ECase (substBranches f bs)
 
 substElims f [] = []
 substElims f (e ∷ es) = substElim f e ∷ substElims f es
 
-substBranch f (branch c u) = branch c (substTerm (liftEnv f) u)
+substBranch f (BBranch c k aty u) = BBranch c k aty (substTerm (liftEnv aty f) u)
 
 substBranches f [] = []
 substBranches f (b ∷ bs) = substBranch f b ∷ substBranches f bs
 
-substEnv f [] = []
-substEnv f (x ∷ e) = substTerm f x ∷ substEnv f e
+substEnv f SNil = SNil
+substEnv f (SCons x e) = SCons (substTerm f x) (substEnv f e)
 
-substTop : {{Rezz α}} → Term α → Term (x ◃ α) → Term α
-substTop {{r}} u = substTerm (u ∷ idEnv {{r}})
+substTop : Rezz _ α → Term α → Term (x ◃ α) → Term α
+substTop r u = substTerm (SCons u (idEnv r))
 
-lookupBranch : Branches α → (@0 c : Name) {@(tactic auto) p : c ∈ cons} → Maybe (Term ((conArity ! c) <> α))
-lookupBranch [] c = nothing
-lookupBranch (branch c₁ v ∷ bs) c = case c ≟ c₁ of λ where
-  (yes refl) → just v
-  (no _)     → lookupBranch bs c
+lookupBranch : Branches α → (@0 c : name) (p : c ∈ cons) → Maybe (Term ((conArity ! c) <> α))
+lookupBranch [] c k = Nothing
+lookupBranch (BBranch c' k' aty u ∷ bs) c = {!!}
+  -- case c ≟ c₁ of λ where
+  --   (yes refl) → just v
+  --   (no _)     → lookupBranch bs c
+
+{-
+
 
 opaque
   unfolding Scope.Scope

@@ -31,44 +31,16 @@ above) is challenging.
 {-# OPTIONS --no-forcing #-} -- temporary until #6867 is fixed
 
 -- open import Utils
-open import Haskell.Prelude hiding (All)
+open import Haskell.Prelude hiding (All; _∘_)
 open import Haskell.Law.Equality
 import Haskell.Law.List as List
 
 open import Utils.Erase
 open import Utils.Tactics
+open import Utils.Dec as Dec
 import Utils.List as List
 
 module Scope where
-
-private variable
-  @0 A B C  : Set
-  @0 name   : Set
-  @0 P Q R  : @0 A → Set
-  @0 α β γ α₁ α₂ β₁ β₂     : List (Erase name)
-
-opaque
-
-  Scope : (@0 name : Set) → Set
-  Scope name = List (Erase name)
-
-  {-# COMPILE AGDA2HS Scope #-}
-
-  empty : Scope name
-  empty = []
-
-  {-# COMPILE AGDA2HS empty #-}
-
-  singleton : @0 name → Scope name
-  singleton x = Erased x ∷ []
-
-  {-# COMPILE AGDA2HS singleton #-}
-
-  syntax singleton x = [ x ]
-
-  instance
-    iSemigroupScope : Semigroup (Scope name)
-    iSemigroupScope = iSemigroupList
 
   ----------------------------
 
@@ -83,213 +55,6 @@ opaque
   <>-assoc {α = x ∷ α} = cong (x ∷_) (<>-assoc {α = α})
 
   ---------------------------
-
-  bind : @0 name → Scope name → Scope name
-  bind x α = singleton x <> α
-
-  {-# COMPILE AGDA2HS bind #-}
-
-  syntax bind x α = x ◃ α
-
--- This datatype has to use the actual [] and _∷_ constructors instead of
--- ∅ and _◃_, because otherwise the erased constructor arguments are not
--- recognized as being forced (see https://github.com/agda/agda/issues/6744).
-
-data Join {@0 name : Set} : (@0 α β γ : List (Erase name)) → Set where
-  EmptyL : Join [] β β
-  EmptyR : Join α [] α
-  ConsL  : (@0 x : name) → Join α β γ → Join (Erased x ∷ α) β (Erased x ∷ γ)
-  ConsR  : (@0 y : name) → Join α β γ → Join α (Erased y ∷ β) (Erased y ∷ γ)
-
-{-# COMPILE AGDA2HS Join #-}
-
-opaque
-  unfolding Scope
-
-  -- OPI (Order-Preserving Interleaving)
-  Split : (@0 α β γ : Scope name) → Set
-  Split = Join
-
-  {-# COMPILE AGDA2HS Split #-}
-
-  syntax Split α β γ = α ⋈ β ≡ γ
-
-opaque
-  unfolding Split
-
-  splitEmptyLeft : {@0 β : Scope name} → empty ⋈ β ≡ β
-  splitEmptyLeft = EmptyL
-
-  {-# COMPILE AGDA2HS splitEmptyLeft #-}
-
-  splitEmptyRight : {@0 α : Scope name} → α ⋈ empty ≡ α
-  splitEmptyRight = EmptyR
-
-  {-# COMPILE AGDA2HS splitEmptyRight #-}
-
-  splitRefl : {@0 α β : Scope name} → Rezz _ α → α ⋈ β ≡ (α <> β)
-  splitRefl (rezz []) = splitEmptyLeft
-  splitRefl (rezz (Erased x ∷ α)) = ConsL x (splitRefl (rezz α))
-
-  {-# COMPILE AGDA2HS splitRefl #-}
-
-opaque
-  unfolding Split
-
-  splitComm : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → β ⋈ α ≡ γ
-  splitComm EmptyL = EmptyR
-  splitComm EmptyR = EmptyL
-  splitComm (ConsL x p) = ConsR x (splitComm p)
-  splitComm (ConsR y p) = ConsL y (splitComm p)
-
-  {-# COMPILE AGDA2HS splitComm #-}
-
-opaque
-  unfolding Split
-
-  splitAssoc : {@0 α β γ δ ε : Scope name}
-          → α ⋈ β ≡ γ
-          → γ ⋈ δ ≡ ε
-          → Σ0 _ λ ζ → (α ⋈ ζ ≡ ε) × (β ⋈ δ ≡ ζ)
-  splitAssoc EmptyL q = < EmptyL , q >
-  splitAssoc EmptyR q = < q , EmptyL >
-  splitAssoc p EmptyR = < p , EmptyR >
-  splitAssoc (ConsL x p) (ConsL .x q) =
-    let < r , s > = splitAssoc p q
-    in  < ConsL x r , s >
-  splitAssoc (ConsR y p) (ConsL .y q) =
-    let < r , s > = splitAssoc p q
-    in  < ConsR y r , ConsL y s >
-  splitAssoc p (ConsR y q) =
-    let < r , s > = splitAssoc p q
-    in  < ConsR y r , ConsR y s >
-
-  {-# COMPILE AGDA2HS splitAssoc #-}
-
-opaque
-  unfolding Split
-
-  private
-    rezzBind : {@0 α : Scope name} {@0 x : name} → Rezz _ α → Rezz _ (bind x α)
-    rezzBind {name = name} = rezzCong2 _∷_ (rezzErase {a = name})
-
-    {-# COMPILE AGDA2HS rezzBind #-}
-
-  rezzSplit : {@0 α β γ : Scope name} → Split α β γ → Rezz _ γ → Rezz _ α × Rezz _ β
-  rezzSplit EmptyL r = rezz empty , r
-  rezzSplit EmptyR r = r , rezz empty
-  rezzSplit (ConsL x p) r =
-    let (r1 , r2) = rezzSplit p (rezzTail r)
-    in  (rezzBind r1) , r2
-  rezzSplit (ConsR x p) r =
-    let (r1 , r2) = rezzSplit p (rezzTail r)
-    in  r1 , rezzBind r2
-
-  {-# COMPILE AGDA2HS rezzSplit #-}
-
-  rezzSplitLeft : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → Rezz _ γ → Rezz _ α
-  rezzSplitLeft p r = fst (rezzSplit p r)
-
-  {-# COMPILE AGDA2HS rezzSplitLeft #-}
-
-  rezzSplitRight : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → Rezz _ γ → Rezz _ β
-  rezzSplitRight p r = snd (rezzSplit p r)
-
-  {-# COMPILE AGDA2HS rezzSplitRight #-}
-
-  -- NOTE(flupe): making Rezz explicit for now
-  splitJoinLeft : {@0 α β β₁ β₂ : Scope name}
-                → Rezz _ α
-                → β₁ ⋈ β₂ ≡ β
-                → (α <> β₁) ⋈ β₂ ≡ (α <> β)
-  splitJoinLeft (rezz []) p = p
-  splitJoinLeft (rezz (Erased x ∷ α)) p = ConsL x (splitJoinLeft (rezz α) p)
-
-  {-# COMPILE AGDA2HS splitJoinLeft #-}
-
-  splitJoinRight : {@0 α β β₁ β₂ : Scope name}
-                 → Rezz _ α
-                 → β₁ ⋈ β₂ ≡ β
-                 → β₁ ⋈ (α <> β₂) ≡ (α <> β)
-  splitJoinRight (rezz []) p = p
-  splitJoinRight (rezz (Erased x ∷ α)) p = ConsR x (splitJoinRight (rezz α) p)
-
-  {-# COMPILE AGDA2HS splitJoinRight #-}
-
-  splitJoin : {@0 α α₁ α₂ β β₁ β₂ : Scope name}
-            → Rezz _ α
-            → α₁ ⋈ α₂ ≡ α
-            → β₁ ⋈ β₂ ≡ β
-            → (α₁ <> β₁) ⋈ (α₂ <> β₂) ≡ (α <> β)
-  splitJoin r EmptyL      q = splitJoinRight r q
-  splitJoin r EmptyR      q = splitJoinLeft  r q
-  splitJoin r (ConsL x p) q = ConsL x (splitJoin (rezzTail r) p q)
-  splitJoin r (ConsR x p) q = ConsR x (splitJoin (rezzTail r) p q)
-
-  {-# COMPILE AGDA2HS splitJoin #-}
-
-opaque
-  unfolding bind
-
-  splitBindLeft : {@0 α β γ : Scope name} {@0 x : name} → α ⋈ β ≡ γ → (bind x α) ⋈ β ≡ (bind x γ)
-  splitBindLeft {x = x} = splitJoinLeft (rezz (singleton x))
-
-  {-# COMPILE AGDA2HS splitBindLeft #-}
-
-  splitBindRight : {@0 α β γ : Scope name} {@0 x : name} → α ⋈ β ≡ γ → α ⋈ (bind x β) ≡ (bind x γ)
-  splitBindRight {x = x} = splitJoinRight (rezz (singleton x))
-
-  {-# COMPILE AGDA2HS splitBindRight #-}
-
-{-
-The following statement is FALSE:
-  ⋈-unique-left : α₁ ⋈ β ≡ γ → α₂ ⋈ β ≡ γ → α₁ ≡ α₂
-
-Counterexample:
-
-  left  left right right done : 1 2 ⋈ 1 2 ≡ 1 2 1 2
-  right left left  right done : 2 1 ⋈ 1 2 ≡ 1 2 1 2
-
--}
-
-opaque
-
-  Sub : {@0 name : Set} (@0 α β  : Scope name) → Set
-  Sub α β = Σ0 _ (λ γ → α ⋈ γ ≡ β)
-
-  {-# COMPILE AGDA2HS Sub #-}
-
-  syntax Sub α β = α ⊆ β
-
-  subTrans : {@0 α β γ : Scope name} → α ⊆ β → β ⊆ γ → α ⊆ γ
-  subTrans < p > < q > =
-    let < r , _ > = splitAssoc p q
-    in  < r >
-
-  {-# COMPILE AGDA2HS subTrans #-}
-
-  subLeft : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → α ⊆ γ
-  subLeft p = < p >
-
-  {-# COMPILE AGDA2HS subLeft transparent #-}
-
-  subRight : {@0 α β γ : Scope name} → α ⋈ β ≡ γ → β ⊆ γ
-  subRight p = < splitComm p >
-
-  {-# COMPILE AGDA2HS subRight #-}
-
-  subWeaken : {@0 α β : Scope name} {@0 x : name} → α ⊆ β → α ⊆ (bind x β)
-  subWeaken < p > = < splitBindRight p >
-
-  {-# COMPILE AGDA2HS subWeaken #-}
-
-  subEmpty : {@0 α : Scope name} → empty ⊆ α
-  subEmpty = subLeft splitEmptyLeft
-
-  {-# COMPILE AGDA2HS subEmpty #-}
-
-  subRefl : {@0 α : Scope name} → α ⊆ α
-  subRefl = subLeft splitEmptyRight
 
   {-# COMPILE AGDA2HS subRefl #-}
 
@@ -437,129 +202,71 @@ opaque
 opaque
   unfolding Split
 
-  -- NOTE(flupe): we force the use of 2-uples instead of 3/4-uples
-  --              because compilation of the latter is buggy
 
-  splitQuad
-    : {@0 α₁ α₂ β₁ β₂ γ : Scope name}
-    → α₁ ⋈ α₂ ≡ γ
-    → β₁ ⋈ β₂ ≡ γ
-    → Σ0 ((Scope name × Scope name) × (Scope name × Scope name)) λ ((γ₁ , γ₂) , (γ₃ , γ₄)) →
-        ((γ₁ ⋈ γ₂ ≡ α₁) × (γ₃ ⋈ γ₄ ≡ α₂)) ×
-        ((γ₁ ⋈ γ₃ ≡ β₁) × (γ₂ ⋈ γ₄ ≡ β₂))
-  splitQuad EmptyL q = < (EmptyL , q) , (EmptyL , EmptyL) >
-  splitQuad EmptyR q = < (q , EmptyR) , (EmptyR , EmptyR) >
-  splitQuad p EmptyL = < (EmptyL , EmptyL) , (EmptyL , p) >
-  splitQuad p EmptyR = < (EmptyR , EmptyR) , (p , EmptyR) >
-  splitQuad (ConsL x p) (ConsL x q) =
-    let < (        r , s) , (        t , u) > = splitQuad p q
-    in  < (ConsL x r , s) , (ConsL x t , u) >
-  splitQuad (ConsL x p) (ConsR x q) =
-    let < (        r , s) , (t ,         u) > = splitQuad p q
-    in  < (ConsR x r , s) , (t , ConsL x u) >
-  splitQuad (ConsR x p) (ConsL x q) =
-    let < (r ,         s) , (        t , u) > = splitQuad p q
-    in  < (r , ConsL x s) , (ConsR x t , u) >
-  splitQuad (ConsR x p) (ConsR x q) =
-    let < (r ,         s) , (t ,         u) > = splitQuad p q
-    in  < (r , ConsR x s) , (t , ConsR x u) >
-
-  {-# COMPILE AGDA2HS splitQuad #-}
-
-opaque
-  unfolding Scope
-
-  All : (p : @0 name → Set) → @0 Scope name → Set
-  All p = List.All λ x → p (get x)
-
-  {-# COMPILE AGDA2HS All #-}
-
-  allEmpty : {p : @0 name → Set} → All p empty
-  allEmpty = List.ANil
-
-  {-# COMPILE AGDA2HS allEmpty #-}
-
-  allSingl : {p : @0 name → Set} {@0 x : name} → p x → All p [ x ]
-  allSingl p = List.ACons p List.ANil
-
-  {-# COMPILE AGDA2HS allSingl #-}
-
-  getAllSingl : {p : @0 name → Set} {@0 x : name} → All p [ x ] → p x
-  getAllSingl (List.ACons p List.ANil) = p
-
-  {-# COMPILE AGDA2HS getAllSingl #-}
-
-  allJoin : {p : @0 name → Set} {@0 α β : Scope name} → All p α → All p β → All p (α <> β)
-  allJoin List.ANil pbs = pbs
-  allJoin (List.ACons px pas) pbs = List.ACons px (allJoin pas pbs)
-
-  {-# COMPILE AGDA2HS allJoin #-}
-
-opaque
-
-  unfolding All Sub Split
-
-  lookupAll : {p : @0 name → Set} {@0 α : Scope name} {@0 x : name} → All p α → x ∈ α → p x
-  lookupAll ps                < EmptyR    > = getAllSingl ps
-  lookupAll (List.ACons px _) < ConsL x _ > = px
-  lookupAll (List.ACons _ ps) < ConsR x q > = lookupAll ps < q >
-
-  {-# COMPILE AGDA2HS lookupAll #-}
-
-_!_ : {p : @0 name → Set} {@0 α : Scope name}
-    → All p α → (@0 x : name) → {@(tactic auto) ok : x ∈ α} → p x
-(ps ! _) {s} = lookupAll ps s
 
 -- {-# COMPILE AGDA2HS _!!!_ #-}
-
-{-
 
 opaque
   unfolding Split Sub
 
-  _⋈-≟_ : {@0 α β γ : Scope name} → (p q : α ⋈ β ≡ γ) → Dec (p ≡ q)
-  EmptyL     ⋈-≟ EmptyL    = yes refl
-  EmptyR     ⋈-≟ EmptyR    = yes refl
-  ConsL x p  ⋈-≟ ConsL x q = Dec.map (cong (ConsL x)) (λ where refl → refl) (p ⋈-≟ q)
-  ConsR x p  ⋈-≟ ConsR x q = Dec.map (cong (ConsR x)) (λ where refl → refl) (p ⋈-≟ q)
-  EmptyL     ⋈-≟ EmptyR    = no λ ()
-  EmptyL     ⋈-≟ ConsR y q = no λ ()
-  EmptyR     ⋈-≟ EmptyL    = no λ ()
-  EmptyR     ⋈-≟ ConsL x q = no λ ()
-  ConsL x p  ⋈-≟ EmptyR    = no λ ()
-  ConsL x p  ⋈-≟ ConsR x q = no λ ()
-  ConsR x p  ⋈-≟ EmptyL    = no λ ()
-  ConsR x p  ⋈-≟ ConsL x q = no λ ()
+  -- TODO(flupe): Use Eq and LawfulEq
+  decSplit : {@0 α β γ : Scope name} → (p q : α ⋈ β ≡ γ) → Dec (p ≡ q)
+  decSplit (EmptyL   ) (EmptyL   ) = True ⟨ refl ⟩
+  decSplit (EmptyR   ) (EmptyR   ) = True ⟨ refl ⟩
+  decSplit (ConsL x p) (ConsL x q) = mapDec (cong (ConsL x)) (λ where refl → refl) (decSplit p q)
+  decSplit (ConsR x p) (ConsR x q) = mapDec (cong (ConsR x)) (λ where refl → refl) (decSplit p q)
+  decSplit (EmptyL   ) (EmptyR   ) = False ⟨ (λ ()) ⟩
+  decSplit (EmptyL   ) (ConsR y q) = False ⟨ (λ ()) ⟩
+  decSplit (EmptyR   ) (EmptyL   ) = False ⟨ (λ ()) ⟩ 
+  decSplit (EmptyR   ) (ConsL x q) = False ⟨ (λ ()) ⟩ 
+  decSplit (ConsL x p) (EmptyR   ) = False ⟨ (λ ()) ⟩ 
+  decSplit (ConsL x p) (ConsR x q) = False ⟨ (λ ()) ⟩ 
+  decSplit (ConsR x p) (EmptyL   ) = False ⟨ (λ ()) ⟩ 
+  decSplit (ConsR x p) (ConsL x q) = False ⟨ (λ ()) ⟩ 
 
-
-
-
+  syntax decSplit p q = p ⋈-≟ q
 
   private
-    ∅-⋈-injective : ∅ ⋈ α ≡ β → α ≡ β
+    @0 ∅-⋈-injective : {@0 α β : Scope name} → empty ⋈ α ≡ β → α ≡ β
     ∅-⋈-injective EmptyL = refl
     ∅-⋈-injective EmptyR = refl
-    ∅-⋈-injective (ConsR x p) = cong (_ ∷_) (∅-⋈-injective p)
+    ∅-⋈-injective (ConsR x p) rewrite ∅-⋈-injective p = refl
 
-  -- TODO: clean up this horrible mess of a definition
-  _∈-≟_ : (p : x ∈ α) (q : y ∈ α)
-    → Dec (_≡_ {A = Σ0 Name (_∈ α)} (erase x , p) (erase y , q))
-  < EmptyR > ∈-≟ < EmptyR > = yes refl
-  < EmptyR > ∈-≟ < ConsL x q > = no λ ()
-  < ConsL x p > ∈-≟ < EmptyR > = no λ ()
-  < ConsL x p > ∈-≟ < ConsL x q > =
-    case trans (∅-⋈-injective p) (sym (∅-⋈-injective q)) of λ where
-      refl → Dec.map (cong (λ r → erase _ , erase _ , ConsL x r))
-                     (λ where refl → refl)
-                     (p ⋈-≟ q)
-  < ConsL x p > ∈-≟ < ConsR x q > = no λ ()
-  < ConsR x p > ∈-≟ < ConsL x q > = no λ ()
-  < ConsR x p > ∈-≟ < ConsR x q > = Dec.map aux (λ where refl → refl) (< p > ∈-≟ < q >)
+    J : {@0 a : Set} {@0 x : a} (@0 ϕ : (@0 y : a) → @0 x ≡ y → Set)
+      → ϕ x refl
+      → ∀ {@0 y} (@0 p : x ≡ y)
+      → ϕ y p
+    J ϕ z refl = z
+    {-# COMPILE AGDA2HS J transparent #-}
+
+  _∈-≟_ : {@0 α : Scope name} {@0 x y : name} (p : x ∈ α) (q : y ∈ α)
+    → Dec (_≡_ {A = Σ0 name (λ n → n ∈ α)} (⟨ x ⟩ p) (⟨ y ⟩ q))
+  < EmptyR    > ∈-≟ < EmptyR    > = True  ⟨ refl   ⟩
+  < EmptyR    > ∈-≟ < ConsL x q > = False ⟨ (λ ()) ⟩
+  < ConsL x p > ∈-≟ < EmptyR    > = False ⟨ (λ ()) ⟩
+  < ConsL x p > ∈-≟ < ConsL x q > = 
+    J (λ q _ → Dec (_≡_ {A = Σ0 _ (λ n → n ∈ _)} (⟨ x ⟩ ⟨ _ ⟩ ConsL x p) (⟨ x ⟩ ⟨ _ ⟩ ConsL x {!!})))
+      (mapDec (cong (λ r → ⟨ _ ⟩ ⟨ _ ⟩ ConsL x r))
+             (λ where refl → refl)
+             (p ⋈-≟ q))
+      (trans (∅-⋈-injective p) (sym (∅-⋈-injective q)))
+    -- case trans (∅-⋈-injective p) (sym (∅-⋈-injective q)) of λ where
+    --   refl → mapDec (cong (λ r → ⟨ _ ⟩ ⟨ _ ⟩ ConsL x r))
+    --                 (λ where refl → refl)
+    --                 (p ⋈-≟ q)
+  < ConsL x p > ∈-≟ < ConsR x q > = False ⟨ (λ ()) ⟩
+  < ConsR x p > ∈-≟ < ConsL x q > = False ⟨ (λ ()) ⟩
+  < ConsR x p > ∈-≟ < ConsR x q > = mapDec aux (λ where refl → refl) (< p > ∈-≟ < q >)
     where
-      aux : ∀ {@0 x y α β γ} {p : Join [ x ] α γ} {q : Join [ y ] β γ} →
-            _≡_ {A = Σ0 Name (_∈ γ)} (erase x , erase α , p) (erase y , erase β , q) →
-            _≡_ {A = Σ0 Name (_∈ (erase z ∷ γ))} (erase x , erase (erase z ∷ α) , ConsR z p) (erase y , erase (erase z ∷ β) , ConsR z q)
+      aux : ∀ {@0 x y z α β γ} {p : Join [ x ] α γ} {q : Join [ y ] β γ} →
+            _≡_ {A = Σ0 name (λ n → n ∈ γ)} (⟨ x ⟩ ⟨ α ⟩ p) (⟨ y ⟩ ⟨ β ⟩ q) →
+            _≡_ {A = Σ0 name (λ n → n ∈ (Erased z ∷ γ))}
+               (⟨ x ⟩ ⟨ Erased z ∷ α ⟩ ConsR z p)
+               (⟨ y ⟩ ⟨ Erased z ∷ β ⟩ ConsR z q)
       aux refl = refl
+
+{-
+  -- TODO: clean up this horrible mess of a definition
 
 _≟_ : (@0 x y : Name) {@(tactic auto) p : x ∈ α} {@(tactic auto) q : y ∈ α}
     → Dec (_≡_ {A = Σ0 Name (_∈ α)} < p > < q >)
@@ -678,16 +385,6 @@ opaque
   emptyAll < EmptyR > = All∅
 
 
-opaque
-  unfolding All
-
-  mapAll : (f : ∀ {@0 x} → P x → Q x) → All P α → All Q α
-  mapAll f [] = []
-  mapAll f (p ∷ ps) = f p ∷ mapAll f ps
-
-  tabulateAll : {{Rezz α}} → (f : ∀ {@0 x} → (x ∈ α) → P x) → All P α
-  tabulateAll {{rezz []}} f = []
-  tabulateAll {{rezz (x ∷ α)}} f = f here ∷ tabulateAll {{rezz α}} (f ∘ there)
 
 opaque
   unfolding All _⋈_≡_
