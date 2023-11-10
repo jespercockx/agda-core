@@ -13,6 +13,8 @@ module Typing
     (defType : All (λ _ → Syntax.Type defs cons conArity ∅) defs)
   where
 
+{-
+
 open Syntax defs cons conArity
 open Reduce defs cons conArity
 
@@ -62,3 +64,5 @@ data TyElims Γ where
         → TyElim  Γ e        t₁            f
         → TyElims Γ es       (h ∘ (e ∷_)) (f h) t₂
         → TyElims Γ (e ∷ es) h             t₁   t₂
+
+-}

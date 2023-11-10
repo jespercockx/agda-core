@@ -5,7 +5,6 @@ open import Utils.Erase
 
 module Syntax
   {@0 name     : Set}
-  -- NOTE(flupe): we probably DON't want to erase those?
   (@0 defs     : Scope name)
   (@0 cons     : Scope name)
   (@0 conArity : All (λ _ → Scope name) cons)
@@ -151,6 +150,12 @@ opaque
     SCons (TVar (get x) here)
           (weakenEnv (subBindDrop subRefl) (liftEnv (rezz α) e))
   {-# COMPILE AGDA2HS liftEnv #-}
+
+  liftBindEnv : {@0 α β : Scope name} {@0 x : name} → α ⇒ β → (bind x α) ⇒ (bind x β)
+  liftBindEnv {x = x} e =
+    SCons (TVar x here)
+          (weakenEnv (subBindDrop subRefl) e)
+  {-# COMPILE AGDA2HS liftBindEnv #-}
 
   coerceEnv : {@0 α β γ : Scope name} → Rezz _ α → α ⊆ β → β ⇒ γ → α ⇒ γ
   coerceEnv (rezz []) p e = SNil
