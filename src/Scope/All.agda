@@ -4,7 +4,11 @@ open import Haskell.Prelude hiding (All)
 
 import Utils.List as List
 open import Utils.Erase
+
 open import Scope.Core
+open import Scope.In
+open import Scope.Sub
+open import Scope.Split
 
 private variable
   @0 name : Set
@@ -36,20 +40,16 @@ opaque
   allJoin (List.ACons px pas) pbs = List.ACons px (allJoin pas pbs)
   {-# COMPILE AGDA2HS allJoin #-}
 
-{-
 opaque
-  unfolding All
+  unfolding All In Sub Split
 
-
-opaque
-  unfolding All Sub Split
-
-  lookupAll : {p : @0 name → Set} {@0 α : Scope name} {@0 x : name} → All p α → x ∈ α → p x
+  lookupAll : All p α → x ∈ α → p x
   lookupAll ps                < EmptyR    > = getAllSingl ps
   lookupAll (List.ACons px _) < ConsL x _ > = px
   lookupAll (List.ACons _ ps) < ConsR x q > = lookupAll ps < q >
-
   {-# COMPILE AGDA2HS lookupAll #-}
+
+{-
 
 _!_ : {p : @0 name → Set} {@0 α : Scope name}
     → All p α → (@0 x : name) → {@(tactic auto) ok : x ∈ α} → p x

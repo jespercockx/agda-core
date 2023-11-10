@@ -1,7 +1,14 @@
 open import Haskell.Prelude hiding (All)
-open import Scope
-open import Utils.Tactics using (auto)
+open import Haskell.Law.Monoid.Def using (leftIdentity)
+open import Haskell.Law.Semigroup.Def using (associativity)
 open import Utils.Erase
+
+-- NOTE(flupe): make Scope export all of the following
+open import Scope.Core
+open import Scope.All
+open import Scope.Sub
+open import Scope.Split
+open import Scope.In
 
 module Syntax
   {@0 name     : Set}
@@ -10,12 +17,16 @@ module Syntax
   (@0 conArity : All (λ _ → Scope name) cons)
   where
 
-data Term (@0 α : Scope name) : Set
-data Sort (@0 α : Scope name) : Set
-data Elim (@0 α : Scope name) : Set
-Elims : (@0 α : Scope name) → Set
+private variable
+  @0 x     : name
+  @0 α β γ : Scope name
+
+data Term   (@0 α : Scope name) : Set
+data Sort   (@0 α : Scope name) : Set
+data Elim   (@0 α : Scope name) : Set
 data Branch (@0 α : Scope name) : Set
-Branches : (@0 α : Scope name) → Set
+Elims     : (@0 α : Scope name) → Set
+Branches  : (@0 α : Scope name) → Set
 
 -- Design choice: no separate syntactic class for types. Everything
 -- is just a term or a sort.
@@ -23,17 +34,16 @@ Type = Term
 {-# COMPILE AGDA2HS Type #-}
 
 data Subst : (@0 α β : Scope name) → Set where
-  SNil  : {@0 β : Scope name} → Subst empty β
-  SCons : {@0 α β : Scope name} {@0 x : name} → Term β → Subst α β → Subst (x ◃ α) β
+  SNil  : Subst mempty β
+  SCons : Term β → Subst α β → Subst (x ◃ α) β
 {-# COMPILE AGDA2HS Subst #-}
 
 syntax Subst α β = α ⇒ β
 
 -- This should ideally be the following:
---_⇒_ : (α β : Scope) → Set
---α ⇒ β = All (λ _ → Term β) α
--- but this would require a strict positivity annotation on All
--- TODO: is this because All is opaque?
+--   Subst α β = All (λ _ → Term β) α
+-- but All being opaque prevents the positivity checker to do its job
+-- see #6970
 
 data Term α where
   -- NOTE(flupe): removed tactic arguments for now because hidden arguments not supported yet #217
@@ -47,11 +57,12 @@ data Term α where
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   -- TODO: literals
   -- TODO: constructor for type annotation
-{-# COMPILE AGDA2HS Term     #-}
+{-# COMPILE AGDA2HS Term #-}
 
 data Sort α where
-  STyp : Nat → Sort α -- TODO: universe polymorphism
-{-# COMPILE AGDA2HS Sort     #-}
+  STyp : Nat → Sort α
+  -- TODO: universe polymorphism
+{-# COMPILE AGDA2HS Sort #-}
 
 data Elim α where
   EArg  : Term α → Elim α
@@ -72,36 +83,34 @@ data Branch α where
 Branches α = List (Branch α)
 {-# COMPILE AGDA2HS Branches #-}
 
-apply : {@0 α : Scope name} → Term α → Term α → Term α
+apply : Term α → Term α → Term α
 apply u v = TApp u (EArg v ∷ [])
-
 -- NOTE(flupe): agda2hs internal error
 -- {-# COMPILE AGDA2HS apply #-}
 
-elimView : {@0 α : Scope name} → Term α → Term α × Elims α
+elimView : Term α → Term α × Elims α
 elimView (TApp u es2) = 
   case elimView u of λ where
     (u' , es1) → (u' , (es1 ++ es2))
 elimView u = (u , [])
 {-# COMPILE AGDA2HS elimView #-}
 
-lookupEnv : {@0 α β : Scope name}
-          → α ⇒ β
+lookupEnv : α ⇒ β
           → (@0 x : name)
-          → (@(tactic auto) _ : x ∈ α)
+          → x ∈ α
           → Term β
-lookupEnv SNil x q = emptyCase q
-lookupEnv (SCons u f) x q = bindCase q (λ _ → u) (lookupEnv f x) 
+lookupEnv SNil x q = inEmptyCase q
+lookupEnv (SCons u f) x q = inBindCase q (λ _ → u) (lookupEnv f x) 
 
 {-# COMPILE AGDA2HS lookupEnv #-}
 
-weaken         : {@0 α β   : Scope name} → α ⊆ β → Term α → Term β
-weakenSort     : {@0 α β   : Scope name} → α ⊆ β → Sort α → Sort β
-weakenElim     : {@0 α β   : Scope name} → α ⊆ β → Elim α → Elim β
-weakenElims    : {@0 α β   : Scope name} → α ⊆ β → Elims α → Elims β
-weakenBranch   : {@0 α β   : Scope name} → α ⊆ β → Branch α → Branch β
-weakenBranches : {@0 α β   : Scope name} → α ⊆ β → Branches α → Branches β
-weakenEnv      : {@0 α β γ : Scope name} → β ⊆ γ → Subst α β → Subst α γ
+weaken         : α ⊆ β → Term α → Term β
+weakenSort     : α ⊆ β → Sort α → Sort β
+weakenElim     : α ⊆ β → Elim α → Elim β
+weakenElims    : α ⊆ β → Elims α → Elims β
+weakenBranch   : α ⊆ β → Branch α → Branch β
+weakenBranches : α ⊆ β → Branches α → Branches β
+weakenEnv      : β ⊆ γ → Subst α β → Subst α γ
 
 weaken p (TVar x k)    = TVar x (coerce p k)
 weaken p (TDef d k)    = TDef d k
@@ -116,9 +125,9 @@ weaken p (TLet x v t)  = TLet x (weaken p v) (weaken (subBindKeep p) t)
 weakenSort p (STyp x) = STyp x
 {-# COMPILE AGDA2HS weakenSort #-}
 
-weakenElim p (EArg x)   = EArg (weaken p x)
-weakenElim p (EProj x k)  = EProj x k
-weakenElim p (ECase bs) = ECase (weakenBranches p bs)
+weakenElim p (EArg x)    = EArg (weaken p x)
+weakenElim p (EProj x k) = EProj x k
+weakenElim p (ECase bs)  = ECase (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenElim #-}
 
 weakenElims p []       = []
@@ -137,23 +146,23 @@ weakenEnv p (SCons u e) = SCons (weaken p u) (weakenEnv p e)
 {-# COMPILE AGDA2HS weakenEnv #-}
 
 opaque
-  unfolding Scope.Scope Scope.Sub
+  unfolding Scope Sub bind
 
   idEnv : {@0 β : Scope name} → Rezz _ β → β ⇒ β
   idEnv (rezz [])      = SNil
-  idEnv (rezz (x ∷ β)) = SCons (TVar (get x) here) (weakenEnv (subBindDrop subRefl) (idEnv (rezz β)))
+  idEnv (rezz (x ∷ β)) = SCons (TVar (get x) inHere) (weakenEnv (subBindDrop subRefl) (idEnv (rezz β)))
   {-# COMPILE AGDA2HS idEnv #-}
 
   liftEnv : {@0 α β γ : Scope name} → Rezz _ α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
   liftEnv (rezz []) e = e
   liftEnv (rezz (x ∷ α)) e =
-    SCons (TVar (get x) here)
+    SCons (TVar (get x) inHere)
           (weakenEnv (subBindDrop subRefl) (liftEnv (rezz α) e))
   {-# COMPILE AGDA2HS liftEnv #-}
 
   liftBindEnv : {@0 α β : Scope name} {@0 x : name} → α ⇒ β → (bind x α) ⇒ (bind x β)
   liftBindEnv {x = x} e =
-    SCons (TVar x here)
+    SCons (TVar x inHere)
           (weakenEnv (subBindDrop subRefl) e)
   {-# COMPILE AGDA2HS liftBindEnv #-}
 
@@ -168,18 +177,22 @@ opaque
   dropEnv (SCons x f) = f
   {-# COMPILE AGDA2HS dropEnv #-}
 
+-- TODO(flupe): move this out
 subst : ∀ {ℓ ℓ′} {@0 a : Set ℓ} (f : @0 a → Set ℓ′) {@0 x y : a} → @0 x ≡ y → f x → f y
 subst f refl x = x
 {-# COMPILE AGDA2HS subst transparent #-}
 
 opaque
-  unfolding bind
+  -- NOTE(flupe): I have to unfold Scope because otherwise the LawfulMonoid instance
+  -- isn't related to the Semigroup definition
+  unfolding Scope bind
 
   raiseEnv : {@0 α β : Scope name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
-  raiseEnv {α = α} {β} r SNil = subst (λ α → α ⇒ β) (sym ∅-<>) (idEnv r)
-  raiseEnv {α = α} {β} r (SCons u e) =
-    subst (λ α → α ⇒ β) (sym (<>-assoc {α = []} {β = α} {γ = β}))
-                        (SCons u (raiseEnv r e))
+  raiseEnv {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity iLawfulMonoidScope β)) (idEnv r)
+  raiseEnv {β = β} r (SCons {α = α} {x = x} u e) =
+    subst (λ α → α ⇒ β)
+      (associativity iLawfulSemigroupScope (singleton x) α β)
+      (SCons {x = x} u (raiseEnv r e))
   {-# COMPILE AGDA2HS subst raiseEnv #-}
 
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
