@@ -178,7 +178,7 @@ opaque
   {-# COMPILE AGDA2HS dropEnv #-}
 
 -- TODO(flupe): move this out
-subst : ∀ {ℓ ℓ′} {@0 a : Set ℓ} (f : @0 a → Set ℓ′) {@0 x y : a} → @0 x ≡ y → f x → f y
+subst : ∀ {ℓ ℓ′} {@0 a : Set ℓ} (@0 f : @0 a → Set ℓ′) {@0 x y : a} → @0 x ≡ y → f x → f y
 subst f refl x = x
 {-# COMPILE AGDA2HS subst transparent #-}
 
@@ -193,8 +193,8 @@ opaque
     subst (λ α → α ⇒ β)
       (associativity iLawfulSemigroupScope (singleton x) α β)
       (SCons {x = x} u (raiseEnv r e))
-  {-# COMPILE AGDA2HS subst raiseEnv #-}
+  {-# COMPILE AGDA2HS raiseEnv #-}
 
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
 raise r = weaken (subRight (splitRefl r))
-{-# COMPILE AGDA2HS subst raise #-}
+{-# COMPILE AGDA2HS raise #-}
