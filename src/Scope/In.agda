@@ -45,9 +45,12 @@ opaque
 opaque
   unfolding In Split Sub bind
 
-  -- NOTE(flupe): cannot be compiled because no clauses
-  inEmptyCase  : @0 (x ∈ mempty) → a
-  inEmptyCase ()
+  @0 inEmptyToBot : x ∈ mempty → ⊥
+  inEmptyToBot ()
+
+  inEmptyCase : @0 (x ∈ mempty) → a
+  inEmptyCase p = error {i = inEmptyToBot p} "impossible"
+  {-# COMPILE AGDA2HS inEmptyCase #-}
 
   inSingCase : x ∈ [ y ] → (@0 x ≡ y → a) → a
   inSingCase < EmptyR    > f = f refl

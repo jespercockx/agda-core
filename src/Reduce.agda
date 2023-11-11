@@ -29,7 +29,7 @@ substBranches : α ⇒ β → Branches α → Branches β
 substEnv      : α ⇒ β → γ ⇒ α → γ ⇒ β
 
 substSort f (STyp x) = STyp x
-{-# COMPILE AGDA2HS substSort transparent #-}
+{-# COMPILE AGDA2HS substSort #-}
 
 substTerm f (TVar x k)    = lookupEnv f x k
 substTerm f (TDef d k)    = TDef d k
@@ -44,7 +44,7 @@ substTerm f (TLet x u v)  = TLet x (substTerm f u) (substTerm (liftBindEnv f) v)
 substElim f (EArg u)    = EArg (substTerm f u)
 substElim f (EProj p k) = EProj p k
 substElim f (ECase bs)  = ECase (substBranches f bs)
-{-# COMPILE AGDA2HS substTerm #-}
+{-# COMPILE AGDA2HS substElim #-}
 
 substElims f [] = []
 substElims f (e ∷ es) = substElim f e ∷ substElims f es
@@ -65,6 +65,7 @@ substTop : Rezz _ α → Term α → Term (x ◃ α) → Term α
 substTop r u = substTerm (SCons u (idEnv r))
 {-# COMPILE AGDA2HS substTop #-}
 
+{-
 lookupBranch : Branches α → (@0 c : name) (p : c ∈ cons) → Maybe (Term ((lookupAll conArity p) <> α))
 lookupBranch [] c k = Nothing
 lookupBranch (BBranch c' k' aty u ∷ bs) c = {!!}
@@ -102,3 +103,4 @@ reduce (suc n) u = case (step u) of λ where
   (Just u') → reduce n u'
   Nothing   → Just u
 {-# COMPILE AGDA2HS reduce #-}
+-}
