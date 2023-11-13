@@ -1,6 +1,7 @@
 module Scope.Split where
 
 import Scope.Core (Scope, rezzBind, singleton)
+import Utils.Dec (Dec)
 import Utils.Erase (Erase(Erased), rezzTail)
 
 data ListSplit = EmptyL
@@ -90,4 +91,18 @@ splitBindLeft = splitJoinLeft singleton
 
 splitBindRight :: Split -> Split
 splitBindRight = splitJoinRight singleton
+
+decSplit :: Split -> Split -> Dec
+decSplit EmptyL EmptyL = True
+decSplit EmptyR EmptyR = True
+decSplit (ConsL p) (ConsL q) = decSplit p q
+decSplit (ConsR p) (ConsR q) = decSplit p q
+decSplit EmptyL EmptyR = False
+decSplit EmptyL (ConsR q) = False
+decSplit EmptyR EmptyL = False
+decSplit EmptyR (ConsL q) = False
+decSplit (ConsL p) EmptyR = False
+decSplit (ConsL p) (ConsR q) = False
+decSplit (ConsR p) EmptyL = False
+decSplit (ConsR p) (ConsL q) = False
 

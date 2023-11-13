@@ -58,44 +58,9 @@ module Scope where
 
 
 opaque
-  unfolding Split
-
-
-
--- {-# COMPILE AGDA2HS _!!!_ #-}
-
-opaque
   unfolding Split Sub
 
-  -- TODO(flupe): Use Eq and LawfulEq
-  decSplit : {@0 α β γ : Scope name} → (p q : α ⋈ β ≡ γ) → Dec (p ≡ q)
-  decSplit (EmptyL   ) (EmptyL   ) = True ⟨ refl ⟩
-  decSplit (EmptyR   ) (EmptyR   ) = True ⟨ refl ⟩
-  decSplit (ConsL x p) (ConsL x q) = mapDec (cong (ConsL x)) (λ where refl → refl) (decSplit p q)
-  decSplit (ConsR x p) (ConsR x q) = mapDec (cong (ConsR x)) (λ where refl → refl) (decSplit p q)
-  decSplit (EmptyL   ) (EmptyR   ) = False ⟨ (λ ()) ⟩
-  decSplit (EmptyL   ) (ConsR y q) = False ⟨ (λ ()) ⟩
-  decSplit (EmptyR   ) (EmptyL   ) = False ⟨ (λ ()) ⟩ 
-  decSplit (EmptyR   ) (ConsL x q) = False ⟨ (λ ()) ⟩ 
-  decSplit (ConsL x p) (EmptyR   ) = False ⟨ (λ ()) ⟩ 
-  decSplit (ConsL x p) (ConsR x q) = False ⟨ (λ ()) ⟩ 
-  decSplit (ConsR x p) (EmptyL   ) = False ⟨ (λ ()) ⟩ 
-  decSplit (ConsR x p) (ConsL x q) = False ⟨ (λ ()) ⟩ 
 
-  syntax decSplit p q = p ⋈-≟ q
-
-  private
-    @0 ∅-⋈-injective : {@0 α β : Scope name} → empty ⋈ α ≡ β → α ≡ β
-    ∅-⋈-injective EmptyL = refl
-    ∅-⋈-injective EmptyR = refl
-    ∅-⋈-injective (ConsR x p) rewrite ∅-⋈-injective p = refl
-
-    J : {@0 a : Set} {@0 x : a} (@0 ϕ : (@0 y : a) → @0 x ≡ y → Set)
-      → ϕ x refl
-      → ∀ {@0 y} (@0 p : x ≡ y)
-      → ϕ y p
-    J ϕ z refl = z
-    {-# COMPILE AGDA2HS J transparent #-}
 
   _∈-≟_ : {@0 α : Scope name} {@0 x y : name} (p : x ∈ α) (q : y ∈ α)
     → Dec (_≡_ {A = Σ0 name (λ n → n ∈ α)} (⟨ x ⟩ p) (⟨ y ⟩ q))

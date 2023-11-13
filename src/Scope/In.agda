@@ -1,8 +1,9 @@
 module Scope.In where
 
-open import Haskell.Prelude
+open import Haskell.Prelude hiding (_∘_)
 
 open import Utils.Erase
+open import Utils.Dec
 
 open import Scope.Core
 open import Scope.Split
@@ -85,3 +86,29 @@ opaque
   inBindCase : x ∈ (y ◃ α) → (@0 x ≡ y → a) → (x ∈ α → a) → a
   inBindCase {y = y} p f g = inJoinCase (rezz [ y ]) p (λ q → (inSingCase q f)) g
   {-# COMPILE AGDA2HS inBindCase #-}
+
+opaque
+  unfolding Split In Sub
+
+  decIn
+    : {@0 x y : name} (p : x ∈ α) (q : y ∈ α)
+    → Dec (_≡_ {A = Σ0 name (λ n → n ∈ α)} (⟨ x ⟩ p) (⟨ y ⟩ q))
+  decIn < EmptyR    > < EmptyR    > = True  ⟨ refl   ⟩
+  decIn < EmptyR    > < ConsL x q > = False ⟨ (λ ()) ⟩
+  decIn < ConsL x p > < EmptyR    > = False ⟨ (λ ()) ⟩
+  decIn < ConsL x p > < ConsL x q > =
+    case Erased (trans (∅-⋈-injective p) (sym (∅-⋈-injective q))) of λ where
+      (Erased refl) → mapDec (cong (λ r → ⟨ _ ⟩ ⟨ _ ⟩ ConsL x r))
+                        (λ where refl → refl)
+                        (p ⋈-≟ q)
+  decIn < ConsL x p > < ConsR x q > = False ⟨ (λ ()) ⟩
+  decIn < ConsR x p > < ConsL x q > = False ⟨ (λ ()) ⟩
+  decIn < ConsR x p > < ConsR x q > = mapDec aux (λ where refl → refl) (decIn < p > < q >)
+    where
+      @0 aux : ∀ {@0 x y z α β γ} {p : [ x ] ⋈ α ≡ γ} {q : [ y ] ⋈ β ≡ γ} →
+            _≡_ {A = Σ0 name (λ n → n ∈ γ)} (⟨ x ⟩ ⟨ α ⟩ p) (⟨ y ⟩ ⟨ β ⟩ q) →
+            _≡_ {A = Σ0 name (λ n → n ∈ (Erased z ∷ γ))}
+               (⟨ x ⟩ ⟨ Erased z ∷ α ⟩ ConsR z p)
+               (⟨ y ⟩ ⟨ Erased z ∷ β ⟩ ConsR z q)
+      aux refl = refl
+  {-# COMPILE AGDA2HS decIn #-}

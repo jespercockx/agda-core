@@ -4,6 +4,7 @@ open import Haskell.Prelude
 
 open import Utils.Erase
 open import Scope.Core
+open import Utils.Dec
 
 private variable
   @0 name : Set
@@ -171,3 +172,28 @@ Counterexample:
   right left left  right done : 2 1 ⋈ 1 2 ≡ 1 2 1 2
 
 -}
+
+opaque
+  unfolding Split
+
+  decSplit : (p q : α ⋈ β ≡ γ) → Dec (p ≡ q)
+  decSplit (EmptyL   ) (EmptyL   ) = True ⟨ refl ⟩
+  decSplit (EmptyR   ) (EmptyR   ) = True ⟨ refl ⟩
+  decSplit (ConsL x p) (ConsL x q) = mapDec (cong (ConsL x)) (λ where refl → refl) (decSplit p q)
+  decSplit (ConsR x p) (ConsR x q) = mapDec (cong (ConsR x)) (λ where refl → refl) (decSplit p q)
+  decSplit (EmptyL   ) (EmptyR   ) = False ⟨ (λ ()) ⟩
+  decSplit (EmptyL   ) (ConsR y q) = False ⟨ (λ ()) ⟩
+  decSplit (EmptyR   ) (EmptyL   ) = False ⟨ (λ ()) ⟩ 
+  decSplit (EmptyR   ) (ConsL x q) = False ⟨ (λ ()) ⟩ 
+  decSplit (ConsL x p) (EmptyR   ) = False ⟨ (λ ()) ⟩ 
+  decSplit (ConsL x p) (ConsR x q) = False ⟨ (λ ()) ⟩ 
+  decSplit (ConsR x p) (EmptyL   ) = False ⟨ (λ ()) ⟩ 
+  decSplit (ConsR x p) (ConsL x q) = False ⟨ (λ ()) ⟩ 
+  {-# COMPILE AGDA2HS decSplit #-}
+
+  syntax decSplit p q = p ⋈-≟ q
+
+  @0 ∅-⋈-injective : mempty ⋈ α ≡ β → α ≡ β
+  ∅-⋈-injective EmptyL = refl
+  ∅-⋈-injective EmptyR = refl
+  ∅-⋈-injective (ConsR x p) rewrite ∅-⋈-injective p = refl

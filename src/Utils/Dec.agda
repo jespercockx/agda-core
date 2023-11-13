@@ -34,6 +34,6 @@ mapDec : ∀ {ℓ ℓ′} {A : Set ℓ} {B : Set ℓ′}
        → @0 (A → B)
        → @0 (B → A)
        → Dec A → Dec B
-mapDec f g (True  ⟨ x ⟩) = True  ⟨ f x ⟩
+mapDec f g (True  ⟨ x ⟩) = True  ⟨ f x   ⟩
 mapDec f g (False ⟨ h ⟩) = False ⟨ h ∘ g ⟩
 {-# COMPILE AGDA2HS mapDec transparent #-}
