@@ -4,6 +4,8 @@ open import Scope.Core
 open import Scope.In
 open import Scope.All
 
+open import Utils.Dec
+
 open import Haskell.Prelude hiding (All)
 
 module Reduce
@@ -65,19 +67,17 @@ substTop : Rezz _ α → Term α → Term (x ◃ α) → Term α
 substTop r u = substTerm (SCons u (idEnv r))
 {-# COMPILE AGDA2HS substTop #-}
 
-{-
 lookupBranch : Branches α → (@0 c : name) (p : c ∈ cons) → Maybe (Term ((lookupAll conArity p) <> α))
 lookupBranch [] c k = Nothing
-lookupBranch (BBranch c' k' aty u ∷ bs) c = {!!}
+lookupBranch (BBranch c' k' aty u ∷ bs) c p =
+  case decIn k' p of λ where
+    (True  ⟨ refl ⟩) → Just u
+    (False ⟨ _    ⟩) → lookupBranch bs c p
 {-# COMPILE AGDA2HS lookupBranch #-}
-  -- case c ≟ c₁ of λ where
-  --   (yes refl) → just v
-  --   (no _)     → lookupBranch bs c
 
 opaque
   unfolding Scope
 
-  -- NOTE(flupe): agda2hs won't allow α now, but it should be turned explicit when compiled
   step : {α : Scope name} → Term α → Maybe (Term α)
   step (TVar x _) = Nothing
   step (TDef x _) = Nothing
@@ -97,10 +97,14 @@ opaque
     Nothing   → Just (substTop (rezz _) u v)
   {-# COMPILE AGDA2HS step #-}
 
+{-
+{-# TERMINATING #-}
 reduce : {α : Scope name} (fuel : Nat) → Term α → Maybe (Term α)
-reduce zero u = Nothing
-reduce (suc n) u = case (step u) of λ where
-  (Just u') → reduce n u'
-  Nothing   → Just u
+reduce n u = 
+  if n == 0
+    then Nothing
+    else λ ⦃ n≠0 ⦄ → case (step u) of λ where
+      (Just u') → reduce (_-_ n 1 ⦃ {!!} ⦄) u'
+      Nothing   → Just u
 {-# COMPILE AGDA2HS reduce #-}
 -}

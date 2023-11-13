@@ -2,7 +2,8 @@
 module Reduce where
 
 import Scope.Core (Scope)
-import qualified Syntax (Branch(BBranch), Elim(EArg, ECase, EProj), Sort(STyp), Subst(SCons, SNil), Term(TApp, TCon, TDef, TLam, TLet, TPi, TSort, TVar), idEnv, liftBindEnv, liftEnv, lookupEnv)
+import Scope.In (In, decIn)
+import qualified Syntax (Branch(BBranch), Elim(EArg, ECase, EProj), Sort(STyp), Subst(SCons, SNil), Term(TApp, TCon, TDef, TLam, TLet, TPi, TSort, TVar), idEnv, liftBindEnv, liftEnv, lookupEnv, raiseEnv)
 
 substTerm ::
           forall name defs cons conArity .
@@ -70,4 +71,36 @@ substTop ::
              Term defs cons conArity ->
                Term defs cons conArity -> Term defs cons conArity
 substTop r u = substTerm (SCons u (Syntax.idEnv r))
+
+lookupBranch ::
+             forall name defs cons conArity .
+               Branches defs cons conArity ->
+                 In -> Maybe (Term defs cons conArity)
+lookupBranch [] k = Nothing
+lookupBranch (Syntax.BBranch k' aty u : bs) p
+  = case decIn k' p of
+        True -> Just u
+        False -> lookupBranch bs p
+
+step ::
+     forall name defs cons conArity .
+       Scope -> Term defs cons conArity -> Maybe (Term defs cons conArity)
+step (Syntax.TVar _) = Nothing
+step (Syntax.TDef _) = Nothing
+step (Syntax.TCon _ vs) = Nothing
+step (Syntax.TLam u) = Nothing
+step (Syntax.TApp u []) = step u
+step (Syntax.TApp (Syntax.TLam u) (Syntax.EArg v : es))
+  = Just (substTop α v u)
+step (Syntax.TApp (Syntax.TCon k us) (Syntax.ECase bs : es))
+  = case lookupBranch bs k of
+        Just v -> Just (substTerm (Syntax.raiseEnv α us) v)
+        Nothing -> Nothing
+step (Syntax.TApp u es) = fmap (\ u -> TApp u es) (step u)
+step (Syntax.TPi a b) = Nothing
+step (Syntax.TSort x) = Nothing
+step (Syntax.TLet u v)
+  = case step u of
+        Just u' -> Just (TLet u' v)
+        Nothing -> Just (substTop α u v)
 
