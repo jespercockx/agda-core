@@ -41,7 +41,7 @@ opaque
   {-# COMPILE AGDA2HS allJoin #-}
 
 opaque
-  unfolding All In Sub Split
+  unfolding All Sub Split
 
   lookupAll : All p α → x ∈ α → p x
   lookupAll ps                < EmptyR    > = getAllSingl ps

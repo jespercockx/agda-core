@@ -14,22 +14,18 @@ private variable
   @0 x y : name
   @0 α β γ : Scope name
 
-opaque
-  In : @0 name → @0 Scope name → Set
-  In x α = singleton x ⊆ α
-  {-# COMPILE AGDA2HS In #-}
+In : @0 name → @0 Scope name → Set
+In x α = singleton x ⊆ α
+{-# COMPILE AGDA2HS In #-}
 
 syntax In x α = x ∈ α
 
-opaque
-  unfolding In
-
-  coerce : α ⊆ β → x ∈ α → x ∈ β
-  coerce p q = subTrans q p
-  {-# COMPILE AGDA2HS coerce #-}
+coerce : α ⊆ β → x ∈ α → x ∈ β
+coerce p q = subTrans q p
+{-# COMPILE AGDA2HS coerce #-}
 
 opaque
-  unfolding In bind
+  unfolding bind
 
   inHere : x ∈ (x ◃ α)
   inHere {x = x} = subLeft (splitRefl (rezz [ x ]))
@@ -44,7 +40,7 @@ opaque
   {-# COMPILE AGDA2HS bindSubToIn #-}
 
 opaque
-  unfolding In Split Sub bind
+  unfolding Split Sub bind
 
   @0 inEmptyToBot : x ∈ mempty → ⊥
   inEmptyToBot ()
@@ -88,7 +84,7 @@ opaque
   {-# COMPILE AGDA2HS inBindCase #-}
 
 opaque
-  unfolding Split In Sub
+  unfolding Split Sub
 
   decIn
     : {@0 x y : name} (p : x ∈ α) (q : y ∈ α)
