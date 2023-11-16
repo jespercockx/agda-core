@@ -9,6 +9,7 @@ open import Scope.All
 open import Scope.Sub
 open import Scope.Split
 open import Scope.In
+open import Scope.Diff
 
 module Syntax
   {@0 name     : Set}
@@ -153,6 +154,10 @@ opaque
   idEnv (rezz (x ∷ β)) = SCons (TVar (get x) inHere) (weakenEnv (subBindDrop subRefl) (idEnv (rezz β)))
   {-# COMPILE AGDA2HS idEnv #-}
 
+  concatEnv : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
+  concatEnv SNil q = q
+  concatEnv (SCons v p) q = SCons v (concatEnv p q)
+
   liftEnv : {@0 α β γ : Scope name} → Rezz _ α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
   liftEnv (rezz []) e = e
   liftEnv (rezz (x ∷ α)) e =
@@ -198,3 +203,37 @@ opaque
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
 raise r = weaken (subRight (splitRefl r))
 {-# COMPILE AGDA2HS raise #-}
+
+strengthen : α ⊆ β → Term β → Maybe (Term α)
+strengthenSort : α ⊆ β → Sort β → Maybe (Sort α)
+strengthenElim : α ⊆ β → Elim β → Maybe (Elim α)
+strengthenElims : α ⊆ β → Elims β → Maybe (Elims α)
+strengthenBranch : α ⊆ β → Branch β → Maybe (Branch α)
+strengthenBranches : α ⊆ β → Branches β → Maybe (Branches α)
+strengthenEnv : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
+
+strengthen p (TVar x q) = diff-case p q (λ q → Just (TVar x q)) (λ _ → Nothing)
+strengthen p (TDef d q) = Just (TDef d q)
+strengthen p (TCon c q vs) = TCon c q <$> strengthenEnv p vs
+strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
+strengthen p (TApp v es) = TApp <$> strengthen p v <*> strengthenElims p es
+strengthen p (TPi x a b) = TPi x <$> strengthen p a <*> strengthen (subBindKeep p) b
+strengthen p (TSort s) = TSort <$> strengthenSort p s
+strengthen p (TLet x u v) = TLet x <$> strengthen p u <*> strengthen (subBindKeep p) v
+
+strengthenSort p (STyp n) = Just (STyp n)
+
+strengthenElim p (EArg v) = EArg <$> strengthen p v
+strengthenElim p (EProj f q) = Just (EProj f q)
+strengthenElim p (ECase bs) = ECase <$> strengthenBranches p bs
+
+strengthenElims p [] = Just []
+strengthenElims p (e ∷ es) = _∷_ <$> strengthenElim p e <*> strengthenElims p es
+
+strengthenBranch p (BBranch c q r v) = BBranch c q r <$> strengthen (subJoinKeep r p) v
+
+strengthenBranches p [] = Just []
+strengthenBranches p (b ∷ bs) = _∷_ <$> strengthenBranch p b <*> strengthenBranches p bs
+
+strengthenEnv p SNil = Just SNil
+strengthenEnv p (SCons v vs) = SCons <$> strengthen p v <*> strengthenEnv p vs
