@@ -1,53 +1,66 @@
 {-# OPTIONS --overlapping-instances #-}
 
-open import Utils
+module TestReduce where
 
-Name = String
+open import Haskell.Prelude hiding (All)
 
-open import Scope Name
-open Variables
+open import Utils.Erase
+
+open import Scope.Core
+open import Scope.In
+open import Scope.All
+open import Scope.Split
+open import Scope.Sub
+
+name = String
+
+private variable
+  x y : name
+  α : Scope name
 
 instance
-  top : x ∈ (x ◃ α)
-  top = here
+  top : In x (x ◃ α)
+  top = inHere
 
   pop : {{x ∈ α}} → x ∈ (y ◃ α)
-  pop {{p}} = there p
+  pop {{p}} = inThere p
 
-defs = ∅
+defs = mempty
 
-cons = "true" ◃ "false" ◃ ∅
+cons = bind "true" $ bind "false" mempty
 
-conArity : All (λ _ → Scope) cons
-conArity = All<> (All[] ∅) (All<> (All[] ∅) All∅)
+conArity : All (λ _ → Scope name) cons
+conArity = allJoin (allSingl mempty) (allJoin (allSingl mempty) allEmpty)
 
 open import Syntax defs cons conArity
 open import Reduce defs cons conArity
 
 opaque
-  unfolding lookupAll here there ⋈-refl ⋈-<>-right
+  unfolding lookupAll inHere inThere splitRefl splitJoinRight subBindDrop subLeft
 
   `true : Term α
-  `true = con "true" []
+  `true = TCon "true" (inHere) SNil
   `false : Term α
-  `false = con "false" []
+  `false = TCon "false" (inThere inHere) SNil
 
-∞ : ℕ
+∞ : Nat
 ∞ = 9999999999999999
 
-module Tests (@0 x y z : Name) where
+module Tests (@0 x y z : name) where
 
   opaque
-    unfolding step ◃-case ⋈-case `true `false _∈-≟_
+    unfolding step inBindCase inSplitCase inJoinCase `true `false decIn ∅-⋈-injective
 
     testTerm₁ : Term α
-    testTerm₁ = apply (lam x (var x)) (sort (type 0))
+    testTerm₁ = apply (TLam x (TVar x inHere)) (TSort (STyp 0))
 
-    test₁ : reduce {α = ∅} ∞ testTerm₁ ≡ just (sort (type 0))
+    test₁ : reduce {α = mempty} ∞ testTerm₁ ≡ Just (TSort (STyp 0))
     test₁ = refl
 
     testTerm₂ : Term α
-    testTerm₂ = appE `true (case (branch "true" `false ∷ branch "false" `true ∷ []) ∷ [])
+    testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []) ∷ [])
 
-    test₂ : reduce {α = ∅} ∞ testTerm₂ ≡ just `false
+    test₂ : reduce {α = mempty} ∞ testTerm₂ ≡ Just `false
     test₂ = refl
+
+-- -}
