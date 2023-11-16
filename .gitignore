@@ -8,3 +8,4 @@ MAlonzo
 *.agda#
 .#*.agda
 *~
+lib

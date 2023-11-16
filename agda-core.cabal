@@ -5,8 +5,8 @@ version:            0.1.0.0
 -- description:
 license:            Unlicense
 license-file:       LICENSE
-author:             flupe
-maintainer:         lucas@escot.me
+author:             Jesper Cockx, Lucas Escot
+maintainer:         jesper@sikanda.be, lucas@escot.me
 -- copyright:
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
@@ -23,7 +23,10 @@ library
     exposed-modules:  Utils.Dec
                     , Utils.Erase
                     , Utils.List
-                    , Scope
+                    , Scope.Core
+                    , Scope.Split
+                    , Scope.Sub
+                    , Scope.In
                     , Syntax
                     , Reduce
 

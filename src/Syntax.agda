@@ -1,7 +1,9 @@
 open import Haskell.Prelude hiding (All)
 open import Haskell.Law.Monoid.Def using (leftIdentity)
 open import Haskell.Law.Semigroup.Def using (associativity)
+
 open import Utils.Erase
+open import Utils.Misc using (subst)
 
 -- NOTE(flupe): make Scope export all of the following
 open import Scope.Core
@@ -86,8 +88,7 @@ Branches α = List (Branch α)
 
 apply : Term α → Term α → Term α
 apply u v = TApp u (EArg v ∷ [])
--- NOTE(flupe): agda2hs internal error
--- {-# COMPILE AGDA2HS apply #-}
+{-# COMPILE AGDA2HS apply #-}
 
 elimView : Term α → Term α × Elims α
 elimView (TApp u es2) = 
@@ -182,10 +183,6 @@ opaque
   dropEnv (SCons x f) = f
   {-# COMPILE AGDA2HS dropEnv #-}
 
--- TODO(flupe): move this out
-subst : ∀ {ℓ ℓ′} {@0 a : Set ℓ} (@0 f : @0 a → Set ℓ′) {@0 x y : a} → @0 x ≡ y → f x → f y
-subst f refl x = x
-{-# COMPILE AGDA2HS subst transparent #-}
 
 opaque
   -- NOTE(flupe): I have to unfold Scope because otherwise the LawfulMonoid instance

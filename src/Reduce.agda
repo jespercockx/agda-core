@@ -13,9 +13,9 @@ open import Haskell.Prelude hiding (All)
 
 module Reduce
   {@0 name  : Set}
-  (defs     : Scope name)
-  (cons     : Scope name)
-  (conArity : All (λ _ → Scope name) cons)
+  (@0 defs     : Scope name)
+  (@0 cons     : Scope name)
+  (@0 conArity : All (λ _ → Scope name) cons)
   where
 
 open import Syntax defs cons conArity
@@ -193,21 +193,21 @@ lookupBranch (BBranch c' k' aty u ∷ bs) c p =
 opaque
   unfolding Scope
 
-  step : {α : Scope name} → Term α → Maybe (Term α)
-  step (TVar x _) = Nothing
-  step (TDef x _) = Nothing
-  step (TCon c _ vs) = Nothing
-  step (TLam x u) = Nothing
-  step (TApp u []) = step u
-  step (TApp (TLam x u) (EArg v ∷ es)) = Just (substTop (rezz _) v u)
-  step (TApp (TCon c k us) (ECase bs ∷ es)) =
+  step : (α : Scope name) → Term α → Maybe (Term α)
+  step α (TVar x _) = Nothing
+  step α (TDef x _) = Nothing
+  step α (TCon c _ vs) = Nothing
+  step α (TLam x u) = Nothing
+  step α (TApp u []) = step α u
+  step α (TApp (TLam x u) (EArg v ∷ es)) = Just (substTop (rezz _) v u)
+  step α (TApp (TCon c k us) (ECase bs ∷ es)) =
     case lookupBranch bs c k of λ where
       (Just v) → Just (substTerm (raiseEnv (rezz _) us) v) 
       Nothing  → Nothing
-  step (TApp u es) = fmap (λ u → TApp u es) (step u)
-  step (TPi x a b) = Nothing
-  step (TSort x) = Nothing
-  step (TLet x u v) = case step u of λ where
+  step α (TApp u es) = fmap (λ u → TApp u es) (step α u)
+  step α (TPi x a b) = Nothing
+  step α (TSort x) = Nothing
+  step α (TLet x u v) = case step α u of λ where
     (Just u') → Just (TLet x u' v)
     Nothing   → Just (substTop (rezz _) u v)
   {-# COMPILE AGDA2HS step #-}
