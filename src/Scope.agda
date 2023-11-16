@@ -152,42 +152,6 @@ opaque
 opaque
   unfolding _⊆_
 
-  @0 diff : α ⊆ β → Scope
-  diff (erase p , _) = p
-
-  diff-left : (p : α ⋈ β ≡ γ) → diff (⊆-left p) ≡ β
-  diff-left p = refl
-
-  diff-right : (p : α ⋈ β ≡ γ) → diff (⊆-right p) ≡ α
-  diff-right p = refl
-
-  ⋈-diff : (p : α ⊆ β) → α ⋈ diff p ≡ β
-  ⋈-diff = proj₂
-
-  diff-⊆ : (p : α ⊆ β) → diff p ⊆ β
-  diff-⊆ p = ⊆-right (⋈-diff p)
-
-  diff-case : (p : α ⊆ β) → x ∈ β
-            → (x ∈ α → A) → (x ∈ diff p → A) → A
-  diff-case p = ⋈-case (⋈-diff p)
-
-opaque
-  unfolding diff
-
-  diff-⊆-trans : (p : α ⊆ β) (q : β ⊆ γ) → diff p ⊆ diff (⊆-trans p q)
-  diff-⊆-trans < p > < q > =
-    let < _ , s > = ⋈-assoc p q
-    in  < s >
-
-opaque
-  unfolding coerce
-
-  diff-coerce : (p : α ⊆ β) (q : x ∈ α) → diff q ⊆ diff (coerce p q)
-  diff-coerce p q = diff-⊆-trans q p
-
-opaque
-  unfolding _⊆_
-
   ⊆-⋈-split : α ⊆ β → β₁ ⋈ β₂ ≡ β
     → Σ0 (Scope × Scope) λ (α₁ , α₂) → α₁ ⊆ β₁ × α₂ ⊆ β₂ × α₁ ⋈ α₂ ≡ α
   ⊆-⋈-split < p > q =
