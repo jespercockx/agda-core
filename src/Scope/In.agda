@@ -25,7 +25,6 @@ coerce p q = subTrans q p
 {-# COMPILE AGDA2HS coerce #-}
 
 opaque
-  unfolding bind
 
   inHere : x ∈ (x ◃ α)
   inHere {x = x} = subLeft (splitRefl (rezz [ x ]))
@@ -40,7 +39,7 @@ opaque
   {-# COMPILE AGDA2HS bindSubToIn #-}
 
 opaque
-  unfolding Split Sub bind
+  unfolding Split Sub
 
   @0 inEmptyToBot : x ∈ mempty → ⊥
   inEmptyToBot ()
@@ -77,7 +76,7 @@ opaque
   {-# COMPILE AGDA2HS inJoinCase #-}
 
 opaque
-  unfolding Scope Sub bind
+  unfolding Scope Sub
 
   inBindCase : x ∈ (y ◃ α) → (@0 x ≡ y → a) → (x ∈ α → a) → a
   inBindCase {y = y} p f g = inJoinCase (rezz [ y ]) p (λ q → (inSingCase q f)) g

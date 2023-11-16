@@ -64,7 +64,7 @@ opaque
   {-# COMPILE AGDA2HS subJoinDrop #-}
 
 opaque
-  unfolding Sub bind
+  unfolding Sub
 
   subBindKeep : α ⊆ β → (bind y α) ⊆ (bind y β)
   subBindKeep {y = y} = subJoinKeep (rezz (singleton y))

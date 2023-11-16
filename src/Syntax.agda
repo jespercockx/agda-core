@@ -147,7 +147,7 @@ weakenEnv p (SCons u e) = SCons (weaken p u) (weakenEnv p e)
 {-# COMPILE AGDA2HS weakenEnv #-}
 
 opaque
-  unfolding Scope Sub bind
+  unfolding Scope Sub
 
   idEnv : {@0 β : Scope name} → Rezz _ β → β ⇒ β
   idEnv (rezz [])      = SNil
@@ -190,7 +190,7 @@ subst f refl x = x
 opaque
   -- NOTE(flupe): I have to unfold Scope because otherwise the LawfulMonoid instance
   -- isn't related to the Semigroup definition
-  unfolding Scope bind
+  unfolding Scope
 
   raiseEnv : {@0 α β : Scope name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
   raiseEnv {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity iLawfulMonoidScope β)) (idEnv r)

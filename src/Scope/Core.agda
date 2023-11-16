@@ -39,15 +39,14 @@ opaque
     iLawfulMonoidScope : IsLawfulMonoid (Scope name)
     iLawfulMonoidScope = iLawfulMonoidList
 
-opaque
-  bind : @0 name → Scope name → Scope name
-  bind x α = singleton x <> α
-  {-# COMPILE AGDA2HS bind #-}
+bind : @0 name → Scope name → Scope name
+bind x α = singleton x <> α
+{-# COMPILE AGDA2HS bind #-}
 
-  syntax bind x α = x ◃ α
+syntax bind x α = x ◃ α
 
 opaque
-  unfolding Scope bind
+  unfolding Scope
 
   rezzBind
     : {@0 α : Scope name} {@0 x : name}
