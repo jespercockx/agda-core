@@ -4,6 +4,7 @@ open import Haskell.Prelude hiding (_∘_)
 
 open import Utils.Erase
 open import Utils.Dec
+open import Utils.Misc
 
 open import Scope.Core
 open import Scope.Split
