@@ -106,7 +106,7 @@ opaque
   {-# COMPILE AGDA2HS splitQuad #-}
 
 opaque
-  unfolding Split bind
+  unfolding Split
 
   rezzSplit : α ⋈ β ≡ γ → Rezz _ γ → Rezz _ α × Rezz _ β
   rezzSplit EmptyL r = rezz mempty , r
@@ -152,7 +152,7 @@ opaque
   {-# COMPILE AGDA2HS splitJoin #-}
 
 opaque
-  unfolding Split bind
+  unfolding Split
 
   splitBindLeft : α ⋈ β ≡ γ → (bind x α) ⋈ β ≡ (bind x γ)
   splitBindLeft {x = x} = splitJoinLeft (rezz (singleton x))
