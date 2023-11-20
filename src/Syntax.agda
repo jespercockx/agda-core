@@ -54,7 +54,7 @@ data Term α where
   TDef  : (@0 d : name) → d ∈ defs → Term α
   TCon  : (@0 c : name) (c∈cons : c ∈ cons) → (lookupAll conArity c∈cons) ⇒ α → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
-  TApp  : (u : Term α) (es : Elims α) → Term α
+  TApp  : (u : Term α) (es : Elim α) → Term α
   TPi   : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   TSort : Sort α → Term α
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
@@ -87,13 +87,17 @@ Branches α = List (Branch α)
 {-# COMPILE AGDA2HS Branches #-}
 
 apply : Term α → Term α → Term α
-apply u v = TApp u (EArg v ∷ [])
+apply u v = TApp u (EArg v)
 {-# COMPILE AGDA2HS apply #-}
+
+applyElims : Term α → Elims α → Term α
+applyElims u []       = u
+applyElims u (e ∷ es) = applyElims (TApp u e) es
 
 elimView : Term α → Term α × Elims α
 elimView (TApp u es2) = 
   case elimView u of λ where
-    (u' , es1) → (u' , (es1 ++ es2))
+    (u' , es1) → (u' , (es1 ++ es2 ∷ []))
 elimView u = (u , [])
 {-# COMPILE AGDA2HS elimView #-}
 
@@ -118,7 +122,7 @@ weaken p (TVar x k)    = TVar x (coerce p k)
 weaken p (TDef d k)    = TDef d k
 weaken p (TCon c k vs) = TCon c k (weakenEnv p vs)
 weaken p (TLam x v)    = TLam x (weaken (subBindKeep p) v)
-weaken p (TApp u es)   = TApp (weaken p u) (weakenElims p es)
+weaken p (TApp u e)    = TApp (weaken p u) (weakenElim p e)
 weaken p (TPi x a b)   = TPi x (weaken p a) (weaken (subBindKeep p) b)
 weaken p (TSort α)     = TSort (weakenSort p α)
 weaken p (TLet x v t)  = TLet x (weaken p v) (weaken (subBindKeep p) t)
@@ -132,8 +136,7 @@ weakenElim p (EProj x k) = EProj x k
 weakenElim p (ECase bs)  = ECase (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenElim #-}
 
-weakenElims p []       = []
-weakenElims p (e ∷ es) = weakenElim p e ∷ weakenElims p es
+weakenElims p = map (weakenElim p)
 {-# COMPILE AGDA2HS weakenElims #-}
 
 weakenBranch p (BBranch c k r x) = BBranch c k r (weaken (subJoinKeep r p) x)
@@ -213,7 +216,7 @@ strengthen p (TVar x q) = diff-case p q (λ q → Just (TVar x q)) (λ _ → Not
 strengthen p (TDef d q) = Just (TDef d q)
 strengthen p (TCon c q vs) = TCon c q <$> strengthenEnv p vs
 strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
-strengthen p (TApp v es) = TApp <$> strengthen p v <*> strengthenElims p es
+strengthen p (TApp v e) = TApp <$> strengthen p v <*> strengthenElim p e
 strengthen p (TPi x a b) = TPi x <$> strengthen p a <*> strengthen (subBindKeep p) b
 strengthen p (TSort s) = TSort <$> strengthenSort p s
 strengthen p (TLet x u v) = TLet x <$> strengthen p u <*> strengthen (subBindKeep p) v
@@ -224,8 +227,7 @@ strengthenElim p (EArg v) = EArg <$> strengthen p v
 strengthenElim p (EProj f q) = Just (EProj f q)
 strengthenElim p (ECase bs) = ECase <$> strengthenBranches p bs
 
-strengthenElims p [] = Just []
-strengthenElims p (e ∷ es) = _∷_ <$> strengthenElim p e <*> strengthenElims p es
+strengthenElims p = traverse (strengthenElim p)
 
 strengthenBranch p (BBranch c q r v) = BBranch c q r <$> strengthen (subJoinKeep r p) v
 

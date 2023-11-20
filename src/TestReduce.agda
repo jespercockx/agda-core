@@ -58,7 +58,7 @@ module Tests (@0 x y z : name) where
     test₁ = refl
 
     testTerm₂ : Term α
-    testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []) ∷ [])
+    testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []))
 
     test₂ : reduce {α = mempty} ∞ testTerm₂ ≡ Just `false
     test₂ = refl
