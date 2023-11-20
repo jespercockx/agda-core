@@ -50,10 +50,6 @@ open State
 makeState : Term α → State α
 makeState v = state [] v []
 
-applyElims : Term α → List (Elim α) → Term α
-applyElims u [] = u
-applyElims u es = TApp u es
-
 unState : State α → Term α
 unState {α = α} (state e v s) =
     let w = applyElims v s
@@ -96,7 +92,7 @@ opaque
   step (state e (TVar x p) s) = case lookupEnvironment e p of λ where
     (Left _) → Nothing
     (Right v) → Just (state e v s)
-  step (state e (TApp v es) s) = Just (state e v (es ++ s))
+  step (state e (TApp v w) s) = Just (state e v (w ∷ s))
   step (state e (TLam x v) (EArg w ∷ s)) =
     Just (state
       (e , x ↦ w)
