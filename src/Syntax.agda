@@ -101,14 +101,14 @@ elimView (TApp u es2) =
 elimView u = (u , [])
 {-# COMPILE AGDA2HS elimView #-}
 
-lookupEnv : α ⇒ β
-          → (@0 x : name)
-          → x ∈ α
-          → Term β
-lookupEnv SNil x q = inEmptyCase q
-lookupEnv (SCons u f) x q = inBindCase q (λ _ → u) (lookupEnv f x) 
+lookupSubst : α ⇒ β
+            → (@0 x : name)
+            → x ∈ α
+            → Term β
+lookupSubst SNil x q = inEmptyCase q
+lookupSubst (SCons u f) x q = inBindCase q (λ _ → u) (lookupSubst f x)
 
-{-# COMPILE AGDA2HS lookupEnv #-}
+{-# COMPILE AGDA2HS lookupSubst #-}
 
 weaken         : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
@@ -116,11 +116,11 @@ weakenElim     : α ⊆ β → Elim α → Elim β
 weakenElims    : α ⊆ β → Elims α → Elims β
 weakenBranch   : α ⊆ β → Branch α → Branch β
 weakenBranches : α ⊆ β → Branches α → Branches β
-weakenEnv      : β ⊆ γ → Subst α β → Subst α γ
+weakenSubst    : β ⊆ γ → Subst α β → Subst α γ
 
 weaken p (TVar x k)    = TVar x (coerce p k)
 weaken p (TDef d k)    = TDef d k
-weaken p (TCon c k vs) = TCon c k (weakenEnv p vs)
+weaken p (TCon c k vs) = TCon c k (weakenSubst p vs)
 weaken p (TLam x v)    = TLam x (weaken (subBindKeep p) v)
 weaken p (TApp u e)    = TApp (weaken p u) (weakenElim p e)
 weaken p (TPi x a b)   = TPi x (weaken p a) (weaken (subBindKeep p) b)
@@ -146,45 +146,45 @@ weakenBranches p []       = []
 weakenBranches p (b ∷ bs) = weakenBranch p b ∷ weakenBranches p bs
 {-# COMPILE AGDA2HS weakenBranches #-}
 
-weakenEnv p SNil = SNil
-weakenEnv p (SCons u e) = SCons (weaken p u) (weakenEnv p e)
-{-# COMPILE AGDA2HS weakenEnv #-}
+weakenSubst p SNil = SNil
+weakenSubst p (SCons u e) = SCons (weaken p u) (weakenSubst p e)
+{-# COMPILE AGDA2HS weakenSubst #-}
 
 opaque
   unfolding Scope Sub
 
-  idEnv : {@0 β : Scope name} → Rezz _ β → β ⇒ β
-  idEnv (rezz [])      = SNil
-  idEnv (rezz (x ∷ β)) = SCons (TVar (get x) inHere) (weakenEnv (subBindDrop subRefl) (idEnv (rezz β)))
-  {-# COMPILE AGDA2HS idEnv #-}
+  idSubst : {@0 β : Scope name} → Rezz _ β → β ⇒ β
+  idSubst (rezz [])      = SNil
+  idSubst (rezz (x ∷ β)) = SCons (TVar (get x) inHere) (weakenSubst (subBindDrop subRefl) (idSubst (rezz β)))
+  {-# COMPILE AGDA2HS idSubst #-}
 
-  concatEnv : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
-  concatEnv SNil q = q
-  concatEnv (SCons v p) q = SCons v (concatEnv p q)
+  concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
+  concatSubst SNil q = q
+  concatSubst (SCons v p) q = SCons v (concatSubst p q)
 
-  liftEnv : {@0 α β γ : Scope name} → Rezz _ α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
-  liftEnv (rezz []) e = e
-  liftEnv (rezz (x ∷ α)) e =
+  liftSubst : {@0 α β γ : Scope name} → Rezz _ α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
+  liftSubst (rezz []) e = e
+  liftSubst (rezz (x ∷ α)) e =
     SCons (TVar (get x) inHere)
-          (weakenEnv (subBindDrop subRefl) (liftEnv (rezz α) e))
-  {-# COMPILE AGDA2HS liftEnv #-}
+          (weakenSubst (subBindDrop subRefl) (liftSubst (rezz α) e))
+  {-# COMPILE AGDA2HS liftSubst #-}
 
-  liftBindEnv : {@0 α β : Scope name} {@0 x : name} → α ⇒ β → (bind x α) ⇒ (bind x β)
-  liftBindEnv {x = x} e =
+  liftBindSubst : {@0 α β : Scope name} {@0 x : name} → α ⇒ β → (bind x α) ⇒ (bind x β)
+  liftBindSubst {x = x} e =
     SCons (TVar x inHere)
-          (weakenEnv (subBindDrop subRefl) e)
-  {-# COMPILE AGDA2HS liftBindEnv #-}
+          (weakenSubst (subBindDrop subRefl) e)
+  {-# COMPILE AGDA2HS liftBindSubst #-}
 
-  coerceEnv : {@0 α β γ : Scope name} → Rezz _ α → α ⊆ β → β ⇒ γ → α ⇒ γ
-  coerceEnv (rezz []) p e = SNil
-  coerceEnv (rezz (x ∷ α)) p e =
-    SCons (lookupEnv e _ (bindSubToIn p))
-          (coerceEnv (rezz α) (joinSubRight (rezz [ get x ]) p) e)
-  {-# COMPILE AGDA2HS coerceEnv #-}
+  coerceSubst : {@0 α β γ : Scope name} → Rezz _ α → α ⊆ β → β ⇒ γ → α ⇒ γ
+  coerceSubst (rezz []) p e = SNil
+  coerceSubst (rezz (x ∷ α)) p e =
+    SCons (lookupSubst e _ (bindSubToIn p))
+          (coerceSubst (rezz α) (joinSubRight (rezz [ get x ]) p) e)
+  {-# COMPILE AGDA2HS coerceSubst #-}
 
-  dropEnv : {@0 α β : Scope name} {@0 x : name} → (x ◃ α) ⇒ β → α ⇒ β
-  dropEnv (SCons x f) = f
-  {-# COMPILE AGDA2HS dropEnv #-}
+  dropSubst : {@0 α β : Scope name} {@0 x : name} → (x ◃ α) ⇒ β → α ⇒ β
+  dropSubst (SCons x f) = f
+  {-# COMPILE AGDA2HS dropSubst #-}
 
 
 opaque
@@ -192,13 +192,13 @@ opaque
   -- isn't related to the Semigroup definition
   unfolding Scope
 
-  raiseEnv : {@0 α β : Scope name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
-  raiseEnv {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity iLawfulMonoidScope β)) (idEnv r)
-  raiseEnv {β = β} r (SCons {α = α} {x = x} u e) =
+  raiseSubst : {@0 α β : Scope name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
+  raiseSubst {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity iLawfulMonoidScope β)) (idSubst r)
+  raiseSubst {β = β} r (SCons {α = α} u e) =
     subst (λ α → α ⇒ β)
-      (associativity iLawfulSemigroupScope (singleton x) α β)
-      (SCons {x = x} u (raiseEnv r e))
-  {-# COMPILE AGDA2HS raiseEnv #-}
+      (associativity iLawfulSemigroupScope (singleton _) α β)
+      (SCons u (raiseSubst r e))
+  {-# COMPILE AGDA2HS raiseSubst #-}
 
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
 raise r = weaken (subRight (splitRefl r))
@@ -210,11 +210,11 @@ strengthenElim : α ⊆ β → Elim β → Maybe (Elim α)
 strengthenElims : α ⊆ β → Elims β → Maybe (Elims α)
 strengthenBranch : α ⊆ β → Branch β → Maybe (Branch α)
 strengthenBranches : α ⊆ β → Branches β → Maybe (Branches α)
-strengthenEnv : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
+strengthenSubst : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
 
 strengthen p (TVar x q) = diff-case p q (λ q → Just (TVar x q)) (λ _ → Nothing)
 strengthen p (TDef d q) = Just (TDef d q)
-strengthen p (TCon c q vs) = TCon c q <$> strengthenEnv p vs
+strengthen p (TCon c q vs) = TCon c q <$> strengthenSubst p vs
 strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
 strengthen p (TApp v e) = TApp <$> strengthen p v <*> strengthenElim p e
 strengthen p (TPi x a b) = TPi x <$> strengthen p a <*> strengthen (subBindKeep p) b
@@ -234,5 +234,5 @@ strengthenBranch p (BBranch c q r v) = BBranch c q r <$> strengthen (subJoinKeep
 strengthenBranches p [] = Just []
 strengthenBranches p (b ∷ bs) = _∷_ <$> strengthenBranch p b <*> strengthenBranches p bs
 
-strengthenEnv p SNil = Just SNil
-strengthenEnv p (SCons v vs) = SCons <$> strengthen p v <*> strengthenEnv p vs
+strengthenSubst p SNil = Just SNil
+strengthenSubst p (SCons v vs) = SCons <$> strengthen p v <*> strengthenSubst p vs
