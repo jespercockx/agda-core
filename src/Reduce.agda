@@ -129,62 +129,6 @@ reduce n v = unState <$> stepN n (makeState v)
 
 {-
 
-private variable
-  @0 x     : name
-  @0 α β γ : Scope name
-
-substTerm     : α ⇒ β → Term α → Term β
-substSort     : α ⇒ β → Sort α → Sort β
-substElim     : α ⇒ β → Elim α → Elim β
-substElims    : α ⇒ β → Elims α → Elims β
-substBranch   : α ⇒ β → Branch α → Branch β
-substBranches : α ⇒ β → Branches α → Branches β
-substEnv      : α ⇒ β → γ ⇒ α → γ ⇒ β
-
-substSort f (STyp x) = STyp x
-{-# COMPILE AGDA2HS substSort #-}
-
-substTerm f (TVar x k)    = lookupEnv f x k
-substTerm f (TDef d k)    = TDef d k
-substTerm f (TCon c k vs) = TCon c k (substEnv f vs)
-substTerm f (TLam x v)    = TLam x (substTerm (liftBindEnv f) v)
-substTerm f (TApp u es)   = TApp (substTerm f u) (substElims f es)
-substTerm f (TPi x a b)   = TPi x (substTerm f a) (substTerm (liftBindEnv f) b)
-substTerm f (TSort s)     = TSort (substSort f s)
-substTerm f (TLet x u v)  = TLet x (substTerm f u) (substTerm (liftBindEnv f) v)
-{-# COMPILE AGDA2HS substTerm #-}
-
-substElim f (EArg u)    = EArg (substTerm f u)
-substElim f (EProj p k) = EProj p k
-substElim f (ECase bs)  = ECase (substBranches f bs)
-{-# COMPILE AGDA2HS substElim #-}
-
-substElims f [] = []
-substElims f (e ∷ es) = substElim f e ∷ substElims f es
-{-# COMPILE AGDA2HS substElims #-}
-
-substBranch f (BBranch c k aty u) = BBranch c k aty (substTerm (liftEnv aty f) u)
-{-# COMPILE AGDA2HS substBranch #-}
-
-substBranches f [] = []
-substBranches f (b ∷ bs) = substBranch f b ∷ substBranches f bs
-{-# COMPILE AGDA2HS substBranches #-}
-
-substEnv f SNil = SNil
-substEnv f (SCons x e) = SCons (substTerm f x) (substEnv f e)
-{-# COMPILE AGDA2HS substEnv #-}
-
-substTop : Rezz _ α → Term α → Term (x ◃ α) → Term α
-substTop r u = substTerm (SCons u (idEnv r))
-{-# COMPILE AGDA2HS substTop #-}
-
-lookupBranch : Branches α → (@0 c : name) (p : c ∈ cons) → Maybe (Term ((lookupAll conArity p) <> α))
-lookupBranch [] c k = Nothing
-lookupBranch (BBranch c' k' aty u ∷ bs) c p =
-  case decIn k' p of λ where
-    (True  ⟨ refl ⟩) → Just u
-    (False ⟨ _    ⟩) → lookupBranch bs c p
-{-# COMPILE AGDA2HS lookupBranch #-}
 
 opaque
   unfolding Scope
