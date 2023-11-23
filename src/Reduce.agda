@@ -15,27 +15,35 @@ module Reduce
   {@0 name  : Set}
   (@0 defs     : Scope name)
   (@0 cons     : Scope name)
-  (@0 conArity : All (λ _ → Scope name) cons)
+  (conArity : All (λ _ → Scope name) cons) -- TODO: make this eraseable
   where
 
 open import Syntax defs cons conArity
+open import Substitute defs cons conArity
 open import Utils.Erase
 
 private variable
   @0 x     : name
   @0 α β γ : Scope name
+  @0 u v w : Term α
 
 data Environment : (α β : Scope name) → Set where
   []    : Environment α α
   _,_↦_ : Environment α β → (@0 x : name) → Term β → Environment α (x ◃ β)
 
-Environment-to-⊆ : Environment α β → Sub α β
-Environment-to-⊆ [] = subRefl
-Environment-to-⊆ (e , x ↦ _) = subBindDrop (Environment-to-⊆ e)
+envToSub : Environment α β → Sub α β
+envToSub [] = subRefl
+envToSub (e , x ↦ _) = subBindDrop (envToSub e)
 
-Environment-to-lets : Environment α γ → Term γ → Term α
-Environment-to-lets []            v = v
-Environment-to-lets (env , x ↦ u) v = Environment-to-lets env (TLet x u v)
+envToLets : Environment α γ → Term γ → Term α
+envToLets []            v = v
+envToLets (env , x ↦ u) v = envToLets env (TLet x u v)
+
+envToSubst : Rezz _ α → Environment α β → β ⇒ α
+envToSubst r [] = idSubst r
+envToSubst r (env , x ↦ v) =
+  let s = envToSubst r env
+  in  SCons (substTerm s v) s
 
 record State (@0 α : Scope name) : Set where
   constructor state
@@ -48,16 +56,10 @@ record State (@0 α : Scope name) : Set where
 open State
 
 makeState : Term α → State α
-makeState v = state [] v []
+makeState {α = α} v = state ([] {α = α}) v []
 
-unState : State α → Term α
-unState {α = α} (state e v s) =
-    let w = applyElims v s
-    -- We try to strengthen the result to remove spurious dependencies, but if
-    -- this fails we just fall back to recreating the let-bindings.
-    in  case strengthen (Environment-to-⊆ e) w of λ where
-          (Just w') → w'
-          Nothing   → Environment-to-lets e w
+unState : Rezz _ α → State α → Term α
+unState r (state e v s) = substTerm (envToSubst r e) (applyElims v s)
 
 lookupBranch : Branches α → (@0 c : name) (p : c ∈ cons) → Maybe (Term ((lookupAll conArity p) <> α))
 lookupBranch [] c k = Nothing
@@ -88,7 +90,7 @@ opaque
     (λ _ → Right (raise (rezz _) v))
     (λ p → mapRight (raise (rezz _)) (lookupEnvironment e p)) --mapEither (raise ?) (lookupEnvironment e p))
 
-  step : State α → Maybe (State α)
+  step : (s : State α) → Maybe (State α)
   step (state e (TVar x p) s) = case lookupEnvironment e p of λ where
     (Left _) → Nothing
     (Right v) → Just (state e v s)
@@ -123,9 +125,11 @@ stepN (suc n) s = case (step s) of λ where
   Nothing → Just s
   (Just s') → stepN n s'
 
-reduce : Nat → Term α → Maybe (Term α)
-reduce n v = unState <$> stepN n (makeState v)
+reduce : Rezz _ α → Nat → Term α → Maybe (Term α)
+reduce r n v = unState r <$> stepN n (makeState v)
 
+reduceClosed : Nat → Term mempty → Maybe (Term mempty)
+reduceClosed = reduce (rezz _)
 
 {-
 
@@ -164,4 +168,6 @@ reduce n u =
 {-# COMPILE AGDA2HS reduce #-}
 -}
 
+-- -}
+-- -}
 -- -}

@@ -54,13 +54,13 @@ module Tests (@0 x y z : name) where
     testTerm₁ : Term α
     testTerm₁ = apply (TLam x (TVar x inHere)) (TSort (STyp 0))
 
-    test₁ : reduce {α = mempty} ∞ testTerm₁ ≡ Just (TSort (STyp 0))
+    test₁ : reduceClosed ∞ testTerm₁ ≡ Just (TSort (STyp 0))
     test₁ = refl
 
     testTerm₂ : Term α
     testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []))
 
-    test₂ : reduce {α = mempty} ∞ testTerm₂ ≡ Just `false
+    test₂ : reduceClosed ∞ testTerm₂ ≡ Just `false
     test₂ = refl
 
 -- -}
