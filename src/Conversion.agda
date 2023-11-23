@@ -1,0 +1,70 @@
+open import Scope.Core
+open import Scope.Split
+open import Scope.Sub
+open import Scope.In
+open import Scope.All
+
+open import Utils.Dec
+open import Utils.Either
+open import Utils.Erase
+
+open import Haskell.Prelude hiding (All; a; b; c; t)
+
+import Syntax
+
+module Conversion
+  {@0 name  : Set}
+  (@0 defs     : Scope name)
+  (@0 cons     : Scope name)
+  (   conArity : All (λ _ → Scope name) cons)
+  (   defType  : All (λ _ → Syntax.Type defs cons conArity mempty) defs)
+  where
+
+open Syntax defs cons conArity
+open import Substitute defs cons conArity
+open import Reduce defs cons conArity
+open import Context defs cons conArity defType
+
+private variable
+  @0 k l n : Nat
+  @0 x y z : name
+  @0 α β γ : Scope name
+  @0 t t' u u' v v' : Term α
+  @0 a a' b b' c c' : Type α
+  @0 w w' : Elim α
+
+data Conv (Γ : Context α) : Type α → Term α → Term α → Set
+data ConvElim (Γ : Context α) : Type α → Term α → Elim α → Elim α → Set
+
+@0 renameTop : Term (x ◃ α) → Term (y ◃ α)
+renameTop {x = x} {y = y} = substTerm (liftBindSubst {x = x} {y = y} (idSubst (rezz _)))
+
+data Conv {α} Γ where
+  CRefl  : Conv Γ t u u
+  CLam   : Conv {α = x ◃ α} (Γ , x ∶ a) b (renameTop u) (renameTop v)
+         → Conv Γ (TPi x a b) (TLam y u) (TLam z v)
+  CPi    : Conv Γ (TSort (STyp k)) a a'
+         → Conv (Γ , x ∶ a) (TSort (STyp l)) b (renameTop b')
+         → Conv Γ (TSort (STyp n)) (TPi x a b) (TPi y a' b')
+  CApp   : Conv Γ a u u'
+         → ConvElim Γ a u w w'
+         -- Note: We assume all terms are well-typed, so we allow any type b here
+         → Conv Γ b (TApp u w) (TApp u' w')
+  CRedT  : (fuel : Nat)
+         → reduce (rezz _) fuel t ≡ Just t'
+         → Conv Γ t' u v → Conv Γ t u v
+  CRedL  : (fuel : Nat)
+         → reduce (rezz _) fuel u ≡ Just u'
+         → Conv Γ t u' v → Conv Γ t u v
+  CRedR  : (fuel : Nat)
+         → reduce (rezz _) fuel v ≡ Just v'
+         → Conv Γ t u v' → Conv Γ t u v
+
+data ConvElim Γ where
+  CERedT : (fuel : Nat)
+         → reduce (rezz _) fuel t ≡ Just t'
+         → ConvElim Γ t' u w w' → ConvElim Γ t u w w'
+  CEArg  : Conv Γ a v v'
+         → ConvElim Γ (TPi x a b) u (EArg v) (EArg v')
+  -- TODO: CEProj : {!   !}
+  -- TODO: CECase : {!   !}
