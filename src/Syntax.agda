@@ -153,6 +153,9 @@ weakenSubst p (SCons u e) = SCons (weaken p u) (weakenSubst p e)
 opaque
   unfolding Scope Sub
 
+  singleSubst : Term β → [ x ] ⇒ β
+  singleSubst v = SCons v SNil
+
   idSubst : {@0 β : Scope name} → Rezz _ β → β ⇒ β
   idSubst (rezz [])      = SNil
   idSubst (rezz (x ∷ β)) = SCons (TVar (get x) inHere) (weakenSubst (subBindDrop subRefl) (idSubst (rezz β)))
@@ -169,9 +172,9 @@ opaque
           (weakenSubst (subBindDrop subRefl) (liftSubst (rezz α) e))
   {-# COMPILE AGDA2HS liftSubst #-}
 
-  liftBindSubst : {@0 α β : Scope name} {@0 x : name} → α ⇒ β → (bind x α) ⇒ (bind x β)
-  liftBindSubst {x = x} e =
-    SCons (TVar x inHere)
+  liftBindSubst : {@0 α β : Scope name} {@0 x y : name} → α ⇒ β → (bind x α) ⇒ (bind y β)
+  liftBindSubst {y = y} e =
+    SCons (TVar y inHere)
           (weakenSubst (subBindDrop subRefl) e)
   {-# COMPILE AGDA2HS liftBindSubst #-}
 
