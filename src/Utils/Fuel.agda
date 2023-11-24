@@ -26,7 +26,7 @@ getFuel f x n {p} = fromJust (tryFuel f x n) {p}
 
 module _ {a b : Set} where
   loop : (f : a → Either a b) (x : a) → @0 Fuel f (Left x) → b
-  loop f x = go (Left x)
+  loop f x (more n) = go (f x) n
     where
       go : (x : Either a b) → @0 (Fuel f x) → b
       go (Left x)  (more n) = go (f x) n
