@@ -5,6 +5,7 @@ module TestReduce where
 open import Haskell.Prelude hiding (All)
 
 open import Utils.Erase
+open import Utils.Fuel
 
 open import Scope.Core
 open import Scope.In
@@ -54,13 +55,19 @@ module Tests (@0 x y z : name) where
     testTerm₁ : Term α
     testTerm₁ = apply (TLam x (TVar x inHere)) (TSort (STyp 0))
 
-    test₁ : reduceClosed ∞ testTerm₁ ≡ Just (TSort (STyp 0))
+    testProp₁ : Set
+    testProp₁ = reduceClosed testTerm₁ (getFuel _ _ ∞) ≡ TSort (STyp 0)
+
+    test₁ : testProp₁
     test₁ = refl
 
     testTerm₂ : Term α
     testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []))
 
-    test₂ : reduceClosed ∞ testTerm₂ ≡ Just `false
+    testProp₂ : Set
+    testProp₂ = reduceClosed testTerm₂ (getFuel stepEither _ ∞) ≡ `false
+
+    test₂ : testProp₂
     test₂ = refl
 
 -- -}

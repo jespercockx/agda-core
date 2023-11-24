@@ -7,6 +7,7 @@ open import Scope.All
 open import Utils.Dec
 open import Utils.Either
 open import Utils.Erase
+open import Utils.Fuel
 
 open import Haskell.Prelude hiding (All; a; b; c; t)
 
@@ -50,20 +51,20 @@ data Conv {α} Γ where
          → ConvElim Γ a u w w'
          -- Note: We assume all terms are well-typed, so we allow any type b here
          → Conv Γ b (TApp u w) (TApp u' w')
-  CRedT  : (fuel : Nat)
-         → reduce (rezz _) fuel t ≡ Just t'
-         → Conv Γ t' u v → Conv Γ t u v
-  CRedL  : (fuel : Nat)
-         → reduce (rezz _) fuel u ≡ Just u'
-         → Conv Γ t u' v → Conv Γ t u v
-  CRedR  : (fuel : Nat)
-         → reduce (rezz _) fuel v ≡ Just v'
-         → Conv Γ t u v' → Conv Γ t u v
+  CRedT  : (@0 fuel : _)
+         → let t' = reduce (rezz _) t fuel
+           in  Conv Γ t' u v → Conv Γ t u v
+  CRedL  : (@0 fuel : _)
+         → let u' = reduce (rezz _) u fuel
+           in  Conv Γ t u' v → Conv Γ t u v
+  CRedR  : (@0 fuel : _)
+         → let v' = reduce (rezz _) v fuel
+           in  Conv Γ t u v' → Conv Γ t u v
 
 data ConvElim Γ where
-  CERedT : (fuel : Nat)
-         → reduce (rezz _) fuel t ≡ Just t'
-         → ConvElim Γ t' u w w' → ConvElim Γ t u w w'
+  CERedT : (@0 fuel : _)
+         → let t' = reduce (rezz _) t fuel
+           in  ConvElim Γ t' u w w' → ConvElim Γ t u w w'
   CEArg  : Conv Γ a v v'
          → ConvElim Γ (TPi x a b) u (EArg v) (EArg v')
   -- TODO: CEProj : {!   !}

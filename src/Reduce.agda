@@ -8,6 +8,7 @@ open import Scope.All
 
 open import Utils.Dec
 open import Utils.Either
+open import Utils.Fuel
 
 open import Haskell.Prelude hiding (All)
 
@@ -119,16 +120,18 @@ opaque
   step (state e (TPi x a b) s) = Nothing
   step (state e (TSort n) s) = Nothing
 
-stepN : Nat → State α → Maybe (State α)
-stepN zero _ = Nothing
-stepN (suc n) s = case (step s) of λ where
-  Nothing → Just s
-  (Just s') → stepN n s'
+stepEither : State α → Either (State α) (State α)
+stepEither s = case step s of λ where
+  Nothing   → Right s
+  (Just s') → Left s'
 
-reduce : Rezz _ α → Nat → Term α → Maybe (Term α)
-reduce r n v = unState r <$> stepN n (makeState v)
+reduceS : Rezz _ α → (v : State α) → @0 Fuel stepEither (Left v) → State α
+reduceS r v fuel = loop stepEither v fuel
 
-reduceClosed : Nat → Term mempty → Maybe (Term mempty)
+reduce : Rezz _ α → (v : Term α) → @0 Fuel stepEither (Left (makeState v)) → Term α
+reduce r v fuel = unState r (reduceS r (makeState v) fuel)
+
+reduceClosed : (v : Term mempty) → @0 Fuel stepEither (Left (makeState v)) → Term mempty
 reduceClosed = reduce (rezz _)
 
 {-
