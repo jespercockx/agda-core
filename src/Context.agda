@@ -5,9 +5,9 @@ open import Scope.Sub
 open import Scope.In
 open import Scope.All
 
-open import Utils.Dec
+open import Haskell.Extra.Dec
 open import Utils.Either
-open import Utils.Erase
+open import Haskell.Extra.Erase
 
 open import Haskell.Prelude hiding (All; t)
 

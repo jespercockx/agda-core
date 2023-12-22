@@ -5,7 +5,7 @@ open import Scope.Sub
 open import Scope.In
 open import Scope.All
 
-open import Utils.Dec
+open import Haskell.Extra.Dec
 open import Utils.Either
 
 open import Haskell.Prelude hiding (All)
@@ -18,7 +18,7 @@ module Substitute
   where
 
 open import Syntax defs cons conArity
-open import Utils.Erase
+open import Haskell.Extra.Erase
 
 private variable
   @0 x     : name

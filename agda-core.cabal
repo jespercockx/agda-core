@@ -20,14 +20,7 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  Utils.Dec
-                    , Utils.Erase
-                    , Utils.List
-                    , Scope.Core
-                    , Scope.Split
-                    , Scope.Sub
-                    , Scope.In
-                    , Syntax
+    exposed-modules:  Syntax
                     , Reduce
 
     -- other-modules:

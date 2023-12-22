@@ -1,17 +1,14 @@
-open import Haskell.Prelude hiding (All)
+open import Haskell.Prelude hiding (All; coerce)
+open import Haskell.Law.Equality using (sym)
 open import Haskell.Law.Monoid.Def using (leftIdentity)
 open import Haskell.Law.Semigroup.Def using (associativity)
 
-open import Utils.Erase
-open import Utils.Misc using (subst)
+open import Haskell.Extra.Erase
+
+open import Utils.Misc
 
 -- NOTE(flupe): make Scope export all of the following
-open import Scope.Core
-open import Scope.All
-open import Scope.Sub
-open import Scope.Split
-open import Scope.In
-open import Scope.Diff
+open import Scope
 
 module Syntax
   {@0 name     : Set}
@@ -52,12 +49,14 @@ data Term α where
   -- NOTE(flupe): removed tactic arguments for now because hidden arguments not supported yet #217
   TVar  : (@0 x : name) → x ∈ α → Term α
   TDef  : (@0 d : name) → d ∈ defs → Term α
-  TCon  : (@0 c : name) (c∈cons : c ∈ cons) → (lookupAll conArity c∈cons) ⇒ α → Term α
+  TCon  : (@0 c : name) (c∈cons : c ∈ cons)
+        → (lookupAll conArity c∈cons) ⇒ α → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (es : Elim α) → Term α
   TPi   : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   TSort : Sort α → Term α
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
+  -- TODO: type annotations
   -- TODO: literals
   -- TODO: constructor for type annotation
 {-# COMPILE AGDA2HS Term #-}
@@ -95,7 +94,7 @@ applyElims u []       = u
 applyElims u (e ∷ es) = applyElims (TApp u e) es
 
 elimView : Term α → Term α × Elims α
-elimView (TApp u es2) = 
+elimView (TApp u es2) =
   case elimView u of λ where
     (u' , es1) → (u' , (es1 ++ es2 ∷ []))
 elimView u = (u , [])
@@ -196,10 +195,10 @@ opaque
   unfolding Scope
 
   raiseSubst : {@0 α β : Scope name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
-  raiseSubst {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity iLawfulMonoidScope β)) (idSubst r)
+  raiseSubst {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity β)) (idSubst r)
   raiseSubst {β = β} r (SCons {α = α} u e) =
     subst (λ α → α ⇒ β)
-      (associativity iLawfulSemigroupScope (singleton _) α β)
+      (associativity (singleton _) α β)
       (SCons u (raiseSubst r e))
   {-# COMPILE AGDA2HS raiseSubst #-}
 
@@ -215,7 +214,7 @@ strengthenBranch : α ⊆ β → Branch β → Maybe (Branch α)
 strengthenBranches : α ⊆ β → Branches β → Maybe (Branches α)
 strengthenSubst : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
 
-strengthen p (TVar x q) = diff-case p q (λ q → Just (TVar x q)) (λ _ → Nothing)
+strengthen p (TVar x q) = diffCase p q (λ q → Just (TVar x q)) (λ _ → Nothing)
 strengthen p (TDef d q) = Just (TDef d q)
 strengthen p (TCon c q vs) = TCon c q <$> strengthenSubst p vs
 strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v

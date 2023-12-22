@@ -4,8 +4,8 @@ module TestReduce where
 
 open import Haskell.Prelude hiding (All)
 
-open import Utils.Erase
-open import Utils.Fuel
+open import Haskell.Extra.Erase
+open import Haskell.Extra.Loop
 
 open import Scope.Core
 open import Scope.In
