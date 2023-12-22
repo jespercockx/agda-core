@@ -7,7 +7,7 @@ open import Scope.All
 open import Haskell.Extra.Dec
 open import Utils.Either
 open import Haskell.Extra.Erase
-open import Utils.Fuel
+open import Haskell.Extra.Loop
 
 open import Haskell.Prelude hiding (All; a; b; c; t)
 
