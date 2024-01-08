@@ -20,7 +20,7 @@ clean-lib:
 	rm -rf lib
 
 clean-agdai:
-	rm src/*.agdai
+	rm -f src/*.agdai
 
-app:
-  cabal build
+app: alllib
+	cabal build
