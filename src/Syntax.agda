@@ -91,6 +91,7 @@ apply u v = TApp u (EArg v)
 applyElims : Term α → Elims α → Term α
 applyElims u []       = u
 applyElims u (e ∷ es) = applyElims (TApp u e) es
+{-# COMPILE AGDA2HS applyElims #-}
 
 elimView : Term α → Term α × Elims α
 elimView (TApp u es2) =
