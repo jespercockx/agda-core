@@ -94,6 +94,13 @@ data TyTerm {α} Γ where
          ------------------------------------------
          → Γ ⊢ TLet x u v ∷ substTop (rezz α) u t
 
+    TyConv :
+
+           Γ ⊢ u ∷ t
+         → Conv Γ s t v
+         -------------------------------
+         → Γ ⊢ u ∷ v
+
 {-# COMPILE AGDA2HS TyTerm #-}
 
 data TyElim Γ where
