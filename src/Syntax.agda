@@ -58,7 +58,6 @@ data Term α where
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   -- TODO: type annotations
   -- TODO: literals
-  -- TODO: constructor for type annotation
 {-# COMPILE AGDA2HS Term #-}
 
 data Sort α where
