@@ -65,7 +65,7 @@ record State (@0 α : Scope name) : Set where
     focus : Term fullScope
     stack : List (Elim fullScope)
 
-open State
+open State public
 
 {-# COMPILE AGDA2HS State #-}
 
