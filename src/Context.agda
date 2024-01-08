@@ -7,9 +7,10 @@ open import Scope.All
 
 open import Haskell.Extra.Dec
 open import Utils.Either
+open import Utils.Tactics using (auto)
 open import Haskell.Extra.Erase
 
-open import Haskell.Prelude hiding (All; t)
+open import Haskell.Prelude hiding (All; s; t)
 
 import Syntax
 import Reduce
@@ -18,27 +19,46 @@ module Context
   {@0 name  : Set}
   (@0 defs     : Scope name)
   (@0 cons     : Scope name)
-  (   conArity : All (λ _ → Scope name) cons)
-  (   defType  : All (λ _ → Syntax.Type defs cons conArity mempty) defs)
+  (@0 conArity : All (λ _ → Scope name) cons)
   where
 
 open Syntax defs cons conArity
 open Reduce defs cons conArity
 
 private variable
-  @0 x     : name
-  @0 α β γ : Scope name
-  @0 t u v w : Term α
-  @0 ts us vs ws : Elims α
+  @0 x y : name
+  @0 α : Scope name
+  @0 s t u v : Term α
 
-data Context : Scope name → Set where
-    CxEmpty : Context mempty
-    CxVar   : Context α → (x : name) → Type α → Context (x ◃ α)
+data Context : @0 Scope name → Set where
+  CtxEmpty  : Context mempty
+  CtxExtend : Context α → (@0 x : name) → Type α → Context (x ◃ α)
 
-syntax CxVar Γ x t = Γ , x ∶ t
+{-# COMPILE AGDA2HS Context #-}
 
-data TyVar : (Γ : Context α) (@0 x : name) → x ∈ α → Type α → Set where
-    TVHere  : ∀ {@0 α} {Γ : Context α} {t : Type α}
-         → TyVar (Γ , x ∶ t) x inHere (raise (rezz _) t)
-    TVThere : ∀ {@0 α} {@0 x y : name} {Γ : Context α} {p : x ∈ α} {t u : Type α}
-         → TyVar Γ x p t → TyVar (Γ , y ∶ u) x (inThere p) (raise (rezz _) t)
+_,_∶_ : Context α → (@0 x : name) → Type α → Context (x ◃ α)
+_,_∶_ = CtxExtend
+
+infix 4 _,_∶_
+
+{-# COMPILE AGDA2HS _,_∶_ inline #-}
+
+private variable
+  @0 Γ : Context α
+
+data TyVar : (@0 Γ : Context α) (@0 x : name) → @0 x ∈ α → @0 Type α → Set where
+
+  TyHere  : TyVar (Γ , x ∶ t) x inHere (raise (rezz [ x ]) t)
+
+  TyThere : ∀ {@0 p : x ∈ α}
+
+        → TyVar Γ x p t
+        --------------------------------------------------------
+        → TyVar (Γ , y ∶ u) x (inThere p) (raise (rezz [ y ]) t)
+
+{-# COMPILE AGDA2HS TyVar #-}
+
+_⊢var_∷_ : (Γ : Context α) (@0 x : name) → {@(tactic auto) _ : x ∈ α} → Type α → Set
+_⊢var_∷_ Γ x {p} t = TyVar Γ x p t
+
+{-# COMPILE AGDA2HS _⊢var_∷_ inline #-}

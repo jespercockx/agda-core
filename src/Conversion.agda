@@ -17,14 +17,14 @@ module Conversion
   {@0 name  : Set}
   (@0 defs     : Scope name)
   (@0 cons     : Scope name)
-  (   conArity : All (λ _ → Scope name) cons)
-  (   defType  : All (λ _ → Syntax.Type defs cons conArity mempty) defs)
+  (@0 conArity : All (λ _ → Scope name) cons)
+  (@0 defType  : All (λ _ → Syntax.Type defs cons conArity mempty) defs)
   where
 
 open Syntax defs cons conArity
 open import Substitute defs cons conArity
 open import Reduce defs cons conArity
-open import Context defs cons conArity defType
+open import Context defs cons conArity
 
 private variable
   @0 k l n : Nat
@@ -34,8 +34,8 @@ private variable
   @0 a a' b b' c c' : Type α
   @0 w w' : Elim α
 
-data Conv (Γ : Context α) : Type α → Term α → Term α → Set
-data ConvElim (Γ : Context α) : Type α → Term α → Elim α → Elim α → Set
+data Conv (@0 Γ : Context α) : @0 Type α → @0 Term α → @0 Term α → Set
+data ConvElim (@0 Γ : Context α) : @0 Type α → @0 Term α → @0 Elim α → @0 Elim α → Set
 
 @0 renameTop : Term (x ◃ α) → Term (y ◃ α)
 renameTop {x = x} {y = y} = substTerm (liftBindSubst {x = x} {y = y} (idSubst (rezz _)))
@@ -61,6 +61,8 @@ data Conv {α} Γ where
          → let v' = reduce (rezz _) v fuel
            in  Conv Γ t u v' → Conv Γ t u v
 
+{-# COMPILE AGDA2HS Conv #-}
+
 data ConvElim Γ where
   CERedT : (@0 fuel : _)
          → let t' = reduce (rezz _) t fuel
@@ -69,3 +71,5 @@ data ConvElim Γ where
          → ConvElim Γ (TPi x a b) u (EArg v) (EArg v')
   -- TODO: CEProj : {!   !}
   -- TODO: CECase : {!   !}
+
+{-# COMPILE AGDA2HS ConvElim #-}
