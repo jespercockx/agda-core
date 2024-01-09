@@ -6,8 +6,6 @@ import Context
 import Conversion
 open import Haskell.Extra.Erase
 open import Haskell.Prelude hiding (All)
--- TODO remove
-open import Agda.Builtin.Sigma
 
 module Typechecker
     {@0 name  : Set}
@@ -27,38 +25,36 @@ private
            Γ : Context α
 
 postulate
-  convert : (ty : Type α) (a b : Term α)
+  convert : (@0 ty : Type α) (@0 a b : Term α)
           → Conv {α = α} Γ ty a b
 
--- FIXME
--- for now returning a sigma, not sure what's supposed to be here
-inferType : (te : Term α) → Maybe (Σ (Type α) (λ ty → Γ ⊢ te ∷ ty))
+inferType : (te : Term α) → Maybe (Σ0 (Type α) (λ ty → Γ ⊢ te ∷ ty))
 
 checkType : (te : Term α) (ty : Type α) → Γ ⊢ te ∷ ty
 
 inferVar : (@0 x : name)
            (p : x ∈ α)
-           → Σ (Type α) (λ t → Γ ⊢ TVar x p ∷ t)
+           → Σ0 (Type α) (λ t → Γ ⊢ TVar x p ∷ t)
 inferVar = {!!}
 
 inferApp : (u : Term α)
            (e : Elim α)
-           → Σ (Type α) (λ ty → Γ ⊢ TApp u e ∷ ty)
+           → Σ0 (Type α) (λ ty → Γ ⊢ TApp u e ∷ ty)
 inferApp = {!!}
 
 inferApps : (u : Term α)
             (es : Elims α)
-          → Σ (Type α) (λ ty → Γ ⊢ applyElims u es ∷ ty)
+          → Σ0 (Type α) (λ ty → Γ ⊢ applyElims u es ∷ ty)
 inferApps = {!!}
 
 inferPi : (@0 x : name)
           (u : Term α)
           (v : Term (x ◃ α))
-          → Σ (Type α) (λ ty → Γ ⊢ TPi x u v ∷ ty)
+          → Σ0 (Type α) (λ ty → Γ ⊢ TPi x u v ∷ ty)
 inferPi = {!!}
 
 inferSort : (s : Sort α)
-            → Σ (Type α) (λ ty → Γ ⊢ TSort s ∷ ty)
+            → Σ0 (Type α) (λ ty → Γ ⊢ TSort s ∷ ty)
 inferSort = {!!}
 
 checkDef : (@0 f : name)
@@ -82,9 +78,9 @@ checkLet = {!!}
 
 checkConv : (t : Term α)
             (cty tty : Type α)
-          → Σ (Type α) (λ ty → Γ ⊢ t ∷ ty)
+          → Σ0 (Type α) (λ ty → Γ ⊢ t ∷ ty)
           → Γ ⊢ t ∷ cty
-checkConv t cty tty sd = TyConv (snd sd) (convert tty (fst sd) cty)
+checkConv t cty tty (⟨ s ⟩ d) = TyConv d (convert tty s cty)
 
 checkType t@(TVar x p) ty =  checkConv t ty {!!} (inferVar x p)
 checkType (TDef f p) ty = checkDef f p ty
