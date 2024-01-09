@@ -46,19 +46,10 @@ infix 4 _,_∶_
 private variable
   @0 Γ : Context α
 
-data TyVar : (@0 Γ : Context α) (@0 x : name) → @0 x ∈ α → @0 Type α → Set where
+lookupVar : (Γ : Context α) (@0 x : name) (p : x ∈ α) → Type α
+lookupVar CtxEmpty x p = inEmptyCase p
+lookupVar (CtxExtend Γ y s) x p = raise (rezz _) (inBindCase p
+  (λ _ → s)
+  (λ q → lookupVar Γ x q))
 
-  TyHere  : TyVar (Γ , x ∶ t) x inHere (raise (rezz [ x ]) t)
-
-  TyThere : ∀ {@0 p : x ∈ α}
-
-        → TyVar Γ x p t
-        --------------------------------------------------------
-        → TyVar (Γ , y ∶ u) x (inThere p) (raise (rezz [ y ]) t)
-
-{-# COMPILE AGDA2HS TyVar #-}
-
-_⊢var_∷_ : (Γ : Context α) (@0 x : name) → {@(tactic auto) _ : x ∈ α} → Type α → Set
-_⊢var_∷_ Γ x {p} t = TyVar Γ x p t
-
-{-# COMPILE AGDA2HS _⊢var_∷_ inline #-}
+{-# COMPILE AGDA2HS lookupVar #-}
