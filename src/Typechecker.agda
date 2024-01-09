@@ -35,7 +35,7 @@ checkType : (te : Term α) (ty : Type α) → Γ ⊢ te ∷ ty
 inferVar : (@0 x : name)
            (p : x ∈ α)
            → Σ0 (Type α) (λ t → Γ ⊢ TVar x p ∷ t)
-inferVar = {!!}
+inferVar {Γ = Γ} x p = ⟨ lookupVar Γ x p ⟩ TyTVar
 
 inferApp : (u : Term α)
            (e : Elim α)

@@ -51,10 +51,8 @@ data TyElims (@0 Γ : Context α) : @0 Elims α → @0 (Elims α → Term α) �
 data TyTerm {α} Γ where
 
     TyTVar : {@0 p : x ∈ α}
-
-        → TyVar Γ x p t
         -------------------
-        → Γ ⊢ TVar x p ∷ t
+        → Γ ⊢ TVar x p ∷ (lookupVar Γ x p)
 
     TyDef : (@0 f : name) {@0 p : f ∈ defs}
 
