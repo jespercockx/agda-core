@@ -33,7 +33,6 @@ private variable
   @0 k l m : Sort α
   @0 n : Nat
   @0 e : Elim α
-  @0 es : Elims α
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
@@ -44,10 +43,13 @@ _⊢_∷_ : (Γ : Context α) → Term α → Type α → Set
 
 -- TyElim Γ e t f means:
 --   if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : f (appE u)
-data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 ((Elims α → Term α) → Type α) → Set
+data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 ((Elim α → Term α) → Type α) → Set
+
+{-
 -- TyElims Γ es f t₁ t₂ means:
 --   if  Γ ⊢ h [] : t₁  then  Γ ⊢ h es : t₂
 data TyElims (@0 Γ : Context α) : @0 Elims α → @0 (Elims α → Term α) → @0 Type α → @0 Type α → Set
+-}
 
 data TyTerm {α} Γ where
 
@@ -67,12 +69,12 @@ data TyTerm {α} Γ where
        ------------------------------------------------------------
        →  Γ            ⊢ TLam x u ∷ TPi x k l s t
 
-    TyAppE :
-
-          Γ ⊢ u ∷ s
-        → TyElims Γ es (applyElims u) s t
+    TyAppE : {@0 f : (Elim α → Term α) → Type α}
+        → Γ ⊢ u ∷ s
+        → f {!!} ≡ t
+        → TyElim Γ e s f
         ------------------------------------
-        → Γ ⊢ applyElims u es ∷ t
+        → Γ ⊢ TApp u e ∷ t
 
     TyPi :
 
@@ -112,6 +114,7 @@ data TyElim Γ where
 
 {-# COMPILE AGDA2HS TyElim #-}
 
+{-
 data TyElims Γ where
     TyDone : ∀ {@0 u} → TyElims Γ [] u t t
     TyMore : ∀ {@0 h f}
@@ -120,3 +123,4 @@ data TyElims Γ where
         → TyElims Γ (e ∷ es) h             s    t
 
 {-# COMPILE AGDA2HS TyElims #-}
+-}
