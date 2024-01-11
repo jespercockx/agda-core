@@ -15,28 +15,48 @@ build-type:         Simple
 common warnings
     ghc-options:
       -Wall
-      -fno-warn-incomplete-patterns
       -fno-warn-unused-matches
 
 library
     import:           warnings
     exposed-modules:  Syntax
                     , Reduce
+                    , Scope.Core
+                    , Scope.In
+                    , Scope.Sub
+                    , Substitute
 
     -- other-modules:
     -- other-extensions:
-    build-depends:    base >=4.17.0.0
+    build-depends:    base   >= 4.17    && < 4.20
     hs-source-dirs:   lib
     default-language: GHC2021
 
+    ghc-options:
+      -- agda2hs generates many (safe) incomplete patterns
+      -fno-warn-incomplete-patterns
+
 executable agda-core
     import:           warnings
-    main-is:          Main.hs
-    -- other-modules:
-    -- other-extensions:
-    build-depends:
-        base >=4.17.0.0,
-        agda-core
-
     hs-source-dirs:   app
     default-language: GHC2021
+    main-is:          Main.hs
+    other-modules:    Conversion
+                    , Paths_agda_core
+    autogen-modules:  Paths_agda_core
+    default-extensions:
+      LambdaCase
+      RecordWildCards
+      MultiWayIf
+      BlockArguments
+    build-depends:
+        base                 >= 4.17    && < 4.20,
+        Agda                 >= 2.6.4   && < 2.6.5,
+        bytestring           >= 0.11.5  && < 0.13,
+        containers           >= 0.6     && < 0.8,
+        unordered-containers >= 0.2.19  && < 0.3,
+        mtl                  >= 2.2.2   && < 2.4,
+        directory            >= 1.2.6.2 && < 1.4,
+        filepath             >= 1.4.1.0 && < 1.5,
+        agda-core,
+
