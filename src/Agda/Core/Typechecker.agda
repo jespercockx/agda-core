@@ -1,33 +1,26 @@
 {-# OPTIONS --allow-unsolved-metas #-}
+open import Haskell.Prelude hiding (All)
 open import Scope
 open import GlobalScope
-import Syntax
-import Reduce
-import Typing
-import Context
-import Conversion
-open import Haskell.Extra.Erase
-open import Haskell.Prim.Functor
-open import Haskell.Prim.Applicative
-open import Haskell.Control.Monad
-open import Haskell.Prelude hiding ( All; m )
-open import Agda.Primitive
 
-module Typechecker
-    {@0 name  : Set}
+import Agda.Core.Syntax as Syntax
+
+module Agda.Core.Typechecker
+    {@0 name    : Set}
     (@0 globals : Globals)
-    (defType  : All (λ _ → Syntax.Type globals (mempty {{iMonoidScope}})) (Globals.defScope globals))
+    (defType    : All (λ _ → Syntax.Type globals (mempty {{iMonoidScope}})) (Globals.defScope globals))
   where
 
+open import Haskell.Extra.Erase
+
 open Syntax globals
-open Context globals
-open Conversion globals defType
-open Typing globals defType
+open import Agda.Core.Context globals
+open import Agda.Core.Conversion globals defType
+open import Agda.Core.Typing globals defType
 
 private
   variable @0 α : Scope name
            Γ : Context α
-           m : Set → Set
 
 postulate
   convert : (@0 ty : Type α) (@0 a b : Term α)

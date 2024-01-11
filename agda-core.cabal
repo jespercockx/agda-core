@@ -9,25 +9,27 @@ author:             Jesper Cockx, Lucas Escot
 maintainer:         jesper@sikanda.be, lucas@escot.me
 -- copyright:
 build-type:         Simple
---extra-doc-files:    CHANGELOG.md
+-- extra-doc-files:    CHANGELOG.md
 -- extra-source-files:
 
 common warnings
     ghc-options:
       -Wall
       -fno-warn-unused-matches
+      -fno-warn-unused-imports
+      -fno-warn-unused-local-binds
 
 library
     import:           warnings
-    exposed-modules:  Syntax
-                    , Reduce
-                    , Scope.Core
+    exposed-modules:  Scope.Core
                     , Scope.In
                     , Scope.Sub
-                    , Substitute
-
-    -- other-modules:
-    -- other-extensions:
+                    , Scope.Split
+                    , Agda.Core.Reduce
+                    , Agda.Core.Syntax
+                    , Agda.Core.Substitute
+                    -- , Agda.Core.Typechecker
+                    -- , Agda.Core.Typing
     build-depends:    base   >= 4.17    && < 4.20
     hs-source-dirs:   lib
     default-language: GHC2021
@@ -41,14 +43,17 @@ executable agda-core
     hs-source-dirs:   app
     default-language: GHC2021
     main-is:          Main.hs
-    other-modules:    Conversion
+    other-modules:    Agda.Core.ToCore
                     , Paths_agda_core
     autogen-modules:  Paths_agda_core
+    documentation: True
     default-extensions:
       LambdaCase
       RecordWildCards
       MultiWayIf
       BlockArguments
+      ViewPatterns
+      DerivingStrategies
     build-depends:
         base                 >= 4.17    && < 4.20,
         Agda                 >= 2.6.4   && < 2.6.5,

@@ -1,29 +1,26 @@
-
--- open import Utils
--- open Variables
 open import Scope
 open import GlobalScope
-import Syntax
-import Reduce
-import Context
-import Conversion
-import Substitute
-open import Haskell.Extra.Erase
-open import Utils.Tactics using (auto)
-open import Haskell.Prelude hiding (All; e; s; t; m)
-open import Haskell.Extra.Loop
 
-module Typing
-    {@0 name  : Set}
+import Agda.Core.Syntax as Syntax
+
+open import Haskell.Prelude hiding (All; e; s; t; m)
+
+module Agda.Core.Typing
+    {@0 name    : Set}
     (@0 globals : Globals)
     (@0 defType : All (λ _ → Syntax.Type globals (mempty {{iMonoidScope}})) (Globals.defScope globals))
   where
 
+open import Haskell.Extra.Erase
+open import Haskell.Extra.Loop
+
+open import Utils.Tactics using (auto)
+
 open Syntax globals
-open Substitute globals
-open Reduce globals
-open Context globals
-open Conversion globals defType
+open import Agda.Core.Reduce globals
+open import Agda.Core.Conversion globals defType
+open import Agda.Core.Context globals
+open import Agda.Core.Substitute globals
 
 private variable
   @0 x y : name
@@ -66,7 +63,7 @@ data TyTerm {α} Γ where
 
          (Γ , x ∶ s) ⊢ u ∷ t
        ------------------------------------------------------------
-       →  Γ            ⊢ TLam x u ∷ TPi x k l s t
+       →  Γ          ⊢ TLam x u ∷ TPi x k l s t
 
     TyAppE :
           Γ ⊢ u ∷ s

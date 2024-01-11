@@ -1,19 +1,18 @@
-
 open import Scope
 open import GlobalScope
 
-open import Haskell.Extra.Dec
-open import Haskell.Extra.Erase
-open import Utils.Either
-
-open import Haskell.Prelude hiding (All)
-
-module Substitute
-  {@0 name  : Set}
-  (@0 globalS : Globals)
+module Agda.Core.Substitute
+  {@0 name    : Set}
+  (@0 globals : Globals)
   where
 
-open import Syntax globalS
+open import Haskell.Prelude hiding (All)
+open import Haskell.Extra.Dec
+open import Haskell.Extra.Erase
+
+open import Utils.Either
+
+open import Agda.Core.Syntax globals
 
 private variable
   @0 x     : name

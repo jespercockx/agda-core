@@ -1,22 +1,22 @@
-open import Haskell.Prelude hiding (All; coerce)
-open import Haskell.Law.Equality using (sym)
-open import Haskell.Law.Monoid.Def using (leftIdentity)
-open import Haskell.Law.Semigroup.Def using (associativity)
-
-open import Haskell.Extra.Erase
-
-open import Utils.Misc
-
 open import Scope
 open import GlobalScope
 
-module Syntax
-  {@0 name     : Set}
-  (@0 globals  : Globals)
+module Agda.Core.Syntax
+  {@0 name    : Set}
+  (@0 globals : Globals)
   where
 
 module @0 TheGlobals = Globals globals
 open TheGlobals public
+
+open import Haskell.Prelude hiding (All; coerce)
+open import Haskell.Law.Equality using (sym)
+open import Haskell.Law.Monoid.Def using (leftIdentity)
+open import Haskell.Law.Semigroup.Def using (associativity)
+open import Haskell.Extra.Erase
+
+-- NOTE(flupe): comes from scope library, should be moved upstream probably
+open import Utils.Misc
 
 private variable
   @0 x     : name
@@ -37,7 +37,7 @@ Type = Term
 data Subst : (@0 α β : Scope name) → Set where
   SNil  : Subst mempty β
   SCons : Term β → Subst α β → Subst (x ◃ α) β
-{-# COMPILE AGDA2HS Subst #-}
+{-# COMPILE AGDA2HS Subst deriving Show #-}
 
 syntax Subst α β = α ⇒ β
 
@@ -59,12 +59,12 @@ data Term α where
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   TAnn  : (u : Term α) (t : Type α) → Term α
   -- TODO: literals
-{-# COMPILE AGDA2HS Term #-}
+{-# COMPILE AGDA2HS Term deriving Show #-}
 
 data Sort α where
   STyp : Nat → Sort α
   -- TODO: universe polymorphism
-{-# COMPILE AGDA2HS Sort #-}
+{-# COMPILE AGDA2HS Sort deriving Show #-}
 
 funSort : Sort α → Sort α → Sort α
 funSort (STyp a) (STyp b) = STyp (max a b)
@@ -75,7 +75,7 @@ data Elim α where
   EProj : (@0 x : name) → x ∈ defScope → Elim α
   ECase : (bs : Branches α) → Elim α
   -- TODO: do we need a type annotation for the return type of case?
-{-# COMPILE AGDA2HS Elim     #-}
+{-# COMPILE AGDA2HS Elim deriving Show #-}
 
 Elims α = List (Elim α)
 {-# COMPILE AGDA2HS Elims #-}
@@ -84,7 +84,7 @@ data Branch α where
   BBranch : (@0 c : name) → (c∈cons : c ∈ conScope)
           → Rezz _ (lookupAll fieldScope c∈cons)
           → Term (lookupAll fieldScope c∈cons <> α) → Branch α
-{-# COMPILE AGDA2HS Branch   #-}
+{-# COMPILE AGDA2HS Branch deriving Show #-}
 
 Branches α = List (Branch α)
 {-# COMPILE AGDA2HS Branches #-}
