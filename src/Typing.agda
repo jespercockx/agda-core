@@ -27,10 +27,11 @@ open Conversion defs cons conArity defType
 open Substitute defs cons conArity
 
 private variable
-  @0 m n : Nat
   @0 x y : name
   @0 α : Scope name
   @0 s t u v : Term α
+  @0 k l m : Sort α
+  @0 n : Nat
   @0 e : Elim α
   @0 es : Elims α
 
@@ -62,9 +63,9 @@ data TyTerm {α} Γ where
 
     TyLam :
 
-          (Γ , x ∶ s) ⊢ u ∷ t
-        ----------------------------------------
-        → Γ            ⊢ TLam x u ∷ TPi x s t
+         (Γ , x ∶ s) ⊢ u ∷ t
+       ------------------------------------------------------------
+       →  Γ            ⊢ TLam x u ∷ TPi x k l s t
 
     TyAppE :
 
@@ -75,10 +76,10 @@ data TyTerm {α} Γ where
 
     TyPi :
 
-         Γ           ⊢ s ∷ TSort (STyp m)
-       → (Γ , x ∶ s) ⊢ t ∷ (TSort (STyp n))
+         Γ           ⊢ s ∷ TSort k
+       → (Γ , x ∶ s) ⊢ t ∷ TSort (weakenSort (subWeaken subRefl) l)
        -----------------------------------------------------
-       → Γ           ⊢ TPi x s t ∷ TSort (STyp (max m n))
+       → Γ           ⊢ TPi x k l s t ∷ TSort (funSort k l)
 
     TyType :
 
@@ -103,9 +104,9 @@ data TyTerm {α} Γ where
 
 data TyElim Γ where
     TyArg : ∀ {@0 r s' fuel}
-        → @0 reduce r v fuel ≡ TPi x s t
+        → @0 reduce r v fuel ≡ TPi x k l s t
         → TyTerm Γ u s'
-        → Conv Γ (TSort (STyp n)) s s'
+        → Conv Γ (TSort k) s s'
         → TyElim Γ (EArg u) v (λ h → substTop (rezz _) u t)
     -- TODO: proj
     -- TODO: case

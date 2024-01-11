@@ -27,10 +27,10 @@ open import Reduce defs cons conArity
 open import Context defs cons conArity
 
 private variable
-  @0 k l n : Nat
   @0 x y z : name
   @0 α β γ : Scope name
   @0 t t' u u' v v' : Term α
+  @0 k l n : Sort α
   @0 a a' b b' c c' : Type α
   @0 w w' : Elim α
 
@@ -43,10 +43,10 @@ renameTop {x = x} {y = y} = substTerm (liftBindSubst {x = x} {y = y} (idSubst (r
 data Conv {α} Γ where
   CRefl  : Conv Γ t u u
   CLam   : Conv {α = x ◃ α} (Γ , x ∶ a) b (renameTop u) (renameTop v)
-         → Conv Γ (TPi x a b) (TLam y u) (TLam z v)
-  CPi    : Conv Γ (TSort (STyp k)) a a'
-         → Conv (Γ , x ∶ a) (TSort (STyp l)) b (renameTop b')
-         → Conv Γ (TSort (STyp n)) (TPi x a b) (TPi y a' b')
+         → Conv Γ (TPi x k l a b) (TLam y u) (TLam z v)
+  CPi    : Conv Γ (TSort k) a a'
+         → Conv (Γ , x ∶ a) (TSort (weakenSort (subWeaken subRefl) l)) b (renameTop b')
+         → Conv Γ (TSort (funSort k l)) (TPi x k l a b) (TPi y k l a' b')
   CApp   : Conv Γ a u u'
          → ConvElim Γ a u w w'
          -- Note: We assume all terms are well-typed, so we allow any type b here
@@ -68,7 +68,7 @@ data ConvElim Γ where
          → let t' = reduce (rezz _) t fuel
            in  ConvElim Γ t' u w w' → ConvElim Γ t u w w'
   CEArg  : Conv Γ a v v'
-         → ConvElim Γ (TPi x a b) u (EArg v) (EArg v')
+         → ConvElim Γ (TPi x k l a b) u (EArg v) (EArg v')
   -- TODO: CEProj : {!   !}
   -- TODO: CECase : {!   !}
 

@@ -35,14 +35,15 @@ substSubst    : α ⇒ β → γ ⇒ α → γ ⇒ β
 substSort f (STyp x) = STyp x
 {-# COMPILE AGDA2HS substSort #-}
 
-substTerm f (TVar x k)    = lookupSubst f x k
-substTerm f (TDef d k)    = TDef d k
-substTerm f (TCon c k vs) = TCon c k (substSubst f vs)
-substTerm f (TLam x v)    = TLam x (substTerm (liftBindSubst f) v)
-substTerm f (TApp u v)    = TApp (substTerm f u) (substElim f v)
-substTerm f (TPi x a b)   = TPi x (substTerm f a) (substTerm (liftBindSubst f) b)
-substTerm f (TSort s)     = TSort (substSort f s)
-substTerm f (TLet x u v)  = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)
+substTerm f (TVar x k)        = lookupSubst f x k
+substTerm f (TDef d k)        = TDef d k
+substTerm f (TCon c k vs)     = TCon c k (substSubst f vs)
+substTerm f (TLam x v)        = TLam x (substTerm (liftBindSubst f) v)
+substTerm f (TApp u v)        = TApp (substTerm f u) (substElim f v)
+substTerm f (TPi x sᵃ sᵇ a b) =
+  TPi x (substSort f sᵃ) (substSort f sᵇ) (substTerm f a) (substTerm (liftBindSubst f) b)
+substTerm f (TSort s)         = TSort (substSort f s)
+substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)
 {-# COMPILE AGDA2HS substTerm #-}
 
 substElim f (EArg u)    = EArg (substTerm f u)

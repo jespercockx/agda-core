@@ -48,9 +48,10 @@ inferApps : (u : Term α)
 inferApps = {!!}
 
 inferPi : (@0 x : name)
+          (usrt vsrt : Sort α)
           (u : Term α)
           (v : Term (x ◃ α))
-          → Σ0 (Type α) (λ ty → Γ ⊢ TPi x u v ∷ ty)
+          → Σ0 (Type α) (λ ty → Γ ⊢ TPi x usrt vsrt u v ∷ ty)
 inferPi = {!!}
 
 inferSort : (s : Sort α)
@@ -87,7 +88,7 @@ checkType (TDef f p) ty = checkDef f p ty
 checkType (TCon c p x) ty = {!!}
 checkType (TLam x te) ty =  checkLambda x te ty
 checkType t@(TApp u e) ty = checkConv t ty {!!} (inferApp u e)
-checkType t@(TPi x u v) ty =  checkConv t ty {!!} (inferPi x u v)
+checkType t@(TPi x usrt vsrt u v) ty =  checkConv t ty {!!} (inferPi x usrt vsrt u v)
 checkType t@(TSort s) ty = checkConv t ty {!!} (inferSort s)
 checkType (TLet x te te₁) ty = checkLet x te te₁ ty
 
@@ -96,6 +97,6 @@ inferType (TDef d x) = Nothing
 inferType (TCon c p x) = Nothing
 inferType (TLam x te) = Nothing
 inferType (TApp u e) = Just (inferApp u e)
-inferType (TPi x u v) = Just (inferPi x u v)
+inferType (TPi x usrt vsrt u v) = Just (inferPi x usrt vsrt u v)
 inferType (TSort s) = Just (inferSort s)
 inferType (TLet x te te₁) = Nothing
