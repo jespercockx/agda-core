@@ -1,6 +1,6 @@
 {-# OPTIONS --overlapping-instances #-}
 
-module TestReduce where
+module Agda.Core.TestReduce where
 
 open import Haskell.Prelude hiding (All)
 
@@ -38,8 +38,8 @@ globals = record
   ; fieldScope = conArity
   }
 
-open import Syntax globals
-open import Reduce globals
+open import Agda.Core.Syntax globals
+open import Agda.Core.Reduce globals
 
 opaque
   unfolding lookupAll inHere inThere splitRefl splitJoinRight subBindDrop subLeft

@@ -1,27 +1,22 @@
-
 open import Scope
 open import GlobalScope
 
-open import Haskell.Extra.Dec
-open import Haskell.Extra.Loop
-open import Haskell.Extra.Refinement
-open import Utils.Either
-
-open import Haskell.Prelude hiding (All; coerce)
-open import Haskell.Extra.Erase
-open import Haskell.Extra.Delay
-open import Haskell.Prim.Thunk
-
-import Syntax
-import Substitute
-
-module Reduce
-  {@0 name  : Set}
+module Agda.Core.Reduce
+  {@0 name    : Set}
   (@0 globals : Globals)
   where
 
-open Syntax globals
-open Substitute globals
+open import Haskell.Prelude hiding (All; coerce)
+open import Haskell.Extra.Dec
+open import Haskell.Extra.Loop
+open import Haskell.Extra.Refinement
+open import Haskell.Extra.Erase
+open import Haskell.Extra.Delay
+open import Haskell.Prim.Thunk
+open import Utils.Either
+
+open import Agda.Core.Syntax globals
+open import Agda.Core.Substitute globals
 
 private variable
   @0 x     : name

@@ -1,24 +1,19 @@
-
 open import Scope
 open import GlobalScope
+
+module Agda.Core.Context
+  {@0 name    : Set}
+  (@0 globals : Globals)
+  where
 
 open import Haskell.Extra.Dec
 open import Utils.Either
 open import Utils.Tactics using (auto)
 open import Haskell.Extra.Erase
-
 open import Haskell.Prelude hiding (All; s; t)
 
-import Syntax
-import Reduce
-
-module Context
-  {@0 name  : Set}
-  (@0 globals : Globals)
-  where
-
-open Syntax globals
-open Reduce globals
+open import Agda.Core.Syntax globals
+open import Agda.Core.Reduce globals
 
 private variable
   @0 x y : name

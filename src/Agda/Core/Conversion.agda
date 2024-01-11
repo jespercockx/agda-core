@@ -1,25 +1,26 @@
+open import Haskell.Prelude hiding (All; a; b; c; t)
+
 open import Scope
 open import GlobalScope
 
-open import Haskell.Extra.Dec
-open import Utils.Either
-open import Haskell.Extra.Erase
-open import Haskell.Extra.Delay
+import Agda.Core.Syntax as Syntax
 
-open import Haskell.Prelude hiding (All; a; b; c; t)
-
-import Syntax
-
-module Conversion
-  {@0 name  : Set}
+module Agda.Core.Conversion
+  {@0 name    : Set}
   (@0 globals : Globals)
   (@0 defType : All (λ _ → Syntax.Type globals mempty) (Globals.defScope globals))
   where
 
+open import Haskell.Extra.Dec
+open import Utils.Either
+open import Haskell.Extra.Erase
+open import Haskell.Extra.Loop
+open import Haskell.Extra.Delay
+
 open Syntax globals
-open import Substitute globals
-open import Reduce globals
-open import Context globals
+open import Agda.Core.Substitute globals
+open import Agda.Core.Reduce globals
+open import Agda.Core.Context globals
 
 private variable
   @0 x y z : name
