@@ -103,10 +103,9 @@ data TyTerm {α} Γ where
 {-# COMPILE AGDA2HS TyTerm #-}
 
 data TyElim Γ where
-    TyArg : ∀ {@0 r s' fuel}
-        → @0 reduce r v fuel ≡ TPi x k l s t
-        → TyTerm Γ u s'
-        → Conv Γ (TSort k) s s'
+    TyArg :
+          Conv Γ (TSort k) v (TPi x l m s t)
+        → TyTerm Γ u s
         → TyElim Γ (EArg u) v (λ h → substTop (rezz _) u t)
     -- TODO: proj
     -- TODO: case
