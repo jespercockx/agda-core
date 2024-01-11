@@ -5,7 +5,11 @@ import Typing
 import Context
 import Conversion
 open import Haskell.Extra.Erase
-open import Haskell.Prelude hiding (All)
+open import Haskell.Prim.Functor
+open import Haskell.Prim.Applicative
+open import Haskell.Control.Monad
+open import Haskell.Prelude hiding ( All; m )
+open import Agda.Primitive
 
 module Typechecker
     {@0 name  : Set}
@@ -23,80 +27,104 @@ open Conversion defs cons conArity defType
 private
   variable @0 α : Scope name
            Γ : Context α
+           m : Set → Set
 
 postulate
   convert : (@0 ty : Type α) (@0 a b : Term α)
           → Conv {α = α} Γ ty a b
 
-inferType : (te : Term α) → Maybe (Σ0 (Type α) (λ ty → Γ ⊢ te ∷ ty))
+record TCM (a : Set) : Set where
+  constructor mkTCM
+  field
+    runTCM : Either String a
 
-checkType : (te : Term α) (ty : Type α) → Γ ⊢ te ∷ ty
+TCError = String
+
+postulate instance
+  iFunctorTCM : Functor TCM
+  iApplicativeTCM : Applicative TCM
+  iMonadTCM : Monad TCM
+
+postulate
+  tcError : TCError -> TCM a
+
+inferType : (te : Term α)
+          → TCM (Σ0 (Type α) (λ ty → Γ ⊢ te ∷ ty))
+
+checkType : (te : Term α) (ty : Type α)
+          → TCM (Γ ⊢ te ∷ ty)
 
 inferVar : (@0 x : name)
            (p : x ∈ α)
-           → Σ0 (Type α) (λ t → Γ ⊢ TVar x p ∷ t)
-inferVar {Γ = Γ} x p = ⟨ lookupVar Γ x p ⟩ TyTVar
+           → TCM (Σ0 (Type α) (λ t → Γ ⊢ TVar x p ∷ t))
+inferVar {Γ = Γ} x p = return (⟨ lookupVar Γ x p ⟩ TyTVar)
 
 inferApp : (u : Term α)
            (e : Elim α)
-           → Σ0 (Type α) (λ ty → Γ ⊢ TApp u e ∷ ty)
-inferApp = {!!}
+           → TCM (Σ0 (Type α) (λ ty → Γ ⊢ TApp u e ∷ ty))
+inferApp u e = {!!}
 
 inferApps : (u : Term α)
             (es : Elims α)
-          → Σ0 (Type α) (λ ty → Γ ⊢ applyElims u es ∷ ty)
+          → TCM (Σ0 (Type α) (λ ty → Γ ⊢ applyElims u es ∷ ty))
 inferApps = {!!}
 
 inferPi : (@0 x : name)
           (su sv : Sort α)
           (u : Term α)
           (v : Term (x ◃ α))
-          → Σ0 (Type α) (λ ty → Γ ⊢ TPi x su sv u v ∷ ty)
+          → TCM (Σ0 (Type α) (λ ty → Γ ⊢ TPi x su sv u v ∷ ty))
 inferPi = {!!}
 
-inferSort : (s : Sort α)
-            → Σ0 (Type α) (λ ty → Γ ⊢ TSort s ∷ ty)
-inferSort = {!!}
+inferTySort : (s : Sort α)
+            → TCM (Σ0 (Type α) (λ ty → Γ ⊢ TSort s ∷ ty))
+inferTySort = {!!}
 
 checkDef : (@0 f : name)
            (p : f ∈ defs)
            (ty : Type α)
-           → Γ ⊢ TDef f p ∷ ty
+           → TCM (Γ ⊢ TDef f p ∷ ty)
 checkDef = {!!}
 
 checkLambda : (@0 x : name)
               (u : Term (x ◃ α))
               (ty : Type α)
-              → Γ ⊢ TLam x u ∷ ty
+              → TCM (Γ ⊢ TLam x u ∷ ty)
 checkLambda = {!!}
 
 checkLet : (@0 x : name)
            (u : Term α)
            (v : Term (x ◃ α))
            (ty : Type α)
-           → Γ ⊢ TLet x u v ∷ ty
+           → TCM (Γ ⊢ TLet x u v ∷ ty)
 checkLet = {!!}
 
 checkConv : (t : Term α)
             (cty tty : Type α)
           → Σ0 (Type α) (λ ty → Γ ⊢ t ∷ ty)
-          → Γ ⊢ t ∷ cty
-checkConv t cty tty (⟨ s ⟩ d) = TyConv d (convert tty s cty)
+          → TCM (Γ ⊢ t ∷ cty)
+checkConv t cty tty (⟨ s ⟩ d) = return (TyConv d (convert tty s cty))
 
-checkType t@(TVar x p) ty =  checkConv t ty {!!} (inferVar x p)
+inferSort : (t : Term α)
+          → TCM (Σ0 (Sort α) (λ s → Γ ⊢ t ∷ TSort s))
+inferSort t = {!!}
+
+checkType t@(TVar x p) ty = checkConv t ty {!!} =<< inferVar x p
 checkType (TDef f p) ty = checkDef f p ty
 checkType (TCon c p x) ty = {!!}
 checkType (TLam x te) ty =  checkLambda x te ty
-checkType t@(TApp u e) ty = checkConv t ty {!!} (inferApp u e)
-checkType t@(TPi x su sv u v) ty =  checkConv t ty {!!} (inferPi x su sv u v)
-checkType t@(TSort s) ty = checkConv t ty {!!} (inferSort s)
-checkType (TLet x te te₁) ty = checkLet x te te₁ ty
+checkType t@(TApp u e) ty = checkConv t ty {!!} =<< (inferApp u e)
+checkType t@(TPi x su sv u v) ty =  checkConv t ty {!!} =<< (inferPi x su sv u v)
+checkType t@(TSort s) ty = checkConv t ty {!!} =<< (inferTySort s)
+checkType (TLet x u v) ty = checkLet x u v ty
+checkType (TAnn u t) ty = tcError "not implemented yet"
 
-inferType (TVar x p) = Just (inferVar x p)
-inferType (TDef d x) = Nothing
-inferType (TCon c p x) = Nothing
-inferType (TLam x te) = Nothing
-inferType (TApp u e) = Just (inferApp u e)
-inferType (TPi x su sv u v) = Just (inferPi x su sv u v)
-inferType (TSort s) = Just (inferSort s)
-inferType (TLet x te te₁) = Nothing
+inferType (TVar x p) = inferVar x p
+inferType (TDef d x) = tcError "can't infer the type of a definition"
+inferType (TCon c p x) = tcError "not implemented yet"
+inferType (TLam x te) = tcError "can't infer the type of a lambda"
+inferType (TApp u e) = inferApp u e
+inferType (TPi x su sv u v) = inferPi x su sv u v
+inferType (TSort s) = inferTySort s
+inferType (TLet x te te₁) = tcError "can't infer the type of a let"
+inferType (TAnn u t) = tcError "not implemented yet"
