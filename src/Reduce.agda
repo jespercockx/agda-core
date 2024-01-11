@@ -138,7 +138,7 @@ opaque
   step (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
   step (MkState e (TCon c q x) s) = Nothing
   step (MkState e (TLam x v) s) = Nothing
-  step (MkState e (TPi x sᵃ sᵇ a b) s) = Nothing
+  step (MkState e (TPi x sa sb a b) s) = Nothing
   step (MkState e (TSort n) s) = Nothing
 
 stepEither : State α → Either (State α) (State α)
@@ -173,7 +173,7 @@ opaque
       (Just v) → Just (substTerm (raiseEnv (rezz _) us) v)
       Nothing  → Nothing
   step α (TApp u es) = fmap (λ u → TApp u es) (step α u)
-  step α (TPi x sᵃ sᵇ a b) = Nothing
+  step α (TPi x sa sb a b) = Nothing
   step α (TSort x) = Nothing
   step α (TLet x u v) = case step α u of λ where
     (Just u') → Just (TLet x u' v)
