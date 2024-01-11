@@ -41,9 +41,9 @@ _⊢_∷_ : (Γ : Context α) → Term α → Type α → Set
 
 {-# COMPILE AGDA2HS _⊢_∷_ inline #-}
 
--- TyElim Γ e t f means:
---   if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : f (appE u)
-data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 ((Elim α → Term α) → Type α) → Set
+-- TyElim Γ e t v means:
+--   if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : v
+data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 Type α → Set
 
 {-
 -- TyElims Γ es f t₁ t₂ means:
@@ -69,10 +69,9 @@ data TyTerm {α} Γ where
        ------------------------------------------------------------
        →  Γ            ⊢ TLam x u ∷ TPi x k l s t
 
-    TyAppE : {@0 f : (Elim α → Term α) → Type α}
-        → Γ ⊢ u ∷ s
-        → f {!!} ≡ t
-        → TyElim Γ e s f
+    TyAppE :
+          Γ ⊢ u ∷ s
+        → TyElim Γ e s t
         ------------------------------------
         → Γ ⊢ TApp u e ∷ t
 
@@ -108,7 +107,7 @@ data TyElim Γ where
     TyArg :
           Conv Γ (TSort k) v (TPi x l m s t)
         → TyTerm Γ u s
-        → TyElim Γ (EArg u) v (λ h → substTop (rezz _) u t)
+        → TyElim Γ (EArg u) v (substTop (rezz _) u t)
     -- TODO: proj
     -- TODO: case
 
