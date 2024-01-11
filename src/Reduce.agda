@@ -140,6 +140,7 @@ opaque
   step (MkState e (TLam x v) s) = Nothing
   step (MkState e (TPi x sa sb a b) s) = Nothing
   step (MkState e (TSort n) s) = Nothing
+  step (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
 
 stepEither : State α → Either (State α) (State α)
 stepEither s = case step s of λ where

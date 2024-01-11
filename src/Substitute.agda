@@ -44,6 +44,7 @@ substTerm f (TPi x sa sb a b) =
   TPi x (substSort f sa) (substSort f sb) (substTerm f a) (substTerm (liftBindSubst f) b)
 substTerm f (TSort s)         = TSort (substSort f s)
 substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)
+substTerm f (TAnn u t)        = TAnn (substTerm f u) (substTerm f t)
 {-# COMPILE AGDA2HS substTerm #-}
 
 substElim f (EArg u)    = EArg (substTerm f u)

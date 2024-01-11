@@ -56,7 +56,7 @@ data Term α where
   TPi   : (@0 x : name) (su sv : Sort α) (u : Term α) (v : Term (x ◃ α)) → Term α
   TSort : Sort α → Term α
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
-  -- TODO: type annotations
+  TAnn  : (u : Term α) (t : Type α) → Term α
   -- TODO: literals
 {-# COMPILE AGDA2HS Term #-}
 
@@ -130,6 +130,7 @@ weaken p (TPi x sa sb a b) =
   TPi x (weakenSort p sa) (weakenSort p sb) (weaken p a) (weaken (subBindKeep p) b)
 weaken p (TSort α)         = TSort (weakenSort p α)
 weaken p (TLet x v t)      = TLet x (weaken p v) (weaken (subBindKeep p) t)
+weaken p (TAnn u t)        = TAnn (weaken p u) (weaken p t)
 {-# COMPILE AGDA2HS weaken #-}
 
 weakenSort p (STyp x) = STyp x
@@ -229,6 +230,7 @@ strengthen p (TPi x sa sb a b) =
         <*> strengthen p a <*> strengthen (subBindKeep p) b
 strengthen p (TSort s) = TSort <$> strengthenSort p s
 strengthen p (TLet x u v) = TLet x <$> strengthen p u <*> strengthen (subBindKeep p) v
+strengthen p (TAnn u t) = TAnn <$> strengthen p u <*> strengthen p t
 
 strengthenSort p (STyp n) = Just (STyp n)
 

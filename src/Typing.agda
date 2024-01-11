@@ -94,6 +94,11 @@ data TyTerm {α} Γ where
          ------------------------------------------
          → Γ ⊢ TLet x u v ∷ substTop (rezz α) u t
 
+    TyAnn :
+            Γ ⊢ u ∷ t
+         -------------------
+          → Γ ⊢ TAnn u t ∷ t
+
     TyConv :
 
            Γ ⊢ u ∷ t
