@@ -53,7 +53,7 @@ data Term α where
         → (lookupAll conArity c∈cons) ⇒ α → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (es : Elim α) → Term α
-  TPi   : (@0 x : name) (usrt vsrt : Sort α) (u : Term α) (v : Term (x ◃ α)) → Term α
+  TPi   : (@0 x : name) (su sv : Sort α) (u : Term α) (v : Term (x ◃ α)) → Term α
   TSort : Sort α → Term α
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   -- TODO: type annotations
@@ -126,8 +126,8 @@ weaken p (TDef d k)        = TDef d k
 weaken p (TCon c k vs)     = TCon c k (weakenSubst p vs)
 weaken p (TLam x v)        = TLam x (weaken (subBindKeep p) v)
 weaken p (TApp u e)        = TApp (weaken p u) (weakenElim p e)
-weaken p (TPi x sᵃ sᵇ a b) =
-  TPi x (weakenSort p sᵃ) (weakenSort p sᵇ) (weaken p a) (weaken (subBindKeep p) b)
+weaken p (TPi x sa sb a b) =
+  TPi x (weakenSort p sa) (weakenSort p sb) (weaken p a) (weaken (subBindKeep p) b)
 weaken p (TSort α)         = TSort (weakenSort p α)
 weaken p (TLet x v t)      = TLet x (weaken p v) (weaken (subBindKeep p) t)
 {-# COMPILE AGDA2HS weaken #-}
@@ -224,8 +224,8 @@ strengthen p (TDef d q) = Just (TDef d q)
 strengthen p (TCon c q vs) = TCon c q <$> strengthenSubst p vs
 strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
 strengthen p (TApp v e) = TApp <$> strengthen p v <*> strengthenElim p e
-strengthen p (TPi x sᵃ sᵇ a b) =
-  TPi x <$> strengthenSort p sᵃ <*> strengthenSort p sᵇ
+strengthen p (TPi x sa sb a b) =
+  TPi x <$> strengthenSort p sa <*> strengthenSort p sb
         <*> strengthen p a <*> strengthen (subBindKeep p) b
 strengthen p (TSort s) = TSort <$> strengthenSort p s
 strengthen p (TLet x u v) = TLet x <$> strengthen p u <*> strengthen (subBindKeep p) v
