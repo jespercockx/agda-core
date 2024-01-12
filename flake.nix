@@ -1,7 +1,7 @@
 {
   description = "Agda core";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/eabe8d3eface69f5bb16c18f8662a702f50c20d5;
   inputs.flake-utils.url = github:numtide/flake-utils;
   inputs.agda2hs-src = {
      type = "github";
@@ -41,7 +41,7 @@
             src = scope-src;
           };
       in {
-        packages = {
+        packages = rec {
           agda-core = agdaDerivation
             { name = "agda-core";
               pname = "agda-core";
@@ -52,8 +52,12 @@
               buildInputs = [ agda2hslib scopelib ];
               src = ./.;
             };
+          default = agda-core;
         };
 
-        defaultPackage = self.packages.${system}.agda-core;
+        devShells.default = pkgs.mkShell {
+          # should also include agda2hs, but not building it for now
+          packages = [ (pkgs.agda.withPackages [ agda2hslib scopelib ]) pkgs.haskell ];
+        };
       }));
 }
