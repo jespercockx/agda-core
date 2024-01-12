@@ -3,17 +3,16 @@
     "agda2hs-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1705008391,
-        "narHash": "sha256-jC21WrmnjiL+ZTC/GG0xumQa7zjqp6qR2WppDR26jhw=",
-        "owner": "liesnikov",
+        "lastModified": 1703776398,
+        "narHash": "sha256-oWNrEFw6gcSu7GxUbHBP4iwXMNQQnxhLm4rhBwLvXvs=",
+        "owner": "agda",
         "repo": "agda2hs",
-        "rev": "9957295e9c0447e24fd73465a38e80dd75f74562",
+        "rev": "5acd4eb9d718ce58411ff103b8ae1f4f99d032c9",
         "type": "github"
       },
       "original": {
-        "owner": "liesnikov",
+        "owner": "agda",
         "repo": "agda2hs",
-        "rev": "9957295e9c0447e24fd73465a38e80dd75f74562",
         "type": "github"
       }
     },
@@ -61,17 +60,16 @@
     "scope-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1705008827,
-        "narHash": "sha256-mI/K6wPR9FZEYyZbAGyZOtsMSTNHciusHEiNKJzzwSU=",
-        "owner": "liesnikov",
+        "lastModified": 1703256567,
+        "narHash": "sha256-ruoUCO7DJXPCWHw+7XlE87qS3zCJ0nMekhfbr4QT2YY=",
+        "owner": "jespercockx",
         "repo": "scope",
-        "rev": "5890c20e26b0ce9cf9d31c9d3ec39f71ddebd236",
+        "rev": "b89172f1aec0b16daf745992a5bc699bcfbfe169",
         "type": "github"
       },
       "original": {
-        "owner": "liesnikov",
+        "owner": "jespercockx",
         "repo": "scope",
-        "rev": "5890c20e26b0ce9cf9d31c9d3ec39f71ddebd236",
         "type": "github"
       }
     },
