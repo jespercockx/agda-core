@@ -9,3 +9,5 @@ MAlonzo
 .#*.agda
 *~
 lib
+dist-newstyle
+result
