@@ -5,53 +5,79 @@
   inputs.flake-utils.url = github:numtide/flake-utils;
   inputs.agda2hs-src = {
      type = "github";
-     owner = "liesnikov";
+     owner = "agda";
      repo = "agda2hs";
-     rev = "9957295e9c0447e24fd73465a38e80dd75f74562";
      flake = false;
   };
 
   inputs.scope-src = {
      type = "github";
-     owner = "liesnikov";
+     owner = "jespercockx";
      repo = "scope";
-     rev = "5890c20e26b0ce9cf9d31c9d3ec39f71ddebd236";
      flake = false;
    };
 
   outputs = {self, nixpkgs, flake-utils, agda2hs-src, scope-src}:
     let
+      getAttrOrDefault = atr: def: set:
+        if builtins.hasAttr atr set then builtins.getAttr atr set else def;
     in (flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; overlays = []; };
-        agda2hslib = pkgs.agdaPackages.mkDerivation
-          { name = "agda2hslib";
-            pname = "agda2hs";
+        pkgs = import nixpkgs { inherit system; };
+        agdaDerivation = args:
+          pkgs.agdaPackages.mkDerivation
+            (args // (if # don't override if Everything is present
+                         args ? everythingFile ||
+                         # don't override if there's an explicit buildPhase
+                         (getAttrOrDefault "buildPhase" null args != null) ||
+                         # do override if either tcFiles or tcDir is present
+                         ! (args ? tcFiles || args ? tcDir)
+                      then builtins.trace "not overriding" {}
+                      else
+                        {buildPhase =
+                           let ipaths = getAttrOrDefault "includePaths" [] args;
+                               concatMapStrings = pkgs.lib.strings.concatMapStrings;
+                               iarg = concatMapStrings (path: "-i" + path + " ") ipaths;
+                           in if args ? tcFiles
+                              then
+                                ''
+                                runHook preBuild
+                                ${concatMapStrings (f: "agda " + iarg + f + ";") args.tcFiles}
+                                runHook postBuild
+                                ''
+                              else
+                                ''
+                                runHook preBuild
+                                find "${args.tcDir}" -type f -name "*.agda" -print0 | xargs -0 -n1 ${"agda" + iarg}
+                                runHook postBuild
+                                ''
+                         ;}));
+        agda2hslib = agdaDerivation
+          { pname = "agda2hs";
             meta = {};
             version = "1.3";
-            everythingFile = "lib/Haskell/Everything.agda";
+            tcDir = "lib";
             src = agda2hs-src;
           };
-        scopelib = pkgs.agdaPackages.mkDerivation
-          { name = "scopelib";
-            pname = "scope";
+        scopelib = agdaDerivation
+          { pname = "scope";
             meta = {};
             version = "0.1.0.0";
-            src = scope-src;
-            everythingFile = "src/Everything.agda";
+            tcDir = "src";
             buildInputs = [
               agda2hslib
             ];
+            src = scope-src;
           };
       in {
         packages = {
-          agda-core = pkgs.agdaPackages.mkDerivation
+          agda-core = agdaDerivation
             { name = "agda-core";
               pname = "agda-core";
               meta = {};
               libraryName = "agda-core";
               libraryFile = "core.agda-lib";
-              everythingFile = "src/Typechecker.agda";
+              tcDir = "src";
               buildInputs = [ agda2hslib scopelib ];
               src = ./.;
             };
