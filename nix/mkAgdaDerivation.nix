@@ -26,7 +26,7 @@ agdaPackages.mkDerivation (args //
            else
              ''
              runHook preBuild
-             find "${args.tcDir}" -type f -name "*.agda" -print0 | xargs -0 -n1 -t ${"agda" + iarg}
+             find "${args.tcDir}" -type f -name "*.agda" -print0 | xargs -0 -n1 -t -P $(nproc) ${"agda" + iarg}
              runHook postBuild
              ''
       ;}))
