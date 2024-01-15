@@ -41,14 +41,16 @@
             src = scope-src;
           };
         agda2hsPackages = pkgs.callPackage ./nix/agda2hs.nix {
-            inherit (pkgs.haskellPackages) agda2hs;
+          inherit self;
+          inherit (pkgs.haskellPackages) agda2hs;
+          inherit (pkgs.haskellPackages) ghcWithPackages;
           };
       in {
         packages = rec {
-          agda2hs = agda2hsPackages.withPackages [scopelib];
-          agda-core = agdaDerivation
-            { name = "agda-core";
-              pname = "agda-core";
+          agda2hs = agda2hsPackages.withPackages [agda2hslib scopelib];
+          agda-core-lib = agdaDerivation
+            { name = "agda-core-lib";
+              pname = "agda-core-lib";
               meta = {};
               libraryName = "agda-core";
               libraryFile = "core.agda-lib";
@@ -56,6 +58,7 @@
               buildInputs = [ agda2hslib scopelib ];
               src = ./.;
             };
+          agda-core = pkgs.haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs;};
           default = agda-core;
         };
 
@@ -63,7 +66,8 @@
           # should also include agda2hs, but not building it for now
           buildInputs = with pkgs.haskellPackages; [
             cabal-install
-            agda2hsPackages.withPackages [scopelib]
+            cabal2nix
+            (agda2hsPackages.withPackages [ agda2hslib scopelib])
             (pkgs.agda.withPackages [ agda2hslib scopelib ])
           ];
         };
