@@ -9,7 +9,7 @@ author:             Jesper Cockx, Lucas Escot
 maintainer:         jesper@sikanda.be, lucas@escot.me
 -- copyright:
 build-type:         Simple
-extra-doc-files:    CHANGELOG.md
+--extra-doc-files:    CHANGELOG.md
 -- extra-source-files:
 
 common warnings
@@ -25,7 +25,7 @@ library
 
     -- other-modules:
     -- other-extensions:
-    build-depends:    base ^>=4.17.0.0
+    build-depends:    base >=4.17.0.0
     hs-source-dirs:   lib
     default-language: GHC2021
 
@@ -35,7 +35,7 @@ executable agda-core
     -- other-modules:
     -- other-extensions:
     build-depends:
-        base ^>=4.17.0.0,
+        base >=4.17.0.0,
         agda-core
 
     hs-source-dirs:   app

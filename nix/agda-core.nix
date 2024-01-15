@@ -2,12 +2,12 @@
 mkDerivation {
   pname = "agda-core";
   version = "0.1.0.0";
-  src = ./.;
+  src = ../.;
   isLibrary = true;
   isExecutable = true;
-  extraBuildInputs = [agda2hs];
+  buildTools = [agda2hs];
   preBuild = ''
-    ls -al
+    make alllib
   '';
   libraryHaskellDepends = [ base ];
   executableHaskellDepends = [ base ];
