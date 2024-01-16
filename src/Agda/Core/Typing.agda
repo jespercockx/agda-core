@@ -60,10 +60,10 @@ data TyTerm {α} Γ where
     -- TODO: constructor typing
 
     TyLam :
-
-         (Γ , x ∶ s) ⊢ u ∷ t
+          {@0 r : Rezz _ α}
+       →  (Γ , x ∶ s) ⊢ (renameTop r u) ∷ t
        ------------------------------------------------------------
-       →  Γ          ⊢ TLam x u ∷ TPi x k l s t
+       →  Γ            ⊢ TLam y u ∷ TPi x k l s t
 
     TyAppE :
           Γ ⊢ u ∷ s
@@ -83,12 +83,12 @@ data TyTerm {α} Γ where
         --------------------------------------------
          Γ ⊢ TSort (STyp n) ∷ TSort (STyp (suc n))
 
-    TyLet :
+    TyLet : {r : Rezz _ α}
 
-           Γ           ⊢ u ∷ s
-         → (Γ , x ∶ s) ⊢ v ∷ t
+         → Γ           ⊢ u ∷ s
+         → (Γ , x ∶ s) ⊢ v ∷ (weaken (subWeaken subRefl) t)
          ------------------------------------------
-         → Γ ⊢ TLet x u v ∷ substTop (rezz α) u t
+         → Γ ⊢ TLet x u v ∷ t
 
     TyAnn :
             Γ ⊢ u ∷ t
@@ -104,11 +104,11 @@ data TyTerm {α} Γ where
 
 {-# COMPILE AGDA2HS TyTerm #-}
 
-data TyElim Γ where
-    TyArg :
-          Conv Γ (TSort k) v (TPi x l m s t)
+data TyElim {α} Γ where
+    TyArg : {@0 r : Rezz _ α}
+        → Conv Γ (TSort k) v (TPi x l m s t)
         → TyTerm Γ u s
-        → TyElim Γ (EArg u) v (λ h → substTop (rezz _) u t)
+        → TyElim Γ (EArg u) v (λ h → substTop r u t)
     -- TODO: proj
     -- TODO: case
 
