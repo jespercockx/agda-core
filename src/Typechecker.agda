@@ -74,7 +74,17 @@ postulate
   liftMaybe : Maybe a → TCError → TCM a
   liftEither : Either TCError a → TCM a
 
+-- this is Either and not TCM because otherwise some meta doesn't get solved 🤷
+getPi : (t : Term α)
+      → Either TCError
+               (Σ0 (name)
+                   (λ x → ∃ ((Sort α × Sort α) × (Type α × Type (x ◃ α)))
+                             (λ ( (sa , sb) , (ta , tb) ) → t ≡ TPi x sa sb ta tb)
+                    ))
+getPi term@(TPi x sa sr at rt) = Right ( ⟨ x ⟩ ((sa , sr) , (at , rt)) ⟨ refl ⟩)
+getPi _ = Left "coudn't reduce the term to become a pi type"
 
+{-# TERMINATING #-}
 inferType : (te : Term α)
           → TCM (∃ (Type α) (λ ty → Γ ⊢ te ∷ ty))
 
@@ -90,25 +100,22 @@ inferApp : (u : Term α)
            (e : Elim α)
            → TCM (∃ (Type α) (λ ty → Γ ⊢ TApp u e ∷ ty))
 inferApp {α = α} {Γ = Γ} u (Syntax.EArg v) = do
+  let r = (rezz-scope Γ)
   (tu ⟨ gtu ⟩ ) ← inferType {Γ = Γ} u
   fuel <- tcmFuel
   pifuel <- liftMaybe
               (tryFuel stepEither (Left (makeState tu)) fuel)
               "couldn't construct Fuel for Pi reduction"
-  -- FIXME: need to resurrect α, can be done from Γ potentially?            
-  let rpi = reduce (rezz _) tu pifuel
-  (⟨ x ⟩ ( (sv , sr) , (tv , tr))) ← liftEither (getPi rpi)
+  let rpi = reduce r tu pifuel
+  --Would be nice to have an inlined case here instead of getPi
+  --https://agda.readthedocs.io/en/latest/language/syntactic-sugar.html#do-notation
+  --but it won't get compiled to haskell
+  (⟨ x ⟩ ((sv , sr) , (tv , tr)) ⟨ eq ⟩) ← liftEither (getPi rpi)
+  --FIXME: this should be CRedL, but that requires eq to be matched with refl
+  --atm agda can't unify it
   let gc = convert {Γ = Γ} (TSort (funSort sv sr)) tu (TPi x sv sr tv tr)
   gtv ← checkType {Γ = Γ} v tv
-  -- FIXME: need to resurrect α, can be done from Γ potentially?            
-  return ((substTop (rezz _) v tr) ⟨ TyAppE gtu (TyArg gc gtv) ⟩ )
-  where
-    getPi : Term α
-          → Either TCError
-                   (Σ0 (name)
-                       (λ x → (Sort α × Sort α) × (Type α × Type (x ◃ α))))
-    getPi term@(TPi x sa sr at rt) = Right ( ⟨ x ⟩ ((sa , sr) , (at , rt)))
-    getPi _ = Left "coudn't reduce the term to become a pi type"
+  return ((substTop r v tr) ⟨ TyAppE gtu (TyArg gc gtv) ⟩ )
 inferApp {Γ = Γ} u (Syntax.EProj x x₁) = tcError "not implemented"
 inferApp {Γ = Γ} u (Syntax.ECase bs) = tcError "not implemented"
 
@@ -126,25 +133,19 @@ inferTySort : (s : Sort α)
             → TCM (∃ (Type α) (λ ty → Γ ⊢ TSort s ∷ ty))
 inferTySort (STyp x) = return (TSort (STyp (suc x)) ⟨ TyType ⟩)
 
-checkDef : (@0 f : name)
+inferDef : (@0 f : name)
            (p : f ∈ defs)
-           (ty : Type α)
-           → TCM (Γ ⊢ TDef f p ∷ ty)
-checkDef f p ty = do
-  -- FIXME: doesn't work with the error: weaken subEmpty (lookupAll defType p) != ty
-  --return (TyDef f)
-  tcError "can't typecheck because idk how"
+         → TCM (∃ (Type α) (λ ty → Γ ⊢ TDef f p ∷ ty))
+inferDef f p = return (((weaken subEmpty (defType ! f))) ⟨ (TyDef f) ⟩)
 
 checkLambda : (@0 x : name)
               (u : Term (x ◃ α))
               (ty : Type α)
               → TCM (Γ ⊢ TLam x u ∷ ty)
 checkLambda {Γ = Γ} x u (TPi y su sv tu tv) = do
-  -- FIXME: the names x and y don't match
-  --d ← checkType {Γ = Γ , x ∶ tu} u tv
-  --return (TyLam d)
-  tcError "can't typecheck because idk how"
---FIXME
+  d ← checkType {Γ = Γ , y ∶ tu} (renameTop (rezz-scope Γ) u) tv
+  return (TyLam d)
+--FIXME: reduce ty and see if it's a Pi
 checkLambda x u _ = tcError "can't check lambda against a type that isn't a Pi"
 
 checkLet : (@0 x : name)
@@ -155,9 +156,7 @@ checkLet : (@0 x : name)
 checkLet {Γ = Γ} x u v ty = do
   tu ⟨ dtu ⟩  ← inferType {Γ = Γ} u
   dtv ← checkType {Γ = Γ , x ∶ tu} v (weaken (subWeaken subRefl) ty)
-  -- FIXME: doesn't work with the error: substTop (rezz α) u ty != ty
-  --return (TyLet dtu dtv)
-  tcError "can't typecheck because idk how"
+  return (TyLet {r = rezz-scope Γ} dtu dtv)
 
 checkConv : (t : Term α)
             (cty tty : Type α)
@@ -169,7 +168,10 @@ checkType {Γ = Γ} t@(TVar x p) ty = do
   tvar ← inferVar {Γ = Γ} x p
   (tsor ⟨ _ ⟩) ← inferSort {Γ = Γ} ty
   checkConv {Γ = Γ} t ty (TSort tsor) tvar
-checkType (TDef f p) ty = checkDef f p ty
+checkType {Γ = Γ} (TDef d p) ty =  do
+  tdef ← inferDef d p
+  (tsor ⟨ _ ⟩) ← inferSort {Γ = Γ} ty
+  checkConv {Γ = Γ} (TDef d p) ty (TSort tsor) tdef
 checkType (TCon c p x) ty = tcError "not implemented yet"
 checkType (TLam x te) ty =  checkLambda x te ty
 checkType {Γ = Γ} t@(TApp u e) ty = do
@@ -188,7 +190,7 @@ checkType (TLet x u v) ty = checkLet x u v ty
 checkType (TAnn u t) ty = tcError "not implemented yet"
 
 inferType (TVar x p) = inferVar x p
-inferType (TDef d x) = tcError "can't infer the type of a definition"
+inferType (TDef d p) = inferDef d p
 inferType (TCon c p x) = tcError "not implemented yet"
 inferType (TLam x te) = tcError "can't infer the type of a lambda"
 inferType (TApp u e) = inferApp u e
