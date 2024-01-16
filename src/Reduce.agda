@@ -1,4 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 
 open import Scope.Core
 open import Scope.Split
@@ -12,6 +11,12 @@ open import Haskell.Extra.Refinement
 open import Utils.Either
 
 open import Haskell.Prelude hiding (All; coerce)
+open import Haskell.Extra.Erase
+open import Haskell.Extra.Delay
+open import Haskell.Prim.Thunk
+
+import Syntax
+import Substitute
 
 module Reduce
   {@0 name  : Set}
@@ -20,9 +25,8 @@ module Reduce
   (@0 conArity : All (λ _ → Scope name) cons)
   where
 
-open import Syntax defs cons conArity
-open import Substitute defs cons conArity
-open import Haskell.Extra.Erase
+open Syntax defs cons conArity
+open Substitute defs cons conArity
 
 private variable
   @0 x     : name
@@ -113,9 +117,10 @@ opaque
     (λ p → mapRight (raise (rezz _)) (lookupEnvironment e p)) --mapEither (raise ?) (lookupEnvironment e p))
 
   step : (s : State α) → Maybe (State α)
-  step (MkState e (TVar x p) s) = case lookupEnvironment e p of λ where
-    (Left _) → Nothing
-    (Right v) → Just (MkState e v s)
+  step (MkState e (TVar x p) s) = 
+    case lookupEnvironment e p of λ where
+      (Left _) → Nothing
+      (Right v) → Just (MkState e v s)
   step (MkState e (TApp v w) s) = Just (MkState e v (w ∷ s))
   step (MkState e (TLam x v) (EArg w ∷ s)) =
     Just (MkState
@@ -127,7 +132,7 @@ opaque
       (e , x ↦ v)
       w
       (weakenElims (subRight (splitRefl (rezz _))) s))
-  step (MkState e (TDef d q) s) = Nothing -- todo
+  step (MkState e (TDef d q) s) = Nothing -- TODO
   step (MkState e (TCon c q vs) (ECase bs ∷ s)) =
     case lookupBranch bs c q of λ where
       (Just (r , v)) → Just (MkState
@@ -142,56 +147,29 @@ opaque
   step (MkState e (TSort n) s) = Nothing
   step (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
 
-stepEither : State α → Either (State α) (State α)
-stepEither s = case step s of λ where
-  Nothing   → Right s
-  (Just s') → Left s'
+{-# COMPILE AGDA2HS step #-}
 
-reduceS : Rezz _ α → (v : State α) → @0 Fuel stepEither (Left v) → State α
-reduceS r v fuel = loop stepEither v fuel
+-- TODO: make this into a `where` function once 
+-- https://github.com/agda/agda2hs/issues/264 is fixed
+reduceState : ∀ {@0 i} → Rezz _ α
+            → State α → Delay (Term α) i
+reduceState r s = case (step s) of λ where 
+      (Just s') → later λ where .force → reduceState r s'
+      Nothing   → now (unState r s)
+{-# COMPILE AGDA2HS reduceState #-}
 
-reduce : Rezz _ α → (v : Term α) → @0 Fuel stepEither (Left (makeState v)) → Term α
-reduce r v fuel = unState r (reduceS r (makeState v) fuel)
+reduce : Rezz _ α
+       → Term α → Delay (Term α) ∞
+reduce {α = α} r v = reduceState r (makeState v)
+{-# COMPILE AGDA2HS reduce #-}
 
-reduceClosed : (v : Term mempty) → @0 Fuel stepEither (Left (makeState v)) → Term mempty
+reduceClosed : (v : Term mempty) → Delay (Term mempty) ∞
 reduceClosed = reduce (rezz _)
 
-{-
+{-# COMPILE AGDA2HS reduceClosed #-}
 
 
-opaque
-  unfolding Scope
 
-  step : (α : Scope name) → Term α → Maybe (Term α)
-  step α (TVar x _) = Nothing
-  step α (TDef x _) = Nothing
-  step α (TCon c _ vs) = Nothing
-  step α (TLam x u) = Nothing
-  step α (TApp u []) = step α u
-  step α (TApp (TLam x u) (EArg v ∷ es)) = Just (substTop (rezz _) v u)
-  step α (TApp (TCon c k us) (ECase bs ∷ es)) =
-    case lookupBranch bs c k of λ where
-      (Just v) → Just (substTerm (raiseEnv (rezz _) us) v)
-      Nothing  → Nothing
-  step α (TApp u es) = fmap (λ u → TApp u es) (step α u)
-  step α (TPi x sa sb a b) = Nothing
-  step α (TSort x) = Nothing
-  step α (TLet x u v) = case step α u of λ where
-    (Just u') → Just (TLet x u' v)
-    Nothing   → Just (substTop (rezz _) u v)
-  {-# COMPILE AGDA2HS step #-}
-
-{-
-{-# TERMINATING #-}
-reduce : {α : Scope name} (fuel : Nat) → Term α → Maybe (Term α)
-reduce n u =
-  if n == 0
-    then Nothing
-    else λ ⦃ n≠0 ⦄ → case (step u) of λ where
-      (Just u') → reduce (_-_ n 1 ⦃ {!!} ⦄) u'
-      Nothing   → Just u
-{-# COMPILE AGDA2HS reduce #-}
--}
 
 -- -}
 -- -}

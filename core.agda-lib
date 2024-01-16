@@ -1,4 +1,4 @@
 name: agda-core
 include: src
 depend: agda2hs, scope
-flags: --erasure --erase-record-parameters
+flags: --erasure --erase-record-parameters --sized-types

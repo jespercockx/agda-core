@@ -5,7 +5,8 @@ module TestReduce where
 open import Haskell.Prelude hiding (All)
 
 open import Haskell.Extra.Erase
-open import Haskell.Extra.Loop
+open import Haskell.Extra.Refinement
+open import Haskell.Extra.Delay
 
 open import Scope.Core
 open import Scope.In
@@ -44,8 +45,8 @@ opaque
   `false : Term α
   `false = TCon "false" (inThere inHere) SNil
 
-∞ : Nat
-∞ = 9999999999999999
+fuel : Nat
+fuel = 9999999999999999
 
 module Tests (@0 x y z : name) where
 
@@ -55,8 +56,8 @@ module Tests (@0 x y z : name) where
     testTerm₁ : Term α
     testTerm₁ = apply (TLam x (TVar x inHere)) (TSort (STyp 0))
 
-    testProp₁ : Set
-    testProp₁ = reduceClosed testTerm₁ (getFuel _ _ ∞) ≡ TSort (STyp 0)
+    @0 testProp₁ : Set
+    testProp₁ = unDelay (reduceClosed testTerm₁) fuel ≡ TSort (STyp 0)
 
     test₁ : testProp₁
     test₁ = refl
@@ -64,8 +65,8 @@ module Tests (@0 x y z : name) where
     testTerm₂ : Term α
     testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []))
 
-    testProp₂ : Set
-    testProp₂ = reduceClosed testTerm₂ (getFuel stepEither _ ∞) ≡ `false
+    @0 testProp₂ : Set
+    testProp₂ = unDelay (reduceClosed testTerm₂) fuel ≡ `false
 
     test₂ : testProp₂
     test₂ = refl
