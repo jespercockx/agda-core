@@ -33,15 +33,18 @@ private variable
 data Conv (@0 Γ : Context α) : @0 Type α → @0 Term α → @0 Term α → Set
 data ConvElim (@0 Γ : Context α) : @0 Type α → @0 Term α → @0 Elim α → @0 Elim α → Set
 
-@0 renameTop : Term (x ◃ α) → Term (y ◃ α)
-renameTop {x = x} {y = y} = substTerm (liftBindSubst {x = x} {y = y} (idSubst (rezz _)))
+renameTop : Rezz _ α → Term (x ◃ α) → Term (y ◃ α)
+renameTop {x = x} {y = y} r = substTerm (liftBindSubst {x = x} {y = y} (idSubst r))
+
+@0 renameTopE : Term (x ◃ α) → Term (y ◃ α)
+renameTopE = renameTop (rezz _)
 
 data Conv {α} Γ where
   CRefl  : Conv Γ t u u
-  CLam   : Conv {α = x ◃ α} (Γ , x ∶ a) b (renameTop u) (renameTop v)
+  CLam   : Conv {α = x ◃ α} (Γ , x ∶ a) b (renameTopE u) (renameTopE v)
          → Conv Γ (TPi x k l a b) (TLam y u) (TLam z v)
   CPi    : Conv Γ (TSort k) a a'
-         → Conv (Γ , x ∶ a) (TSort (weakenSort (subWeaken subRefl) l)) b (renameTop b')
+         → Conv (Γ , x ∶ a) (TSort (weakenSort (subWeaken subRefl) l)) b (renameTopE b')
          → Conv Γ (TSort (funSort k l)) (TPi x k l a b) (TPi y k l a' b')
   CApp   : Conv Γ a u u'
          → ConvElim Γ a u w w'
