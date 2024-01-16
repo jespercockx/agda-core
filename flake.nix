@@ -18,8 +18,7 @@
    };
 
   outputs = {self, nixpkgs, flake-utils, agda2hs-src, scope-src}:
-    let
-    in (flake-utils.lib.eachDefaultSystem (system:
+    (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; overlays = [self.overlay]; };
         agdaDerivation = pkgs.callPackage ./nix/mkAgdaDerivation.nix {};
@@ -80,6 +79,8 @@
               let
                 inherit (finalhs) callCabal2nixWithOptions;
               in {
+                # jailbreak to sidestep aeson constraint in agda2hs,
+                # otherwise we have to rebuild a lot
                 #th-abstraction = prevhs.th-abstraction_0_6_0_0;
                 #aeson = prevhs.aeson_2_2_1_0;
                 agda2hs = callCabal2nixWithOptions "agda2hs" agda2hs-src "--jailbreak" {};
