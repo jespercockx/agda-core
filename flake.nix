@@ -47,7 +47,7 @@
         };
         agda2hs = agda2hsPackages.withPackages [agda2hslib scopelib];
         agda-core = pkgs.haskellPackages.callPackage ./nix/agda-core.nix {inherit agda2hs;};
-      in rec {
+      in {
         packages = {
           agda-core-lib = agdaDerivation
             { name = "agda-core-lib";
@@ -64,7 +64,7 @@
         };
 
         devShells.default = pkgs.haskellPackages.shellFor {
-          packages = p: [packages.agda-core];
+          packages = p: [agda-core];
           buildInputs = with pkgs.haskellPackages; [
             cabal-install
             cabal2nix
