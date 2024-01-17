@@ -122,10 +122,11 @@ instance ToCore I.Term where
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
-  toCore (I.Pi dom codom) = TPi <$> toCore dom <*> toCore codom
-        -- NOTE(flupe): we will need the sorts in the core syntax soon
-        -- <$> toCore (dom   .^ lensSort)
-        -- <*> toCore (codom .^ lensSort)
+  toCore (I.Pi dom codom) =
+    TPi <$> toCore (dom           ^. lensSort)
+        <*> toCore (absBody codom ^. lensSort)
+        <*> toCore dom
+        <*> toCore codom
 
   toCore (I.Sort s) = TSort <$> toCore s
 
