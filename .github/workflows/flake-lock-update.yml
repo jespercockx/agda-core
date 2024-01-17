@@ -1,0 +1,19 @@
+name: "Update all dependencies in flake.lock"
+on:
+  workflow_dispatch: # allows manual triggering
+
+jobs:
+  lockfile:
+    permissions:
+        contents: write
+        pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v1
+      - name: Update flake.lock
+        uses: DeterminateSystems/update-flake-lock@v20
+        with:
+          pr-title: "Update flake.lock"
