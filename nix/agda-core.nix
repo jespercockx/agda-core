@@ -4,8 +4,9 @@
 # change src to ../. instead of ./.
 # add buildTools = [agda2hs];
 # add preBuild = ''make alllib'';
-# maybe there's a better way to do it automatically, but I can't see it immediately
-{ mkDerivation, base, lib, agda2hs}:
+# make ./nix/agda-core.nix might be able to do it for you
+{ mkDerivation, base, lib
+, agda2hs }:
 mkDerivation {
   pname = "agda-core";
   version = "0.1.0.0";
