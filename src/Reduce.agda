@@ -97,24 +97,34 @@ lookupBranch (BBranch c' k' aty u ∷ bs) c p =
 opaque
   unfolding Scope
 
-  rezz-from-env : β ⇒ γ → Rezz _ β
-  rezz-from-env SNil = rezz _
-  rezz-from-env (SCons v vs) = rezzCong2 _∷_ rezzErase (rezz-from-env vs)
+  rezzFromEnv : β ⇒ γ → Rezz _ β
+  rezzFromEnv SNil = rezz _
+  rezzFromEnv (SCons v vs) = rezzCong2 _∷_ rezzErase (rezzFromEnv vs)
+
+  {-# COMPILE AGDA2HS rezzFromEnv #-}
+
+  -- TODO: make this into a where function once 
+  -- https://github.com/agda/agda2hs/issues/264 is fixed.
+  extendEnvironmentAux : Rezz _ β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
+  extendEnvironmentAux r SNil e = e
+  extendEnvironmentAux r (SCons {α = α} v vs) e =
+    let r' = rezzTail r
+    in  extendEnvironmentAux r' vs e , _ ↦ raise r' v
+
+  {-# COMPILE AGDA2HS extendEnvironmentAux #-}
 
   extendEnvironment : β ⇒ γ → Environment α γ → Environment α (β <> γ)
-  extendEnvironment vs e = go (rezz-from-env vs) vs e
-    where
-    go : Rezz _ β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
-    go r SNil e = e
-    go r (SCons {α = α} v vs) e =
-      let r' = rezzTail r
-      in  go r' vs e , _ ↦ raise r' v
+  extendEnvironment vs e = extendEnvironmentAux (rezzFromEnv vs) vs e
+
+  {-# COMPILE AGDA2HS extendEnvironment #-}
 
   lookupEnvironment : Environment α β → x ∈ β → Either (x ∈ α) (Term β)
   lookupEnvironment EnvNil      p = Left p
   lookupEnvironment (e , x ↦ v) p = inBindCase p
     (λ _ → Right (raise (rezz _) v))
-    (λ p → mapRight (raise (rezz _)) (lookupEnvironment e p)) --mapEither (raise ?) (lookupEnvironment e p))
+    (λ p → mapRight (raise (rezz _)) (lookupEnvironment e p))
+
+  {-# COMPILE AGDA2HS lookupEnvironment #-}
 
   step : (s : State α) → Maybe (State α)
   step (MkState e (TVar x p) s) = 
