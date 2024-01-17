@@ -5,9 +5,11 @@ module Agda.Core.ToCore
   ( ToCore(..)
   , ToCoreM
   , Defs
+  , Cons
   , convert
   ) where
 
+import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
 import Control.Monad.Except (MonadError(throwError))
 import Data.Functor ((<&>))
@@ -18,22 +20,27 @@ import Agda.Syntax.Common
 import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (lensSort, unDom, unEl)
+import Agda.Syntax.Internal.Elim (allApplyElims)
 import Agda.TypeChecking.Substitute ()
-import Agda.TypeChecking.Substitute.Class (Subst, absBody)
-import Agda.Utils.Maybe (fromMaybeM)
+import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
+import Agda.Utils.Maybe (fromMaybeM, whenNothingM)
 import Agda.Utils.Lens ((^.))
 
 import Data.Map.Strict      qualified as Map
 import Agda.Syntax.Internal qualified as I
 
 import Agda.Core.Syntax (Term(..), Elim(..), Elims, Sort(..))
+import Agda.Core.Syntax qualified as Core
 
 import Scope.In (In)
 import Scope.In qualified as Scope
 
 -- | Global definitions are represented as a mapping from @QName@s
---   to proofs of global scope membership.
+--   to proofs of global def scope membership.
 type Defs = Map QName In
+
+-- | Same for constructors, for the global scope of all constructors.
+type Cons = Map QName In
 
 
 -- TODO(flupe): move this to Agda.Core.Syntax
@@ -42,20 +49,33 @@ tApp :: Term -> Elims -> Term
 tApp t []     = t
 tApp t (e:es) = TApp t e `tApp` es
 
+-- | Global information available during translation.
+type ToCoreGlobal = (Defs, Cons)
 
 -- | Custom monad used for translating to core syntax.
---   Gives access to global defs.
+--   Gives access to global defs and constructors.
 --   Translation may fail.
-newtype ToCoreM a = ToCoreM { runToCore :: ReaderT Defs (Either String) a }
+newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either String) a }
   deriving newtype (Functor, Applicative, Monad, MonadError String)
-  deriving newtype (MonadReader Defs)
+  deriving newtype (MonadReader ToCoreGlobal)
  
+asksDef :: (Defs -> a) -> ToCoreM a
+asksDef = asks . (. fst)
 
--- | Lookup a global definition in the current module.
---   Fails if the definition cannot be found there.
+asksCons :: (Cons -> a) -> ToCoreM a
+asksCons = asks . (. snd)
+
+-- | Lookup a definition name in the current module.
+--   Fails if the definition cannot be found.
 lookupDef :: QName -> ToCoreM In
-lookupDef qn = fromMaybeM complain $ asks (Map.!? qn)
+lookupDef qn = fromMaybeM complain $ asksDef (Map.!? qn)
   where complain = throwError $ "Trying to access a definition from another module: " ++ prettyShow qn
+        --
+-- | Lookup a constructor name in the current module.
+--   Fails if the constructor cannot be found.
+lookupCons :: QName -> ToCoreM In
+lookupCons qn = fromMaybeM complain $ asksCons (Map.!? qn)
+  where complain = throwError $ "Trying to access a constructor from another module: " ++ prettyShow qn
 
 
 -- | Class for things that can be converted to core syntax
@@ -65,9 +85,11 @@ class ToCore a where
 
 
 -- | Convert some term to Agda's core representation.
-convert :: ToCore a => Defs -> a -> Either String (CoreOf a)
-convert defs t = runReaderT (runToCore $ toCore t) defs
+convert :: ToCore a => Defs -> Cons -> a -> Either String (CoreOf a)
+convert defs cons t = runReaderT (runToCore $ toCore t) (defs, cons)
 
+toSubst :: [Term] -> Core.Subst
+toSubst = foldr Core.SCons Core.SNil
 
 instance ToCore I.Term where
   type CoreOf I.Term = Term
@@ -84,9 +106,21 @@ instance ToCore I.Term where
 
   toCore (I.Def qn es) = tApp <$> (TDef <$> lookupDef qn) <*> toCore es
 
-  -- TODO(flupe)
-  toCore (I.Con ch ci es) = throwError "constructors not supported"
+  toCore (I.Con ch ci es)
+    | Just args <- allApplyElims es 
+    = do
+        -- @l@ is the amount of arguments missing from the application.
+        -- we need to eta-expand manually @l@ times to fully-apply the constructor.
+        let l  = length (I.conFields ch) - length es
+        let vs = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
+        con <- lookupCons (I.conName ch)
 
+        t <- TCon con . toSubst . (++ vs) <$> toCore (raise l args)
+
+        -- in the end, we bind @l@ fresh variables
+        pure (iterate TLam t !! l)
+
+  toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
   toCore (I.Pi dom codom) = TPi <$> toCore dom <*> toCore codom
         -- NOTE(flupe): we will need the sorts in the core syntax soon
@@ -129,7 +163,11 @@ instance ToCore I.Type where
 
 instance (Subst a, ToCore a) => ToCore (I.Abs a) where
   type CoreOf (I.Abs a) = CoreOf a
-  toCore t = toCore (absBody t)
+  toCore = toCore . absBody
+
+instance ToCore a => ToCore (Arg a) where
+  type CoreOf (Arg a) = CoreOf a
+  toCore = toCore . unArg
 
 
 -- TODO(flupe): enforce that there are no weird modalities in the arg (e.g: disallow irrelevance)
@@ -140,8 +178,8 @@ instance ToCore a => ToCore (I.Dom a) where
 
 instance ToCore I.Elim where
   type CoreOf I.Elim = Elim
-  toCore (I.Apply x)  = EArg <$> toCore (unArg x)
-  toCore I.Proj{}     = throwError "record projections not supported"
+  toCore (I.Apply x)   = EArg <$> toCore (unArg x)
+  toCore (I.Proj _ qn) = EProj <$> lookupDef qn
   toCore I.IApply{}   = throwError "cubical endpoint application not supported"
 
 
