@@ -8,11 +8,8 @@ open import Haskell.Extra.Erase
 open import Haskell.Extra.Refinement
 open import Haskell.Extra.Delay
 
-open import Scope.Core
-open import Scope.In
-open import Scope.All
-open import Scope.Split
-open import Scope.Sub
+open import Scope
+open import GlobalScope
 
 name = String
 
@@ -34,8 +31,15 @@ cons = bind "true" $ bind "false" mempty
 conArity : All (λ _ → Scope name) cons
 conArity = allJoin (allSingl mempty) (allJoin (allSingl mempty) allEmpty)
 
-open import Syntax defs cons conArity
-open import Reduce defs cons conArity
+globals : Globals
+globals = record 
+  { defScope = defs
+  ; conScope = cons
+  ; fieldScope = conArity
+  }
+
+open import Syntax globals
+open import Reduce globals
 
 opaque
   unfolding lookupAll inHere inThere splitRefl splitJoinRight subBindDrop subLeft

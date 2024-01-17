@@ -1,8 +1,5 @@
-open import Scope.Core
-open import Scope.Split
-open import Scope.Sub
-open import Scope.In
-open import Scope.All
+open import Scope
+open import GlobalScope
 
 open import Haskell.Extra.Dec
 open import Utils.Either
@@ -15,16 +12,14 @@ import Syntax
 
 module Conversion
   {@0 name  : Set}
-  (@0 defs     : Scope name)
-  (@0 cons     : Scope name)
-  (@0 conArity : All (λ _ → Scope name) cons)
-  (@0 defType  : All (λ _ → Syntax.Type defs cons conArity mempty) defs)
+  (@0 globals : Globals)
+  (@0 defType : All (λ _ → Syntax.Type globals mempty) (Globals.defScope globals))
   where
 
-open Syntax defs cons conArity
-open import Substitute defs cons conArity
-open import Reduce defs cons conArity
-open import Context defs cons conArity
+open Syntax globals
+open import Substitute globals
+open import Reduce globals
+open import Context globals
 
 private variable
   @0 x y z : name
