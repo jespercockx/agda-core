@@ -2,10 +2,11 @@ module Main where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
-import Data.Foldable (for_)
-import Data.Version (showVersion)
+import Data.Either (partitionEithers)
+import Data.Foldable (for_, foldl')
 import Data.Map.Strict (Map)
-import Data.Foldable (foldl')
+import Data.Maybe (catMaybes, mapMaybe, isJust)
+import Data.Version (showVersion)
 
 import Data.Map.Strict qualified as Map
 
@@ -15,14 +16,17 @@ import Agda.Compiler.Backend
 import Agda.Syntax.Internal
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Core.ToCore
+import Agda.Utils.Either (maybeRight)
 
 import Scope.Core as Scope
 import Scope.In   as Scope
 
 import Paths_agda_core
 
+
 main :: IO ()
 main = runAgda [Backend backend]
+
 
 backend :: Backend' () () () () Definition
 backend = Backend'
@@ -41,27 +45,33 @@ backend = Backend'
   }
 
 
-
--- TODO(flupe): for datatype definitions,
---              also populate a mapping for constructors
--- TODO(flupe): for record definitions,
---              also add record fields as defs
-
 -- | Given a list of definitions,
---  compute a mapping from def QNames to module scope membership proofs.
-getModuleScope :: [Definition] -> Defs
-getModuleScope (fmap defName -> defs) =
-  let !n = length defs in
-  Map.fromList $ zip (reverse defs)
-               $ iterate Scope.inThere Scope.inHere
-
+--   construct definition and constructor membership proofs, along with constructor arity.
+getModuleScope :: [Definition] -> (Defs, Cons)
+getModuleScope defs =
+  let ps = iterate Scope.inThere Scope.inHere
+      (ds, cs) :: ([QName], [QName])
+        = partitionEithers $ flip mapMaybe defs \def ->
+            let name = defName def
+            in case theDef def of
+              Datatype{}    -> Just $ Left  name
+              Function{}    -> Just $ Left  name
+              Record{}      -> Just $ Left  name
+              Constructor{} -> Just $ Right name
+              _             -> Nothing
+  in ( Map.fromList $ zip (reverse ds) ps
+     , Map.fromList $ zip (reverse cs) ps
+     )
 
 checkModule :: IsMain -> TopLevelModuleName -> [Definition] -> TCM ()
 checkModule IsMain tlm defs = do
 
   reportSDoc "agda-core.check" 5 $ text "Checking module" <+> prettyTCM tlm
 
-  let !gdefs = getModuleScope defs
+  let (!gdefs, !gcons) = getModuleScope defs
+
+  reportSDoc "agda-core.check" 5 $ text "Module definitions:"  <+> prettyTCM (Map.keys gdefs)
+  reportSDoc "agda-core.check" 5 $ text "Module constructors:" <+> prettyTCM (Map.keys gcons)
 
   for_ defs \def -> do
 
@@ -70,8 +80,7 @@ checkModule IsMain tlm defs = do
 
     reportSDoc "agda-core.check" 5 $ text "Checking" <+> dn
 
-    -- TODO(flupe): convert type of def.
-    case convert gdefs (unEl defType) of
+    case convert gdefs gcons (unEl defType) of
       Left e   -> reportSDoc "agda-core.check" 5 $
                         text "Couldn't convert type of" <+> dn
                     <+> text "to core syntax:" <+> text e
@@ -81,10 +90,11 @@ checkModule IsMain tlm defs = do
       -- NOTE(flupe): currently we only support definitions with no arguments (implying no pattern-matching)
       --              i.e functions have to be written with explicit lambdas
       Function{..}
-        | [cl]      <- funClauses
+        | not (isJust (maybeRight funProjection >>= projProper)) -- discard record projections
+        , [cl]      <- funClauses
         , []        <- clausePats cl
         , Just body <- clauseBody cl
-        -> case convert gdefs body of
+        -> case convert gdefs gcons body of
           Left e   -> reportSDoc "agda-core.check" 5 $ text "Failed to convert to core syntax:" <+> text e
           Right ct -> reportSDoc "agda-core.check" 5 $ text "Definition:" <+> text (show ct) -- liftIO $ print ct -- TODO(flupe): launch type-checker
 
@@ -93,10 +103,10 @@ checkModule IsMain tlm defs = do
       Axiom{}         -> reportSDoc "agda-core.check" 5 $ text "Postulates not supported"
       Primitive{}     -> reportSDoc "agda-core.check" 5 $ text "Primitives not supported"
       PrimitiveSort{} -> reportSDoc "agda-core.check" 5 $ text "Primitive sorts not supported"
-      Constructor{}   -> reportSDoc "agda-core.check" 5 $ text "Constructors not supported"
+      Constructor{}   -> pure () -- NOTE(flupe): will be handled when datatypes are handled
 
-      _ -> reportSDoc "agda-core.check" 5 $ text "Unsupported, skipping" <+> prettyTCM defName
-
+      _               -> reportSDoc "agda-core.check" 5 $ text "Unsupported, skipping" <+> prettyTCM defName
 
 -- for now, we only check the main module
 checkModule NotMain _ _ = pure ()
+
