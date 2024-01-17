@@ -5,8 +5,9 @@
 # add buildTools = [agda2hs];
 # add preBuild = ''make alllib'';
 # make ./nix/agda-core.nix might be able to do it for you
-{ mkDerivation, base, lib
-, agda2hs }:
+{ mkDerivation, Agda, base, bytestring, containers, directory
+, filepath, lib, mtl, unordered-containers, agda2hs
+}:
 mkDerivation {
   pname = "agda-core";
   version = "0.1.0.0";
@@ -18,7 +19,10 @@ mkDerivation {
     make alllib
   '';
   libraryHaskellDepends = [ base ];
-  executableHaskellDepends = [ base ];
+  executableHaskellDepends = [
+    Agda base bytestring containers directory filepath mtl
+    unordered-containers
+  ];
   license = lib.licenses.unlicense;
   mainProgram = "agda-core";
 }
