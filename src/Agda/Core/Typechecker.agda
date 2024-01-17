@@ -20,6 +20,7 @@ open import Agda.Core.Substitute globals
 
 open import Haskell.Prim.Functor
 open import Haskell.Prim.Applicative
+open import Haskell.Law.Equality
 open import Haskell.Control.Monad
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Loop
@@ -69,15 +70,12 @@ postulate
   liftMaybe : Maybe a → TCError → TCM a
   liftEither : Either TCError a → TCM a
 
--- this is Either and not TCM because otherwise some meta doesn't get solved 🤷
 getPi : (t : Term α)
-      → Either TCError
-               (Σ0 (name)
-                   (λ x → ∃ ((Sort α × Sort α) × (Type α × Type (x ◃ α)))
-                             (λ ( (sa , sb) , (ta , tb) ) → t ≡ TPi x sa sb ta tb)
-                    ))
-getPi term@(TPi x sa sr at rt) = Right ( ⟨ x ⟩ ((sa , sr) , (at , rt)) ⟨ refl ⟩)
-getPi _ = Left "coudn't reduce the term to become a pi type"
+      → TCM (Σ0 (name)
+                (λ x → ∃ ((Sort α × Sort α) × (Type α × Type (x ◃ α)))
+                          (λ ( (sa , sb) , (ta , tb) ) → t ≡ TPi x sa sb ta tb)))
+getPi term@(TPi x sa sr at rt) = return ( ⟨ x ⟩ ((sa , sr) , (at , rt)) ⟨ refl ⟩)
+getPi _ = tcError "coudn't reduce the term to become a pi type"
 
 {-# TERMINATING #-}
 inferType : (te : Term α)
@@ -88,7 +86,7 @@ checkType : (te : Term α) (ty : Type α)
 
 inferVar : (@0 x : name)
            (p : x ∈ α)
-           → TCM (∃ (Type α) (λ t → Γ ⊢ TVar x p ∷ t))
+         → TCM (∃ (Type α) (λ t → Γ ⊢ TVar x p ∷ t))
 inferVar {Γ = Γ} x p = return ( (lookupVar Γ x p) ⟨ TyTVar ⟩)
 
 inferApp : (u : Term α)
@@ -97,18 +95,20 @@ inferApp : (u : Term α)
 inferApp {α = α} {Γ = Γ} u (Syntax.EArg v) = do
   let r = (rezz-scope Γ)
   (tu ⟨ gtu ⟩ ) ← inferType {Γ = Γ} u
+  (stu ⟨ _ ⟩) ← inferSort {Γ = Γ} tu
   fuel <- tcmFuel
   pifuel <- liftMaybe
               (tryFuel stepEither (Left (makeState tu)) fuel)
               "couldn't construct Fuel for Pi reduction"
   let rpi = reduce r tu pifuel
-  --Would be nice to have an inlined case here instead of getPi
-  --https://agda.readthedocs.io/en/latest/language/syntactic-sugar.html#do-notation
-  --but it won't get compiled to haskell
-  (⟨ x ⟩ ((sv , sr) , (tv , tr)) ⟨ eq ⟩) ← liftEither (getPi rpi)
-  --FIXME: this should be CRedL, but that requires eq to be matched with refl
-  --atm agda can't unify it
-  let gc = convert {Γ = Γ} (TSort (funSort sv sr)) tu (TPi x sv sr tv tr)
+  -- Needs an inspect-idiom to work
+  --(TPi x sv sr tv tr) ← return rpi
+  --  where
+  --    _ → tcError "coudn't reduce the term to become a pi type"
+  --let gc = CRedL {r = r} pifuel CRefl
+  (⟨ x ⟩ ((sv , sr) , (tv , tr)) ⟨ eq ⟩) ← getPi rpi
+  --FIXME: this subst won't compile?
+  let gc = CRedL {r = r} pifuel (subst (λ u → Conv Γ (TSort stu) rpi u) eq CRefl)
   gtv ← checkType {Γ = Γ} v tv
   return ((substTop r v tr) ⟨ TyAppE gtu (TyArg gc gtv) ⟩ )
 inferApp {Γ = Γ} u (Syntax.EProj x x₁) = tcError "not implemented"
