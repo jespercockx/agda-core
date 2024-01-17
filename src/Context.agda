@@ -48,15 +48,15 @@ private variable
 
 lookupVar : (Γ : Context α) (@0 x : name) (p : x ∈ α) → Type α
 lookupVar CtxEmpty x p = inEmptyCase p
-lookupVar (CtxExtend Γ y s) x p = raise (rezz _) (inBindCase p
+lookupVar (CtxExtend g y s) x p = raise (rezz _) (inBindCase p
   (λ _ → s)
-  (λ q → lookupVar Γ x q))
+  (λ q → lookupVar g x q))
 
 {-# COMPILE AGDA2HS lookupVar #-}
 
-rezz-scope : (Γ : Context α) → Rezz (Scope name) α
-rezz-scope CtxEmpty = rezz _
-rezz-scope (CtxExtend Γ x _) =
-  rezzCong (λ t → (singleton x) <> t) (rezz-scope Γ)
+rezzScope : (Γ : Context α) → Rezz (Scope name) α
+rezzScope CtxEmpty = rezz _
+rezzScope (CtxExtend g x _) =
+  rezzCong (λ t → (singleton x) <> t) (rezzScope g)
 
-{-# COMPILE AGDA2HS rezz-scope #-}
+{-# COMPILE AGDA2HS rezzScope #-}

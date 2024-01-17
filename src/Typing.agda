@@ -13,7 +13,7 @@ open import Haskell.Prelude hiding (All; e; s; t; m)
 open import Haskell.Extra.Loop
 
 module Typing
-    {@0 name  : Set}
+    {@0 name     : Set}
     (@0 defs     : Scope name)
     (@0 cons     : Scope name)
     (@0 conArity : All (λ _ → Scope name) cons)
@@ -87,9 +87,7 @@ data TyTerm {α} Γ where
         --------------------------------------------
          Γ ⊢ TSort (STyp n) ∷ TSort (STyp (suc n))
 
-    TyLet : {r : Rezz _ α}
-
-         → Γ           ⊢ u ∷ s
+    TyLet : Γ          ⊢ u ∷ s
          → (Γ , x ∶ s) ⊢ v ∷ (weaken (subWeaken subRefl) t)
          ------------------------------------------
          → Γ ⊢ TLet x u v ∷ t

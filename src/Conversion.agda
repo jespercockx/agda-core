@@ -39,39 +39,50 @@ data ConvElim (@0 Γ : Context α) : @0 Type α → @0 Term α → @0 Elim α �
 
 renameTop : Rezz _ α → Term (x ◃ α) → Term (y ◃ α)
 renameTop {x = x} {y = y} r = substTerm (liftBindSubst {x = x} {y = y} (idSubst r))
+{-# COMPILE AGDA2HS renameTop #-}
 
 @0 renameTopE : Term (x ◃ α) → Term (y ◃ α)
 renameTopE = renameTop (rezz _)
 
+syntax Conv Γ t x y = Γ ⊢ x ≅ y ∶ t
+syntax ConvElim Γ t x e₁ e₂ = Γ ⊢ x [ e₁ ≅ e₂ ] ∶ t
+
 data Conv {α} Γ where
-  CRefl  : Conv Γ t u u
-  CLam   : Conv {α = x ◃ α} (Γ , x ∶ a) b (renameTopE u) (renameTopE v)
-         → Conv Γ (TPi x k l a b) (TLam y u) (TLam z v)
-  CPi    : Conv Γ (TSort k) a a'
-         → Conv (Γ , x ∶ a) (TSort (weakenSort (subWeaken subRefl) l)) b (renameTopE b')
-         → Conv Γ (TSort (funSort k l)) (TPi x k l a b) (TPi y k l a' b')
-  CApp   : Conv Γ a u u'
-         → ConvElim Γ a u w w'
+  CRefl  : Γ ⊢ u ≅ u ∶ t
+
+  CLam   : (Γ , x ∶ a) ⊢ renameTopE u ≅ renameTopE v ∶ b
+         → Γ ⊢ TLam y u ≅ TLam z v ∶ TPi x k l a b
+
+  CPi    : Γ ⊢ a ≅ a' ∶ TSort k
+         → (Γ , x ∶ a) ⊢ b ≅ (renameTopE b') ∶ TSort (weakenSort (subWeaken subRefl) l)
+         → Γ ⊢ (TPi x k l a b) ≅ (TPi y k l a' b') ∶ TSort (funSort k l)
+
+  CApp   : Γ ⊢ u ≅ u' ∶ a
+         → Γ ⊢ u [ w ≅ w' ] ∶ a
          -- Note: We assume all terms are well-typed, so we allow any type b here
-         → Conv Γ b (TApp u w) (TApp u' w')
+         → Γ ⊢ TApp u w ≅ TApp u' w' ∶ b
+
   CRedT  : (@0 fuel : _)
-         → let t' = reduce (rezz _) t fuel
-           in  Conv Γ t' u v → Conv Γ t u v
+         → Γ ⊢ u ≅ v ∶ reduce (rezz _) t fuel
+         → Γ ⊢ u ≅ v ∶ t
+
   CRedL  : (@0 fuel : _)
-         → let u' = reduce (rezz _) u fuel
-           in  Conv Γ t u' v → Conv Γ t u v
+         → Γ ⊢ reduce (rezz _) u fuel ≅ v ∶ t
+         → Γ ⊢ u ≅ v ∶ t
+
   CRedR  : (@0 fuel : _)
-         → let v' = reduce (rezz _) v fuel
-           in  Conv Γ t u v' → Conv Γ t u v
+         → Γ ⊢ u ≅ reduce (rezz _) v fuel ∶ t
+         → Γ ⊢ u ≅ v ∶ t
 
 {-# COMPILE AGDA2HS Conv #-}
 
 data ConvElim Γ where
   CERedT : (@0 fuel : _)
-         → let t' = reduce (rezz _) t fuel
-           in  ConvElim Γ t' u w w' → ConvElim Γ t u w w'
-  CEArg  : Conv Γ a v v'
-         → ConvElim Γ (TPi x k l a b) u (EArg v) (EArg v')
+         → Γ ⊢ u [ w ≅ w' ] ∶ reduce (rezz _) t fuel
+         → Γ ⊢ u [ w ≅ w' ] ∶ t
+
+  CEArg  : Γ ⊢ v ≅ v' ∶ a
+         → Γ ⊢ u [ EArg v ≅ EArg v' ] ∶ TPi x k l a b
   -- TODO: CEProj : {!   !}
   -- TODO: CECase : {!   !}
 
