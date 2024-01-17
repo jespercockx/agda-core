@@ -1,24 +1,19 @@
 
-open import Scope.Core
-open import Scope.Split
-open import Scope.Sub
-open import Scope.In
-open import Scope.All
+open import Scope
+open import GlobalScope
 
 open import Haskell.Extra.Dec
+open import Haskell.Extra.Erase
 open import Utils.Either
 
 open import Haskell.Prelude hiding (All)
 
 module Substitute
   {@0 name  : Set}
-  (@0 defs     : Scope name)
-  (@0 cons     : Scope name)
-  (@0 conArity : All (λ _ → Scope name) cons)
+  (@0 globalS : Globals)
   where
 
-open import Syntax defs cons conArity
-open import Haskell.Extra.Erase
+open import Syntax globalS
 
 private variable
   @0 x     : name

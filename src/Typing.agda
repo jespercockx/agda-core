@@ -2,6 +2,7 @@
 -- open import Utils
 -- open Variables
 open import Scope
+open import GlobalScope
 import Syntax
 import Reduce
 import Context
@@ -14,17 +15,15 @@ open import Haskell.Extra.Loop
 
 module Typing
     {@0 name  : Set}
-    (@0 defs     : Scope name)
-    (@0 cons     : Scope name)
-    (@0 conArity : All (λ _ → Scope name) cons)
-    (@0 defType  : All (λ _ → Syntax.Type defs cons conArity mempty) defs)
+    (@0 globals : Globals)
+    (@0 defType : All (λ _ → Syntax.Type globals (mempty {{iMonoidScope}})) (Globals.defScope globals))
   where
 
-open Syntax defs cons conArity
-open Reduce defs cons conArity
-open Context defs cons conArity
-open Conversion defs cons conArity defType
-open Substitute defs cons conArity
+open Syntax globals
+open Substitute globals
+open Reduce globals
+open Context globals
+open Conversion globals defType
 
 private variable
   @0 x y : name
@@ -57,7 +56,7 @@ data TyTerm {α} Γ where
         -------------------
         → Γ ⊢ TVar x p ∷ (lookupVar Γ x p)
 
-    TyDef : (@0 f : name) {@0 p : f ∈ defs}
+    TyDef : (@0 f : name) {@0 p : f ∈ defScope}
 
         -------------------------------------------------
         → Γ ⊢ TDef f p ∷ (weaken subEmpty (defType ! f))

@@ -7,15 +7,16 @@ open import Haskell.Extra.Erase
 
 open import Utils.Misc
 
--- NOTE(flupe): make Scope export all of the following
 open import Scope
+open import GlobalScope
 
 module Syntax
   {@0 name     : Set}
-  (@0 defs     : Scope name)
-  (@0 cons     : Scope name)
-  (@0 conArity : All (λ _ → Scope name) cons)
+  (@0 globals  : Globals)
   where
+
+module @0 TheGlobals = Globals globals
+open TheGlobals public
 
 private variable
   @0 x     : name
@@ -48,9 +49,9 @@ syntax Subst α β = α ⇒ β
 data Term α where
   -- NOTE(flupe): removed tactic arguments for now because hidden arguments not supported yet #217
   TVar  : (@0 x : name) → x ∈ α → Term α
-  TDef  : (@0 d : name) → d ∈ defs → Term α
-  TCon  : (@0 c : name) (c∈cons : c ∈ cons)
-        → (lookupAll conArity c∈cons) ⇒ α → Term α
+  TDef  : (@0 d : name) → d ∈ defScope → Term α
+  TCon  : (@0 c : name) (c∈cons : c ∈ conScope)
+        → (lookupAll fieldScope c∈cons) ⇒ α → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (es : Elim α) → Term α
   TPi   : (@0 x : name) (su sv : Sort α) (u : Term α) (v : Term (x ◃ α)) → Term α
@@ -71,7 +72,7 @@ funSort (STyp a) (STyp b) = STyp (max a b)
 
 data Elim α where
   EArg  : Term α → Elim α
-  EProj : (@0 x : name) → x ∈ defs → Elim α
+  EProj : (@0 x : name) → x ∈ defScope → Elim α
   ECase : (bs : Branches α) → Elim α
   -- TODO: do we need a type annotation for the return type of case?
 {-# COMPILE AGDA2HS Elim     #-}
@@ -80,9 +81,9 @@ Elims α = List (Elim α)
 {-# COMPILE AGDA2HS Elims #-}
 
 data Branch α where
-  BBranch : (@0 c : name) → (c∈cons : c ∈ cons)
-          → Rezz _ (lookupAll conArity c∈cons)
-          → Term (lookupAll conArity c∈cons <> α) → Branch α
+  BBranch : (@0 c : name) → (c∈cons : c ∈ conScope)
+          → Rezz _ (lookupAll fieldScope c∈cons)
+          → Term (lookupAll fieldScope c∈cons <> α) → Branch α
 {-# COMPILE AGDA2HS Branch   #-}
 
 Branches α = List (Branch α)

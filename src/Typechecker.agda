@@ -1,5 +1,6 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 open import Scope
+open import GlobalScope
 import Syntax
 import Reduce
 import Typing
@@ -14,16 +15,14 @@ open import Agda.Primitive
 
 module Typechecker
     {@0 name  : Set}
-    (defs     : Scope name)
-    (cons     : Scope name)
-    (conArity : All (λ _ → Scope name) cons)
-    (defType  : All (λ _ → Syntax.Type defs cons conArity mempty) defs)
+    (@0 globals : Globals)
+    (defType  : All (λ _ → Syntax.Type globals (mempty {{iMonoidScope}})) (Globals.defScope globals))
   where
 
-open Syntax defs cons conArity
-open Typing defs cons conArity defType
-open Context defs cons conArity
-open Conversion defs cons conArity defType
+open Syntax globals
+open Context globals
+open Conversion globals defType
+open Typing globals defType
 
 private
   variable @0 α : Scope name
@@ -82,7 +81,7 @@ inferTySort : (s : Sort α)
 inferTySort = {!!}
 
 checkDef : (@0 f : name)
-           (p : f ∈ defs)
+           (p : f ∈ defScope)
            (ty : Type α)
            → TCM (Γ ⊢ TDef f p ∷ ty)
 checkDef = {!!}

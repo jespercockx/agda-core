@@ -1,9 +1,6 @@
 
-open import Scope.Core
-open import Scope.Split
-open import Scope.Sub
-open import Scope.In
-open import Scope.All
+open import Scope
+open import GlobalScope
 
 open import Haskell.Extra.Dec
 open import Utils.Either
@@ -17,13 +14,11 @@ import Reduce
 
 module Context
   {@0 name  : Set}
-  (@0 defs     : Scope name)
-  (@0 cons     : Scope name)
-  (@0 conArity : All (λ _ → Scope name) cons)
+  (@0 globals : Globals)
   where
 
-open Syntax defs cons conArity
-open Reduce defs cons conArity
+open Syntax globals
+open Reduce globals
 
 private variable
   @0 x y : name

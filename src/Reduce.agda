@@ -1,9 +1,6 @@
 
-open import Scope.Core
-open import Scope.Split
-open import Scope.Sub
-open import Scope.In
-open import Scope.All
+open import Scope
+open import GlobalScope
 
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Loop
@@ -20,13 +17,11 @@ import Substitute
 
 module Reduce
   {@0 name  : Set}
-  (@0 defs     : Scope name)
-  (@0 cons     : Scope name)
-  (@0 conArity : All (λ _ → Scope name) cons)
+  (@0 globals : Globals)
   where
 
-open Syntax defs cons conArity
-open Substitute defs cons conArity
+open Syntax globals
+open Substitute globals
 
 private variable
   @0 x     : name
@@ -83,9 +78,9 @@ unState r (MkState e v s) = substTerm (envToSubst r e) (applyElims v s)
 
 {-# COMPILE AGDA2HS unState #-}
 
-lookupBranch : Branches α → (@0 c : name) (p : c ∈ cons)
-             → Maybe ( Rezz _ (lookupAll conArity p)
-                     × Term ((lookupAll conArity p) <> α))
+lookupBranch : Branches α → (@0 c : name) (p : c ∈ conScope)
+             → Maybe ( Rezz _ (lookupAll fieldScope p)
+                     × Term ((lookupAll fieldScope p) <> α))
 lookupBranch [] c k = Nothing
 lookupBranch (BBranch c' k' aty u ∷ bs) c p =
   case decIn k' p of λ where
