@@ -3,15 +3,16 @@
     "agda2hs-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1705482882,
-        "narHash": "sha256-QT7+5YBF0+yRLopvI/lzcRgAAZwN2w3Z4K+gywvk7s0=",
-        "owner": "agda",
+        "lastModified": 1705594355,
+        "narHash": "sha256-upU27mtmogPq1HGh3WK2mGy5cMrMafEIGISL+4EomVQ=",
+        "owner": "jespercockx",
         "repo": "agda2hs",
-        "rev": "984821ab84b33917a1709c36bf66a0732ebbb46d",
+        "rev": "df9dac791cec1c2e1590e7a80d56393125a06b89",
         "type": "github"
       },
       "original": {
-        "owner": "agda",
+        "owner": "jespercockx",
+        "ref": "DelayMonad",
         "repo": "agda2hs",
         "type": "github"
       }
