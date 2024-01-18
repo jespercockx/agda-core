@@ -1,0 +1,2 @@
+constraints: Agda +debug
+packages: agda-core.cabal

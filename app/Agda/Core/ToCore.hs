@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, OverloadedStrings #-}
 
 -- | Conversion from Agda's internal syntax to core representation
 module Agda.Core.ToCore
@@ -21,6 +21,7 @@ import Agda.Syntax.Common.Pretty (prettyShow)
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (lensSort, unDom, unEl)
 import Agda.Syntax.Internal.Elim (allApplyElims)
+import Agda.Syntax.Common.Pretty
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
 import Agda.Utils.Maybe (fromMaybeM, whenNothingM)
@@ -55,8 +56,8 @@ type ToCoreGlobal = (Defs, Cons)
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global defs and constructors.
 --   Translation may fail.
-newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either String) a }
-  deriving newtype (Functor, Applicative, Monad, MonadError String)
+newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either Doc) a }
+  deriving newtype (Functor, Applicative, Monad, MonadError Doc)
   deriving newtype (MonadReader ToCoreGlobal)
  
 asksDef :: (Defs -> a) -> ToCoreM a
@@ -69,13 +70,13 @@ asksCons = asks . (. snd)
 --   Fails if the definition cannot be found.
 lookupDef :: QName -> ToCoreM In
 lookupDef qn = fromMaybeM complain $ asksDef (Map.!? qn)
-  where complain = throwError $ "Trying to access a definition from another module: " ++ prettyShow qn
+  where complain = throwError $ "Trying to access a definition from another module: " <+> pretty qn
         --
 -- | Lookup a constructor name in the current module.
 --   Fails if the constructor cannot be found.
 lookupCons :: QName -> ToCoreM In
 lookupCons qn = fromMaybeM complain $ asksCons (Map.!? qn)
-  where complain = throwError $ "Trying to access a constructor from another module: " ++ prettyShow qn
+  where complain = throwError $ "Trying to access a constructor from another module: " <+> pretty qn
 
 
 -- | Class for things that can be converted to core syntax
@@ -85,7 +86,7 @@ class ToCore a where
 
 
 -- | Convert some term to Agda's core representation.
-convert :: ToCore a => Defs -> Cons -> a -> Either String (CoreOf a)
+convert :: ToCore a => Defs -> Cons -> a -> Either Doc (CoreOf a)
 convert defs cons t = runReaderT (runToCore $ toCore t) (defs, cons)
 
 toSubst :: [Term] -> Core.Subst
@@ -141,7 +142,7 @@ instance ToCore I.Term where
 instance ToCore I.Level where
   type CoreOf I.Level = Natural
   toCore (I.Max c []) = pure $ fromInteger c
-  toCore l            = throwError $ "level " ++ prettyShow l ++ " not supported"
+  toCore l            = throwError $ "level" <+> pretty l <+> "not supported"
 
 
 instance ToCore I.Univ where
@@ -154,7 +155,7 @@ instance ToCore I.Univ where
 instance ToCore I.Sort where
   type CoreOf I.Sort = Sort
   toCore (I.Univ univ l) = toCore univ <*> toCore l
-  toCore s = throwError $ "sort " ++ prettyShow s ++ " not supported"
+  toCore s = throwError $ "sort" <+> pretty s <+> " not supported"
 
 
 instance ToCore I.Type where
@@ -165,6 +166,7 @@ instance ToCore I.Type where
 instance (Subst a, ToCore a) => ToCore (I.Abs a) where
   type CoreOf (I.Abs a) = CoreOf a
   toCore = toCore . absBody
+
 
 instance ToCore a => ToCore (Arg a) where
   type CoreOf (Arg a) = CoreOf a
@@ -179,9 +181,9 @@ instance ToCore a => ToCore (I.Dom a) where
 
 instance ToCore I.Elim where
   type CoreOf I.Elim = Elim
-  toCore (I.Apply x)   = EArg <$> toCore (unArg x)
+  toCore (I.Apply x)   = EArg <$> toCore x
   toCore (I.Proj _ qn) = EProj <$> lookupDef qn
-  toCore I.IApply{}   = throwError "cubical endpoint application not supported"
+  toCore I.IApply{}    = throwError "cubical endpoint application not supported"
 
 
 instance ToCore a => ToCore [a] where
