@@ -18,6 +18,8 @@ import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Core.ToCore
 import Agda.Utils.Either (maybeRight)
 
+import Agda.Syntax.Common.Pretty qualified as Pretty
+
 import Scope.Core as Scope
 import Scope.In   as Scope
 
@@ -83,7 +85,7 @@ checkModule IsMain tlm defs = do
     case convert gdefs gcons (unEl defType) of
       Left e   -> reportSDoc "agda-core.check" 5 $
                         text "Couldn't convert type of" <+> dn
-                    <+> text "to core syntax:" <+> text e
+                    <+> text "to core syntax:" <+> pure e
       Right ty -> reportSDoc "agda-core.check" 5 $ text "Type:" <+> text (show ty)
 
     case theDef def of
@@ -95,7 +97,7 @@ checkModule IsMain tlm defs = do
         , []        <- clausePats cl
         , Just body <- clauseBody cl
         -> case convert gdefs gcons body of
-          Left e   -> reportSDoc "agda-core.check" 5 $ text "Failed to convert to core syntax:" <+> text e
+          Left e   -> reportSDoc "agda-core.check" 5 $ text "Failed to convert to core syntax:" <+> pure e
           Right ct -> reportSDoc "agda-core.check" 5 $ text "Definition:" <+> text (show ct) -- liftIO $ print ct -- TODO(flupe): launch type-checker
 
       Datatype{}      -> reportSDoc "agda-core.check" 5 $ text "Datatypes not supported"
