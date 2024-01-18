@@ -35,13 +35,13 @@ module Exists where
   private variable
     ℓ ℓ′ : Level
   
-  record ∃ (a : Set ℓ) (P : (@0 _ : a) → Set ℓ′) : Set (ℓ ⊔ ℓ′) where
+  record ∃ (a : Set ℓ) (p : (@0 _ : a) → Set ℓ′) : Set (ℓ ⊔ ℓ′) where
     constructor _⟨_⟩
     field
       value : a
-      proof : P value
+      depvalue : p value
   open ∃ public
-  {-# COMPILE AGDA2HS ∃ unboxed #-}
+  {-# COMPILE AGDA2HS ∃ #-}
 
 open Exists
 
@@ -107,7 +107,7 @@ inferApp {α = α} {Γ = Γ} u (Syntax.EArg v) = do
   --    _ → tcError "coudn't reduce the term to become a pi type"
   --let gc = CRedL {r = r} pifuel CRefl
   (⟨ x ⟩ ((sv , sr) , (tv , tr)) ⟨ eq ⟩) ← getPi rpi
-  --FIXME: this subst won't compile?
+  --FIXME: subst has to replaced with subst0
   let gc = CRedL {r = r} pifuel (subst (λ u → Conv Γ (TSort stu) rpi u) eq CRefl)
   gtv ← checkType {Γ = Γ} v tv
   return ((substTop r v tr) ⟨ TyAppE gtu (TyArg gc gtv) ⟩ )
@@ -153,34 +153,47 @@ checkLet {Γ = Γ} x u v ty = do
   dtv ← checkType {Γ = Γ , x ∶ tu} v (weaken (subWeaken subRefl) ty)
   return (TyLet {r = rezz-scope Γ} dtu dtv)
 
-checkConv : (t : Term α)
-            (cty tty : Type α)
-          → ∃ (Type α) (λ ty → Γ ⊢ t ∷ ty)
-          → TCM (Γ ⊢ t ∷ cty)
-checkConv t cty tty (s ⟨ d ⟩) = return (TyConv d (convert tty s cty))
+checkCoerce : (t : Term α)
+            → ∃ (Type α) (λ ty → Γ ⊢ t ∷ ty)
+            → (cty : Type α) -- the type we want to have
+            → (tty : Type α) -- the type of types
+            → TCM (Γ ⊢ t ∷ cty)
+--FIXME: first reduce the type, patmatch on the type
+--the depending on what the type is do either
+--for vars
+--for defs
+--for cons
+--for labmda
+--for app
+--for pi
+--for sort
+--the rest should be reduced away
+checkCoerce t (s ⟨ d ⟩) cty tty = return (TyConv d (convert tty s cty))
+
+
 
 checkType {Γ = Γ} t@(TVar x p) ty = do
   tvar ← inferVar {Γ = Γ} x p
   (tsor ⟨ _ ⟩) ← inferSort {Γ = Γ} ty
-  checkConv {Γ = Γ} t ty (TSort tsor) tvar
+  checkCoerce {Γ = Γ} t tvar ty (TSort tsor)
 checkType {Γ = Γ} (TDef d p) ty =  do
   tdef ← inferDef d p
   (tsor ⟨ _ ⟩) ← inferSort {Γ = Γ} ty
-  checkConv {Γ = Γ} (TDef d p) ty (TSort tsor) tdef
+  checkCoerce {Γ = Γ} (TDef d p) tdef ty (TSort tsor)
 checkType (TCon c p x) ty = tcError "not implemented yet"
 checkType (TLam x te) ty =  checkLambda x te ty
 checkType {Γ = Γ} t@(TApp u e) ty = do
   tapp ← inferApp {Γ = Γ} u e
   (tsor ⟨ _ ⟩) ← inferSort {Γ = Γ} ty
-  checkConv {Γ = Γ} t ty (TSort tsor) tapp
+  checkCoerce {Γ = Γ} t tapp ty (TSort tsor)
 checkType {Γ = Γ} t@(TPi x su sv u v) ty = do
   tpi ← inferPi {Γ = Γ} x su sv u v
   (tsor ⟨ _ ⟩) ← inferSort {Γ = Γ} ty
-  checkConv {Γ = Γ} t ty (TSort tsor) tpi
+  checkCoerce {Γ = Γ} t tpi ty (TSort tsor)
 checkType {Γ = Γ} t@(TSort s) ty = do
   tts ← inferTySort {Γ = Γ} s
   (tsor ⟨ _ ⟩) ← inferSort {Γ = Γ} ty
-  checkConv {Γ = Γ} t ty (TSort tsor) tts
+  checkCoerce {Γ = Γ} t tts ty (TSort tsor)
 checkType (TLet x u v) ty = checkLet x u v ty
 checkType (TAnn u t) ty = tcError "not implemented yet"
 
