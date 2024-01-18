@@ -11,6 +11,8 @@ module Agda.Core.Conversion
   (@0 defType : All (λ _ → Syntax.Type globals mempty) (Globals.defScope globals))
   where
 
+open import Agda.Builtin.Size public
+
 open import Haskell.Extra.Dec
 open import Utils.Either
 open import Haskell.Extra.Erase
@@ -51,20 +53,20 @@ data Conv {α} Γ where
          -- Note: We assume all terms are well-typed, so we allow any type b here
          → Conv Γ b (TApp u w) (TApp u' w')
   CRedT  : {@0 r : Rezz _ α}
-         → @0 HasResult t' (reduce r t)
+         → @0 HasResult t' ∞ (reduce r t)
          → Conv Γ t' u v → Conv Γ t u v
   CRedL  : {@0 r : Rezz _ α}
-         → @0 HasResult u' (reduce r u)
+         → @0 HasResult u' ∞ (reduce r u)
          → Conv Γ t u' v → Conv Γ t u v
   CRedR  : {@0 r : Rezz _ α}
-         → @0 HasResult v' (reduce r v)
+         → @0 HasResult v' ∞ (reduce r v)
          → Conv Γ t u v' → Conv Γ t u v
 
 {-# COMPILE AGDA2HS Conv #-}
 
 data ConvElim {α} Γ where
   CERedT : {@0 r : Rezz _ α}
-         → @0 HasResult t' (reduce r t)
+         → @0 HasResult t' ∞ (reduce r t)
          → ConvElim Γ t' u w w' → ConvElim Γ t u w w'
   CEArg  : Conv Γ a v v'
          → ConvElim Γ (TPi x k l a b) u (EArg v) (EArg v')

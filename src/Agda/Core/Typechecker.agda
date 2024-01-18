@@ -17,6 +17,7 @@ open import Agda.Core.Conversion globals defType
 open import Agda.Core.Typing globals defType
 open import Agda.Core.Reduce globals
 open import Agda.Core.Substitute globals
+open import Agda.Core.TCM
 
 open import Haskell.Prim.Functor
 open import Haskell.Prim.Applicative
@@ -26,55 +27,16 @@ open import Haskell.Extra.Erase
 open import Haskell.Extra.Delay
 open import Haskell.Extra.Refinement using (value; proof)
 
-
 private
   variable @0 α : Scope name
            Γ    : Context α
            
-
-module Pair where
-  open import Agda.Primitive
-  private variable
-    ℓ ℓ′ : Level
-  
-  record Pair (a : Set ℓ) (p : (@0 _ : a) → Set ℓ′) : Set (ℓ ⊔ ℓ′) where
-    constructor MkPair
-    field
-      pfst : a
-      psnd : p pfst
-  open Pair public
-  {-# COMPILE AGDA2HS Pair #-}
-
-open Pair
-
-pattern _⟨_⟩ a b = MkPair a b
-
-infix 4 ∃
-∃ : (a : Set) (p : @0 a → Set) → Set
-∃ a p = Pair a p
-{-# COMPILE AGDA2HS ∃ inline #-}
-
-record TCM (a : Set) : Set where
-  constructor mkTCM
-  field
-    runTCM : Delay (Either String a)
-
-TCError = String
-
-postulate instance
-  iFunctorTCM : Functor TCM
-  iApplicativeTCM : Applicative TCM
-  iMonadTCM : Monad TCM
-
 postulate
   inferSort : (t : Type α)
             → TCM (∃ (Sort α) (λ s → Γ ⊢ t ∷ TSort s))
   convert : (@0 ty : Type α) (@0 a b : Term α)
           → Conv {α = α} Γ ty a b
-  tcError : TCError -> TCM a
-  liftMaybe : Maybe a → TCError → TCM a
-  liftEither : Either TCError a → TCM a
-  liftDelay : Delay a → TCM a
+
 
 getPi : (t : Term α)
       → TCM (Σ0 (name)
