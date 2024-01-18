@@ -23,36 +23,41 @@ open import Haskell.Prim.Applicative
 open import Haskell.Law.Equality
 open import Haskell.Control.Monad
 open import Haskell.Extra.Erase
-open import Haskell.Extra.Loop
+open import Haskell.Extra.Delay
+open import Haskell.Extra.Refinement using (value; proof)
 
 
 private
   variable @0 α : Scope name
-           Γ : Context α
+           Γ    : Context α
+           
 
-module Exists where
+module Pair where
   open import Agda.Primitive
   private variable
     ℓ ℓ′ : Level
   
-  record ∃ (a : Set ℓ) (p : (@0 _ : a) → Set ℓ′) : Set (ℓ ⊔ ℓ′) where
-    constructor _⟨_⟩
+  record Pair (a : Set ℓ) (p : (@0 _ : a) → Set ℓ′) : Set (ℓ ⊔ ℓ′) where
+    constructor MkPair
     field
-      value : a
-      depvalue : p value
-  open ∃ public
-  {-# COMPILE AGDA2HS ∃ #-}
+      pfst : a
+      psnd : p pfst
+  open Pair public
+  {-# COMPILE AGDA2HS Pair #-}
 
-open Exists
+open Pair
 
+pattern _⟨_⟩ a b = MkPair a b
+
+infix 4 ∃
+∃ : (a : Set) (p : @0 a → Set) → Set
+∃ a p = Pair a p
+{-# COMPILE AGDA2HS ∃ inline #-}
 
 record TCM (a : Set) : Set where
   constructor mkTCM
   field
-    runTCM : Nat → Either String a
-
-tcmFuel : TCM Nat
-tcmFuel = mkTCM (λ f → Right f)
+    runTCM : Delay (Either String a)
 
 TCError = String
 
@@ -69,6 +74,7 @@ postulate
   tcError : TCError -> TCM a
   liftMaybe : Maybe a → TCError → TCM a
   liftEither : Either TCError a → TCM a
+  liftDelay : Delay a → TCM a
 
 getPi : (t : Term α)
       → TCM (Σ0 (name)
@@ -96,19 +102,16 @@ inferApp {α = α} {Γ = Γ} u (Syntax.EArg v) = do
   let r = (rezz-scope Γ)
   (tu ⟨ gtu ⟩ ) ← inferType {Γ = Γ} u
   (stu ⟨ _ ⟩) ← inferSort {Γ = Γ} tu
-  fuel <- tcmFuel
-  pifuel <- liftMaybe
-              (tryFuel stepEither (Left (makeState tu)) fuel)
-              "couldn't construct Fuel for Pi reduction"
-  let rpi = reduce r tu pifuel
+  hsrpi ← liftDelay (delayHasResult (reduce r tu))
+  let rpi = value hsrpi
   -- Needs an inspect-idiom to work
   --(TPi x sv sr tv tr) ← return rpi
   --  where
   --    _ → tcError "coudn't reduce the term to become a pi type"
-  --let gc = CRedL {r = r} pifuel CRefl
+  --let gc = CRedL {r = r} (proof hsrpi) CRefl
   (⟨ x ⟩ ((sv , sr) , (tv , tr)) ⟨ eq ⟩) ← getPi rpi
   --FIXME: subst has to replaced with subst0
-  let gc = CRedL {r = r} pifuel (subst (λ u → Conv Γ (TSort stu) rpi u) eq CRefl)
+  let gc = CRedL {r = r} (proof hsrpi) (subst (λ u → Conv Γ (TSort stu) rpi u) eq CRefl)
   gtv ← checkType {Γ = Γ} v tv
   return ((substTop r v tr) ⟨ TyAppE gtu (TyArg gc gtv) ⟩ )
 inferApp {Γ = Γ} u (Syntax.EProj x x₁) = tcError "not implemented"
@@ -129,7 +132,7 @@ inferTySort : (s : Sort α)
 inferTySort (STyp x) = return (TSort (STyp (suc x)) ⟨ TyType ⟩)
 
 inferDef : (@0 f : name)
-           (p : f ∈ defs)
+           (p : f ∈ defScope )
          → TCM (∃ (Type α) (λ ty → Γ ⊢ TDef f p ∷ ty))
 inferDef f p = return (((weaken subEmpty (defType ! f))) ⟨ (TyDef f) ⟩)
 

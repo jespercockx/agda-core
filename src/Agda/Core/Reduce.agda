@@ -12,7 +12,6 @@ open import Haskell.Extra.Loop
 open import Haskell.Extra.Refinement
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Delay
-open import Haskell.Prim.Thunk
 open import Utils.Either
 
 open import Agda.Core.Syntax globals
@@ -151,19 +150,21 @@ opaque
 
 -- TODO: make this into a `where` function once 
 -- https://github.com/agda/agda2hs/issues/264 is fixed
-reduceState : ∀ {@0 i} → Rezz _ α
-            → State α → Delay (Term α) i
-reduceState r s = case (step s) of λ where 
-      (Just s') → later λ where .force → reduceState r s'
-      Nothing   → now (unState r s)
+reduceState : Rezz _ α
+            → State α → Delay (Term α)
+reduceState' :  Rezz _ α
+             → State α → Maybe (State α) → Delay (Term α)
+reduceState r s = reduceState' r s (step s)
+reduceState' r s Nothing = now (unState r s)
+reduceState' r s (Just s') = later λ where .force → reduceState r s'
 {-# COMPILE AGDA2HS reduceState #-}
 
 reduce : Rezz _ α
-       → Term α → Delay (Term α) ∞
+       → Term α → Delay (Term α)
 reduce {α = α} r v = reduceState r (makeState v)
 {-# COMPILE AGDA2HS reduce #-}
 
-reduceClosed : (v : Term mempty) → Delay (Term mempty) ∞
+reduceClosed : (v : Term mempty) → Delay (Term mempty)
 reduceClosed = reduce (rezz _)
 
 {-# COMPILE AGDA2HS reduceClosed #-}
