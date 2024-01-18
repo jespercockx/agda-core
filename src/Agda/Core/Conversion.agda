@@ -50,19 +50,20 @@ data Conv {α} Γ where
          → ConvElim Γ a u w w'
          -- Note: We assume all terms are well-typed, so we allow any type b here
          → Conv Γ b (TApp u w) (TApp u' w')
-  CRedT  : {r : Rezz _ α}
+  CRedT  : {@0 r : Rezz _ α}
          → @0 HasResult t' (reduce r t)
          → Conv Γ t' u v → Conv Γ t u v
-  CRedL  : {r : Rezz _ α}
+  CRedL  : {@0 r : Rezz _ α}
          → @0 HasResult u' (reduce r u)
          → Conv Γ t u' v → Conv Γ t u v
-  CRedR  : @0 HasResult v' (reduce (rezz _) v)
+  CRedR  : {@0 r : Rezz _ α}
+         → @0 HasResult v' (reduce r v)
          → Conv Γ t u v' → Conv Γ t u v
 
 {-# COMPILE AGDA2HS Conv #-}
 
 data ConvElim {α} Γ where
-  CERedT : {r : Rezz _ α}
+  CERedT : {@0 r : Rezz _ α}
          → @0 HasResult t' (reduce r t)
          → ConvElim Γ t' u w w' → ConvElim Γ t u w w'
   CEArg  : Conv Γ a v v'
