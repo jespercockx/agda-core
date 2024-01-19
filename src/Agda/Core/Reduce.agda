@@ -182,24 +182,3 @@ ReducesTo {α = α} sig v w =
   ∃ (Rezz _ α) λ r    → 
   ∃ Fuel       λ fuel → 
   reduce r sig v fuel ≡ Just w
-
---record Reveal_·_is_ (f : a → a) (x y : a) : Set where
---  constructor ⟦_⟧
---  field eq : f x ≡ y
---
---inspect : ∀ f ea → Reveal f · ea is (f ea)
---inspect f ea = ⟦ refl ⟧
-
---reduceTo : Rezz _ α
---       → (v : Term α)
---       → Fuel
---       → Maybe (∃ (Term α) (ReducesTo v))
---reduceTo r v f with ((λ t → reduce r t f) v) | inspect (λ t → reduce r t f) v
---...               | Nothing      | _ = Nothing
---...               | Just w       | ⟦ eq ⟧ = {!!}
-
-
-
--- -}
--- -}
--- -}

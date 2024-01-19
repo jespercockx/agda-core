@@ -22,12 +22,9 @@ open import Agda.Core.Reduce globals
 open import Agda.Core.Substitute globals
 open import Agda.Core.TCM globals sig
 
-open import Haskell.Prim.Functor
-open import Haskell.Prim.Applicative
 open import Haskell.Law.Equality
-open import Haskell.Control.Monad
 open import Haskell.Extra.Erase
-open import Haskell.Extra.Refinement using (value; proof) renaming (∃ to ∃0; _⟨_⟩ to _⟪_⟫)
+open import Haskell.Extra.Refinement using (value; proof) renaming (_⟨_⟩ to ⟨_,_⟩)
 
 private variable
   @0 α : Scope name
@@ -40,42 +37,39 @@ private
   {-# COMPILE AGDA2HS subst' transparent #-}
 
 postulate
-  inferSort : (t : Type α)
-            → TCM (∃ (Sort α) (λ s → Γ ⊢ t ∷ TSort s))
-  convert : (@0 ty : Type α) (@0 a b : Term α)
-          → Conv {α = α} Γ ty a b
-  reduceTo : Rezz _ α
-           → (v : Term α)
-           → Fuel
-           → Maybe (∃0 (Term α) (ReducesTo sig v))
+  inferSort : (t : Type α) → TCM (∃ (Sort α) (λ s → Γ ⊢ t ∶ TSort s))
+  convert : (@0 ty : Type α) (@0 a b : Term α) → Conv {α = α} Γ ty a b
 
 inferType : (te : Term α)
-          → TCM (∃ (Type α) (λ ty → Γ ⊢ te ∷ ty))
+          → TCM (∃ (Type α) (λ ty → Γ ⊢ te ∶ ty))
 
 checkType : (te : Term α) (ty : Type α)
-          → TCM (Γ ⊢ te ∷ ty)
+          → TCM (Γ ⊢ te ∶ ty)
 
 inferVar : (@0 x : name)
            (p : x ∈ α)
-         → TCM (∃ (Type α) (λ t → Γ ⊢ TVar x p ∷ t))
-inferVar {Γ = Γ} x p = return ( (lookupVar Γ x p) ⟨ TyTVar ⟩)
+         → TCM (∃ (Type α) (λ t → Γ ⊢ TVar x p ∶ t))
+inferVar {Γ = Γ} x p = return ( (lookupVar Γ x p) ⟨ TyTVar p ⟩)
 
 inferApp : (u : Term α)
            (e : Elim α)
-           → TCM (∃ (Type α) (λ ty → Γ ⊢ TApp u e ∷ ty))
+           → TCM (∃ (Type α) (λ ty → Γ ⊢ TApp u e ∶ ty))
 inferApp {Γ = Γ} u (Syntax.EArg v) = do
   let r = rezz-scope Γ
-  fuel ← tcmFuel
+
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
 
   tu  ⟨ gtu ⟩ ← inferType {Γ = Γ} u
   stu ⟨ _   ⟩ ← inferSort {Γ = Γ} tu
 
-  ((TPi x sa sr at rt) ⟪ rtp ⟫) ← liftMaybe (reduceTo r tu fuel) "not enough fuel to reduce a term"
-    where _ → tcError "couldn't reduce term to a pi type"
-
-  gtv ← checkType {Γ = Γ} v at
-  let gc = CRedL rtp CRefl
-  pure $ substTop r v rt ⟨ TyAppE gtu (TyArg {k = stu} gc gtv) ⟩
+  case reduce r sig tu fuel of λ where
+    Nothing → tcError "not enough fuel to reduce term"
+    (Just (TPi x sa sr at rt)) ⦃ p ⦄ → do
+      gtv ← checkType {Γ = Γ} v at
+      let gc = CRedL ⟨ r , ⟨ fuel , p ⟩ ⟩ CRefl
+      pure $ substTop r v rt ⟨ TyAppE gtu (TyArg {k = funSort sa sr} gc gtv) ⟩
+    (Just _) → tcError "couldn't reduce term to pi type"
 
 inferApp {Γ = Γ} u (Syntax.EProj x x₁) = tcError "not implemented"
 inferApp {Γ = Γ} u (Syntax.ECase bs) = tcError "not implemented"
@@ -84,27 +78,27 @@ inferPi : (@0 x : name)
           (su sv : Sort α)
           (u : Term α)
           (v : Term (x ◃ α))
-          → TCM (∃ (Type α) (λ ty → Γ ⊢ TPi x su sv u v ∷ ty))
+          → TCM (∃ (Type α) (λ ty → Γ ⊢ TPi x su sv u v ∶ ty))
 inferPi {Γ = Γ} x su sv u v = do
   tu <- checkType {Γ = Γ} u (TSort su)
   tv <- checkType {Γ = Γ , x ∶ u} v (TSort (weakenSort (subWeaken subRefl) sv))
   return ( (TSort (funSort su sv)) ⟨ TyPi tu tv ⟩ )
 
 inferTySort : (s : Sort α)
-            → TCM (∃ (Type α) (λ ty → Γ ⊢ TSort s ∷ ty))
-inferTySort (STyp x) = return (TSort (STyp (suc x)) ⟨ TyType ⟩)
+            → TCM (∃ (Type α) (λ ty → Γ ⊢ TSort s ∶ ty))
+inferTySort (STyp x) = return $ TSort (STyp (suc x)) ⟨ TyType ⟩
 
 inferDef : (@0 f : name)
            (p : f ∈ defScope )
-         → TCM (∃ (Type α) (λ ty → Γ ⊢ TDef f p ∷ ty))
+         → TCM (∃ (Type α) (λ ty → Γ ⊢ TDef f p ∶ ty))
 inferDef f p = do
   rezz sig ← tcmSignature
-  return (((weaken subEmpty (getType sig f p))) ⟨ (TyDef f) ⟩)
+  return $ weaken subEmpty (getType sig f p) ⟨ TyDef p ⟩
 
 checkLambda : (@0 x : name)
               (u : Term (x ◃ α))
               (ty : Type α)
-              → TCM (Γ ⊢ TLam x u ∷ ty)
+              → TCM (Γ ⊢ TLam x u ∶ ty)
 checkLambda {Γ = Γ} x u (TPi y su sv tu tv) = do
   d ← checkType {Γ = Γ , x ∶ tu} u (renameTop (rezz-scope Γ) tv)
   return (TyLam d)
@@ -115,17 +109,17 @@ checkLet : (@0 x : name)
            (u : Term α)
            (v : Term (x ◃ α))
            (ty : Type α)
-           → TCM (Γ ⊢ TLet x u v ∷ ty)
+           → TCM (Γ ⊢ TLet x u v ∶ ty)
 checkLet {Γ = Γ} x u v ty = do
   tu ⟨ dtu ⟩  ← inferType {Γ = Γ} u
   dtv ← checkType {Γ = Γ , x ∶ tu} v (weaken (subWeaken subRefl) ty)
   return (TyLet {r = rezz-scope Γ} dtu dtv)
 
 checkCoerce : (t : Term α)
-            → ∃ (Type α) (λ ty → Γ ⊢ t ∷ ty)
+            → ∃ (Type α) (λ ty → Γ ⊢ t ∶ ty)
             → (cty : Type α) -- the type we want to have
             → (tty : Type α) -- the type of types
-            → TCM (Γ ⊢ t ∷ cty)
+            → TCM (Γ ⊢ t ∶ cty)
 --FIXME: first reduce the type, patmatch on the type
 --the depending on what the type is do either
 --for vars
