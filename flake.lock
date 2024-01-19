@@ -3,11 +3,11 @@
     "agda2hs-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1705482882,
-        "narHash": "sha256-QT7+5YBF0+yRLopvI/lzcRgAAZwN2w3Z4K+gywvk7s0=",
+        "lastModified": 1705678730,
+        "narHash": "sha256-P3NX2Q4b4wZY1eS7Ga48PVFbhpQuJNz+ROAigolNBF0=",
         "owner": "agda",
         "repo": "agda2hs",
-        "rev": "984821ab84b33917a1709c36bf66a0732ebbb46d",
+        "rev": "04f48a2bd7442699b7a15fd0e9a771c5a60ba67e",
         "type": "github"
       },
       "original": {
