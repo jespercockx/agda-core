@@ -5,9 +5,8 @@
   inputs.flake-utils.url = github:numtide/flake-utils;
   inputs.agda2hs-src = {
      type = "github";
-     owner = "jespercockx";
+     owner = "agda";
      repo = "agda2hs";
-     ref = "DelayMonad";
      flake = false;
   };
 
