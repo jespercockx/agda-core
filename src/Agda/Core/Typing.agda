@@ -1,14 +1,14 @@
 open import Scope
 
 open import Agda.Core.GlobalScope using (Globals)
-import Agda.Core.Signature
+import Agda.Core.Signature as Signature
 
 open import Haskell.Prelude hiding (All; e; s; t; m)
 
 module Agda.Core.Typing
     {@0 name    : Set}
     (@0 globals : Globals name)
-    (open Agda.Core.Signature globals)
+    (open Signature globals)
     (@0 sig     : Signature)
   where
 
@@ -26,91 +26,81 @@ open import Agda.Core.Context globals
 open import Agda.Core.Substitute globals
 
 private variable
-  @0 x y : name
-  @0 α : Scope name
+  @0 x y     : name
+  @0 α       : Scope name
   @0 s t u v : Term α
-  @0 k l m : Sort α
-  @0 n : Nat
-  @0 e : Elim α
+  @0 k l m   : Sort α
+  @0 n       : Nat
+  @0 e       : Elim α
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
-_⊢_∷_ : (Γ : Context α) → Term α → Type α → Set
-Γ ⊢ u ∷ a = TyTerm Γ u a
-
-{-# COMPILE AGDA2HS _⊢_∷_ inline #-}
-
--- TyElim Γ e t f means:
---   if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : f (appE u)
+-- TyElim Γ e t f means: if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : f (appE u)
 data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 ((Elim α → Term α) → Type α) → Set
 
-{-
--- TyElims Γ es f t₁ t₂ means:
---   if  Γ ⊢ h [] : t₁  then  Γ ⊢ h es : t₂
-data TyElims (@0 Γ : Context α) : @0 Elims α → @0 (Elims α → Term α) → @0 Type α → @0 Type α → Set
--}
+infix 3 TyTerm
+syntax TyTerm Γ u t = Γ ⊢ u ∶ t
 
 data TyTerm {α} Γ where
 
-    TyTVar : {@0 p : x ∈ α}
-        -------------------
-        → Γ ⊢ TVar x p ∷ (lookupVar Γ x p)
+  TyTVar
+    : (@0 p : x ∈ α)
+    ----------------------------------
+    → Γ ⊢ TVar x p ∶ (lookupVar Γ x p)
 
-    TyDef : (@0 f : name) {@0 p : f ∈ defScope}
+  TyDef
+    : {@0 f : name} (@0 p : f ∈ defScope)
+    ----------------------------------------------
+    → Γ ⊢ TDef f p ∶ weaken subEmpty (getType sig f p)
 
-        -------------------------------------------------
-        → Γ ⊢ TDef f p ∷ (weaken subEmpty (getType sig f p))
-    -- TODO: constructor typing
+  -- TODO: constructor typing
 
-    TyLam :
-          {@0 r : Rezz _ α}
-       →  (Γ , x ∶ s) ⊢ u ∷ (renameTop r t)
-       ------------------------------------------------------------
-       →  Γ            ⊢ TLam x u ∷ TPi y k l s t
+  TyLam
+    : {@0 r : Rezz _ α}
+    → Γ , x ∶ s ⊢ u ∶ renameTop r t
+    -------------------------------
+    → Γ ⊢ TLam x u ∶ TPi y k l s t
 
-    TyAppE :
-          Γ ⊢ u ∷ s
-        → TyElim Γ e s ( λ _ → t )
-        ------------------------------------
-        → Γ ⊢ TApp u e ∷ t
+  TyAppE
+    : Γ ⊢ u ∶ s
+    → TyElim Γ e s (λ _ → t)
+    ------------------------------------
+    → Γ ⊢ TApp u e ∶ t
 
-    TyPi :
+  TyPi
+    : Γ ⊢ s ∶ TSort k
+    → Γ , x ∶ s ⊢ t ∶ TSort (weakenSort (subWeaken subRefl) l)
+    ----------------------------------------------------------
+    → Γ ⊢ TPi x k l s t ∶ TSort (funSort k l)
 
-         Γ           ⊢ s ∷ TSort k
-       → (Γ , x ∶ s) ⊢ t ∷ TSort (weakenSort (subWeaken subRefl) l)
-       -----------------------------------------------------
-       → Γ           ⊢ TPi x k l s t ∷ TSort (funSort k l)
+  TyType
+    -------------------------------------------
+    : Γ ⊢ TSort (STyp n) ∶ TSort (STyp (suc n))
 
-    TyType :
+  TyLet
+    : {r : Rezz _ α}
+    → Γ ⊢ u ∶ s
+    → Γ , x ∶ s ⊢ v ∶ weaken (subWeaken subRefl) t
+    ----------------------------------------------
+    → Γ ⊢ TLet x u v ∶ t
 
-        --------------------------------------------
-         Γ ⊢ TSort (STyp n) ∷ TSort (STyp (suc n))
+  TyAnn
+    : Γ ⊢ u ∶ t
+    ------------------
+    → Γ ⊢ TAnn u t ∶ t
 
-    TyLet : {r : Rezz _ α}
-
-         → Γ           ⊢ u ∷ s
-         → (Γ , x ∶ s) ⊢ v ∷ (weaken (subWeaken subRefl) t)
-         ------------------------------------------
-         → Γ ⊢ TLet x u v ∷ t
-
-    TyAnn :
-            Γ ⊢ u ∷ t
-         -------------------
-          → Γ ⊢ TAnn u t ∷ t
-
-    TyConv :
-
-           Γ ⊢ u ∷ t
-         → Conv Γ s t v
-         -------------------------------
-         → Γ ⊢ u ∷ v
+  TyConv
+    : Γ ⊢ u ∶ t
+    → Γ ⊢ t ≅ v ∶ s
+    ----------------
+    → Γ ⊢ u ∶ v
 
 {-# COMPILE AGDA2HS TyTerm #-}
 
 data TyElim {α} Γ where
     TyArg : {@0 r : Rezz _ α}
-        → Conv Γ (TSort k) v (TPi x l m s t)
-        → TyTerm Γ u s
+        → Γ ⊢ v ≅ TPi x l m s t ∶ TSort k
+        → Γ ⊢ u ∶ s
         → TyElim Γ (EArg u) v (λ h → substTop r u t)
     -- TODO: proj
     -- TODO: case
@@ -118,6 +108,7 @@ data TyElim {α} Γ where
 {-# COMPILE AGDA2HS TyElim #-}
 
 {-
+-- TyElims Γ es f t₁ t₂ means: if  Γ ⊢ h [] : t₁  then  Γ ⊢ h es : t₂
 data TyElims Γ where
     TyDone : ∀ {@0 u} → TyElims Γ [] u t t
     TyMore : ∀ {@0 h f}
