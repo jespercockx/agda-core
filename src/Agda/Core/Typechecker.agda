@@ -1,15 +1,17 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 open import Haskell.Prelude hiding ( All; m )
 open import Scope
-open import GlobalScope
 
+open import Agda.Core.GlobalScope using (Globals)
 import Agda.Core.Syntax as Syntax
 
 module Agda.Core.Typechecker
     {@0 name    : Set}
-    (@0 globals : Globals)
-    (defType    : All (λ _ → Syntax.Type globals (mempty {{iMonoidScope}})) (Globals.defScope globals))
+    (@0 globals : Globals name)
+    (defType    : All (λ _ → Syntax.Type globals mempty) (Globals.defScope globals))
   where
+
+private open module @0 G = Globals globals
 
 open Syntax globals
 open import Agda.Core.Context globals
@@ -27,23 +29,21 @@ open import Haskell.Extra.Erase
 open import Haskell.Extra.Delay
 open import Haskell.Extra.Refinement using (value; proof)
 
-private
-  variable @0 α : Scope name
-           Γ    : Context α
+private variable
+  @0 α : Scope name
+  Γ    : Context α
            
+private
+  -- TODO: move this to some utils file
+  subst' : (@0 p : @0 a → Set) {@0 x y : a} → @0 x ≡ y → p x → p y
+  subst' p refl z = z
+  {-# COMPILE AGDA2HS subst' transparent #-}
+
 postulate
   inferSort : (t : Type α)
             → TCM (∃ (Sort α) (λ s → Γ ⊢ t ∷ TSort s))
   convert : (@0 ty : Type α) (@0 a b : Term α)
           → Conv {α = α} Γ ty a b
-
-
-getPi : (t : Term α)
-      → TCM (Σ0 (name)
-                (λ x → ∃ ((Sort α × Sort α) × (Type α × Type (x ◃ α)))
-                          (λ ( (sa , sb) , (ta , tb) ) → t ≡ TPi x sa sb ta tb)))
-getPi term@(TPi x sa sr at rt) = return ( ⟨ x ⟩ ((sa , sr) , (at , rt)) ⟨ refl ⟩)
-getPi _ = tcError "coudn't reduce the term to become a pi type"
 
 {-# TERMINATING #-}
 inferType : (te : Term α)
@@ -60,22 +60,21 @@ inferVar {Γ = Γ} x p = return ( (lookupVar Γ x p) ⟨ TyTVar ⟩)
 inferApp : (u : Term α)
            (e : Elim α)
            → TCM (∃ (Type α) (λ ty → Γ ⊢ TApp u e ∷ ty))
-inferApp {α = α} {Γ = Γ} u (Syntax.EArg v) = do
-  let r = (rezz-scope Γ)
-  (tu ⟨ gtu ⟩ ) ← inferType {Γ = Γ} u
-  (stu ⟨ _ ⟩) ← inferSort {Γ = Γ} tu
-  hsrpi ← liftDelay (delayHasResult (reduce r tu))
-  let rpi = value hsrpi
-  -- Needs an inspect-idiom to work
-  --(TPi x sv sr tv tr) ← return rpi
-  --  where
-  --    _ → tcError "coudn't reduce the term to become a pi type"
-  --let gc = CRedL {r = r} (proof hsrpi) CRefl
-  (⟨ x ⟩ ((sv , sr) , (tv , tr)) ⟨ eq ⟩) ← getPi rpi
-  --FIXME: subst has to replaced with subst0
-  let gc = CRedL {r = r} (proof hsrpi) (subst (λ u → Conv Γ (TSort stu) rpi u) eq CRefl)
-  gtv ← checkType {Γ = Γ} v tv
-  return ((substTop r v tr) ⟨ TyAppE gtu (TyArg gc gtv) ⟩ )
+inferApp {Γ = Γ} u (Syntax.EArg v) = do
+  let r = rezz-scope Γ
+
+  tu  ⟨ gtu ⟩ ← inferType {Γ = Γ} u
+  stu ⟨ _   ⟩ ← inferSort {Γ = Γ} tu
+  hsrpi      ← liftDelay $ delayHasResult (reduce r tu)
+
+  case value hsrpi of λ where
+    (TPi x sa sr at rt) ⦃ p ⦄ → do
+      gtv ← checkType {Γ = Γ} v at
+      let gc = CRedL (proof hsrpi) (subst' (λ u → Conv Γ (TSort stu) (value hsrpi) u) p CRefl)
+      pure $ substTop r v rt ⟨ TyAppE gtu (TyArg gc gtv) ⟩
+
+    _ → tcError "couldn't reduce term to a pi type"
+
 inferApp {Γ = Γ} u (Syntax.EProj x x₁) = tcError "not implemented"
 inferApp {Γ = Γ} u (Syntax.ECase bs) = tcError "not implemented"
 
@@ -171,3 +170,4 @@ inferType (TPi x su sv u v) = inferPi x su sv u v
 inferType (TSort s) = inferTySort s
 inferType (TLet x te te₁) = tcError "can't infer the type of a let"
 inferType (TAnn u t) = tcError "not implemented yet"
+

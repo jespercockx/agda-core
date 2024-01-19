@@ -1,13 +1,13 @@
 open import Haskell.Prelude hiding (All; a; b; c; t)
 
 open import Scope
-open import GlobalScope
+open import Agda.Core.GlobalScope using (Globals)
 
 import Agda.Core.Syntax as Syntax
 
 module Agda.Core.Conversion
   {@0 name    : Set}
-  (@0 globals : Globals)
+  (@0 globals : Globals name)
   (@0 defType : All (λ _ → Syntax.Type globals mempty) (Globals.defScope globals))
   where
 

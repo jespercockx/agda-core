@@ -1,15 +1,17 @@
 open import Scope
-open import GlobalScope
 
+open import Agda.Core.GlobalScope using (Globals)
 import Agda.Core.Syntax as Syntax
 
 open import Haskell.Prelude hiding (All; e; s; t; m)
 
 module Agda.Core.Typing
     {@0 name    : Set}
-    (@0 globals : Globals)
-    (@0 defType : All (λ _ → Syntax.Type globals (mempty {{iMonoidScope}})) (Globals.defScope globals))
+    (@0 globals : Globals name)
+    (@0 defType : All (λ _ → Syntax.Type globals mempty) (Globals.defScope globals))
   where
+
+private open module @0 G = Globals globals
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Loop

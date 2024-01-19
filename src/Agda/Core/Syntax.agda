@@ -1,13 +1,12 @@
 open import Scope
-open import GlobalScope
+open import Agda.Core.GlobalScope using (Globals)
 
 module Agda.Core.Syntax
   {@0 name    : Set}
-  (@0 globals : Globals)
+  (@0 globals : Globals name)
   where
 
-module @0 TheGlobals = Globals globals
-open TheGlobals public
+private open module @0 G = Globals globals
 
 open import Haskell.Prelude hiding (All; coerce)
 open import Haskell.Law.Equality using (sym)
