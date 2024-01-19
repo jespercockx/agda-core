@@ -48,7 +48,6 @@ postulate
            → Fuel
            → Maybe (∃0 (Term α) (ReducesTo v))
 
-{-# TERMINATING #-}
 inferType : (te : Term α)
           → TCM (∃ (Type α) (λ ty → Γ ⊢ te ∷ ty))
 
@@ -104,7 +103,7 @@ checkLambda : (@0 x : name)
               (ty : Type α)
               → TCM (Γ ⊢ TLam x u ∷ ty)
 checkLambda {Γ = Γ} x u (TPi y su sv tu tv) = do
-  d ← checkType {Γ = Γ , y ∶ tu} (renameTop (rezz-scope Γ) u) tv
+  d ← checkType {Γ = Γ , x ∶ tu} u (renameTop (rezz-scope Γ) tv)
   return (TyLam d)
 --FIXME: reduce ty and see if it's a Pi
 checkLambda x u _ = tcError "can't check lambda against a type that isn't a Pi"

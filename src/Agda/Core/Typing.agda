@@ -63,9 +63,9 @@ data TyTerm {α} Γ where
 
     TyLam :
           {@0 r : Rezz _ α}
-       →  (Γ , x ∶ s) ⊢ (renameTop r u) ∷ t
+       →  (Γ , x ∶ s) ⊢ u ∷ (renameTop r t)
        ------------------------------------------------------------
-       →  Γ            ⊢ TLam y u ∷ TPi x k l s t
+       →  Γ            ⊢ TLam x u ∷ TPi y k l s t
 
     TyAppE :
           Γ ⊢ u ∷ s
