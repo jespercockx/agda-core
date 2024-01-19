@@ -26,7 +26,7 @@ open import Haskell.Prim.Applicative
 open import Haskell.Law.Equality
 open import Haskell.Control.Monad
 open import Haskell.Extra.Erase
-open import Haskell.Extra.Refinement using (value; proof)
+open import Haskell.Extra.Refinement using (value; proof) renaming (∃ to ∃0; _⟨_⟩ to _⟪_⟫)
 
 private variable
   @0 α : Scope name
@@ -43,6 +43,10 @@ postulate
             → TCM (∃ (Sort α) (λ s → Γ ⊢ t ∷ TSort s))
   convert : (@0 ty : Type α) (@0 a b : Term α)
           → Conv {α = α} Γ ty a b
+  reduceTo : Rezz _ α
+           → (v : Term α)
+           → Fuel
+           → Maybe (∃0 (Term α) (ReducesTo v))
 
 {-# TERMINATING #-}
 inferType : (te : Term α)
@@ -65,11 +69,13 @@ inferApp {Γ = Γ} u (Syntax.EArg v) = do
 
   tu  ⟨ gtu ⟩ ← inferType {Γ = Γ} u
   stu ⟨ _   ⟩ ← inferSort {Γ = Γ} tu
-  (TPi x sa sr at rt) ← liftMaybe (reduce r tu fuel) "not enough fuel to reduce a term"
+
+  ((TPi x sa sr at rt) ⟪ rtp ⟫) ← liftMaybe (reduceTo r tu fuel) "not enough fuel to reduce a term"
     where _ → tcError "couldn't reduce term to a pi type"
+
   gtv ← checkType {Γ = Γ} v at
-  let gc = CRedL {!!} CRefl
-  pure $ substTop r v rt ⟨ TyAppE gtu (TyArg gc gtv) ⟩
+  let gc = CRedL rtp CRefl
+  pure $ substTop r v rt ⟨ TyAppE gtu (TyArg {k = stu} gc gtv) ⟩
 
 inferApp {Γ = Γ} u (Syntax.EProj x x₁) = tcError "not implemented"
 inferApp {Γ = Γ} u (Syntax.ECase bs) = tcError "not implemented"
