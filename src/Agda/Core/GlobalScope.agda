@@ -3,7 +3,7 @@ open import Scope
 
 open import Haskell.Prelude hiding (All; s; t)
 
-module GlobalScope {@0 name  : Set} where
+module Agda.Core.GlobalScope {@0 name  : Set} where
 
 record Globals : Set where
   field

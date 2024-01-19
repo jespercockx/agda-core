@@ -1,5 +1,5 @@
 open import Scope
-open import GlobalScope
+open import Agda.Core.GlobalScope
 
 module Agda.Core.Reduce
   {@0 name    : Set}
@@ -8,11 +8,8 @@ module Agda.Core.Reduce
 
 open import Haskell.Prelude hiding (All; coerce)
 open import Haskell.Extra.Dec
-open import Haskell.Extra.Loop
 open import Haskell.Extra.Refinement
 open import Haskell.Extra.Erase
-open import Haskell.Extra.Delay
-open import Haskell.Prim.Thunk
 open import Utils.Either
 
 open import Agda.Core.Syntax globals
@@ -149,26 +146,37 @@ opaque
 
 {-# COMPILE AGDA2HS step #-}
 
+data Fuel : Set where
+  None : Fuel
+  More : Fuel → Fuel
+
+{-# COMPILE AGDA2HS Fuel #-}
+
 -- TODO: make this into a `where` function once 
 -- https://github.com/agda/agda2hs/issues/264 is fixed
-reduceState : ∀ {@0 i} → Rezz _ α
-            → State α → Delay (Term α) i
-reduceState r s = case (step s) of λ where 
-      (Just s') → later λ where .force → reduceState r s'
-      Nothing   → now (unState r s)
+reduceState : Rezz _ α
+            → (s : State α) → Fuel → Maybe (Term α)
+reduceState r s None        = Nothing
+reduceState r s (More fuel) = case (step s) of λ where 
+      (Just s') → reduceState r s' fuel
+      Nothing   → Just (unState r s)
 {-# COMPILE AGDA2HS reduceState #-}
 
 reduce : Rezz _ α
-       → Term α → Delay (Term α) ∞
+       → (v : Term α) → Fuel → Maybe (Term α)
 reduce {α = α} r v = reduceState r (makeState v)
 {-# COMPILE AGDA2HS reduce #-}
 
-reduceClosed : (v : Term mempty) → Delay (Term mempty) ∞
+reduceClosed : (v : Term mempty) → Fuel → Maybe (Term mempty)
 reduceClosed = reduce (rezz _)
 
 {-# COMPILE AGDA2HS reduceClosed #-}
 
-
+ReducesTo : (v w : Term α) → Set
+ReducesTo {α = α} v w = 
+  ∃ (Rezz _ α) λ r    → 
+  ∃ Fuel       λ fuel → 
+  reduce r v fuel ≡ Just w
 
 
 -- -}

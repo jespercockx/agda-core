@@ -1,5 +1,5 @@
 open import Scope
-open import GlobalScope
+open import Agda.Core.GlobalScope
 
 import Agda.Core.Syntax as Syntax
 

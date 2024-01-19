@@ -6,10 +6,9 @@ open import Haskell.Prelude hiding (All)
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Refinement
-open import Haskell.Extra.Delay
 
 open import Scope
-open import GlobalScope
+open import Agda.Core.GlobalScope
 
 name = String
 
@@ -49,8 +48,9 @@ opaque
   `false : Term α
   `false = TCon "false" (inThere inHere) SNil
 
-fuel : Nat
-fuel = 9999999999999999
+{-# TERMINATING #-}
+fuel : Fuel
+fuel = More fuel
 
 module Tests (@0 x y z : name) where
 
@@ -61,7 +61,7 @@ module Tests (@0 x y z : name) where
     testTerm₁ = apply (TLam x (TVar x inHere)) (TSort (STyp 0))
 
     @0 testProp₁ : Set
-    testProp₁ = unDelay (reduceClosed testTerm₁) fuel ≡ TSort (STyp 0)
+    testProp₁ = reduceClosed testTerm₁ fuel ≡ Just (TSort (STyp 0))
 
     test₁ : testProp₁
     test₁ = refl
@@ -70,7 +70,7 @@ module Tests (@0 x y z : name) where
     testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []))
 
     @0 testProp₂ : Set
-    testProp₂ = unDelay (reduceClosed testTerm₂) fuel ≡ `false
+    testProp₂ = reduceClosed testTerm₂ fuel ≡ Just `false
 
     test₂ : testProp₂
     test₂ = refl

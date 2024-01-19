@@ -1,5 +1,5 @@
 open import Scope
-open import GlobalScope
+open import Agda.Core.GlobalScope
 
 module Agda.Core.Substitute
   {@0 name    : Set}
