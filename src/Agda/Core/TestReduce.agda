@@ -8,7 +8,7 @@ open import Haskell.Extra.Erase
 open import Haskell.Extra.Refinement
 
 open import Scope
-open import Agda.Core.GlobalScope
+open import Agda.Core.GlobalScope using (Globals)
 
 name = String
 
@@ -30,7 +30,7 @@ cons = bind "true" $ bind "false" mempty
 conArity : All (λ _ → Scope name) cons
 conArity = allJoin (allSingl mempty) (allJoin (allSingl mempty) allEmpty)
 
-globals : Globals
+globals : Globals name
 globals = record 
   { defScope = defs
   ; conScope = cons

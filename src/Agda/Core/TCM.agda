@@ -6,7 +6,7 @@ import Agda.Core.Syntax as Syntax
 
 module Agda.Core.TCM
     {@0 name    : Set}
-    (@0 globals : Globals {name})
+    (@0 globals : Globals name)
   where
 
 open import Agda.Core.Reduce globals

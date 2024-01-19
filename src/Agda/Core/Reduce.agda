@@ -1,9 +1,9 @@
 open import Scope
-open import Agda.Core.GlobalScope
+open import Agda.Core.GlobalScope using (Globals)
 
 module Agda.Core.Reduce
   {@0 name    : Set}
-  (@0 globals : Globals)
+  (@0 globals : Globals name)
   where
 
 open import Haskell.Prelude hiding (All; coerce)
@@ -14,6 +14,8 @@ open import Utils.Either
 
 open import Agda.Core.Syntax globals
 open import Agda.Core.Substitute globals
+
+private open module @0 G = Globals globals
 
 private variable
   @0 x     : name
