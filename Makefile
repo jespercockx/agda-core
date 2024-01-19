@@ -4,7 +4,8 @@ LIBRARIES =
 
 .PHONY: app alllib clean clean-lib clean-agdai
 
-alllib: lib lib/Agda/Core/Syntax.hs lib/Agda/Core/Reduce.hs
+alllib: lib lib/Agda/Core/Syntax.hs lib/Agda/Core/Reduce.hs lib/Agda/Core/Typechecker.hs \
+  lib/Agda/Core/TCM.hs
 
 # alllib: lib lib/*.hs
 

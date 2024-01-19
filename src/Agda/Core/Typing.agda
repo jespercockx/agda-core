@@ -78,7 +78,7 @@ data TyTerm {α} Γ where
     : Γ ⊢ TSort (STyp n) ∶ TSort (STyp (suc n))
 
   TyLet
-    : {r : Rezz _ α}
+    : {@0 r : Rezz _ α}
     → Γ ⊢ u ∶ s
     → Γ , x ∶ s ⊢ v ∶ weaken (subWeaken subRefl) t
     ----------------------------------------------

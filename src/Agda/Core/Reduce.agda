@@ -6,7 +6,7 @@ module Agda.Core.Reduce
   (@0 globals : Globals name)
   where
 
-open import Haskell.Prelude hiding (All; coerce)
+open import Haskell.Prelude hiding (All; coerce; _,_,_) renaming (_,_ to infixr 5 _,_)
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Refinement
 open import Haskell.Extra.Erase
@@ -15,6 +15,7 @@ open import Utils.Either
 open import Agda.Core.Syntax globals
 open import Agda.Core.Substitute globals
 open import Agda.Core.Signature globals
+open import Agda.Core.Utils
 
 private open module @0 G = Globals globals
 
@@ -151,12 +152,6 @@ opaque
 
 {-# COMPILE AGDA2HS step #-}
 
-data Fuel : Set where
-  None : Fuel
-  More : Fuel → Fuel
-
-{-# COMPILE AGDA2HS Fuel #-}
-
 -- TODO: make this into a `where` function once 
 -- https://github.com/agda/agda2hs/issues/264 is fixed
 reduceState : Rezz _ α
@@ -178,7 +173,19 @@ reduceClosed = reduce (rezz _)
 {-# COMPILE AGDA2HS reduceClosed #-}
 
 ReducesTo : (sig : Signature) (v w : Term α) → Set
-ReducesTo {α = α} sig v w = 
-  ∃ (Rezz _ α) λ r    → 
-  ∃ Fuel       λ fuel → 
-  reduce r sig v fuel ≡ Just w
+ReducesTo {α = α} sig v w = Σ0[ r ∈ Rezz _ α ] ∃[ f ∈ Fuel ] reduce r sig v f ≡ Just w
+
+{-# COMPILE AGDA2HS ReducesTo #-}
+
+reduceTo
+  : Rezz _ α
+  → (sig : Signature)
+  → (v : Term α)
+  → Fuel
+  → Maybe (∃[ u ∈ Term α ] ReducesTo sig v u)
+reduceTo r sig v f =
+  case reduce r sig v f of λ where
+    Nothing        → Nothing
+    (Just u) ⦃ p ⦄ → Just (u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩)
+
+{-# COMPILE AGDA2HS reduceTo #-}

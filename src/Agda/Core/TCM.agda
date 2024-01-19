@@ -1,113 +1,101 @@
-open import Haskell.Prelude hiding ( All; m )
-open import Haskell.Extra.Erase
-open import Scope
 open import Agda.Core.GlobalScope using (Globals)
-import Agda.Core.Signature
+open import Agda.Core.Signature   using (Signature)
 
 module Agda.Core.TCM
     {@0 name    : Set}
     (@0 globals : Globals name)
-    (open Agda.Core.Signature globals)
-    (@0 sig     : Signature)
+    (@0 sig     : Signature globals)
   where
 
-open import Agda.Core.Syntax globals
-open import Agda.Core.Reduce globals
-
-module Pair where
-  open import Agda.Primitive
-  private variable
-    ℓ ℓ′ : Level
-  
-  record Pair (a : Set ℓ) (p : (@0 _ : a) → Set ℓ′) : Set (ℓ ⊔ ℓ′) where
-    constructor MkPair
-    field
-      pfst : a
-      psnd : p pfst
-  open Pair public
-  {-# COMPILE AGDA2HS Pair #-}
-
-open Pair
-
-pattern _⟨_⟩ a b = MkPair a b
-
-infix 4 ∃
-∃ : (a : Set) (p : @0 a → Set) → Set
-∃ a p = Pair a p
-{-# COMPILE AGDA2HS ∃ inline #-}
+open import Haskell.Prelude hiding (All; m)
+open import Haskell.Extra.Erase using (Rezz)
+open import Agda.Core.Utils     using (Fuel)
 
 TCError = String
 
+{-# COMPILE AGDA2HS TCError #-}
+
 record TCEnv : Set where
-  constructor mkTCEnv
+  constructor MkTCEnv
   field
     tcSignature : Rezz _ sig
     tcFuel      : Fuel
 open TCEnv public
 
+{-# COMPILE AGDA2HS TCEnv #-}
+
 record TCM (a : Set) : Set where
-  constructor mkTCM
-  field
-    runTCM : TCEnv → Either TCError a
+  constructor MkTCM
+  field runTCM : TCEnv → Either TCError a
+open TCM public
+
+{-# COMPILE AGDA2HS TCM #-}
 
 tcmFuel : TCM Fuel
-tcmFuel = mkTCM (λ f → Right (f .tcFuel))
+tcmFuel = MkTCM (Right ∘ tcFuel)
+
+{-# COMPILE AGDA2HS tcmFuel #-}
 
 tcmSignature : TCM (Rezz _ sig)
-tcmSignature = mkTCM (λ f → Right (f .tcSignature))
+tcmSignature = MkTCM (Right ∘ tcSignature)
 
-fmapTCM : (a → b) → TCM a → TCM b
-fmapTCM f (mkTCM runTCM) = mkTCM (fmap (fmap f) runTCM)
+{-# COMPILE AGDA2HS tcmSignature #-}
 
-pureTCM : a → TCM a
-pureTCM a = mkTCM (pure (pure a))
+tcError : TCError -> TCM a
+tcError = MkTCM ∘ const ∘ Left
+{-# COMPILE AGDA2HS tcError #-}
 
-liftA2TCM : (a → b → c) → TCM a → TCM b → TCM c
-liftA2TCM f (mkTCM ta) (mkTCM tb) = mkTCM (liftA2Env (liftA2Either f) ta tb)
-  where
-    liftA2Env : {a b c f : Set} → (a → b → c) → (f → a) → (f → b) → (f → c)
-    liftA2Env f a b = f <$> a <*> b
-    liftA2Either : {a b c e : Set} → (a → b → c) → Either e a → Either e b → Either e c
-    liftA2Either f a b = f <$> a <*> b
+private
+  fmapTCM : (a → b) → TCM a → TCM b
+  fmapTCM f = MkTCM ∘ fmap (fmap f) ∘ runTCM
+  {-# COMPILE AGDA2HS fmapTCM #-}
 
-bindTCM : TCM a → (a → TCM b) → TCM b
-bindTCM ma mf = mkTCM (bindTCM' ma mf)
-  where
-  bindTCM' : TCM a → (a → TCM b) → TCEnv → Either TCError b
-  bindTCM' (mkTCM ma) mf f with (ma f)
-  ... | Left e = Left e
-  ... | Right v = TCM.runTCM (mf v) f
+  liftA2TCM : (a → b → c) → TCM a → TCM b → TCM c
+  liftA2TCM g ta tb = MkTCM λ e → g <$> runTCM ta e <*> runTCM tb e
+  {-# COMPILE AGDA2HS liftA2TCM #-}
+
+  pureTCM : a → TCM a
+  pureTCM = MkTCM ∘ const ∘ Right
+  {-# COMPILE AGDA2HS pureTCM #-}
+
+  bindTCM : TCM a → (a → TCM b) → TCM b
+  bindTCM ma mf = MkTCM λ f → do v ← runTCM ma f ; runTCM (mf v) f
+  {-# COMPILE AGDA2HS bindTCM #-}
 
 instance
   iFunctorTCM : Functor TCM
-  Functor.fmap iFunctorTCM = fmapTCM
-  Functor._<$>_ iFunctorTCM = fmapTCM
-  Functor._<&>_ iFunctorTCM = λ x f → fmapTCM f x
-  Functor._<$_ iFunctorTCM = λ x m → fmapTCM (λ b → x {{b}}) m
-  Functor._$>_ iFunctorTCM = λ m x → fmapTCM (λ b → x {{b}}) m
-  Functor.void iFunctorTCM = fmapTCM (const tt)
+  iFunctorTCM .fmap  = fmapTCM
+  iFunctorTCM ._<$>_ = fmapTCM
+  iFunctorTCM ._<&>_ = λ x f → fmapTCM f x
+  iFunctorTCM ._<$_  = λ x m → fmapTCM (λ b → x {{b}}) m
+  iFunctorTCM ._$>_  = λ m x → fmapTCM (λ b → x {{b}}) m
+  iFunctorTCM .void  = fmapTCM (const tt)
+  {-# COMPILE AGDA2HS iFunctorTCM #-}
 
+instance
   iApplicativeTCM : Applicative TCM
-  Applicative.pure iApplicativeTCM = pureTCM
-  Applicative._<*>_ iApplicativeTCM = liftA2TCM id
-  Applicative.super iApplicativeTCM = iFunctorTCM
-  Applicative._<*_ iApplicativeTCM = liftA2TCM (λ z _ → z)
-  Applicative._*>_ iApplicativeTCM = liftA2TCM (λ _ z → z)
+  iApplicativeTCM .pure  = pureTCM
+  iApplicativeTCM ._<*>_ = liftA2TCM id
+  iApplicativeTCM ._<*_  = liftA2TCM (λ z _ → z)
+  iApplicativeTCM ._*>_  = liftA2TCM (λ _ z → z)
+  {-# COMPILE AGDA2HS iApplicativeTCM #-}
 
+instance
   iMonadTCM : Monad TCM
-  Monad._>>=_ iMonadTCM = bindTCM
-  Monad.super iMonadTCM = iApplicativeTCM
-  Monad.return iMonadTCM = pureTCM
-  Monad._>>_ iMonadTCM = λ m m₁ → bindTCM m (λ x → m₁ {{x}})
-  Monad._=<<_ iMonadTCM = flip bindTCM
+  iMonadTCM ._>>=_  = bindTCM
+  iMonadTCM .return = pureTCM
+  iMonadTCM ._>>_   = λ x y → bindTCM x (λ z → y {{z}})
+  iMonadTCM ._=<<_  = flip bindTCM
+  {-# COMPILE AGDA2HS iMonadTCM #-}
 
 liftEither : Either TCError a → TCM a
-liftEither (Left e) = mkTCM λ f → Left e
-liftEither (Right v) = mkTCM λ f → Right v
+liftEither (Left e) = MkTCM λ f → Left e
+liftEither (Right v) = MkTCM λ f → Right v
+
+{-# COMPILE AGDA2HS liftEither #-}
 
 liftMaybe : Maybe a → TCError → TCM a
-liftMaybe Nothing e = mkTCM λ f → Left e
-liftMaybe (Just x) e = mkTCM λ f → Right x
+liftMaybe Nothing e = MkTCM λ f → Left e
+liftMaybe (Just x) e = MkTCM λ f → Right x
 
-tcError : TCError -> TCM a
-tcError e = mkTCM λ f → Left e
+{-# COMPILE AGDA2HS liftMaybe #-}
