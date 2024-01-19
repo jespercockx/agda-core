@@ -3,23 +3,24 @@ open import Haskell.Prelude hiding ( All; m )
 open import Scope
 
 open import Agda.Core.GlobalScope using (Globals)
-import Agda.Core.Syntax as Syntax
+import Agda.Core.Signature
 
 module Agda.Core.Typechecker
     {@0 name    : Set}
     (@0 globals : Globals name)
-    (defType    : All (λ _ → Syntax.Type globals mempty) (Globals.defScope globals))
+    (open Agda.Core.Signature globals)
+    (@0 sig     : Signature)
   where
 
 private open module @0 G = Globals globals
 
-open Syntax globals
+open import Agda.Core.Syntax globals as Syntax
 open import Agda.Core.Context globals
-open import Agda.Core.Conversion globals defType
-open import Agda.Core.Typing globals defType
+open import Agda.Core.Conversion globals sig
+open import Agda.Core.Typing globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.Substitute globals
-open import Agda.Core.TCM globals
+open import Agda.Core.TCM globals sig
 
 open import Haskell.Prim.Functor
 open import Haskell.Prim.Applicative
@@ -46,7 +47,7 @@ postulate
   reduceTo : Rezz _ α
            → (v : Term α)
            → Fuel
-           → Maybe (∃0 (Term α) (ReducesTo v))
+           → Maybe (∃0 (Term α) (ReducesTo sig v))
 
 inferType : (te : Term α)
           → TCM (∃ (Type α) (λ ty → Γ ⊢ te ∷ ty))
@@ -96,7 +97,9 @@ inferTySort (STyp x) = return (TSort (STyp (suc x)) ⟨ TyType ⟩)
 inferDef : (@0 f : name)
            (p : f ∈ defScope )
          → TCM (∃ (Type α) (λ ty → Γ ⊢ TDef f p ∷ ty))
-inferDef f p = return (((weaken subEmpty (defType ! f))) ⟨ (TyDef f) ⟩)
+inferDef f p = do
+  rezz sig ← tcmSignature
+  return (((weaken subEmpty (getType sig f p))) ⟨ (TyDef f) ⟩)
 
 checkLambda : (@0 x : name)
               (u : Term (x ◃ α))

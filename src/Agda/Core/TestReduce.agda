@@ -37,7 +37,13 @@ globals = record
   ; fieldScope = conArity
   }
 
+
 open import Agda.Core.Syntax globals
+open import Agda.Core.Signature globals
+
+sig : Signature
+sig = allEmpty
+
 open import Agda.Core.Reduce globals
 
 opaque
@@ -61,7 +67,7 @@ module Tests (@0 x y z : name) where
     testTerm₁ = apply (TLam x (TVar x inHere)) (TSort (STyp 0))
 
     @0 testProp₁ : Set
-    testProp₁ = reduceClosed testTerm₁ fuel ≡ Just (TSort (STyp 0))
+    testProp₁ = reduceClosed sig testTerm₁ fuel ≡ Just (TSort (STyp 0))
 
     test₁ : testProp₁
     test₁ = refl
@@ -70,7 +76,7 @@ module Tests (@0 x y z : name) where
     testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []))
 
     @0 testProp₂ : Set
-    testProp₂ = reduceClosed testTerm₂ fuel ≡ Just `false
+    testProp₂ = reduceClosed sig testTerm₂ fuel ≡ Just `false
 
     test₂ : testProp₂
     test₂ = refl

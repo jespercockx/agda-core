@@ -14,6 +14,7 @@ open import Utils.Either
 
 open import Agda.Core.Syntax globals
 open import Agda.Core.Substitute globals
+open import Agda.Core.Signature globals
 
 private open module @0 G = Globals globals
 
@@ -115,36 +116,38 @@ opaque
 
   {-# COMPILE AGDA2HS lookupEnvironment #-}
 
-  step : (s : State α) → Maybe (State α)
-  step (MkState e (TVar x p) s) = 
+  step : (sig : Signature) (s : State α) → Maybe (State α)
+  step sig (MkState e (TVar x p) s) = 
     case lookupEnvironment e p of λ where
       (Left _) → Nothing
       (Right v) → Just (MkState e v s)
-  step (MkState e (TApp v w) s) = Just (MkState e v (w ∷ s))
-  step (MkState e (TLam x v) (EArg w ∷ s)) =
+  step sig (MkState e (TApp v w) s) = Just (MkState e v (w ∷ s))
+  step sig (MkState e (TLam x v) (EArg w ∷ s)) =
     Just (MkState
       (e , x ↦ w)
       v
       (weakenElims (subRight (splitRefl (rezz _))) s))
-  step (MkState e (TLet x v w) s) =
+  step sig (MkState e (TLet x v w) s) =
     Just (MkState
       (e , x ↦ v)
       w
       (weakenElims (subRight (splitRefl (rezz _))) s))
-  step (MkState e (TDef d q) s) = Nothing -- TODO
-  step (MkState e (TCon c q vs) (ECase bs ∷ s)) =
+  step sig (MkState e (TDef d q) s) = case getBody sig d q of λ where
+    (Just v) → Just (MkState e (weaken subEmpty v) s)
+    Nothing  → Nothing
+  step sig (MkState e (TCon c q vs) (ECase bs ∷ s)) =
     case lookupBranch bs c q of λ where
       (Just (r , v)) → Just (MkState
         (extendEnvironment vs e)
         v
         (weakenElims (subRight (splitRefl r)) s))
       Nothing  → Nothing
-  step (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
-  step (MkState e (TCon c q x) s) = Nothing
-  step (MkState e (TLam x v) s) = Nothing
-  step (MkState e (TPi x sa sb a b) s) = Nothing
-  step (MkState e (TSort n) s) = Nothing
-  step (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
+  step sig (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
+  step sig (MkState e (TCon c q x) s) = Nothing
+  step sig (MkState e (TLam x v) s) = Nothing
+  step sig (MkState e (TPi x sa sb a b) s) = Nothing
+  step sig (MkState e (TSort n) s) = Nothing
+  step sig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
 
 {-# COMPILE AGDA2HS step #-}
 
@@ -157,28 +160,28 @@ data Fuel : Set where
 -- TODO: make this into a `where` function once 
 -- https://github.com/agda/agda2hs/issues/264 is fixed
 reduceState : Rezz _ α
-            → (s : State α) → Fuel → Maybe (Term α)
-reduceState r s None        = Nothing
-reduceState r s (More fuel) = case (step s) of λ where 
-      (Just s') → reduceState r s' fuel
+            → (sig : Signature) (s : State α) → Fuel → Maybe (Term α)
+reduceState r sig s None        = Nothing
+reduceState r sig s (More fuel) = case (step sig s) of λ where 
+      (Just s') → reduceState r sig s' fuel
       Nothing   → Just (unState r s)
 {-# COMPILE AGDA2HS reduceState #-}
 
 reduce : Rezz _ α
-       → (v : Term α) → Fuel → Maybe (Term α)
-reduce {α = α} r v = reduceState r (makeState v)
+       → (sig : Signature) (v : Term α) → Fuel → Maybe (Term α)
+reduce {α = α} r sig v = reduceState r sig (makeState v)
 {-# COMPILE AGDA2HS reduce #-}
 
-reduceClosed : (v : Term mempty) → Fuel → Maybe (Term mempty)
+reduceClosed : (sig : Signature) (v : Term mempty) → Fuel → Maybe (Term mempty)
 reduceClosed = reduce (rezz _)
 
 {-# COMPILE AGDA2HS reduceClosed #-}
 
-ReducesTo : (v w : Term α) → Set
-ReducesTo {α = α} v w = 
+ReducesTo : (sig : Signature) (v w : Term α) → Set
+ReducesTo {α = α} sig v w = 
   ∃ (Rezz _ α) λ r    → 
   ∃ Fuel       λ fuel → 
-  reduce r v fuel ≡ Just w
+  reduce r sig v fuel ≡ Just w
 
 --record Reveal_·_is_ (f : a → a) (x y : a) : Set where
 --  constructor ⟦_⟧
