@@ -1,14 +1,15 @@
 open import Scope
 
 open import Agda.Core.GlobalScope using (Globals)
-import Agda.Core.Syntax as Syntax
+import Agda.Core.Signature
 
 open import Haskell.Prelude hiding (All; e; s; t; m)
 
 module Agda.Core.Typing
     {@0 name    : Set}
     (@0 globals : Globals name)
-    (@0 defType : All (λ _ → Syntax.Type globals mempty) (Globals.defScope globals))
+    (open Agda.Core.Signature globals)
+    (@0 sig     : Signature)
   where
 
 private open module @0 G = Globals globals
@@ -18,9 +19,9 @@ open import Haskell.Extra.Loop
 
 open import Utils.Tactics using (auto)
 
-open Syntax globals
+open import Agda.Core.Syntax globals
 open import Agda.Core.Reduce globals
-open import Agda.Core.Conversion globals defType
+open import Agda.Core.Conversion globals sig
 open import Agda.Core.Context globals
 open import Agda.Core.Substitute globals
 
@@ -58,7 +59,7 @@ data TyTerm {α} Γ where
     TyDef : (@0 f : name) {@0 p : f ∈ defScope}
 
         -------------------------------------------------
-        → Γ ⊢ TDef f p ∷ (weaken subEmpty (defType ! f))
+        → Γ ⊢ TDef f p ∷ (weaken subEmpty (getType sig f p))
     -- TODO: constructor typing
 
     TyLam :

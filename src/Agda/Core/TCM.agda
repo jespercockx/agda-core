@@ -1,14 +1,17 @@
 open import Haskell.Prelude hiding ( All; m )
+open import Haskell.Extra.Erase
 open import Scope
-open import Agda.Core.GlobalScope
-
-import Agda.Core.Syntax as Syntax
+open import Agda.Core.GlobalScope using (Globals)
+import Agda.Core.Signature
 
 module Agda.Core.TCM
     {@0 name    : Set}
     (@0 globals : Globals name)
+    (open Agda.Core.Signature globals)
+    (@0 sig     : Signature)
   where
 
+open import Agda.Core.Syntax globals
 open import Agda.Core.Reduce globals
 
 module Pair where
@@ -35,13 +38,23 @@ infix 4 ∃
 
 TCError = String
 
+record TCEnv : Set where
+  constructor mkTCEnv
+  field
+    tcSignature : Rezz _ sig
+    tcFuel      : Fuel
+open TCEnv public
+
 record TCM (a : Set) : Set where
   constructor mkTCM
   field
-    runTCM : Fuel → Either TCError a
+    runTCM : TCEnv → Either TCError a
 
 tcmFuel : TCM Fuel
-tcmFuel = mkTCM (λ f → Right f)
+tcmFuel = mkTCM (λ f → Right (f .tcFuel))
+
+tcmSignature : TCM (Rezz _ sig)
+tcmSignature = mkTCM (λ f → Right (f .tcSignature))
 
 fmapTCM : (a → b) → TCM a → TCM b
 fmapTCM f (mkTCM runTCM) = mkTCM (fmap (fmap f) runTCM)
@@ -50,17 +63,17 @@ pureTCM : a → TCM a
 pureTCM a = mkTCM (pure (pure a))
 
 liftA2TCM : (a → b → c) → TCM a → TCM b → TCM c
-liftA2TCM f (mkTCM ta) (mkTCM tb) = mkTCM (liftA2Fuel (liftA2Either f) ta tb)
+liftA2TCM f (mkTCM ta) (mkTCM tb) = mkTCM (liftA2Env (liftA2Either f) ta tb)
   where
-    liftA2Fuel : {a b c f : Set} → (a → b → c) → (f → a) → (f → b) → (f → c)
-    liftA2Fuel f a b = f <$> a <*> b
+    liftA2Env : {a b c f : Set} → (a → b → c) → (f → a) → (f → b) → (f → c)
+    liftA2Env f a b = f <$> a <*> b
     liftA2Either : {a b c e : Set} → (a → b → c) → Either e a → Either e b → Either e c
     liftA2Either f a b = f <$> a <*> b
 
 bindTCM : TCM a → (a → TCM b) → TCM b
 bindTCM ma mf = mkTCM (bindTCM' ma mf)
   where
-  bindTCM' : TCM a → (a → TCM b) → Fuel → Either TCError b
+  bindTCM' : TCM a → (a → TCM b) → TCEnv → Either TCError b
   bindTCM' (mkTCM ma) mf f with (ma f)
   ... | Left e = Left e
   ... | Right v = TCM.runTCM (mf v) f
