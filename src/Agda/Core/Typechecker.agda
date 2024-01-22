@@ -52,12 +52,11 @@ checkType : ∀ (Γ : Context α) u t → TCM (Γ ⊢ u ∶ t)
 
 
 inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
-inferVar g x p = return (lookupVar g x p , TyTVar p)
+inferVar g x p = return $ lookupVar g x p , TyTVar p
 
 inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
 inferApp ctx u (Syntax.EArg v) = do
   let r = rezzScope ctx
-
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
 
@@ -112,8 +111,7 @@ checkLet : ∀ Γ (@0 x : name)
 checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
   dtv       ← checkType (ctx , x ∶ tu) v (weaken (subWeaken subRefl) ty)
-
-  return (TyLet {r = rezzScope ctx} dtu dtv)
+  return $ TyLet {r = rezzScope ctx} dtu dtv
 
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
@@ -130,7 +128,7 @@ checkCoerce : ∀ Γ (t : Term α)
 --for pi
 --for sort
 --the rest should be reduced away
-checkCoerce ctx t (s , d) cty tty = return (TyConv d (convert ctx tty s cty))
+checkCoerce ctx t (s , d) cty tty = return $ TyConv d (convert ctx tty s cty)
 
 
 
