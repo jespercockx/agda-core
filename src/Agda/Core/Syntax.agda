@@ -23,14 +23,19 @@ private variable
 
 data Term   (@0 α : Scope name) : Set
 data Sort   (@0 α : Scope name) : Set
+record Type (@0 α : Scope name) : Set
 data Elim   (@0 α : Scope name) : Set
 data Branch (@0 α : Scope name) : Set
 Elims     : (@0 α : Scope name) → Set
 Branches  : (@0 α : Scope name) → Set
 
--- Design choice: no separate syntactic class for types. Everything
--- is just a term or a sort.
-Type = Term
+record Type α where
+  inductive
+  constructor El
+  field
+    typeSort : Sort α
+    unType   : Term α
+open Type public
 {-# COMPILE AGDA2HS Type #-}
 
 data Subst : (@0 α β : Scope name) → Set where
@@ -53,7 +58,7 @@ data Term α where
         → (lookupAll fieldScope c∈cons) ⇒ α → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (es : Elim α) → Term α
-  TPi   : (@0 x : name) (su sv : Sort α) (u : Term α) (v : Term (x ◃ α)) → Term α
+  TPi   : (@0 x : name) (u : Type α) (v : Type (x ◃ α)) → Term α
   TSort : Sort α → Term α
   TLet  : (@0 x : name) (u : Term α) (v : Term (x ◃ α)) → Term α
   TAnn  : (u : Term α) (t : Type α) → Term α
@@ -65,6 +70,10 @@ data Sort α where
   -- TODO: universe polymorphism
 {-# COMPILE AGDA2HS Sort deriving Show #-}
 
+piSort : Sort α → Sort (x ◃ α) → Sort α
+piSort (STyp a) (STyp b) = STyp (max a b)
+{-# COMPILE AGDA2HS piSort #-}
+
 funSort : Sort α → Sort α → Sort α
 funSort (STyp a) (STyp b) = STyp (max a b)
 {-# COMPILE AGDA2HS funSort #-}
@@ -72,6 +81,10 @@ funSort (STyp a) (STyp b) = STyp (max a b)
 sucSort : Sort α → Sort α
 sucSort (STyp a) = STyp (1 + a)
 {-# COMPILE AGDA2HS sucSort #-}
+
+sortType : Sort α → Type α
+sortType s = El (sucSort s) (TSort s)
+{-# COMPILE AGDA2HS sortType #-}
 
 data Elim α where
   EArg  : Term α → Elim α
@@ -119,6 +132,7 @@ lookupSubst (SCons u f) x q = inBindCase q (λ _ → u) (lookupSubst f x)
 
 weaken         : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
+weakenType     : α ⊆ β → Type α → Type β
 weakenElim     : α ⊆ β → Elim α → Elim β
 weakenElims    : α ⊆ β → Elims α → Elims β
 weakenBranch   : α ⊆ β → Branch α → Branch β
@@ -130,15 +144,16 @@ weaken p (TDef d k)        = TDef d k
 weaken p (TCon c k vs)     = TCon c k (weakenSubst p vs)
 weaken p (TLam x v)        = TLam x (weaken (subBindKeep p) v)
 weaken p (TApp u e)        = TApp (weaken p u) (weakenElim p e)
-weaken p (TPi x sa sb a b) =
-  TPi x (weakenSort p sa) (weakenSort p sb) (weaken p a) (weaken (subBindKeep p) b)
+weaken p (TPi x a b)       = TPi x (weakenType p a) (weakenType (subBindKeep p) b)
 weaken p (TSort α)         = TSort (weakenSort p α)
 weaken p (TLet x v t)      = TLet x (weaken p v) (weaken (subBindKeep p) t)
-weaken p (TAnn u t)        = TAnn (weaken p u) (weaken p t)
+weaken p (TAnn u t)        = TAnn (weaken p u) (weakenType p t)
 {-# COMPILE AGDA2HS weaken #-}
 
 weakenSort p (STyp x) = STyp x
 {-# COMPILE AGDA2HS weakenSort #-}
+
+weakenType p (El st t) = El (weakenSort p st) (weaken p t)
 
 weakenElim p (EArg x)    = EArg (weaken p x)
 weakenElim p (EProj x k) = EProj x k
@@ -216,8 +231,13 @@ raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
 raise r = weaken (subRight (splitRefl r))
 {-# COMPILE AGDA2HS raise #-}
 
+raiseType : {@0 α β : Scope name} → Rezz _ α → Type β → Type (α <> β)
+raiseType r = weakenType (subRight (splitRefl r))
+{-# COMPILE AGDA2HS raiseType #-}
+
 strengthen : α ⊆ β → Term β → Maybe (Term α)
 strengthenSort : α ⊆ β → Sort β → Maybe (Sort α)
+strengthenType : α ⊆ β → Type β → Maybe (Type α)
 strengthenElim : α ⊆ β → Elim β → Maybe (Elim α)
 strengthenElims : α ⊆ β → Elims β → Maybe (Elims α)
 strengthenBranch : α ⊆ β → Branch β → Maybe (Branch α)
@@ -229,14 +249,15 @@ strengthen p (TDef d q) = Just (TDef d q)
 strengthen p (TCon c q vs) = TCon c q <$> strengthenSubst p vs
 strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
 strengthen p (TApp v e) = TApp <$> strengthen p v <*> strengthenElim p e
-strengthen p (TPi x sa sb a b) =
-  TPi x <$> strengthenSort p sa <*> strengthenSort p sb
-        <*> strengthen p a <*> strengthen (subBindKeep p) b
+strengthen p (TPi x a b) =
+  TPi x <$> strengthenType p a <*> strengthenType (subBindKeep p) b
 strengthen p (TSort s) = TSort <$> strengthenSort p s
 strengthen p (TLet x u v) = TLet x <$> strengthen p u <*> strengthen (subBindKeep p) v
-strengthen p (TAnn u t) = TAnn <$> strengthen p u <*> strengthen p t
+strengthen p (TAnn u t) = TAnn <$> strengthen p u <*> strengthenType p t
 
 strengthenSort p (STyp n) = Just (STyp n)
+
+strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthen p t
 
 strengthenElim p (EArg v) = EArg <$> strengthen p v
 strengthenElim p (EProj f q) = Just (EProj f q)

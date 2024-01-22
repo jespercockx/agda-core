@@ -146,7 +146,7 @@ opaque
   step sig (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
   step sig (MkState e (TCon c q x) s) = Nothing
   step sig (MkState e (TLam x v) s) = Nothing
-  step sig (MkState e (TPi x sa sb a b) s) = Nothing
+  step sig (MkState e (TPi x a b) s) = Nothing
   step sig (MkState e (TSort n) s) = Nothing
   step sig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
 

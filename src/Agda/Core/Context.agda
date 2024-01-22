@@ -38,7 +38,7 @@ private variable
 
 lookupVar : (Γ : Context α) (@0 x : name) (p : x ∈ α) → Type α
 lookupVar CtxEmpty x p = inEmptyCase p
-lookupVar (CtxExtend g y s) x p = raise (rezz _) (inBindCase p
+lookupVar (CtxExtend g y s) x p = raiseType (rezz _) (inBindCase p
   (λ _ → s)
   (λ q → lookupVar g x q))
 
