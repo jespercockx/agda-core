@@ -33,7 +33,7 @@ private variable
   @0 α : Scope name
 
 postulate
-  convert   : (Γ : Context α) (@0 ty : Term α) (@0 a b : Term α) → Γ ⊢ a ≅ b ∶ ty
+  convert   : (Γ : Context α) (@0 a b : Type α) → Γ ⊢ (unType a) ≅ (unType b) ∶ (TSort $ typeSort a)
 
 reduceTo : (_ : Rezz _ α)
            (sig : Signature)
@@ -47,13 +47,14 @@ reduceTo r sig v f =
 {-# COMPILE AGDA2HS reduceTo #-}
 
 
-inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Term α ] Γ ⊢ u ∶ t)
-checkType : ∀ (Γ : Context α) u t (s : Sort α) → TCM (Γ ⊢ u ∶ t)
+inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
+inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ unType t)
+checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ (unType ty))
 
-inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Term α ] Γ ⊢ TVar x p ∶ t)
-inferVar g x p = return $ unType (lookupVar g x p) , TyTVar p
+inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ unType t)
+inferVar g x p = return $ lookupVar g x p , TyTVar p
 
-inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Term α ] Γ ⊢ TApp u e ∶ t)
+inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ unType t)
 inferApp ctx u (Syntax.EArg v) = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
@@ -61,14 +62,14 @@ inferApp ctx u (Syntax.EArg v) = do
 
   tu  , gtu ← inferType ctx u
 
-  (TPi x (El sa at) (El sr rt)) ⟨ rtp ⟩  ← reduceTo r sig tu fuel
+  (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r sig (unType tu) fuel
     where _ → tcError "couldn't reduce term to a pi type"
 
-  gtv ← checkType ctx v at sa
-  let sf = piSort sa sr
+  gtv ← checkType ctx v at
+  let sf = piSort (typeSort at) (typeSort rt)
       gc = CRedL {t = TSort sf} rtp CRefl
 
-  return $ substTop r v rt , TyAppE gtu (TyArg {k = sf} gc gtv)
+  return $ substTopType r v rt , TyAppE gtu (TyArg {k = sf} gc gtv)
 
 inferApp ctx u (Syntax.EProj _ _) = tcError "not implemented"
 inferApp ctx u (Syntax.ECase bs)  = tcError "not implemented"
@@ -77,37 +78,39 @@ inferPi
   : ∀ Γ (@0 x : name)
   (a : Type α)
   (b : Type (x ◃ α))
-  → TCM (Σ[ ty ∈ Term α ] Γ ⊢ TPi x a b ∶ ty)
+  → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TPi x a b ∶ unType ty)
 inferPi ctx x (El su u) (El sv v) = do
-  tu <- checkType ctx u (TSort su) (sucSort su)
-  tv <- checkType (ctx , x ∶ El su u) v (TSort sv) (sucSort sv)
-  pure $ TSort (piSort su sv) , TyPi tu tv
+  tu <- checkType ctx u (sortType su)
+  tv <- checkType (ctx , x ∶ El su u) v (sortType sv)
+  let spi = piSort su sv
+  pure $ El (sucSort spi) (TSort spi) , TyPi tu tv
 
-inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Term α ] Γ ⊢ TSort s ∶ ty)
-inferTySort ctx (STyp x) = return $ TSort (STyp $ 1 + x) , TyType
+inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ unType ty)
+inferTySort ctx (STyp x) = do
+  return $ sortType (sucSort (STyp x)) , TyType
 
-inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope) → TCM (Σ[ ty ∈ Term α ] Γ ⊢ TDef f p ∶ ty)
+inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ unType ty)
 inferDef ctx f p = do
   rezz sig ← tcmSignature
-  pure $ weaken subEmpty (unType (getType sig f p)) , TyDef p
+  pure $ weakenType  subEmpty (getType sig f p) , TyDef p
 
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
               (ty : Type α)
               → TCM (Γ ⊢ TLam x u ∶ unType ty)
-checkLambda ctx x u (El _ (TPi y (El su tu) (El sv tv))) = do
-  d ← checkType (ctx , x ∶ El su tu) u (renameTop (rezzScope ctx) tv) {!   !}
+checkLambda ctx x u (El _ (TPi y tu tv)) = do
+  d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
   return $ TyLam d
 checkLambda ctx x u (El s ty) = do
   let r = rezzScope ctx
   rezz sig ← tcmSignature
   fuel ← tcmFuel
 
-  (TPi y (El su tu) (El sv tv)) ⟨ rtp ⟩ ← reduceTo r sig ty fuel
+  (TPi y tytu tytv) ⟨ rtp ⟩ ← reduceTo r sig ty fuel
     where _ → tcError "couldn't reduce a term to a pi type"
   let gc = CRedR {t = TSort s} rtp CRefl
 
-  d ← checkType (ctx , x ∶ El su tu) u (renameTop (rezzScope ctx) tv) {!   !}
+  d ← checkType (ctx , x ∶ tytu) u (renameTopType (rezzScope ctx) tytv)
   return $ TyConv (TyLam d) gc
 
 checkLet : ∀ Γ (@0 x : name)
@@ -115,16 +118,15 @@ checkLet : ∀ Γ (@0 x : name)
            (v : Term (x ◃ α))
            (ty : Type α)
            → TCM (Γ ⊢ TLet x u v ∶ unType ty)
-checkLet ctx x u v (El s ty) = do
+checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
-  dtv       ← checkType (ctx , x ∶ El {!   !} tu) v (weaken (subWeaken subRefl) ty) (weakenSort (subWeaken subRefl) s)
+  dtv       ← checkType (ctx , x ∶ tu) v (weakenType (subWeaken subRefl) ty)
   return $ TyLet {r = rezzScope ctx} dtu dtv
 
 checkCoerce : ∀ Γ (t : Term α)
-            → Σ[ ty ∈ Term α ] Γ ⊢ t ∶ ty
-            → (cty : Term α) -- the type we want to have
-            → (tty : Term α) -- the type of types
-            → TCM (Γ ⊢ t ∶ cty)
+            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ unType ty
+            → (cty : Type α) -- the type we want to have
+            → TCM (Γ ⊢ t ∶ unType cty)
 --FIXME: first reduce the type, patmatch on the type
 --the depending on what the type is do either
 --for vars
@@ -135,28 +137,28 @@ checkCoerce : ∀ Γ (t : Term α)
 --for pi
 --for sort
 --the rest should be reduced away
-checkCoerce ctx t (s , d) cty tty = do
-  return $ TyConv d (convert ctx tty s cty)
+checkCoerce ctx t (ty , dty) cty = do
+  return $ TyConv dty (convert ctx ty cty)
 
-checkType ctx t@(TVar x p) ty s = do
+checkType ctx t@(TVar x p) ty = do
   tvar ← inferVar ctx x p
-  checkCoerce ctx t tvar ty (TSort s)
-checkType ctx (TDef d p) ty s =  do
+  checkCoerce ctx t tvar ty
+checkType ctx (TDef d p) ty =  do
   tdef ← inferDef ctx d p
-  checkCoerce ctx (TDef d p) tdef ty (TSort s)
-checkType ctx (TCon c p x) ty s = tcError "not implemented yet"
-checkType ctx (TLam x te) ty s = checkLambda ctx x te (El s ty)
-checkType ctx t@(TApp u e) ty s = do
+  checkCoerce ctx (TDef d p) tdef ty
+checkType ctx (TCon c p x) ty = tcError "not implemented yet"
+checkType ctx (TLam x te) ty = checkLambda ctx x te ty
+checkType ctx t@(TApp u e) ty = do
   tapp ← inferApp ctx u e
-  checkCoerce ctx t tapp ty (TSort s)
-checkType ctx t@(TPi x (El su u) (El sv v)) ty s = do
-  tpi ← inferPi ctx x (El su u) (El sv v)
-  checkCoerce ctx t tpi ty (TSort s)
-checkType ctx t@(TSort s) ty st = do
+  checkCoerce ctx t tapp ty
+checkType ctx t@(TPi x tu tv) ty = do
+  tpi ← inferPi ctx x tu tv
+  checkCoerce ctx t tpi ty
+checkType ctx t@(TSort s) ty = do
   tts ← inferTySort ctx s
-  checkCoerce ctx t tts ty (TSort s)
-checkType ctx (TLet x u v) ty s = checkLet ctx x u v (El s ty)
-checkType ctx (TAnn u t) ty s = tcError "not implemented yet"
+  checkCoerce ctx t tts ty
+checkType ctx (TLet x u v) ty = checkLet ctx x u v ty
+checkType ctx (TAnn u t) ty = tcError "not implemented yet"
 
 {-# COMPILE AGDA2HS checkType #-}
 
@@ -172,13 +174,12 @@ inferType ctx (TAnn u t) = tcError "not implemented yet"
 
 {-# COMPILE AGDA2HS inferType #-}
 
-inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
 inferSort ctx t = do
   let r = rezzScope ctx
   rezz sig ← tcmSignature
   fuel ← tcmFuel
   st , dt ← inferType ctx t
-  (TSort s) ⟨ rp ⟩ ← reduceTo r sig st fuel
+  (TSort s) ⟨ rp ⟩ ← reduceTo r sig (unType st) fuel
     where _ → tcError "couldn't reduce a term to a sort"
   let cp = CRedL {t = TSort $ sucSort s} rp CRefl
   return $ s , TyConv dt cp

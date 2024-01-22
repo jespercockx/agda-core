@@ -66,3 +66,7 @@ substSubst f (SCons x e) = SCons (substTerm f x) (substSubst f e)
 substTop : Rezz _ α → Term α → Term (x ◃ α) → Term α
 substTop r u = substTerm (SCons u (idSubst r))
 {-# COMPILE AGDA2HS substTop #-}
+
+substTopType : Rezz _ α → Term α → Type (x ◃ α) → Type α
+substTopType r u = substType (SCons u (idSubst r))
+{-# COMPILE AGDA2HS substTopType #-}
