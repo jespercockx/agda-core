@@ -47,8 +47,6 @@ reduceTo r sig v f =
 {-# COMPILE AGDA2HS reduceTo #-}
 
 
-{-# TERMINATING #-}
-inferSort : (Γ : Context α) (t : Type α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u t (s : Sort α) → TCM (Γ ⊢ u ∶ t)
 
@@ -62,15 +60,15 @@ inferApp ctx u (Syntax.EArg v) = do
   rezz sig  ← tcmSignature
 
   tu  , gtu ← inferType ctx u
-  stu , _   ← inferSort ctx tu
 
   (TPi x sa sr at rt) ⟨ rtp ⟩  ← reduceTo r sig tu fuel
     where _ → tcError "couldn't reduce term to a pi type"
 
   gtv ← checkType ctx v at sa
-  let gc = CRedL {t = TSort stu} rtp CRefl
+  let sf = funSort sa sr
+      gc = CRedL {t = TSort sf} rtp CRefl
 
-  return $ substTop r v rt , TyAppE gtu (TyArg {k = stu} gc gtv)
+  return $ substTop r v rt , TyAppE gtu (TyArg {k = sf} gc gtv)
 
 inferApp ctx u (Syntax.EProj _ _) = tcError "not implemented"
 inferApp ctx u (Syntax.ECase bs)  = tcError "not implemented"
@@ -141,7 +139,8 @@ checkCoerce : ∀ Γ (t : Term α)
 --for pi
 --for sort
 --the rest should be reduced away
-checkCoerce ctx t (s , d) cty tty = return $ TyConv d (convert ctx tty s cty)
+checkCoerce ctx t (s , d) cty tty = do
+  return $ TyConv d (convert ctx tty s cty)
 
 checkType ctx t@(TVar x p) ty s = do
   tvar ← inferVar ctx x p
@@ -177,15 +176,15 @@ inferType ctx (TAnn u t) = tcError "not implemented yet"
 
 {-# COMPILE AGDA2HS inferType #-}
 
+inferSort : (Γ : Context α) (t : Type α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
 inferSort ctx t = do
   let r = rezzScope ctx
   rezz sig ← tcmSignature
   fuel ← tcmFuel
   st , dt ← inferType ctx t
-  sst , _  ← inferSort ctx st
   (TSort s) ⟨ rp ⟩ ← reduceTo r sig st fuel
     where _ → tcError "couldn't reduce a term to a sort"
-  let cp = CRedL {t = TSort sst} rp CRefl
+  let cp = CRedL {t = TSort $ sucSort s} rp CRefl
   return $ s , TyConv dt cp
 
-{-# COMPILE AGDA2HS inferType #-}
+{-# COMPILE AGDA2HS inferSort #-}
