@@ -28,6 +28,8 @@ library
                     , Agda.Core.Reduce
                     , Agda.Core.Syntax
                     , Agda.Core.Substitute
+                    , Agda.Core.Utils
+                    , Utils.Either
                     -- , Agda.Core.Typechecker
                     -- , Agda.Core.Typing
     build-depends:    base   >= 4.17    && < 4.20
@@ -37,6 +39,7 @@ library
     ghc-options:
       -- agda2hs generates many (safe) incomplete patterns
       -fno-warn-incomplete-patterns
+      -fno-warn-name-shadowing
 
 executable agda-core
     import:           warnings
@@ -46,7 +49,6 @@ executable agda-core
     other-modules:    Agda.Core.ToCore
                     , Paths_agda_core
     autogen-modules:  Paths_agda_core
-    documentation: True
     default-extensions:
       LambdaCase
       RecordWildCards
