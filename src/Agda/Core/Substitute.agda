@@ -20,6 +20,7 @@ private variable
 
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β
+substType     : α ⇒ β → Type α → Type β
 substElim     : α ⇒ β → Elim α → Elim β
 substElims    : α ⇒ β → Elims α → Elims β
 substBranch   : α ⇒ β → Branch α → Branch β
@@ -29,16 +30,18 @@ substSubst    : α ⇒ β → γ ⇒ α → γ ⇒ β
 substSort f (STyp x) = STyp x
 {-# COMPILE AGDA2HS substSort #-}
 
+substType f (El st t) = El (substSort f st) (substTerm f t)
+{-# COMPILE AGDA2HS substType #-}
+
 substTerm f (TVar x k)        = lookupSubst f x k
 substTerm f (TDef d k)        = TDef d k
 substTerm f (TCon c k vs)     = TCon c k (substSubst f vs)
 substTerm f (TLam x v)        = TLam x (substTerm (liftBindSubst f) v)
 substTerm f (TApp u v)        = TApp (substTerm f u) (substElim f v)
-substTerm f (TPi x sa sb a b) =
-  TPi x (substSort f sa) (substSort f sb) (substTerm f a) (substTerm (liftBindSubst f) b)
+substTerm f (TPi x a b)       = TPi x (substType f a) (substType (liftBindSubst f) b)
 substTerm f (TSort s)         = TSort (substSort f s)
 substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)
-substTerm f (TAnn u t)        = TAnn (substTerm f u) (substTerm f t)
+substTerm f (TAnn u t)        = TAnn (substTerm f u) (substType f t)
 {-# COMPILE AGDA2HS substTerm #-}
 
 substElim f (EArg u)    = EArg (substTerm f u)
