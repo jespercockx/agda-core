@@ -63,7 +63,7 @@ data Conv {α} Γ where
   CRedL  : @0 ReducesTo sig u u'
          → Γ ⊢ u' ≅ v  ∶ t
          → Γ ⊢ u  ≅ v  ∶ t
-  CRedR  : @0 ReducesTo sig u v'
+  CRedR  : @0 ReducesTo sig v v'
          → Γ ⊢ u  ≅ v' ∶ t
          → Γ ⊢ u  ≅ v  ∶ t
 

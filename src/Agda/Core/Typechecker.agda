@@ -33,8 +33,7 @@ private variable
   @0 α : Scope name
 
 postulate
-  inferSort : (Γ : Context α) (t : Type α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
-  convert   : (Γ : Context α) (@0 ty : Type α) (@0 a b : Term α) → Γ ⊢ b ≅ a ∶ ty
+  convert   : (Γ : Context α) (@0 ty : Type α) (@0 a b : Term α) → Γ ⊢ a ≅ b ∶ ty
 
 reduceTo : (_ : Rezz _ α)
            (sig : Signature)
@@ -47,6 +46,9 @@ reduceTo r sig v f =
     (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩
 {-# COMPILE AGDA2HS reduceTo #-}
 
+
+{-# TERMINATING #-}
+inferSort : (Γ : Context α) (t : Type α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u t (s : Sort α) → TCM (Γ ⊢ u ∶ t)
 
@@ -108,7 +110,7 @@ checkLambda ctx x u ty s = do
 
   (TPi y su sv tu tv) ⟨ rtp ⟩ ← reduceTo r sig ty fuel
     where _ → tcError "couldn't reduce a term to a pi type"
-  let gc = CRedL {t = TSort s} rtp CRefl
+  let gc = CRedR {t = TSort s} rtp CRefl
 
   d ← checkType (ctx , x ∶ tu) u (renameTop (rezzScope ctx) tv) (weakenSort (subWeaken subRefl) sv)
   return $ TyConv (TyLam d) gc
@@ -172,5 +174,18 @@ inferType ctx (TPi x su sv u v) = inferPi ctx x su sv u v
 inferType ctx (TSort s) = inferTySort ctx s
 inferType ctx (TLet x te te₁) = tcError "can't infer the type of a let"
 inferType ctx (TAnn u t) = tcError "not implemented yet"
+
+{-# COMPILE AGDA2HS inferType #-}
+
+inferSort ctx t = do
+  let r = rezzScope ctx
+  rezz sig ← tcmSignature
+  fuel ← tcmFuel
+  st , dt ← inferType ctx t
+  sst , _  ← inferSort ctx st
+  (TSort s) ⟨ rp ⟩ ← reduceTo r sig st fuel
+    where _ → tcError "couldn't reduce a term to a sort"
+  let cp = CRedL {t = TSort sst} rp CRefl
+  return $ s , TyConv dt cp
 
 {-# COMPILE AGDA2HS inferType #-}

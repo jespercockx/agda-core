@@ -91,7 +91,7 @@ data TyTerm {α} Γ where
 
   TyConv
     : Γ ⊢ u ∶ t
-    → Γ ⊢ v ≅ t ∶ s
+    → Γ ⊢ t ≅ v ∶ s
     ----------------
     → Γ ⊢ u ∶ v
 
