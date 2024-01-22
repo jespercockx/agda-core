@@ -34,7 +34,7 @@ private variable
 
 postulate
   inferSort : (Γ : Context α) (t : Type α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
-  convert   : (Γ : Context α) (@0 ty : Type α) (@0 a b : Term α) → Γ ⊢ a ≅ b ∶ ty
+  convert   : (Γ : Context α) (@0 ty : Type α) (@0 a b : Term α) → Γ ⊢ b ≅ a ∶ ty
 
 reduceTo : (_ : Rezz _ α)
            (sig : Signature)
@@ -101,8 +101,17 @@ checkLambda : ∀ Γ (@0 x : name)
 checkLambda ctx x u (TPi y su sv tu tv) _ = do
   d ← checkType (ctx , x ∶ tu) u (renameTop (rezzScope ctx) tv) (weakenSort (subWeaken subRefl) sv)
   return $ TyLam d
---FIXME: reduce ty and see if it's a Pi
-checkLambda ctx x u _ _ = tcError "can't check lambda against a type that isn't a Pi"
+checkLambda ctx x u ty s = do
+  let r = rezzScope ctx
+  rezz sig ← tcmSignature
+  fuel ← tcmFuel
+
+  (TPi y su sv tu tv) ⟨ rtp ⟩ ← reduceTo r sig ty fuel
+    where _ → tcError "couldn't reduce a term to a pi type"
+  let gc = CRedL {t = TSort s} rtp CRefl
+
+  d ← checkType (ctx , x ∶ tu) u (renameTop (rezzScope ctx) tv) (weakenSort (subWeaken subRefl) sv)
+  return $ TyConv (TyLam d) gc
 
 checkLet : ∀ Γ (@0 x : name)
            (u : Term α)
