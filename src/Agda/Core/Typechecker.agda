@@ -48,8 +48,7 @@ reduceTo r sig v f =
 {-# COMPILE AGDA2HS reduceTo #-}
 
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
-checkType : ∀ (Γ : Context α) u t → TCM (Γ ⊢ u ∶ t)
-
+checkType : ∀ (Γ : Context α) u t (s : Sort α) → TCM (Γ ⊢ u ∶ t)
 
 inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
 inferVar g x p = return $ lookupVar g x p , TyTVar p
@@ -66,7 +65,7 @@ inferApp ctx u (Syntax.EArg v) = do
   (TPi x sa sr at rt) ⟨ rtp ⟩  ← reduceTo r sig tu fuel
     where _ → tcError "couldn't reduce term to a pi type"
 
-  gtv ← checkType ctx v at
+  gtv ← checkType ctx v at sa
   let gc = CRedL {t = TSort stu} rtp CRefl
 
   return $ substTop r v rt , TyAppE gtu (TyArg {k = stu} gc gtv)
@@ -81,8 +80,9 @@ inferPi
   (v : Term (x ◃ α))
   → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TPi x su sv u v ∶ ty)
 inferPi ctx x su sv u v = do
-  tu <- checkType ctx u (TSort su)
-  tv <- checkType (ctx , x ∶ u) v (TSort (weakenSort (subWeaken subRefl) sv))
+  tu <- checkType ctx u (TSort su) (sucSort su)
+  let wsv = weakenSort (subWeaken subRefl) sv
+  tv <- checkType (ctx , x ∶ u) v (TSort wsv) (sucSort wsv)
   pure $ TSort (funSort su sv) , TyPi tu tv
 
 inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ ty)
@@ -96,21 +96,23 @@ inferDef ctx f p = do
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
               (ty : Type α)
+              (s : Sort α)
               → TCM (Γ ⊢ TLam x u ∶ ty)
-checkLambda ctx x u (TPi y su sv tu tv) = do
-  d ← checkType (ctx , x ∶ tu) u (renameTop (rezzScope ctx) tv)
-  return (TyLam d)
+checkLambda ctx x u (TPi y su sv tu tv) _ = do
+  d ← checkType (ctx , x ∶ tu) u (renameTop (rezzScope ctx) tv) (weakenSort (subWeaken subRefl) sv)
+  return $ TyLam d
 --FIXME: reduce ty and see if it's a Pi
-checkLambda ctx x u _ = tcError "can't check lambda against a type that isn't a Pi"
+checkLambda ctx x u _ _ = tcError "can't check lambda against a type that isn't a Pi"
 
 checkLet : ∀ Γ (@0 x : name)
            (u : Term α)
            (v : Term (x ◃ α))
            (ty : Type α)
+           (s : Sort α)
            → TCM (Γ ⊢ TLet x u v ∶ ty)
-checkLet ctx x u v ty = do
+checkLet ctx x u v ty s = do
   tu , dtu  ← inferType ctx u
-  dtv       ← checkType (ctx , x ∶ tu) v (weaken (subWeaken subRefl) ty)
+  dtv       ← checkType (ctx , x ∶ tu) v (weaken (subWeaken subRefl) ty) (weakenSort (subWeaken subRefl) s)
   return $ TyLet {r = rezzScope ctx} dtu dtv
 
 checkCoerce : ∀ Γ (t : Term α)
@@ -130,32 +132,25 @@ checkCoerce : ∀ Γ (t : Term α)
 --the rest should be reduced away
 checkCoerce ctx t (s , d) cty tty = return $ TyConv d (convert ctx tty s cty)
 
-
-
-checkType ctx (TVar x p) ty = do
-  tvar     ← inferVar ctx x p
-  tsor , _ ← inferSort ctx ty
-  checkCoerce ctx (TVar x p) tvar ty (TSort tsor)
-checkType ctx (TDef d p) ty =  do
-  tdef     ← inferDef ctx d p
-  tsor , _ ← inferSort ctx ty
-  checkCoerce ctx (TDef d p) tdef ty (TSort tsor)
-checkType ctx (TCon c p x) ty = tcError "not implemented yet"
-checkType ctx (TLam x te) ty =  checkLambda ctx x te ty
-checkType ctx (TApp u e) ty = do
-  tapp     ← inferApp ctx u e
-  tsor , _ ← inferSort ctx ty
-  checkCoerce ctx (TApp u e) tapp ty (TSort tsor)
-checkType ctx (TPi x su sv u v) ty = do
-  tpi      ← inferPi ctx x su sv u v
-  tsor , _ ← inferSort ctx ty
-  checkCoerce ctx (TPi x su sv u v) tpi ty (TSort tsor)
-checkType ctx (TSort s) ty = do
-  tts      ← inferTySort ctx s
-  tsor , _ ← inferSort ctx ty
-  checkCoerce ctx (TSort s) tts ty (TSort tsor)
-checkType ctx (TLet x u v) ty = checkLet ctx x u v ty
-checkType ctx (TAnn u t) ty = tcError "not implemented yet"
+checkType ctx t@(TVar x p) ty s = do
+  tvar ← inferVar ctx x p
+  checkCoerce ctx t tvar ty (TSort s)
+checkType ctx (TDef d p) ty s =  do
+  tdef ← inferDef ctx d p
+  checkCoerce ctx (TDef d p) tdef ty (TSort s)
+checkType ctx (TCon c p x) ty s = tcError "not implemented yet"
+checkType ctx (TLam x te) ty s = checkLambda ctx x te ty s
+checkType ctx t@(TApp u e) ty s = do
+  tapp ← inferApp ctx u e
+  checkCoerce ctx t tapp ty (TSort s)
+checkType ctx t@(TPi x su sv u v) ty s = do
+  tpi ← inferPi ctx x su sv u v
+  checkCoerce ctx t tpi ty (TSort s)
+checkType ctx t@(TSort s) ty st = do
+  tts ← inferTySort ctx s
+  checkCoerce ctx t tts ty (TSort s)
+checkType ctx (TLet x u v) ty s = checkLet ctx x u v ty s
+checkType ctx (TAnn u t) ty s = tcError "not implemented yet"
 
 {-# COMPILE AGDA2HS checkType #-}
 

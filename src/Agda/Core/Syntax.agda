@@ -69,6 +69,10 @@ funSort : Sort α → Sort α → Sort α
 funSort (STyp a) (STyp b) = STyp (max a b)
 {-# COMPILE AGDA2HS funSort #-}
 
+sucSort : Sort α → Sort α
+sucSort (STyp a) = STyp (suc a)
+{-# COMPILE AGDA2HS sucSort #-}
+
 data Elim α where
   EArg  : Term α → Elim α
   EProj : (@0 x : name) → x ∈ defScope → Elim α
