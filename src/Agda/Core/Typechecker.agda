@@ -1,6 +1,6 @@
 open import Haskell.Prelude
   hiding ( All; m; _,_,_)
-  renaming (_,_ to infixr 5 _,_)
+  renaming (_,_ to infixr 5 [_⨾_])
 
 open import Scope
 
@@ -30,10 +30,6 @@ open import Haskell.Extra.Erase
 
 private variable
   @0 α : Scope name
-
-postulate
-  convert : (Γ : Context α) (@0 a b : Type α)
-          → Γ ⊢ (unType a) ≅ (unType b) ∶ (TSort $ typeSort a)
 
 reduceTo : (r : Rezz _ α) (sig : Signature) (v : Term α) (f : Fuel)
          → TCM (∃[ t ∈ Term α ] (ReducesTo sig v t))
@@ -125,18 +121,32 @@ checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
             → (cty : Type α) -- the type we want to have
             → TCM (Γ ⊢ t ∶ cty)
---FIXME: first reduce the type, patmatch on the type
---the depending on what the type is do either
---for vars
---for defs
---for cons
---for labmda
---for app
---for pi
---for sort
---the rest should be reduced away
-checkCoerce ctx t (ty , dty) cty = do
-  return $ TyConv {c = sortType $ typeSort ty} dty (convert ctx ty cty)
+checkCoerce ctx t (gty , dgty) cty = do
+  --FIXME: first reduce the type, patmatch on the type
+  --the depending on what the type is do either
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+
+  rgty ← reduceTo r sig (unType gty) fuel
+  rcty ← reduceTo r sig (unType cty) fuel
+  case [ rgty ⨾ rcty ] of λ where
+  --for vars
+    [ TVar x p ⟨ rpg ⟩ ⨾ TVar y q ⟨ rpc ⟩ ] → {!!}
+  --for defs
+    [ TDef x p ⟨ rpg ⟩ ⨾ TDef y q ⟨ rpc ⟩ ] → {!!}
+  --for cons
+    [ TCon c p lc ⟨ rpg  ⟩ ⨾ TCon d q ld ⟨ rpc ⟩ ] → {!!}
+  --for lambda
+    [ TLam x u ⟨ rpg ⟩ ⨾ TLam y v ⟨ rpc ⟩ ] → {!!}
+  --for app
+    [ TApp u e ⟨ rpg ⟩ ⨾ TApp v f ⟨ rpc ⟩ ] → {!!}
+  --for pi
+    [ TPi x tu tv ⟨ rpg ⟩ ⨾ TPi y tw tz ⟨ rpc ⟩ ] → {!!}
+  --for sort
+    [ TSort s ⟨ rpg ⟩ ⨾ TSort t ⟨ rpc ⟩ ] → {!!}
+  --the rest should be reduced away
+    _ → tcError "sorry"
 
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
