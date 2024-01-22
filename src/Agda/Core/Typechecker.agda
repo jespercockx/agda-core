@@ -36,6 +36,17 @@ postulate
   inferSort : (Γ : Context α) (t : Type α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
   convert   : (Γ : Context α) (@0 ty : Type α) (@0 a b : Term α) → Γ ⊢ a ≅ b ∶ ty
 
+reduceTo : (_ : Rezz _ α)
+           (sig : Signature)
+           (v : Term α)
+           (_ : Fuel)
+         → TCM (∃[ t ∈ Term α ] (ReducesTo sig v t))
+reduceTo r sig v f =
+  case reduce r sig v f of λ where
+    Nothing        → tcError "not enough fuel to reduce a term"
+    (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩
+{-# COMPILE AGDA2HS reduceTo #-}
+
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u t → TCM (Γ ⊢ u ∶ t)
 
@@ -53,13 +64,13 @@ inferApp ctx u (Syntax.EArg v) = do
   tu  , gtu ← inferType ctx u
   stu , _   ← inferSort ctx tu
 
-  case reduce r sig tu fuel of λ where
-    Nothing → tcError "not enough fuel to reduce term"
-    (Just (TPi x sa sr at rt)) ⦃ p ⦄ → do
-      gtv ← checkType ctx v at
-      let gc = CRedL (⟨ r ⟩ fuel ⟨ p ⟩) CRefl
-      pure $ substTop r v rt , TyAppE gtu (TyArg {k = funSort sa sr} gc gtv)
-    (Just _) → tcError "couldn't reduce term to pi type"
+  (TPi x sa sr at rt) ⟨ rtp ⟩  ← reduceTo r sig tu fuel
+    where _ → tcError "couldn't reduce term to a pi type"
+
+  gtv ← checkType ctx v at
+  let gc = CRedL {t = TSort stu} rtp CRefl
+
+  return $ substTop r v rt , TyAppE gtu (TyArg {k = stu} gc gtv)
 
 inferApp ctx u (Syntax.EProj _ _) = tcError "not implemented"
 inferApp ctx u (Syntax.ECase bs)  = tcError "not implemented"

@@ -177,15 +177,3 @@ ReducesTo {α = α} sig v w = Σ0[ r ∈ Rezz _ α ] ∃[ f ∈ Fuel ] reduce r 
 
 {-# COMPILE AGDA2HS ReducesTo #-}
 
-reduceTo
-  : Rezz _ α
-  → (sig : Signature)
-  → (v : Term α)
-  → Fuel
-  → Maybe (∃[ u ∈ Term α ] ReducesTo sig v u)
-reduceTo r sig v f =
-  case reduce r sig v f of λ where
-    Nothing        → Nothing
-    (Just u) ⦃ p ⦄ → Just (u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩)
-
-{-# COMPILE AGDA2HS reduceTo #-}
