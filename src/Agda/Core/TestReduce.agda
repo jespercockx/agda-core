@@ -9,6 +9,7 @@ open import Haskell.Extra.Refinement
 
 open import Scope
 open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.Utils
 
 name = String
 
