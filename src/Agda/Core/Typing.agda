@@ -75,7 +75,7 @@ data TyTerm {α} Γ where
 
   TyType
     -------------------------------------------
-    : Γ ⊢ TSort (STyp n) ∶ TSort (STyp (suc n))
+    : Γ ⊢ TSort k ∶ TSort (sucSort k)
 
   TyLet
     : {@0 r : Rezz _ α}
