@@ -70,7 +70,7 @@ funSort (STyp a) (STyp b) = STyp (max a b)
 {-# COMPILE AGDA2HS funSort #-}
 
 sucSort : Sort α → Sort α
-sucSort (STyp a) = STyp (suc a)
+sucSort (STyp a) = STyp (1 + a)
 {-# COMPILE AGDA2HS sucSort #-}
 
 data Elim α where

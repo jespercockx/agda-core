@@ -88,7 +88,7 @@ inferPi ctx x su sv u v = do
   pure $ TSort (funSort su sv) , TyPi tu tv
 
 inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ ty)
-inferTySort ctx (STyp x) = pure $ TSort (STyp (suc x)) , TyType
+inferTySort ctx (STyp x) = return $ TSort (STyp $ 1 + x) , TyType
 
 inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
 inferDef ctx f p = do
