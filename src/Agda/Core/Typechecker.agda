@@ -83,7 +83,7 @@ inferPi ctx x (El su u) (El sv v) = do
   tu <- checkType ctx u (sortType su)
   tv <- checkType (ctx , x ∶ El su u) v (sortType sv)
   let spi = piSort su sv
-  return $ El (sucSort spi) (TSort spi) , TyPi tu tv
+  return $ sortType spi , TyPi tu tv
 
 inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ unType ty)
 inferTySort ctx (STyp x) = do
