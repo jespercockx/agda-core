@@ -45,14 +45,14 @@ reduceTo r sig v f =
 {-# COMPILE AGDA2HS reduceTo #-}
 
 
-inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ TSort s)
-inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ unType t)
-checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ (unType ty))
+inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
+inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
+checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
 
-inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ unType t)
+inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
 inferVar g x p = return $ lookupVar g x p , TyTVar p
 
-inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ unType t)
+inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
 inferApp ctx u (Syntax.EArg v) = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
@@ -76,55 +76,54 @@ inferPi
   : ∀ Γ (@0 x : name)
   (a : Type α)
   (b : Type (x ◃ α))
-  → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TPi x a b ∶ unType ty)
+  → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TPi x a b ∶ ty)
 inferPi ctx x (El su u) (El sv v) = do
   tu <- checkType ctx u (sortType su)
   tv <- checkType (ctx , x ∶ El su u) v (sortType sv)
   let spi = piSort su sv
   return $ sortType spi , TyPi tu tv
 
-inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ unType ty)
-inferTySort ctx (STyp x) = do
-  return $ sortType (sucSort (STyp x)) , TyType
+inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ ty)
+inferTySort ctx (STyp x) = return $ sortType (sucSort (STyp x)) , TyType
 
-inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ unType ty)
+inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
 inferDef ctx f p = do
   rezz sig ← tcmSignature
-  return $ weakenType  subEmpty (getType sig f p) , TyDef p
+  return $ weakenType subEmpty (getType sig f p) , TyDef p
 
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
               (ty : Type α)
-              → TCM (Γ ⊢ TLam x u ∶ unType ty)
-checkLambda ctx x u (El _ (TPi y tu tv)) = do
-  d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
-  return $ TyLam d
+              → TCM (Γ ⊢ TLam x u ∶ ty)
+checkLambda ctx x u (El sp (TPi y tu tv)) =
+  TyLam <$> checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
 checkLambda ctx x u (El s ty) = do
   let r = rezzScope ctx
   rezz sig ← tcmSignature
   fuel ← tcmFuel
 
-  (TPi y tytu tytv) ⟨ rtp ⟩ ← reduceTo r sig ty fuel
+  (TPi y tu tv) ⟨ rtp ⟩ ← reduceTo r sig ty fuel
     where _ → tcError "couldn't reduce a term to a pi type"
   let gc = CRedR {t = TSort s} rtp CRefl
+      sp = piSort (typeSort tu) (typeSort tv)
 
-  d ← checkType (ctx , x ∶ tytu) u (renameTopType (rezzScope ctx) tytv)
-  return $ TyConv (TyLam d) gc
+  d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
+  return $ TyConv {c = sortType s} (TyLam {k = sp} d) gc
 
 checkLet : ∀ Γ (@0 x : name)
            (u : Term α)
            (v : Term (x ◃ α))
            (ty : Type α)
-           → TCM (Γ ⊢ TLet x u v ∶ unType ty)
+           → TCM (Γ ⊢ TLet x u v ∶ ty)
 checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
   dtv       ← checkType (ctx , x ∶ tu) v (weakenType (subWeaken subRefl) ty)
   return $ TyLet {r = rezzScope ctx} dtu dtv
 
 checkCoerce : ∀ Γ (t : Term α)
-            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ unType ty
+            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
             → (cty : Type α) -- the type we want to have
-            → TCM (Γ ⊢ t ∶ unType cty)
+            → TCM (Γ ⊢ t ∶ cty)
 --FIXME: first reduce the type, patmatch on the type
 --the depending on what the type is do either
 --for vars
@@ -136,7 +135,7 @@ checkCoerce : ∀ Γ (t : Term α)
 --for sort
 --the rest should be reduced away
 checkCoerce ctx t (ty , dty) cty = do
-  return $ TyConv dty (convert ctx ty cty)
+  return $ TyConv {c = sortType $ typeSort ty} dty (convert ctx ty cty)
 
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
@@ -180,6 +179,6 @@ inferSort ctx t = do
   (TSort s) ⟨ rp ⟩ ← reduceTo r sig (unType st) fuel
     where _ → tcError "couldn't reduce a term to a sort"
   let cp = CRedL {t = TSort $ sucSort s} rp CRefl
-  return $ s , TyConv dt cp
+  return $ s , TyConv {c =  sortType $ sucSort s} dt cp
 
 {-# COMPILE AGDA2HS inferSort #-}

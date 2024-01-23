@@ -34,10 +34,10 @@ private variable
   @0 n       : Nat
   @0 e       : Elim α
 
-data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Term α → Set
+data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
 -- TyElim Γ e t f means: if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : f (appE u)
-data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Term α → @0 ((Elim α → Term α) → Term α) → Set
+data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 ((Elim α → Term α) → Type α) → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -47,62 +47,62 @@ data TyTerm {α} Γ where
   TyTVar
     : (@0 p : x ∈ α)
     ----------------------------------
-    → Γ ⊢ TVar x p ∶ unType (lookupVar Γ x p)
+    → Γ ⊢ TVar x p ∶ lookupVar Γ x p
 
   TyDef
     : {@0 f : name} (@0 p : f ∈ defScope)
     ----------------------------------------------
-    → Γ ⊢ TDef f p ∶ weaken subEmpty (unType (getType sig f p))
+    → Γ ⊢ TDef f p ∶ weakenType subEmpty (getType sig f p)
 
   -- TODO: constructor typing
 
   TyLam
     : {@0 r : Rezz _ α}
-    → Γ , x ∶ a ⊢ u ∶ renameTop r (unType b)
+    → Γ , x ∶ a ⊢ u ∶ renameTopType r b
     -------------------------------
-    → Γ ⊢ TLam x u ∶ TPi y a b
+    → Γ ⊢ TLam x u ∶ El k (TPi y a b)
 
   TyAppE
-    : Γ ⊢ u ∶ s
-    → TyElim Γ e s (λ _ → t)
+    : Γ ⊢ u ∶ a
+    → TyElim Γ e a (λ _ → b)
     ------------------------------------
-    → Γ ⊢ TApp u e ∶ t
+    → Γ ⊢ TApp u e ∶ b
 
   TyPi
-    : Γ ⊢ unType a ∶ TSort (typeSort a)
-    → Γ , x ∶ a ⊢ t ∶ TSort (typeSort b)
+    : Γ ⊢ u ∶ sortType k
+    → Γ , x ∶ (El k u) ⊢ v ∶ sortType l
     ----------------------------------------------------------
-    → Γ ⊢ TPi x a b ∶ TSort (piSort (typeSort a) (typeSort b))
+    → Γ ⊢ TPi x (El k u) (El l v) ∶ sortType (piSort k l)
 
   TyType
     -------------------------------------------
-    : Γ ⊢ TSort k ∶ TSort (sucSort k)
+    : Γ ⊢ TSort k ∶ sortType (sucSort k)
 
   TyLet
     : {@0 r : Rezz _ α}
-    → Γ ⊢ u ∶ unType a
-    → Γ , x ∶ a ⊢ v ∶ weaken (subWeaken subRefl) t
+    → Γ ⊢ u ∶ a
+    → Γ , x ∶ a ⊢ v ∶ weakenType (subWeaken subRefl) b
     ----------------------------------------------
-    → Γ ⊢ TLet x u v ∶ t
+    → Γ ⊢ TLet x u v ∶ b
 
   TyAnn
-    : Γ ⊢ u ∶ t
+    : Γ ⊢ u ∶ a
     ------------------
-    → Γ ⊢ TAnn u (El k t) ∶ t
+    → Γ ⊢ TAnn u a ∶ sortType (typeSort a)
 
   TyConv
-    : Γ ⊢ u ∶ t
-    → Γ ⊢ t ≅ v ∶ s
+    : Γ ⊢ u ∶ a
+    → Γ ⊢ (unType a) ≅ (unType b) ∶ (unType c)
     ----------------
-    → Γ ⊢ u ∶ v
+    → Γ ⊢ u ∶ b
 
 {-# COMPILE AGDA2HS TyTerm #-}
 
 data TyElim {α} Γ where
     TyArg : {@0 r : Rezz _ α}
-        → Γ ⊢ v ≅ TPi x a b ∶ TSort k
-        → Γ ⊢ u ∶ unType a
-        → TyElim Γ (EArg u) v (λ h → substTop r u (unType b))
+        → Γ ⊢ (unType c) ≅ TPi x a b ∶ TSort k
+        → Γ ⊢ u ∶ a
+        → TyElim Γ (EArg u) c (λ h → substTopType r u b)
     -- TODO: proj
     -- TODO: case
 

@@ -44,9 +44,6 @@ renameTop = substTerm ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTop #-}
 
-@0 renameTopE : Term (x ◃ α) → Term (y ◃ α)
-renameTopE = renameTop (rezz _)
-
 renameTopSort : Rezz _ α → Sort (x ◃ α) → Sort (y ◃ α)
 renameTopSort = substSort ∘ liftBindSubst ∘ idSubst
 
@@ -59,10 +56,12 @@ renameTopType = substType ∘ liftBindSubst ∘ idSubst
 
 data Conv {α} Γ where
   CRefl  : Γ ⊢ u ≅ u ∶ t
-  CLam   : Γ , x ∶ a ⊢ renameTopE u ≅ renameTopE v ∶ unType b
+  CLam   : {@0 r : Rezz _ α}
+         → Γ , x ∶ a ⊢ renameTop r u ≅ renameTop r v ∶ unType b
          → Γ ⊢ TLam y u ≅ TLam z v ∶ TPi x a b
-  CPi    : Γ ⊢ unType a ≅ unType a' ∶ TSort (typeSort a)
-         → Γ , x ∶ a ⊢ unType b ≅ renameTopE (unType b') ∶ TSort (typeSort b)
+  CPi    : {@0 r : Rezz _ α}
+         → Γ ⊢ unType a ≅ unType a' ∶ TSort (typeSort a)
+         → Γ , x ∶ a ⊢ unType b ≅ renameTop r (unType b') ∶ TSort (typeSort b)
          → Γ ⊢ TPi x a b ≅ TPi y a' b' ∶ TSort (funSort sa sb)
   CApp   : Γ ⊢ u ≅ u' ∶ s
          → Γ ⊢ u [ w ≅ w' ] ∶ t
