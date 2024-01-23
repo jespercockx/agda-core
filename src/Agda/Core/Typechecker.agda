@@ -23,6 +23,7 @@ open import Agda.Core.Typing globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.Substitute globals
 open import Agda.Core.TCM globals sig
+open import Agda.Core.Converter globals sig
 open import Agda.Core.Utils
 
 open import Haskell.Law.Equality
@@ -108,36 +109,14 @@ checkLet ctx x u v ty = do
   dtv       ← checkType (ctx , x ∶ tu) v (weakenType (subWeaken subRefl) ty)
   return $ TyLet {r = rezzScope ctx} dtu dtv
 
+
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
-            → (cty : Type α) -- the type we want to have
+            → (cty : Type α)
             → TCM (Γ ⊢ t ∶ cty)
-checkCoerce ctx t (gty , dgty) cty = do
-  --FIXME: first reduce the type, patmatch on the type
-  --the depending on what the type is do either
-  let r = rezzScope ctx
-  fuel      ← tcmFuel
-  rezz sig  ← tcmSignature
-
-  rgty ← reduceTo r sig (unType gty) fuel
-  rcty ← reduceTo r sig (unType cty) fuel
-  case [ rgty ⨾ rcty ] of λ where
-  --for vars
-    [ TVar x p ⟨ rpg ⟩ ⨾ TVar y q ⟨ rpc ⟩ ] → {!!}
-  --for defs
-    [ TDef x p ⟨ rpg ⟩ ⨾ TDef y q ⟨ rpc ⟩ ] → {!!}
-  --for cons
-    [ TCon c p lc ⟨ rpg  ⟩ ⨾ TCon d q ld ⟨ rpc ⟩ ] → {!!}
-  --for lambda
-    [ TLam x u ⟨ rpg ⟩ ⨾ TLam y v ⟨ rpc ⟩ ] → {!!}
-  --for app
-    [ TApp u e ⟨ rpg ⟩ ⨾ TApp v f ⟨ rpc ⟩ ] → {!!}
-  --for pi
-    [ TPi x tu tv ⟨ rpg ⟩ ⨾ TPi y tw tz ⟨ rpc ⟩ ] → {!!}
-  --for sort
-    [ TSort s ⟨ rpg ⟩ ⨾ TSort t ⟨ rpc ⟩ ] → {!!}
-  --the rest should be reduced away
-    _ → tcError "sorry"
+checkCoerce ctx t (gty , dgty) cty =
+  let sty = typeSort gty
+  in TyConv {c = sortType sty} dgty <$> convert ctx (unType gty) (unType cty) (TSort sty)
 
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
