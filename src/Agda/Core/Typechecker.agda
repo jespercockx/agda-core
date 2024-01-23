@@ -33,12 +33,10 @@ private variable
   @0 α : Scope name
 
 postulate
-  convert   : (Γ : Context α) (@0 a b : Type α) → Γ ⊢ (unType a) ≅ (unType b) ∶ (TSort $ typeSort a)
+  convert : (Γ : Context α) (@0 a b : Type α)
+          → Γ ⊢ (unType a) ≅ (unType b) ∶ (TSort $ typeSort a)
 
-reduceTo : (_ : Rezz _ α)
-           (sig : Signature)
-           (v : Term α)
-           (_ : Fuel)
+reduceTo : (r : Rezz _ α) (sig : Signature) (v : Term α) (f : Fuel)
          → TCM (∃[ t ∈ Term α ] (ReducesTo sig v t))
 reduceTo r sig v f =
   case reduce r sig v f of λ where
