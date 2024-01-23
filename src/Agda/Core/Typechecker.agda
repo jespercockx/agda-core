@@ -31,15 +31,6 @@ open import Haskell.Extra.Erase
 private variable
   @0 α : Scope name
 
-reduceTo : (r : Rezz _ α) (sig : Signature) (v : Term α) (f : Fuel)
-         → TCM (∃[ t ∈ Term α ] (ReducesTo sig v t))
-reduceTo r sig v f =
-  case reduce r sig v f of λ where
-    Nothing        → tcError "not enough fuel to reduce a term"
-    (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩
-{-# COMPILE AGDA2HS reduceTo #-}
-
-
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)

@@ -8,7 +8,7 @@ open import Haskell.Extra.Erase      using (Σ0; ⟨_⟩_) public
 -- encoding (x : a) (y : p x)
 
 -- ∃  from Haskell.Extra.Refinement, which erases the snd component
--- Σ0 from Haskell.Extra.Refinement, which erases the fst component
+-- Σ0 from Haskell.Extra.Erasure,    which erases the fst component
 -- Σ  from this module,              which keeps both components
 
 private module SigmaDef where

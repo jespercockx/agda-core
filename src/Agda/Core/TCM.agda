@@ -1,15 +1,20 @@
 open import Agda.Core.GlobalScope using (Globals)
-open import Agda.Core.Signature   using (Signature)
+import Agda.Core.Signature as Signature
 
 module Agda.Core.TCM
     {@0 name    : Set}
     (@0 globals : Globals name)
-    (@0 sig     : Signature globals)
+    (open Signature globals)
+    (@0 sig     : Signature)
   where
 
+open import Scope
+open import Agda.Core.Syntax globals as Syntax
+open import Agda.Core.Reduce globals
+
 open import Haskell.Prelude hiding (All; m)
-open import Haskell.Extra.Erase using (Rezz)
-open import Agda.Core.Utils     using (Fuel)
+open import Haskell.Extra.Erase using (Rezz; ⟨_⟩_)
+open import Agda.Core.Utils using (Fuel; ∃-syntax; _⟨_⟩)
 
 TCError = String
 
@@ -99,3 +104,11 @@ liftMaybe Nothing e = MkTCM λ f → Left e
 liftMaybe (Just x) e = MkTCM λ f → Right x
 
 {-# COMPILE AGDA2HS liftMaybe #-}
+
+reduceTo : {@0 α : Scope name} (r : Rezz _ α) (sig : Signature) (v : Term α) (f : Fuel)
+         → TCM (∃[ t ∈ Term α ] (ReducesTo sig v t))
+reduceTo r sig v f =
+  case reduce r sig v f of λ where
+    Nothing        → tcError "not enough fuel to reduce a term"
+    (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩
+{-# COMPILE AGDA2HS reduceTo #-}
