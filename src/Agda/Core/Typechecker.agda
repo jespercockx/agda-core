@@ -83,7 +83,7 @@ inferPi ctx x (El su u) (El sv v) = do
   tu <- checkType ctx u (sortType su)
   tv <- checkType (ctx , x ∶ El su u) v (sortType sv)
   let spi = piSort su sv
-  pure $ El (sucSort spi) (TSort spi) , TyPi tu tv
+  return $ El (sucSort spi) (TSort spi) , TyPi tu tv
 
 inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ unType ty)
 inferTySort ctx (STyp x) = do
@@ -92,7 +92,7 @@ inferTySort ctx (STyp x) = do
 inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ unType ty)
 inferDef ctx f p = do
   rezz sig ← tcmSignature
-  pure $ weakenType  subEmpty (getType sig f p) , TyDef p
+  return $ weakenType  subEmpty (getType sig f p) , TyDef p
 
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
