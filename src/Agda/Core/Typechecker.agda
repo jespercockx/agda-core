@@ -140,23 +140,23 @@ checkCoerce : ∀ Γ (t : Term α)
 checkCoerce ctx t (ty , dty) cty = do
   return $ TyConv dty (convert ctx ty cty)
 
-checkType ctx t@(TVar x p) ty = do
+checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
-  checkCoerce ctx t tvar ty
+  checkCoerce ctx (TVar x p) tvar ty
 checkType ctx (TDef d p) ty =  do
   tdef ← inferDef ctx d p
   checkCoerce ctx (TDef d p) tdef ty
 checkType ctx (TCon c p x) ty = tcError "not implemented yet"
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
-checkType ctx t@(TApp u e) ty = do
+checkType ctx (TApp u e) ty = do
   tapp ← inferApp ctx u e
-  checkCoerce ctx t tapp ty
-checkType ctx t@(TPi x tu tv) ty = do
+  checkCoerce ctx (TApp u e) tapp ty
+checkType ctx (TPi x tu tv) ty = do
   tpi ← inferPi ctx x tu tv
-  checkCoerce ctx t tpi ty
-checkType ctx t@(TSort s) ty = do
+  checkCoerce ctx (TPi x tu tv) tpi ty
+checkType ctx (TSort s) ty = do
   tts ← inferTySort ctx s
-  checkCoerce ctx t tts ty
+  checkCoerce ctx (TSort s) tts ty
 checkType ctx (TLet x u v) ty = checkLet ctx x u v ty
 checkType ctx (TAnn u t) ty = tcError "not implemented yet"
 
