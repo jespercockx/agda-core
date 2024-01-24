@@ -120,10 +120,25 @@ convPis : ∀ Γ
           (v  : Type (x ◃ α))
           (v' : Type (y ◃ α))
         → TCM (Conv {α = α} Γ s (TPi x u v) (TPi y u' v'))
-convPis ctx (TSort s) x y u u' v v' = {!!}
---TODO should be CRedT after we reduce the type ty and figure out if it's a sort
-convPis ctx _         x y u u' v v' = {!!}
+convPis ctx (TSort s) x y u u' v v' = do
+  let r = rezzScope ctx
 
+  CPi <$> convertCheck ctx (TSort $ typeSort u) (unType u) (unType u')
+      <*> convertCheck (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
+convPis ctx t x y u u' v v' = do
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+
+  (TSort s) ⟨ rp ⟩  ← reduceTo r sig t fuel
+    where
+      _ → tcError "can't convert two terms when the type does not reduce to a sort"
+  cu ← convertCheck ctx (TSort $ typeSort u) (unType u) (unType u')
+  cv ← convertCheck (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
+  --TODO figure out why <$> <$> syntax doesn't work
+  fmap (CRedT rp) $ CPi
+      <$> convertCheck ctx (TSort $ typeSort u) (unType u) (unType u')
+      <*> convertCheck (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
 
 convertElims ctx (TPi x a b) u (EArg w) (EArg w') = do
   let r = rezzScope ctx
