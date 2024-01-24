@@ -40,10 +40,12 @@ data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → @0 Teles
 
 {-# COMPILE AGDA2HS Conv     #-}
 {-# COMPILE AGDA2HS ConvElim #-}
+{-# COMPILE AGDA2HS ConvSubst #-}
 
 infix 3 Conv
 syntax Conv Γ t x y       = Γ ⊢ x ≅ y ∶ t
 syntax ConvElim Γ t u x y = Γ [ u ∶ t ] ⊢ x ≅ y
+syntax ConvSubst Γ s p τ = Γ ⊢ [ s ≅ p ] ⇒ τ
 
 renameTop : Rezz _ α → Term (x ◃ α) → Term (y ◃ α)
 renameTop = substTerm ∘ liftBindSubst ∘ idSubst
@@ -107,7 +109,7 @@ data ConvElim Γ where
 data ConvSubst {α} Γ where
   CSNil : ConvSubst Γ SNil SNil EmptyTel
   CSCons : {@0 r : Rezz _ α}
-         → Conv Γ u v (unType a) 
+         → Conv Γ u v (unType a)
          → ConvSubst Γ us vs (substTelescope (SCons u (idSubst r)) tel)
          → ConvSubst Γ (SCons u us) (SCons v vs) (ExtendTel x a tel)
 
