@@ -35,7 +35,7 @@ private variable
   @0 us vs          : α ⇒ β
 
 data Conv     (@0 Γ : Context α) : @0 Term α → @0 Term α → @0 Term α → Set
-data ConvElim (@0 Γ : Context α) : @0 Term α → @0 Term α → @0 Elim α → @0 Elim α → Set
+data ConvElim (@0 Γ : Context α) : @0 Term α → @0 Term α → @0 Elim α → @0 Elim α → @0 ((Elim α → Term α) → Term α) → Set
 data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → @0 Telescope α β → Set
 
 {-# COMPILE AGDA2HS Conv     #-}
@@ -43,9 +43,9 @@ data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → @0 Teles
 {-# COMPILE AGDA2HS ConvSubst #-}
 
 infix 3 Conv
-syntax Conv Γ t x y       = Γ ⊢ x ≅ y ∶ t
-syntax ConvElim Γ t u x y = Γ [ u ∶ t ] ⊢ x ≅ y
-syntax ConvSubst Γ s p τ = Γ ⊢ [ s ≅ p ] ⇒ τ
+syntax Conv Γ t x y          = Γ ⊢ x ≅ y ∶ t
+syntax ConvElim Γ t u x y f  = Γ [ u ∶ t ] ⊢ x ≅ y ∶ f
+syntax ConvSubst Γ us vs tel = Γ ⊢ [ us ≅ vs ] ⇒ tel
 
 renameTop : Rezz _ α → Term (x ◃ α) → Term (y ◃ α)
 renameTop = substTerm ∘ liftBindSubst ∘ idSubst
@@ -71,9 +71,11 @@ data Conv {α} Γ where
          → Γ ⊢ unType a ≅ unType a' ∶ TSort (typeSort a)
          → Γ , x ∶ a ⊢ unType b ≅ renameTop r (unType b') ∶ TSort (typeSort b)
          → Γ ⊢ TPi x a b ≅ TPi y a' b' ∶ TSort (funSort sa sb)
-  CApp   : Γ ⊢ u ≅ u' ∶ s
-         → Γ [ u ∶ t ] ⊢ w ≅ w'
-         → Γ ⊢ TApp u w ≅ TApp u' w' ∶ t
+
+  CApp   : {@0 f : (Elim α → Term α) → Term α}
+         → Γ ⊢ u ≅ u' ∶ s
+         → Γ [ u ∶ s ] ⊢ w ≅ w' ∶ f
+         → Γ ⊢ TApp u w ≅ TApp u' w' ∶ f (TApp u)
   CCon   : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
          → {@0 c : name} (@0 cq : c ∈ dataConstructorScope dt)
          → @0 getDefinition sig d dp ≡ DatatypeDef dt
@@ -95,12 +97,15 @@ data Conv {α} Γ where
 
 {-# COMPILE AGDA2HS Conv #-}
 
-data ConvElim Γ where
-  CERedT : @0 ReducesTo sig t t'
-         → Γ [ u ∶ t' ] ⊢ w ≅ w'
-         → Γ [ u ∶ t  ] ⊢ w ≅ w'
-  CEArg  : Γ ⊢ v ≅ v' ∶ unType a
-         → Γ [ u ∶ TPi x a b ] ⊢ EArg v ≅ EArg v'
+data ConvElim {α} Γ where
+  CERedT : {@0 f : (Elim α → Term α) → Term α}
+           (@0 _ : ReducesTo sig t t')
+         → Γ [ u ∶ t' ] ⊢ w ≅ w' ∶ f
+         → Γ [ u ∶ t  ] ⊢ w ≅ w' ∶ f
+  CEArg  : {@0 r : Rezz _ α}
+         → Γ ⊢ s ≅ TPi x a b ∶ TSort k
+         → Γ ⊢ v ≅ v' ∶ unType a
+         → Γ [ u ∶ s ] ⊢ EArg v ≅ EArg v' ∶ (λ _ → substTop r v (unType b))
   -- TODO: CEProj : {!   !}
   -- TODO: CECase : {!   !}
 
