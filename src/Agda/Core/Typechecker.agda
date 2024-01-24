@@ -97,7 +97,7 @@ checkLambda ctx x u (El s ty) = do
       sp = piSort (typeSort tu) (typeSort tv)
 
   d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
-  return $ TyConv {c = sortType s} (TyLam {k = sp} d) gc
+  return $ TyConv (TyLam {k = sp} d) gc
 
 checkLet : ∀ Γ (@0 x : name)
            (u : Term α)
@@ -116,7 +116,7 @@ checkCoerce : ∀ Γ (t : Term α)
             → TCM (Γ ⊢ t ∶ cty)
 checkCoerce ctx t (gty , dgty) cty =
   let sty = typeSort gty
-  in TyConv {c = sortType sty} dgty <$> convert ctx (unType gty) (unType cty) (TSort sty)
+  in TyConv dgty <$> convert ctx (unType gty) (unType cty) (TSort sty)
 
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
@@ -160,6 +160,6 @@ inferSort ctx t = do
   (TSort s) ⟨ rp ⟩ ← reduceTo r sig (unType st) fuel
     where _ → tcError "couldn't reduce a term to a sort"
   let cp = CRedL {t = TSort $ sucSort s} rp CRefl
-  return $ s , TyConv {c =  sortType $ sucSort s} dt cp
+  return $ s , TyConv dt cp
 
 {-# COMPILE AGDA2HS inferSort #-}
