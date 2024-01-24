@@ -20,7 +20,7 @@ open import Agda.Core.Context globals
 open import Agda.Core.Conversion globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.TCM globals sig
-open import Agda.Core.Utils hiding (_,_)
+open import Agda.Core.Utils renaming (_,_ to Pair)
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Dec
@@ -60,13 +60,14 @@ convSorts ctx s (STyp u) (STyp u') =
     (tcError "can't convert two different sorts")
 
 {-# TERMINATING #-}
-convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q ∶ ty)
+convertCheck : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q ∶ ty)
+convertInfer : ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q ∶ ty))
 convertElims : ∀ Γ
                (ty : Term α)
                (u : Term α)
                (w z : Elim α)
              → TCM (Γ [ u ∶ ty ] ⊢ w ≅ z)
-convSubsts : ∀ {α β} Γ τ → (s p : β ⇒ α) → TCM (Γ ⊢ [ s ≅ p ] ⇒ τ)
+convertSubsts : ∀ {α β} Γ τ → (s p : β ⇒ α) → TCM (Γ ⊢ [ s ≅ p ] ⇒ τ)
 
 convCons : ∀ Γ
            (s : Term α)
@@ -89,7 +90,7 @@ convLams : ∀ Γ
          → TCM (Conv {α = α} Γ s (TLam x u) (TLam y v))
 convLams ctx (TPi z a b) x y u v = do
   let r = rezzScope ctx
-  CLam <$> convert (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
+  CLam <$> convertCheck (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
 convLams ctx ty x y u v = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
@@ -99,15 +100,16 @@ convLams ctx ty x y u v = do
     where
       _ → tcError "can't convert two terms when the type doesn't reduce to a Pi"
   CRedT rp <$> CLam <$>
-    convert (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
+    convertCheck (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
 
 convApps : ∀ Γ
            (s : Term α)
            (u u' : Term α)
            (w w' : Elim α)
          → TCM (Conv {α = α} Γ s (TApp u w) (TApp u' w'))
-convApps ctx s u u' w w' =
-  CApp <$> convert ctx {!!} u u'
+convApps ctx s u u' w w' = do
+  Pair su cu ← convertInfer ctx u u'
+  CApp <$> return cu
        <*> convertElims ctx s u w w'
 
 convPis : ∀ Γ
@@ -123,7 +125,7 @@ convPis ctx _         x y u u' v v' = {!!}
 
 
 convertElims ctx (TPi x a b) u (EArg w) (EArg w') =
-  CEArg <$> convert ctx (unType a) w w'
+  CEArg <$> convertCheck ctx (unType a) w w'
 convertElims ctx ty u (EArg w) (EArg w') = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
@@ -131,12 +133,12 @@ convertElims ctx ty u (EArg w) (EArg w') = do
   (TPi x a b) ⟨ rp ⟩  ← reduceTo r sig ty fuel
     where
       _ → tcError "can't convert two terms when the type doesn't reduce to a Pi"
-  CERedT rp <$> CEArg <$> convert ctx (unType a) w w'
+  CERedT rp <$> CEArg <$> convertCheck ctx (unType a) w w'
 convertElims ctx ty u w w' = tcError "can't convert two elims"
 
-convSubsts  = ?
+convertSubsts  = {!!}
 
-convert ctx ty t q = do
+convertCheck ctx ty t q = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -160,9 +162,44 @@ convert ctx ty t q = do
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convApps ctx ty u v e f
     --for pi
-    (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
+    (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) → 
       CRedL rpg <$> CRedR rpc <$> convPis ctx ty x y tu tw tv tz
     --for sort
     (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convSorts ctx ty s t
     _ → tcError "sorry"
+
+convertInfer ctx t q = do
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+
+  rgty ← reduceTo r sig t fuel
+  rcty ← reduceTo r sig q fuel
+  case (rgty , rcty) of λ where
+    --for vars
+    (TVar x p ⟨ rpg  ⟩ , TVar y q  ⟨ rpc ⟩) →
+      {!!}
+    --for defs
+    (TDef x p ⟨ rpg  ⟩ , TDef y q  ⟨ rpc ⟩) →
+      {!!}
+    --for cons
+    (TCon c p lc ⟨ rpg  ⟩ , TCon d q ld ⟨ rpc ⟩) →
+      tcError "non inferrable"
+    --for lambda
+    (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
+      tcError "non inferrable"
+    --for app
+    (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) →
+      {!!}
+    --for pi
+    (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
+      {!!}
+    --for sort
+    (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
+      {!!}
+    _ → tcError "sorry"
+
+
+convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q ∶ ty)
+convert = convertCheck
