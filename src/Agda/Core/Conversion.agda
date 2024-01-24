@@ -12,6 +12,8 @@ module Agda.Core.Conversion
   (@0 sig     : Signature)
   where
 
+private open module @0 G = Globals globals
+
 open import Haskell.Extra.Dec
 open import Utils.Either
 open import Haskell.Extra.Erase
@@ -20,6 +22,7 @@ open import Agda.Core.Syntax globals
 open import Agda.Core.Substitute globals
 open import Agda.Core.Reduce globals
 open import Agda.Core.Context globals
+open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
 private variable
   @0 x y z          : name
@@ -69,6 +72,15 @@ data Conv {α} Γ where
   CApp   : Γ ⊢ u ≅ u' ∶ s
          → Γ ⊢ u [ w ≅ w' ] ∶ t
          → Γ ⊢ TApp u w ≅ TApp u' w' ∶ t
+  CCon   : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
+         → {@0 c : name} (@0 cq : c ∈ dataConstructorScope dt)
+         → @0 getDefinition sig d dp ≡ DatatypeDef dt
+         → (let (cp Σ, con) = lookupAll (dataConstructors dt) cq)
+         → {@0 pars : dataParameterScope dt ⇒ α}
+         → {@0 ixs  : dataIndexScope dt ⇒ α}
+         → {@0 us vs : lookupAll fieldScope cp ⇒ α}
+         → ConvSubst Γ us vs (substTelescope pars (conTelescope con))
+         → Γ ⊢ TCon c cp us ≅ TCon c cp vs ∶ unType (dataType d dp (substSort pars (dataSort dt)) pars ixs)
   CRedT  : @0 ReducesTo sig t t'
          → Γ ⊢ u  ≅ v  ∶ t'
          → Γ ⊢ u  ≅ v  ∶ t
