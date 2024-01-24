@@ -23,29 +23,21 @@ open import Agda.Core.TCM globals sig
 open import Agda.Core.Utils hiding (_,_)
 
 open import Haskell.Extra.Erase
+open import Haskell.Extra.Dec
+open import Haskell.Law.Eq
 
 private variable
   @0 α : Scope name
 
-{-# TERMINATING #-}
-convert : ∀ Γ (t q : Term α)
-          (ty : Term α)
-        → TCM (Γ ⊢ t ≅ q ∶ ty)
-convertElims : ∀ Γ
-               (ty : Term α)
-               (u : Term α)
-               (w z : Elim α)
-             → TCM (Γ ⊢ u [ w ≅ z ] ∶ ty)
-
-convVars : ∀ Γ s
+convVars : ∀ Γ
+           (s : Term α)
            (@0 x y : name)
            (p : x ∈ α) (q : y ∈ α)
          → TCM (Conv Γ s (TVar x p) (TVar y q))
-convVars ctx s x y p q =
-  case (decIn p q) of λ where
-    (False ⟨ dp ⟩) →
-      tcError "variables not convertible"
-    (True ⟨ refl ⟩) → return CRefl
+convVars ctx _ x y p q =
+  ifDec (decIn p q)
+    (λ where {{refl}} → return CRefl)
+    (tcError "variables not convertible")
 
 convDefs : ∀ Γ
            (s : Term α)
@@ -54,10 +46,26 @@ convDefs : ∀ Γ
            (q : g ∈ defScope)
          → TCM (Conv {α = α} Γ s (TDef f p) (TDef g q))
 convDefs ctx s f g p q =
-  case (decIn p q) of λ where
-    (False ⟨ dp ⟩) →
-      tcError "definitions not convertible"
-    (True ⟨ refl ⟩) → return CRefl
+  ifDec (decIn p q)
+    (λ where {{refl}} → return CRefl)
+    (tcError "definitions not convertible")
+
+convSorts : ∀ Γ
+            (s : Term α)
+            (u u' : Sort α)
+          → TCM (Conv {α = α} Γ s (TSort u) (TSort u'))
+convSorts ctx s (STyp u) (STyp u') =
+  ifDec ((u == u') ⟨ isEquality u u' ⟩)
+    (λ where {{refl}} → return $ CRefl)
+    (tcError "can't convert two different sorts")
+
+{-# TERMINATING #-}
+convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q ∶ ty)
+convertElims : ∀ Γ
+               (ty : Term α)
+               (u : Term α)
+               (w z : Elim α)
+             → TCM (Γ ⊢ u [ w ≅ z ] ∶ ty)
 
 convCons : ∀ Γ
            (s : Term α)
@@ -68,10 +76,9 @@ convCons : ∀ Γ
            (lq : lookupAll fieldScope q ⇒ α)
          → TCM (Conv {α = α} Γ s (TCon f p lp) (TCon g q lq))
 convCons {α = α} ctx s f g p q lp lq =
-  case (decIn p q) of λ where
-    (False ⟨ dp ⟩) →
-      tcError "constructors not convertible"
-    (True ⟨ refl ⟩) → return $ {!!} 
+  ifDec (decIn p q)
+    (λ where {{refl}} → {!!})
+    (tcError "constructors not convertible")
 
 convLams : ∀ Γ
            (s : Term α)
@@ -81,17 +88,26 @@ convLams : ∀ Γ
          → TCM (Conv {α = α} Γ s (TLam x u) (TLam y v))
 convLams ctx (TPi z a b) x y u v = do
   let r = rezzScope ctx
-  CLam <$> convert (ctx , z ∶ a) (renameTop r u) (renameTop r v) (unType b)
---TODO should be CRedT after we reduce the type ty and figure out if it's a Pi
-convLams ctx ty          x y u v = tcError "sorry"
+  CLam <$> convert (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
+convLams ctx ty x y u v = do
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
 
+  (TPi z a b) ⟨ rp ⟩  ← reduceTo r sig ty fuel
+    where
+      _ → tcError "can't convert two terms when the type doesn't reduce to a Pi"
+  CRedT rp <$> CLam <$>
+    convert (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
 
 convApps : ∀ Γ
            (s : Term α)
            (u u' : Term α)
            (w w' : Elim α)
          → TCM (Conv {α = α} Γ s (TApp u w) (TApp u' w'))
-convApps ctx s u u' w w' = CApp <$> convert ctx u u' {!!} <*> convertElims ctx s u w w'
+convApps ctx s u u' w w' =
+  CApp <$> convert ctx {!!} u u'
+       <*> convertElims ctx s u w w'
 
 convPis : ∀ Γ
           (s : Term α)
@@ -105,19 +121,19 @@ convPis ctx (TSort s) x y u u' v v' = {!!}
 convPis ctx _         x y u u' v v' = {!!}
 
 
-convSorts : ∀ Γ
-            (s : Term α)
-            (u u' : Sort α)
-          → TCM (Conv {α = α} Γ s (TSort u) (TSort u'))
---TODO check equality of the naturals, do CRefl
-convSorts ctx s (STyp u) (STyp u') = {!!}
+convertElims ctx (TPi x a b) u (EArg w) (EArg w') =
+  CEArg <$> convert ctx (unType a) w w'
+convertElims ctx ty u (EArg w) (EArg w') = do
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+  (TPi x a b) ⟨ rp ⟩  ← reduceTo r sig ty fuel
+    where
+      _ → tcError "can't convert two terms when the type doesn't reduce to a Pi"
+  CERedT rp <$> CEArg <$> convert ctx (unType a) w w'
+convertElims ctx ty u w w' = tcError "can't convert two elims"
 
-convertElims ctx ty u (EArg w) (EArg z) = {!!}
-convertElims ctx ty u _        _        = tcError "sorry"
-
-
-
-convert ctx t q ty = do
+convert ctx ty t q = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
