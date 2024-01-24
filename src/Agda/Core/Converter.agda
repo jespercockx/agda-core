@@ -66,6 +66,7 @@ convertElims : ∀ Γ
                (u : Term α)
                (w z : Elim α)
              → TCM (Γ [ u ∶ ty ] ⊢ w ≅ z)
+convSubsts : ∀ {α β} Γ τ → (s p : β ⇒ α) → TCM (Γ ⊢ [ s ≅ p ] ⇒ τ)
 
 convCons : ∀ Γ
            (s : Term α)
@@ -77,7 +78,7 @@ convCons : ∀ Γ
          → TCM (Conv {α = α} Γ s (TCon f p lp) (TCon g q lq))
 convCons {α = α} ctx s f g p q lp lq =
   ifDec (decIn p q)
-    (λ where {{refl}} → {!!})
+    (λ where {{refl}} → ?) -- CCon p lp lq <$> convSubsts lp lq
     (tcError "constructors not convertible")
 
 convLams : ∀ Γ
@@ -132,6 +133,8 @@ convertElims ctx ty u (EArg w) (EArg w') = do
       _ → tcError "can't convert two terms when the type doesn't reduce to a Pi"
   CERedT rp <$> CEArg <$> convert ctx (unType a) w w'
 convertElims ctx ty u w w' = tcError "can't convert two elims"
+
+convSubsts  = ?
 
 convert ctx ty t q = do
   let r = rezzScope ctx
