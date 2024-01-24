@@ -28,9 +28,12 @@ private variable
   @0 k l n sa sb    : Sort α
   @0 a a' b b' c c' : Type α
   @0 w w'           : Elim α
+  @0 tel            : Telescope α β
+  @0 us vs          : α ⇒ β
 
 data Conv     (@0 Γ : Context α) : @0 Term α → @0 Term α → @0 Term α → Set
 data ConvElim (@0 Γ : Context α) : @0 Term α → @0 Term α → @0 Elim α → @0 Elim α → Set
+data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → @0 Telescope α β → Set
 
 {-# COMPILE AGDA2HS Conv     #-}
 {-# COMPILE AGDA2HS ConvElim #-}
@@ -88,3 +91,12 @@ data ConvElim Γ where
   -- TODO: CECase : {!   !}
 
 {-# COMPILE AGDA2HS ConvElim #-}
+
+data ConvSubst {α} Γ where
+  CSNil : ConvSubst Γ SNil SNil EmptyTel
+  CSCons : {@0 r : Rezz _ α}
+         → Conv Γ u v (unType a) 
+         → ConvSubst Γ us vs (substTelescope (SCons u (idSubst r)) tel)
+         → ConvSubst Γ (SCons u us) (SCons v vs) (ExtendTel x a tel)
+
+{-# COMPILE AGDA2HS ConvSubst #-}

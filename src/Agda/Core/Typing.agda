@@ -24,20 +24,36 @@ open import Agda.Core.Reduce globals
 open import Agda.Core.Conversion globals sig
 open import Agda.Core.Context globals
 open import Agda.Core.Substitute globals
+open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
 private variable
   @0 x y     : name
-  @0 α       : Scope name
+  @0 α β pars ixs : Scope name
   @0 s t u v : Term α
   @0 a b c   : Type α
   @0 k l m   : Sort α
   @0 n       : Nat
   @0 e       : Elim α
+  @0 tel     : Telescope α β
+  @0 us vs   : α ⇒ β
+
+constructorType : (@0 d : name) (dp : d ∈ defScope)
+                → (@0 c : name) (cp : c ∈ conScope)
+                → (con : Constructor pars ixs c cp)
+                → Sort α
+                → pars ⇒ α
+                → lookupAll fieldScope cp ⇒ α
+                → Type α
+constructorType d dp c cp con ds pars us = 
+  dataType d dp ds pars (substSubst (concatSubst us pars) (conIndices con))
+{-# COMPILE AGDA2HS constructorType #-}
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
 -- TyElim Γ e t f means: if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : f (appE u)
 data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 ((Elim α → Term α) → Type α) → Set
+
+data TySubst (@0 Γ : Context α) : (β ⇒ α) → @0 Telescope α β → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -54,7 +70,16 @@ data TyTerm {α} Γ where
     ----------------------------------------------
     → Γ ⊢ TDef f p ∶ weakenType subEmpty (getType sig f p)
 
-  -- TODO: constructor typing
+  TyCon
+    : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
+    → {@0 c : name} (@0 cq : c ∈ dataConstructorScope dt)
+    → @0 getDefinition sig d dp ≡ DatatypeDef dt
+    → (let (cp Σ, con) = lookupAll (dataConstructors dt) cq)
+    → {@0 pars : dataParameterScope dt ⇒ α}
+    → {@0 us : lookupAll fieldScope cp ⇒ α}
+    → TySubst Γ us (substTelescope pars (conTelescope con))
+    -----------------------------------------------------------
+    → Γ ⊢ TCon c cp us ∶ constructorType d dp c cp con (substSort pars (dataSort dt)) pars us
 
   TyLam
     : {@0 r : Rezz _ α}
@@ -107,6 +132,15 @@ data TyElim {α} Γ where
     -- TODO: case
 
 {-# COMPILE AGDA2HS TyElim #-}
+
+data TySubst {α} Γ where
+  TyNil  : TySubst Γ SNil EmptyTel
+  TyCons : {@0 r : Rezz _ α}
+         → TyTerm Γ u a
+         → TySubst Γ us (substTelescope (SCons u (idSubst r)) tel)
+         → TySubst Γ (SCons u us) (ExtendTel x a tel)
+
+{-# COMPILE AGDA2HS TySubst #-}
 
 {-
 -- TyElims Γ es f t₁ t₂ means: if  Γ ⊢ h [] : t₁  then  Γ ⊢ h es : t₂

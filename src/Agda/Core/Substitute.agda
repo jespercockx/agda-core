@@ -13,6 +13,7 @@ open import Haskell.Extra.Erase
 open import Utils.Either
 
 open import Agda.Core.Syntax globals
+open import Agda.Core.Signature globals
 
 private variable
   @0 x     : name
@@ -70,3 +71,8 @@ substTop r u = substTerm (SCons u (idSubst r))
 substTopType : Rezz _ α → Term α → Type (x ◃ α) → Type α
 substTopType r u = substType (SCons u (idSubst r))
 {-# COMPILE AGDA2HS substTopType #-}
+
+substTelescope : (α ⇒ β) → Telescope α γ → Telescope β γ
+substTelescope f EmptyTel = EmptyTel
+substTelescope f (ExtendTel x a tel) = ExtendTel x (substType f a) (substTelescope (liftBindSubst f) tel)
+{-# COMPILE AGDA2HS substTelescope #-}

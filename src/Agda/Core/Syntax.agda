@@ -109,10 +109,23 @@ apply : Term α → Term α → Term α
 apply u v = TApp u (EArg v)
 {-# COMPILE AGDA2HS apply #-}
 
+applys : Term γ → (β ⇒ γ) → Term γ
+applys {γ = γ} v SNil = v
+applys {γ = γ} v (SCons u us) = applys (TApp v (EArg u)) us
+{-# COMPILE AGDA2HS applys #-}
+
 applyElims : Term α → Elims α → Term α
 applyElims u []       = u
 applyElims u (e ∷ es) = applyElims (TApp u e) es
 {-# COMPILE AGDA2HS applyElims #-}
+
+dataType : (@0 d : name) → d ∈ defScope
+         → Sort α
+         → (pars : β ⇒ α)
+         → (ixs : γ ⇒ α)
+         → Type α
+dataType d dp ds pars ixs = El ds (applys (applys (TDef d dp) pars) ixs)
+{-# COMPILE AGDA2HS dataType #-}
 
 elimView : Term α → Term α × Elims α
 elimView (TApp u es2) =
