@@ -65,7 +65,7 @@ convertElims : ∀ Γ
                (ty : Term α)
                (u : Term α)
                (w z : Elim α)
-             → TCM (Γ ⊢ u [ w ≅ z ] ∶ ty)
+             → TCM (Γ [ u ∶ ty ] ⊢ w ≅ z)
 
 convCons : ∀ Γ
            (s : Term α)
