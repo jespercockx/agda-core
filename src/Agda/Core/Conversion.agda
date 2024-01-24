@@ -43,7 +43,7 @@ data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → @0 Teles
 
 infix 3 Conv
 syntax Conv Γ t x y       = Γ ⊢ x ≅ y ∶ t
-syntax ConvElim Γ t u x y = Γ ⊢ u [ x ≅ y ] ∶ t
+syntax ConvElim Γ t u x y = Γ [ u ∶ t ] ⊢ x ≅ y
 
 renameTop : Rezz _ α → Term (x ◃ α) → Term (y ◃ α)
 renameTop = substTerm ∘ liftBindSubst ∘ idSubst
@@ -70,7 +70,7 @@ data Conv {α} Γ where
          → Γ , x ∶ a ⊢ unType b ≅ renameTop r (unType b') ∶ TSort (typeSort b)
          → Γ ⊢ TPi x a b ≅ TPi y a' b' ∶ TSort (funSort sa sb)
   CApp   : Γ ⊢ u ≅ u' ∶ s
-         → Γ ⊢ u [ w ≅ w' ] ∶ t
+         → Γ [ u ∶ t ] ⊢ w ≅ w'
          → Γ ⊢ TApp u w ≅ TApp u' w' ∶ t
   CCon   : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
          → {@0 c : name} (@0 cq : c ∈ dataConstructorScope dt)
@@ -95,10 +95,10 @@ data Conv {α} Γ where
 
 data ConvElim Γ where
   CERedT : @0 ReducesTo sig t t'
-         → Γ ⊢ u [ w ≅ w' ] ∶ t'
-         → Γ ⊢ u [ w ≅ w' ] ∶ t
+         → Γ [ u ∶ t' ] ⊢ w ≅ w'
+         → Γ [ u ∶ t  ] ⊢ w ≅ w'
   CEArg  : Γ ⊢ v ≅ v' ∶ unType a
-         → Γ ⊢ u [ EArg v ≅ EArg v' ] ∶ TPi x a b
+         → Γ [ u ∶ TPi x a b ] ⊢ EArg v ≅ EArg v'
   -- TODO: CEProj : {!   !}
   -- TODO: CECase : {!   !}
 
