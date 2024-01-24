@@ -70,8 +70,7 @@ data Conv {α} Γ where
   CPi    : {@0 r : Rezz _ α}
          → Γ ⊢ unType a ≅ unType a' ∶ TSort (typeSort a)
          → Γ , x ∶ a ⊢ unType b ≅ renameTop r (unType b') ∶ TSort (typeSort b)
-         → Γ ⊢ TPi x a b ≅ TPi y a' b' ∶ TSort (funSort sa sb)
-
+         → Γ ⊢ TPi x a b ≅ TPi y a' b' ∶ TSort k
   CApp   : {@0 f : (Elim α → Term α) → Term α}
          → Γ ⊢ u ≅ u' ∶ s
          → Γ [ u ∶ s ] ⊢ w ≅ w' ∶ f
