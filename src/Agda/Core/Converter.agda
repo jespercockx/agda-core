@@ -1,7 +1,5 @@
 {-# OPTIONS --allow-unsolved-metas #-}
 open import Haskell.Prelude
-  hiding ( All; m; _,_,_)
-  renaming (_,_ to infixr 5 [_⨾_])
 
 open import Scope
 
@@ -22,7 +20,7 @@ open import Agda.Core.Context globals
 open import Agda.Core.Conversion globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.TCM globals sig
-open import Agda.Core.Utils
+open import Agda.Core.Utils hiding (_,_)
 
 open import Haskell.Extra.Erase
 
@@ -126,26 +124,26 @@ convert ctx t q ty = do
 
   rgty ← reduceTo r sig t fuel
   rcty ← reduceTo r sig q fuel
-  case [ rgty ⨾ rcty ] of λ where
+  case (rgty , rcty) of λ where
     --for vars
-    [ TVar x p ⟨ rpg  ⟩ ⨾ TVar y q  ⟨ rpc ⟩ ] →
+    (TVar x p ⟨ rpg  ⟩ , TVar y q  ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convVars ctx ty x y p q
     --for defs
-    [ TDef x p ⟨ rpg  ⟩ ⨾ TDef y q  ⟨ rpc ⟩ ] →
+    (TDef x p ⟨ rpg  ⟩ , TDef y q  ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convDefs ctx ty x y p q
     --for cons
-    [ TCon c p lc ⟨ rpg  ⟩ ⨾ TCon d q ld ⟨ rpc ⟩ ] →
+    (TCon c p lc ⟨ rpg  ⟩ , TCon d q ld ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convCons ctx ty c d p q lc ld
     --for lambda
-    [ TLam x u ⟨ rpg ⟩ ⨾ TLam y v ⟨ rpc ⟩ ] →
+    (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convLams ctx ty x y u v
     --for app
-    [ TApp u e ⟨ rpg ⟩ ⨾ TApp v f ⟨ rpc ⟩ ] →
+    (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convApps ctx ty u v e f
     --for pi
-    [ TPi x tu tv ⟨ rpg ⟩ ⨾ TPi y tw tz ⟨ rpc ⟩ ] →
+    (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convPis ctx ty x y tu tw tv tz
     --for sort
-    [ TSort s ⟨ rpg ⟩ ⨾ TSort t ⟨ rpc ⟩ ] →
+    (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convSorts ctx ty s t
     _ → tcError "sorry"

@@ -1,6 +1,6 @@
 open import Haskell.Prelude
   hiding ( All; m; _,_,_)
-  renaming (_,_ to infixr 5 [_⨾_])
+  renaming (_,_ to infixr 5 _,_)
 
 open import Scope
 
@@ -75,7 +75,8 @@ inferPi ctx x (El su u) (El sv v) = do
 inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ ty)
 inferTySort ctx (STyp x) = return $ sortType (sucSort (STyp x)) , TyType
 
-inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
+inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope)
+         → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
 inferDef ctx f p = do
   rezz sig ← tcmSignature
   return $ weakenType subEmpty (getType sig f p) , TyDef p
@@ -121,7 +122,7 @@ checkCoerce ctx t (gty , dgty) cty =
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
   checkCoerce ctx (TVar x p) tvar ty
-checkType ctx (TDef d p) ty =  do
+checkType ctx (TDef d p) ty = do
   tdef ← inferDef ctx d p
   checkCoerce ctx (TDef d p) tdef ty
 checkType ctx (TCon c p x) ty = tcError "not implemented yet"
