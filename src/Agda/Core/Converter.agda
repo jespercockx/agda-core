@@ -16,6 +16,7 @@ module Agda.Core.Converter
 private open module @0 G = Globals globals
 
 open import Agda.Core.Syntax globals as Syntax
+open import Agda.Core.Substitute globals
 open import Agda.Core.Context globals
 open import Agda.Core.Conversion globals sig
 open import Agda.Core.Reduce globals
@@ -63,10 +64,10 @@ convSorts ctx s (STyp u) (STyp u') =
 convertCheck : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q ∶ ty)
 convertInfer : ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q ∶ ty))
 convertElims : ∀ Γ
-               (ty : Term α)
-               (u : Term α)
-               (w z : Elim α)
-             → TCM (Γ [ u ∶ ty ] ⊢ w ≅ z)
+                 (s : Term α)
+                 (u : Term α)
+                 (v v' : Elim α)
+             → TCM (Σ0 ((Elim α → Term α) → Term α) (λ f → Γ [ u ∶ s ] ⊢ v ≅ v' ∶ f))
 convertSubsts : ∀ {α β} Γ τ → (s p : β ⇒ α) → TCM (Γ ⊢ [ s ≅ p ] ⇒ τ)
 
 convCons : ∀ Γ
@@ -79,7 +80,7 @@ convCons : ∀ Γ
          → TCM (Conv {α = α} Γ s (TCon f p lp) (TCon g q lq))
 convCons {α = α} ctx s f g p q lp lq =
   ifDec (decIn p q)
-    (λ where {{refl}} → ?) -- CCon p lp lq <$> convSubsts lp lq
+    (λ where {{refl}} → {!!}) -- CCon p lp lq <$> convSubsts lp lq
     (tcError "constructors not convertible")
 
 convLams : ∀ Γ
@@ -109,8 +110,8 @@ convApps : ∀ Γ
          → TCM (Conv {α = α} Γ s (TApp u w) (TApp u' w'))
 convApps ctx s u u' w w' = do
   Pair su cu ← convertInfer ctx u u'
-  CApp <$> return cu
-       <*> convertElims ctx s u w w'
+  ⟨ f ⟩ cv  ← {! convertElims ctx u u' w w'!}
+  return (CApp cu cv)
 
 convPis : ∀ Γ
           (s : Term α)
@@ -124,17 +125,25 @@ convPis ctx (TSort s) x y u u' v v' = {!!}
 convPis ctx _         x y u u' v v' = {!!}
 
 
-convertElims ctx (TPi x a b) u (EArg w) (EArg w') =
-  CEArg <$> convertCheck ctx (unType a) w w'
-convertElims ctx ty u (EArg w) (EArg w') = do
+convertElims ctx (TPi x a b) u (EArg w) (EArg w') = do
+  let r = rezzScope ctx
+      ksort = piSort (typeSort a) (typeSort b)
+  cw ← convertCheck ctx (unType a) w w'
+  return $ ⟨ (λ _ → substTop r w (unType b)) ⟩
+           (CEArg {k = ksort} CRefl cw)
+convertElims ctx t u (EArg w) (EArg w') = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
-  (TPi x a b) ⟨ rp ⟩  ← reduceTo r sig ty fuel
+
+  (TPi x a b) ⟨ rp ⟩  ← reduceTo r sig t fuel
     where
-      _ → tcError "can't convert two terms when the type doesn't reduce to a Pi"
-  CERedT rp <$> CEArg <$> convertCheck ctx (unType a) w w'
-convertElims ctx ty u w w' = tcError "can't convert two elims"
+      _ → tcError "can't convert two terms when the type does not reduce to a Pi type"
+  let ksort = piSort (typeSort a) (typeSort b)
+  cw ← convertCheck ctx (unType a) w w'
+  return $ ⟨ ((λ _ → substTop r w (unType b))) ⟩
+           CERedT rp (CEArg {k = ksort} CRefl cw)
+convertElims ctx s u w w' = tcError "not implemented yet"
 
 convertSubsts  = {!!}
 
