@@ -116,8 +116,7 @@ checkCoerce : ∀ Γ (t : Term α)
             → (cty : Type α)
             → TCM (Γ ⊢ t ∶ cty)
 checkCoerce ctx t (gty , dgty) cty =
-  let sty = typeSort gty
-  in TyConv dgty <$> convert ctx (unType gty) (unType cty) (TSort sty)
+  TyConv dgty <$> convert ctx (TSort $ typeSort gty) (unType gty) (unType cty)
 
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
