@@ -132,16 +132,6 @@ convLams ctx ty x y u v = do
   CRedT rp <$> CLam <$>
     convertCheck (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
 
-convApps : ∀ Γ
-           (s : Term α)
-           (u u' : Term α)
-           (w w' : Elim α)
-         → TCM (Conv {α = α} Γ (TApp u w) (TApp u' w'))
-convApps ctx s u u' w w' = do
-  su Σ, cu ← convertInfer ctx u u'
-  f Σ, cv  ← convertElims ctx su u w w'
-  return (CApp cu cv)
-
 convAppsI : ∀ Γ
             (u u' : Term α)
             (w w' : Elim α)
@@ -220,8 +210,8 @@ convertCheck ctx ty t q = do
     (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convLams ctx ty x y u v
     --for app
-    (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convApps ctx ty u v e f
+    (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) → do
+      snd <$> map2 (CRedL rpg ∘ CRedR rpc) <$> convAppsI ctx u v e f
     --for pi
     (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) → 
       CRedL rpg <$> CRedR rpc <$> convPis ctx ty x y tu tw tv tz
