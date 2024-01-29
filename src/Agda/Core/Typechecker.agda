@@ -52,7 +52,7 @@ inferApp ctx u (Syntax.EArg v) = do
 
   gtv ← checkType ctx v at
   let sf = piSort (typeSort at) (typeSort rt)
-      gc = CRedL {t = TSort sf} rtp CRefl
+      gc = CRedL rtp CRefl
       tytype = weakenType (subBindDrop subRefl) (substTopType r v rt)
       tyapp = TyAppE {x = x} {r = r} gtu (TyArg {r = r} {w = x} gc gtv)
   
@@ -94,7 +94,7 @@ checkLambda ctx x u (El s ty) = do
 
   (TPi y tu tv) ⟨ rtp ⟩ ← reduceTo r sig ty fuel
     where _ → tcError "couldn't reduce a term to a pi type"
-  let gc = CRedR {t = TSort s} rtp CRefl
+  let gc = CRedR rtp CRefl
       sp = piSort (typeSort tu) (typeSort tv)
 
   d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
@@ -159,7 +159,7 @@ inferSort ctx t = do
   st , dt ← inferType ctx t
   (TSort s) ⟨ rp ⟩ ← reduceTo r sig (unType st) fuel
     where _ → tcError "couldn't reduce a term to a sort"
-  let cp = CRedL {t = TSort $ sucSort s} rp CRefl
+  let cp = CRedL rp CRefl
   return $ s , TyConv dt cp
 
 {-# COMPILE AGDA2HS inferSort #-}

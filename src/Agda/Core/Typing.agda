@@ -139,7 +139,7 @@ data TyTerm {α} Γ where
 
   TyConv
     : Γ ⊢ u ∶ a
-    → Γ ⊢ (unType a) ≅ (unType b) ∶ s
+    → Γ ⊢ (unType a) ≅ (unType b)
     ----------------
     → Γ ⊢ u ∶ b
 
@@ -148,7 +148,7 @@ data TyTerm {α} Γ where
 data TyElim {α} Γ where
     TyArg : {@0 r : Rezz _ α}
             {@0 w : name}
-          → Γ ⊢ (unType c) ≅ TPi x a b ∶ TSort k
+          → Γ ⊢ (unType c) ≅ TPi x a b
           → Γ ⊢ u ∶ a
           → TyElim Γ (EArg u) c (weakenType {β = w ◃ α} (subBindDrop subRefl) (substTopType r u b))
     TyCase : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
@@ -157,7 +157,7 @@ data TyElim {α} Γ where
              {@0 is : dataIndexScope dt ⇒ α}
              (bs : Branches α (dataConstructorScope dt))
              (rt : Type (x ◃ α))
-           → Γ ⊢ (unType c) ≅ (unType $ dataType d dp k ps is) ∶ (TSort k)
+           → Γ ⊢ (unType c) ≅ (unType $ dataType d dp k ps is)
            → TyBranches Γ dt ps rt bs
            → TyElim Γ (ECase bs) c rt
     -- TODO: proj
