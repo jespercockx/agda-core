@@ -21,7 +21,7 @@ open import Agda.Core.Context globals
 open import Agda.Core.Conversion globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.TCM globals sig
-open import Agda.Core.Utils renaming (_,_ to Pair)
+open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Dec
@@ -34,10 +34,19 @@ convVars : ∀ Γ
            (s : Term α)
            (@0 x y : name)
            (p : x ∈ α) (q : y ∈ α)
-         → TCM (Conv Γ s (TVar x p) (TVar y q))
+         → TCM (Conv Γ (TVar x p) (TVar y q))
 convVars ctx _ x y p q =
   ifDec (decIn p q)
     (λ where {{refl}} → return CRefl)
+    (tcError "variables not convertible")
+
+convVarsI : ∀ Γ
+            (@0 x y : name)
+            (p : x ∈ α) (q : y ∈ α)
+          → TCM (Σ[ ty ∈ Term α ] (Γ ⊢ (TVar x p) ≅ (TVar y q)))
+convVarsI ctx x y p q =
+  ifDec (decIn p q)
+    (λ where {{refl}} → return $ (unType $ lookupVar ctx x p) Σ, CRefl)
     (tcError "variables not convertible")
 
 convDefs : ∀ Γ
@@ -45,30 +54,50 @@ convDefs : ∀ Γ
            (@0 f g : name)
            (p : f ∈ defScope)
            (q : g ∈ defScope)
-         → TCM (Conv {α = α} Γ s (TDef f p) (TDef g q))
+         → TCM (Conv {α = α} Γ (TDef f p) (TDef g q))
 convDefs ctx s f g p q =
   ifDec (decIn p q)
     (λ where {{refl}} → return CRefl)
     (tcError "definitions not convertible")
 
+convDefsI : ∀ Γ
+            (@0 f g : name)
+            (p : f ∈ defScope)
+            (q : g ∈ defScope)
+          → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TDef f p) (TDef g q)))
+convDefsI ctx f g p q = do
+  rezz sig ← tcmSignature
+  let ty = unType $ weakenType subEmpty $ getType sig f p
+  ifDec (decIn p q)
+    (λ where {{refl}} → return $ ty Σ, CRefl)
+    (tcError "definitions not convertible")
+
 convSorts : ∀ Γ
             (s : Term α)
             (u u' : Sort α)
-          → TCM (Conv {α = α} Γ s (TSort u) (TSort u'))
+          → TCM (Conv {α = α} Γ (TSort u) (TSort u'))
 convSorts ctx s (STyp u) (STyp u') =
   ifDec ((u == u') ⟨ isEquality u u' ⟩)
     (λ where {{refl}} → return $ CRefl)
     (tcError "can't convert two different sorts")
 
+convSortsI : ∀ Γ
+             (u u' : Sort α)
+           → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TSort u) (TSort u')))
+convSortsI ctx (STyp u) (STyp u') =
+  ifDec ((u == u') ⟨ isEquality u u' ⟩)
+    (λ where {{refl}} → return $ (TSort $ sucSort $ STyp u) Σ, CRefl)
+    (tcError "can't convert two different sorts")
+
 {-# TERMINATING #-}
-convertCheck : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q ∶ ty)
-convertInfer : ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q ∶ ty))
+convertCheck : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
+convertInfer : ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q))
 convertElims : ∀ Γ
                  (s : Term α)
                  (u : Term α)
                  (v v' : Elim α)
-             → TCM (Σ0 ((Elim α → Term α) → Term α) (λ f → Γ [ u ∶ s ] ⊢ v ≅ v' ∶ f))
-convertSubsts : ∀ {α β} Γ τ → (s p : β ⇒ α) → TCM (Γ ⊢ [ s ≅ p ] ⇒ τ)
+             → TCM (Σ ((Elim α → Term α) → Term α) (λ f → Γ ⊢ v ≃ v'))
+convertSubsts : ∀ {α β} Γ → (s p : β ⇒ α) → TCM (Γ ⊢ s ⇔ p)
 
 convCons : ∀ Γ
            (s : Term α)
@@ -77,10 +106,10 @@ convCons : ∀ Γ
            (q : g ∈ conScope)
            (lp : lookupAll fieldScope p ⇒ α)
            (lq : lookupAll fieldScope q ⇒ α)
-         → TCM (Conv {α = α} Γ s (TCon f p lp) (TCon g q lq))
+         → TCM (Conv {α = α} Γ (TCon f p lp) (TCon g q lq))
 convCons {α = α} ctx s f g p q lp lq =
   ifDec (decIn p q)
-    (λ where {{refl}} → {!!}) -- CCon p lp lq <$> convSubsts lp lq
+    (λ where {{refl}} → return {! CCon!}) -- CCon p lp lq <$> convSubsts lp lq
     (tcError "constructors not convertible")
 
 convLams : ∀ Γ
@@ -88,7 +117,7 @@ convLams : ∀ Γ
            (@0 x y : name)
            (u : Term (x ◃ α))
            (v : Term (y ◃ α))
-         → TCM (Conv {α = α} Γ s (TLam x u) (TLam y v))
+         → TCM (Conv {α = α} Γ (TLam x u) (TLam y v))
 convLams ctx (TPi z a b) x y u v = do
   let r = rezzScope ctx
   CLam <$> convertCheck (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
@@ -107,11 +136,20 @@ convApps : ∀ Γ
            (s : Term α)
            (u u' : Term α)
            (w w' : Elim α)
-         → TCM (Conv {α = α} Γ s (TApp u w) (TApp u' w'))
+         → TCM (Conv {α = α} Γ (TApp u w) (TApp u' w'))
 convApps ctx s u u' w w' = do
-  Pair su cu ← convertInfer ctx u u'
-  ⟨ f ⟩ cv  ← {! convertElims ctx u u' w w'!}
+  su Σ, cu ← convertInfer ctx u u'
+  f Σ, cv  ← convertElims ctx su u w w'
   return (CApp cu cv)
+
+convAppsI : ∀ Γ
+            (u u' : Term α)
+            (w w' : Elim α)
+          → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TApp u w) (TApp u' w')))
+convAppsI ctx u u' w w' = do
+  su Σ, cu ← convertInfer ctx u u'
+  f Σ, cv  ← convertElims ctx su u w w'
+  return $ (f $ TApp u) Σ, CApp cu cv
 
 convPis : ∀ Γ
           (s : Term α)
@@ -119,7 +157,7 @@ convPis : ∀ Γ
           (u u' : Type α)
           (v  : Type (x ◃ α))
           (v' : Type (y ◃ α))
-        → TCM (Conv {α = α} Γ s (TPi x u v) (TPi y u' v'))
+        → TCM (Conv {α = α} Γ (TPi x u v) (TPi y u' v'))
 convPis ctx (TSort s) x y u u' v v' = do
   let r = rezzScope ctx
 
@@ -135,17 +173,13 @@ convPis ctx t x y u u' v v' = do
       _ → tcError "can't convert two terms when the type does not reduce to a sort"
   cu ← convertCheck ctx (TSort $ typeSort u) (unType u) (unType u')
   cv ← convertCheck (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
-  --TODO figure out why <$> <$> syntax doesn't work
-  fmap (CRedT rp) $ CPi
-      <$> convertCheck ctx (TSort $ typeSort u) (unType u) (unType u')
-      <*> convertCheck (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
+  return $ CRedT rp $ CPi cu cv
 
 convertElims ctx (TPi x a b) u (EArg w) (EArg w') = do
   let r = rezzScope ctx
       ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck ctx (unType a) w w'
-  return $ ⟨ (λ _ → substTop r w (unType b)) ⟩
-           (CEArg {k = ksort} CRefl cw)
+  return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
 convertElims ctx t u (EArg w) (EArg w') = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
@@ -156,11 +190,10 @@ convertElims ctx t u (EArg w) (EArg w') = do
       _ → tcError "can't convert two terms when the type does not reduce to a Pi type"
   let ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck ctx (unType a) w w'
-  return $ ⟨ ((λ _ → substTop r w (unType b))) ⟩
-           CERedT rp (CEArg {k = ksort} CRefl cw)
+  return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
 convertElims ctx s u w w' = tcError "not implemented yet"
 
-convertSubsts  = {!!}
+convertSubsts ctx s p = {!!}
 
 convertCheck ctx ty t q = do
   let r = rezzScope ctx
@@ -202,28 +235,28 @@ convertInfer ctx t q = do
   rcty ← reduceTo r sig q fuel
   case (rgty , rcty) of λ where
     --for vars
-    (TVar x p ⟨ rpg  ⟩ , TVar y q  ⟨ rpc ⟩) →
-      {!!}
+    (TVar x p ⟨ rpg  ⟩ , TVar y q ⟨ rpc ⟩) →
+      map2 (CRedL rpg ∘ CRedR rpc) <$> convVarsI ctx x y p q
     --for defs
     (TDef x p ⟨ rpg  ⟩ , TDef y q  ⟨ rpc ⟩) →
-      {!!}
+      map2 (CRedL rpg ∘ CRedR rpc) <$> convDefsI ctx x y p q
     --for cons
     (TCon c p lc ⟨ rpg  ⟩ , TCon d q ld ⟨ rpc ⟩) →
-      tcError "non inferrable"
+      tcError "non implemented yet"
     --for lambda
     (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
       tcError "non inferrable"
     --for app
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) →
-      {!!}
+      map2 (CRedL rpg ∘ CRedR rpc) <$> convAppsI ctx u v e f
     --for pi
     (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
-      {!!}
+      tcError "non implemented yet"
     --for sort
     (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
-      {!!}
+      map2 (CRedL rpg ∘ CRedR rpc) <$> convSortsI ctx s t
     _ → tcError "sorry"
 
 
-convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q ∶ ty)
+convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
 convert = convertCheck
