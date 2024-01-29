@@ -37,7 +37,7 @@ inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
 
 inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
-inferVar g x p = return $ lookupVar g x p , TyTVar p
+inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
 
 inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
 inferApp ctx u (Syntax.EArg v) = do
