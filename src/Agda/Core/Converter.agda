@@ -97,7 +97,7 @@ convertElims : ∀ Γ
                  (u : Term α)
                  (v v' : Elim α)
              → TCM (Σ ((Elim α → Term α) → Term α) (λ f → Γ ⊢ v ≃ v'))
-convertSubsts : ∀ {α β} Γ → (s p : β ⇒ α) → TCM (Γ ⊢ s ⇔ p)
+convertSubsts : ∀ {@0 α β} Γ → (s p : β ⇒ α) → TCM (Γ ⊢ s ⇔ p)
 
 convCons : ∀ Γ
            (s : Term α)
@@ -193,7 +193,11 @@ convertElims ctx t u (EArg w) (EArg w') = do
   return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
 convertElims ctx s u w w' = tcError "not implemented yet"
 
-convertSubsts ctx s p = {!!}
+convertSubsts ctx  SNil p = return CSNil
+convertSubsts ctx (SCons x st) p = caseSubstBind (λ ss → TCM (ctx ⊢ (SCons x st) ⇔ ss)) p $ λ y pt → do
+  hc ← convertCheck ctx {!!} x y
+  tc ← convertSubsts ctx st pt
+  return $ CSCons hc tc
 
 convertCheck ctx ty t q = do
   let r = rezzScope ctx
