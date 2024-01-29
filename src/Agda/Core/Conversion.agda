@@ -103,7 +103,7 @@ data ConvElim {α} Γ where
 
 data ConvSubst {α} Γ where
   CSNil : ConvSubst Γ {β = mempty} us vs
-  CSCons : {@0 r : Rezz _ α} {@0 x : name} 
+  CSCons : {@0 x : name} 
          → Conv Γ u v
          → ConvSubst Γ us vs
          → ConvSubst Γ (SCons {x = x} u us) (SCons {x = x} v vs)
