@@ -129,8 +129,7 @@ convLams ctx ty x y u v = do
   (TPi z a b) ⟨ rp ⟩  ← reduceTo r sig ty fuel
     where
       _ → tcError "can't convert two terms when the type doesn't reduce to a Pi"
-  CRedT rp <$> CLam <$>
-    convertCheck (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
+  CLam <$> convertCheck (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
 
 convAppsI : ∀ Γ
             (u u' : Term α)
@@ -163,7 +162,7 @@ convPis ctx t x y u u' v v' = do
       _ → tcError "can't convert two terms when the type does not reduce to a sort"
   cu ← convertCheck ctx (TSort $ typeSort u) (unType u) (unType u')
   cv ← convertCheck (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
-  return $ CRedT rp $ CPi cu cv
+  return $ CPi cu cv
 
 convertElims ctx (TPi x a b) u (EArg w) (EArg w') = do
   let r = rezzScope ctx
