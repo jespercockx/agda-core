@@ -81,9 +81,6 @@ data Conv {α} Γ where
          → {@0 us vs : lookupAll fieldScope cp ⇒ α}
          → Γ ⊢ us ⇔ vs
          → Γ ⊢ TCon c cp us ≅ TCon c cp vs
-  CRedT  : @0 ReducesTo sig t t'
-         → Γ ⊢ u  ≅ v
-         → Γ ⊢ u  ≅ v
   CRedL  : @0 ReducesTo sig u u'
          → Γ ⊢ u' ≅ v
          → Γ ⊢ u  ≅ v
