@@ -1,4 +1,5 @@
 open import Scope
+import Utils.List as List
 
 open import Agda.Core.GlobalScope using (Globals)
 import Agda.Core.Signature as Signature
@@ -16,6 +17,8 @@ private open module @0 G = Globals globals
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Loop
+open import Haskell.Law.Monoid
+open import Haskell.Law.Equality
 
 open import Utils.Tactics using (auto)
 
@@ -48,12 +51,25 @@ constructorType d dp c cp con ds pars us =
   dataType d dp ds pars (substSubst (concatSubst us pars) (conIndices con))
 {-# COMPILE AGDA2HS constructorType #-}
 
+
+addContextTel : Telescope α β → Context α → Context (β <> α)
+addContextTel EmptyTel c = subst' Context (sym (leftIdentity _)) c
+addContextTel (ExtendTel x ty telt) c =
+  subst' Context
+    ({!!})
+    (addContextTel telt (c , x ∶ ty))
+{-# COMPILE AGDA2HS addContextTel #-}
+
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
 -- TyElim Γ e t f means: if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : f (appE u)
-data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 ((Elim α → Term α) → Type α) → Set
+data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 Type (x ◃ α) → Set
 
 data TySubst (@0 Γ : Context α) : (β ⇒ α) → @0 Telescope α β → Set
+
+data TyBranch (@0 Γ : Context α) (@0 dt : Datatype)
+              (@0 ps : dataParameterScope dt ⇒ α)
+              (@0 rt : Type (x ◃ α)) : @0 Branch α → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -88,10 +104,12 @@ data TyTerm {α} Γ where
     → Γ ⊢ TLam x u ∶ El k (TPi y a b)
 
   TyAppE
-    : Γ ⊢ u ∶ a
-    → TyElim Γ e a (λ _ → b)
+    : {@0 r : Rezz _ α}
+      {b : Type (x ◃ α)}
+    → Γ ⊢ u ∶ a
+    → TyElim Γ e a b
     ------------------------------------
-    → Γ ⊢ TApp u e ∶ b
+    → Γ ⊢ TApp u e ∶ (substTopType r u b)
 
   TyPi
     : Γ ⊢ u ∶ sortType k
@@ -125,13 +143,36 @@ data TyTerm {α} Γ where
 
 data TyElim {α} Γ where
     TyArg : {@0 r : Rezz _ α}
-        → Γ ⊢ (unType c) ≅ TPi x a b ∶ TSort k
-        → Γ ⊢ u ∶ a
-        → TyElim Γ (EArg u) c (λ h → substTopType r u b)
+            {@0 w : name}
+          → Γ ⊢ (unType c) ≅ TPi x a b ∶ TSort k
+          → Γ ⊢ u ∶ a
+          → TyElim Γ (EArg u) c (weakenType {β = w ◃ α} (subBindDrop subRefl) (substTopType r u b))
+    TyCase : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
+             (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
+             {@0 ps : dataParameterScope dt ⇒ α}
+             {@0 is : dataIndexScope dt ⇒ α}
+             (bs : Branches α)
+             (rt : Type (x ◃ α))
+           → Γ ⊢ (unType c) ≅ (unType $ dataType d dp k ps is) ∶ (TSort k)
+           → List.All (λ b → TyBranch Γ dt ps rt b) bs
+           → TyElim Γ (ECase bs) c rt
     -- TODO: proj
     -- TODO: case
 
 {-# COMPILE AGDA2HS TyElim #-}
+
+data TyBranch {α} Γ dt ps rt where
+  TyBBranch : (@0 c : name) → (c∈dcons : c ∈ dataConstructorScope dt)
+            → (let (c∈cons Σ, con ) = lookupAll (dataConstructors dt) c∈dcons)
+            → {@0 r : Rezz _ (lookupAll fieldScope c∈cons)}
+              {@0 rα : Rezz _ α}
+              (rhs : Term (lookupAll fieldScope c∈cons <> α))
+              (let ctel = substTelescope ps (conTelescope con)
+                   cargs = weakenSubst (subLeft (splitRefl r)) (idSubst r)
+                   idsubst = (weakenSubst (subJoinDrop r subRefl) (idSubst (rα)))
+                   bsubst = (SCons (TCon c c∈cons cargs) idsubst))
+            → TyTerm (addContextTel ctel Γ) rhs (substType bsubst rt)
+            → TyBranch Γ dt ps rt (BBranch c c∈cons r rhs)
 
 data TySubst {α} Γ where
   TyNil  : TySubst Γ SNil EmptyTel
