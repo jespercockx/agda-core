@@ -107,9 +107,17 @@ convCons : ∀ Γ
            (lp : lookupAll fieldScope p ⇒ α)
            (lq : lookupAll fieldScope q ⇒ α)
          → TCM (Conv {α = α} Γ (TCon f p lp) (TCon g q lq))
-convCons {α = α} ctx s f g p q lp lq =
+convCons {α = α} ctx s f g p q lp lq = do
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+  (TDef d dp) ⟨ rp ⟩  ← reduceTo r sig s fuel
+    where
+      _ → tcError "can't convert two constructors when their type isn't a definition"
   ifDec (decIn p q)
-    (λ where {{refl}} → return {! CCon!}) -- CCon p lp lq <$> convSubsts lp lq
+    (λ where {{refl}} → do
+      csp ← convertSubsts ctx lp lq
+      return $ CCon p csp)
     (tcError "constructors not convertible")
 
 convLams : ∀ Γ
