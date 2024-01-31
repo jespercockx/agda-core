@@ -97,7 +97,7 @@ convertElims : ∀ Γ
                  (u : Term α)
                  (v v' : Elim α)
              → TCM (Σ ((Elim α → Term α) → Term α) (λ f → Γ ⊢ v ≃ v'))
-convertSubsts : ∀ {@0 α β} Γ → (s p : β ⇒ α) → TCM (Γ ⊢ s ⇔ p)
+convertSubsts : ∀ {@0 α β} Γ → (ty : Telescope α β) → (s p : β ⇒ α) → TCM (Γ ⊢ s ⇔ p)
 
 convCons : ∀ Γ
            (s : Term α)
@@ -116,7 +116,11 @@ convCons {α = α} ctx s f g p q lp lq = do
       _ → tcError "can't convert two constructors when their type isn't a definition"
   ifDec (decIn p q)
     (λ where {{refl}} → do
-      csp ← convertSubsts ctx lp lq
+      (DatatypeDef df) ← return $ getDefinition sig d dp
+        where
+          _ → tcError "can't convert two constructors when their type isn't a datatype"
+      con ← liftMaybe (getConstructor f p df) "can't find a constructor with such a name"
+      csp ← convertSubsts ctx {!!} lp lq
       return $ CCon p csp)
     (tcError "constructors not convertible")
 
@@ -190,11 +194,14 @@ convertElims ctx t u (EArg w) (EArg w') = do
   return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
 convertElims ctx s u w w' = tcError "not implemented yet"
 
-convertSubsts ctx  SNil p = return CSNil
-convertSubsts ctx (SCons x st) p = caseSubstBind (λ ss → TCM (ctx ⊢ (SCons x st) ⇔ ss)) p $ λ y pt → do
-  hc ← convertCheck ctx {!!} x y
-  tc ← convertSubsts ctx st pt
-  return $ CSCons hc tc
+convertSubsts ctx tel SNil p = return CSNil
+convertSubsts ctx tel (SCons x st) p =
+  caseSubstBind (λ ss → TCM (ctx ⊢ (SCons x st) ⇔ ss)) p $ λ y pt →
+  caseTelBind _ tel $ λ a tel → do
+    let r = rezzScope ctx
+    hc ← convertCheck ctx (unType a) x y
+    tc ← convertSubsts ctx (substTelescope (SCons x (idSubst r)) tel) st pt
+    return $ CSCons hc tc
 
 convertCheck ctx ty t q = do
   let r = rezzScope ctx
