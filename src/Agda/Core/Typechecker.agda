@@ -1,4 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 open import Haskell.Prelude
   hiding ( All; m; _,_,_)
   renaming (_,_ to infixr 5 _,_)
@@ -66,8 +65,10 @@ inferApp ctx u (Syntax.EArg v) = do
   gtv ← checkType ctx v at
   let sf = piSort (typeSort at) (typeSort rt)
       gc = CRedL {t = TSort sf} rtp CRefl
-
-  return $ substTopType r v rt , TyAppE gtu (TyArg {k = sf} gc gtv)
+      tytype = weakenType (subBindDrop subRefl) (substTopType r v rt)
+      tyapp = TyAppE {x = x} {r = r} gtu (TyArg {r = r} {w = x} gc gtv)
+  
+  return $ substTopType r u tytype , tyapp
 
 inferApp ctx u (Syntax.EProj _ _) = tcError "not implemented"
 inferApp ctx u (Syntax.ECase bs)  = tcError "not implemented"
