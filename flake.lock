@@ -3,11 +3,11 @@
     "agda2hs-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1705678730,
-        "narHash": "sha256-P3NX2Q4b4wZY1eS7Ga48PVFbhpQuJNz+ROAigolNBF0=",
+        "lastModified": 1706098014,
+        "narHash": "sha256-Lz6d5v1ni3UQ2cpXH9GpjC/u2BkBGrsaoJnuqy2a2V8=",
         "owner": "agda",
         "repo": "agda2hs",
-        "rev": "04f48a2bd7442699b7a15fd0e9a771c5a60ba67e",
+        "rev": "48aacea0b9adc548c47fd46b9addd6b84e3a5272",
         "type": "github"
       },
       "original": {
@@ -61,11 +61,11 @@
     "scope-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1705512409,
-        "narHash": "sha256-1J4h1/JuAGTVrqjbLTct2WYYjXPQtGyfOAe4WVhCJOE=",
+        "lastModified": 1706721181,
+        "narHash": "sha256-OVVW3TzZBaW6LBnSKen/DupMWFgGBUHaaANTbEw0zqg=",
         "owner": "jespercockx",
         "repo": "scope",
-        "rev": "e8cf47b70b3fed58bf3a925b88f6e0f9e0a25b3a",
+        "rev": "1feca23446eccfde04506d51719b587150bc5c3d",
         "type": "github"
       },
       "original": {
