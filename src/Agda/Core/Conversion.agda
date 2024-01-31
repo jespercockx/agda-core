@@ -74,11 +74,8 @@ data Conv {α} Γ where
   CApp   : Γ ⊢ u ≅ u'
          → Γ ⊢ w ≃ w'
          → Γ ⊢ TApp u w ≅ TApp u' w'
-  CCon   : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
-         → {@0 c : name} (@0 cq : c ∈ dataConstructorScope dt)
-         → @0 getDefinition sig d dp ≡ DatatypeDef dt
-         → (let (cp Σ, con) = lookupAll (dataConstructors dt) cq)
-         → {@0 us vs : lookupAll fieldScope cp ⇒ α}
+  CCon   : {@0 c : name} (@0 cp : c ∈ conScope)
+           {@0 us vs : lookupAll fieldScope cp ⇒ α}
          → Γ ⊢ us ⇔ vs
          → Γ ⊢ TCon c cp us ≅ TCon c cp vs
   CRedL  : @0 ReducesTo sig u u'
