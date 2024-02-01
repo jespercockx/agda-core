@@ -15,7 +15,7 @@ private variable
 
 data Telescope (@0 α : Scope name) : @0 Scope name → Set where
   EmptyTel  : Telescope α mempty
-  ExtendTel : (@0 x : name) → Type α → Telescope (x ◃ α) β  → Telescope α (x ◃ β)
+  ExtendTel : (@0 x : name) → Type α → Telescope (x ◃ α) β  → Telescope α (β ▹ x)
 
 {-# COMPILE AGDA2HS Telescope #-}
 
