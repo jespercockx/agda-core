@@ -9,7 +9,7 @@ module Agda.Core.Syntax
 private open module @0 G = Globals globals
 
 open import Haskell.Prelude hiding (All; coerce; a; b; c)
-open import Haskell.Law.Equality using (sym)
+open import Haskell.Law.Equality using (sym; subst0)
 open import Haskell.Law.Monoid.Def using (leftIdentity)
 open import Haskell.Law.Semigroup.Def using (associativity)
 open import Haskell.Extra.Erase
@@ -99,7 +99,7 @@ Elims α = List (Elim α)
 data Branch α where
   BBranch : (@0 c : name) → (c∈cons : c ∈ conScope)
           → Rezz _ (lookupAll fieldScope c∈cons)
-          → Term (lookupAll fieldScope c∈cons <> α) → Branch α c
+          → Term (revScope (lookupAll fieldScope c∈cons) <> α) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
 data Branches α where
@@ -185,7 +185,7 @@ weakenElim p (ECase bs)  = ECase (weakenBranches p bs)
 weakenElims p = map (weakenElim p)
 {-# COMPILE AGDA2HS weakenElims #-}
 
-weakenBranch p (BBranch c k r x) = BBranch c k r (weaken (subJoinKeep r p) x)
+weakenBranch p (BBranch c k r x) = BBranch c k r (weaken (subJoinKeep (rezzCong revScope r) p) x)
 {-# COMPILE AGDA2HS weakenBranch #-}
 
 weakenBranches p BsNil         = BsNil
@@ -235,6 +235,14 @@ opaque
   dropSubst (SCons x f) = f
   {-# COMPILE AGDA2HS dropSubst #-}
 
+  revSubstAcc : {@0 α β γ : Scope name} → α ⇒ γ → β ⇒ γ → (revScopeAcc α β) ⇒ γ
+  revSubstAcc SNil p = p
+  revSubstAcc (SCons x s) p = revSubstAcc s (SCons x p)
+  {-# COMPILE AGDA2HS revSubstAcc #-}
+
+  revSubst : {@0 α β : Scope name} → α ⇒ β → (revScope α) ⇒ β
+  revSubst = flip revSubstAcc SNil
+  {-# COMPILE AGDA2HS revSubst #-}
 
 opaque
   -- NOTE(flupe): I have to unfold Scope because otherwise the LawfulMonoid instance
@@ -248,6 +256,9 @@ opaque
       (associativity (singleton _) α β)
       (SCons u (raiseSubst r e))
   {-# COMPILE AGDA2HS raiseSubst #-}
+
+  revIdSubst : {@0 α : Scope name} → Rezz _ α → α ⇒ revScope α
+  revIdSubst {α} r = subst0 (λ s →  s ⇒ revScope α) (revrevid α) (revSubst (idSubst (rezzCong revScope r)))
 
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
 raise r = weaken (subRight (splitRefl r))
@@ -287,7 +298,7 @@ strengthenElim p (ECase bs) = ECase <$> strengthenBranches p bs
 
 strengthenElims p = traverse (strengthenElim p)
 
-strengthenBranch p (BBranch c q r v) = BBranch c q r <$> strengthen (subJoinKeep r p) v
+strengthenBranch p (BBranch c q r v) = BBranch c q r <$> strengthen (subJoinKeep (rezzCong revScope r) p) v
 
 strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs

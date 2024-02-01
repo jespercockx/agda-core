@@ -25,8 +25,8 @@ open import Agda.Core.Context globals
 open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
 private variable
-  @0 x y z          : name
-  @0 α β γ          : Scope name
+  @0 x y z cn       : name
+  @0 α β γ cs       : Scope name
   @0 s s' t t' u u' v v' : Term α
   @0 k l n sa sb    : Sort α
   @0 a a' b b' c c' : Type α
@@ -36,10 +36,18 @@ private variable
 
 data Conv     (@0 Γ : Context α) : @0 Term α → @0 Term α → Set
 data ConvElim (@0 Γ : Context α) : @0 Elim α → @0 Elim α → Set
+data ConvBranch (@0 Γ : Context α) : @0 Branch α cn → @0 Branch α cn → Set
 data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → Set
+
+data ConvBranches (@0 Γ : Context α) : @0 Branches α cs → @0 Branches α cs → Set where
+  CBranchesNil : ConvBranches Γ BsNil BsNil
+  CBranchesCons : {b1 b2 : Branch α cn} {bs1 bs2 : Branches α cs} → ConvBranch Γ b1 b2 → ConvBranches Γ bs1 bs2 → ConvBranches Γ (BsCons b1 bs1) (BsCons b2 bs2)
+
 
 {-# COMPILE AGDA2HS Conv     #-}
 {-# COMPILE AGDA2HS ConvElim #-}
+{-# COMPILE AGDA2HS ConvBranch #-}
+{-# COMPILE AGDA2HS ConvBranches #-}
 {-# COMPILE AGDA2HS ConvSubst #-}
 
 infix 3 Conv
@@ -65,6 +73,7 @@ renameTopType = substType ∘ liftBindSubst ∘ idSubst
 data Conv {α} Γ where
   CRefl  : Γ ⊢ u ≅ u
   CLam   : {@0 r : Rezz _ α}
+         --TODO: enforce that a is the type of y and z
          → Γ , x ∶ a ⊢ renameTop r u ≅ renameTop r v
          → Γ ⊢ TLam y u ≅ TLam z v
   CPi    : {@0 r : Rezz _ α}
@@ -90,8 +99,18 @@ data Conv {α} Γ where
 data ConvElim {α} Γ where
   CEArg  : Γ ⊢ v ≅ v'
          → Γ ⊢ EArg v ≃ EArg v'
+  CECase : (bs bp : Branches α cs)
+         → ConvBranches Γ bs bp
+         → Γ ⊢ ECase bs ≃ ECase bp
   -- TODO: CEProj : {!   !}
-  -- TODO: CECase : {!   !}
+
+data ConvBranch {α} Γ where
+  CBBranch : (@0 c : name) (cp : c ∈ conScope) (r1 r2 : _)
+             --TODO enforce that tel is the telescope of constructor c applied to params
+             (tel : Telescope α (lookupAll fieldScope cp))
+             (t1 t2 : Term (revScope (lookupAll fieldScope cp) <> α))
+           → (addContextTel tel Γ) ⊢ t1 ≅ t2
+           → ConvBranch Γ (BBranch c cp r1 t1) (BBranch c cp r2 t2)
 
 {-# COMPILE AGDA2HS ConvElim #-}
 
