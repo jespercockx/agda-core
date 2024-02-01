@@ -32,7 +32,7 @@ opaque
 record Constructor (@0 pars : Scope name) (@0 ixs : Scope name) (@0 c : name) (@0 cp  : c ∈ conScope) : Set where
   field
     conTelescope : Telescope pars (lookupAll fieldScope cp)
-    conIndices   : ixs ⇒ (lookupAll fieldScope cp <> pars)
+    conIndices   : ixs ⇒ (revScope (lookupAll fieldScope cp) <> pars)
 open Constructor public
 
 {-# COMPILE AGDA2HS Constructor #-}

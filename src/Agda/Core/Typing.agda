@@ -17,7 +17,6 @@ private open module @0 G = Globals globals
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Loop
-open import Haskell.Law.Monoid
 open import Haskell.Law.Equality
 
 open import Utils.Tactics using (auto)
@@ -48,17 +47,8 @@ constructorType : (@0 d : name) (dp : d ∈ defScope)
                 → lookupAll fieldScope cp ⇒ α
                 → Type α
 constructorType d dp c cp con ds pars us = 
-  dataType d dp ds pars (substSubst (concatSubst us pars) (conIndices con))
+  dataType d dp ds pars (substSubst (concatSubst (revSubst us) pars) (conIndices con))
 {-# COMPILE AGDA2HS constructorType #-}
-
-
-addContextTel : Telescope α β → Context α → Context (β <> α)
-addContextTel EmptyTel c = subst' Context (sym (leftIdentity _)) c
-addContextTel (ExtendTel x ty telt) c =
-  subst' Context
-    ({!!})
-    (addContextTel telt (c , x ∶ ty))
-{-# COMPILE AGDA2HS addContextTel #-}
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
@@ -151,6 +141,7 @@ data TyElim {α} Γ where
           → Γ ⊢ (unType c) ≅ TPi x a b
           → Γ ⊢ u ∶ a
           → TyElim Γ (EArg u) c (weakenType {β = w ◃ α} (subBindDrop subRefl) (substTopType r u b))
+    --TODO: ensure coverage of branches for all constructors and their consistent ordering
     TyCase : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
              (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
              {@0 ps : dataParameterScope dt ⇒ α}
@@ -161,7 +152,6 @@ data TyElim {α} Γ where
            → TyBranches Γ dt ps rt bs
            → TyElim Γ (ECase bs) c rt
     -- TODO: proj
-    -- TODO: case
 
 {-# COMPILE AGDA2HS TyElim #-}
 
@@ -177,11 +167,13 @@ data TyBranch {α} Γ dt ps rt where
             → (let (c∈cons Σ, con ) = lookupAll (dataConstructors dt) c∈dcons)
             → {@0 r : Rezz _ (lookupAll fieldScope c∈cons)}
               {@0 rα : Rezz _ α}
-              (rhs : Term (lookupAll fieldScope c∈cons <> α))
+              (rhs : Term ((revScope $ lookupAll fieldScope c∈cons) <> α))
               (let ctel = substTelescope ps (conTelescope con)
-                   cargs = weakenSubst (subLeft (splitRefl r)) (idSubst r)
-                   idsubst = (weakenSubst (subJoinDrop r subRefl) (idSubst (rα)))
-                   bsubst = (SCons (TCon c c∈cons cargs) idsubst))
+                   cargs = weakenSubst (subLeft (splitRefl (rezzCong revScope r)))
+                                       (revIdSubst r)
+                   idsubst = weakenSubst (subJoinDrop (rezzCong revScope r) subRefl)
+                                         (idSubst rα)
+                   bsubst = SCons (TCon c c∈cons cargs) idsubst)
             → TyTerm (addContextTel ctel Γ) rhs (substType bsubst rt)
             → TyBranch Γ dt ps rt (BBranch c c∈cons r rhs)
 

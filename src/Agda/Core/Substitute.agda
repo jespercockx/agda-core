@@ -53,7 +53,7 @@ substElim f (ECase bs)  = ECase (substBranches f bs)
 substElims f = map (substElim f)
 {-# COMPILE AGDA2HS substElims #-}
 
-substBranch f (BBranch c k aty u) = BBranch c k aty (substTerm (liftSubst aty f) u)
+substBranch f (BBranch c k r u) = BBranch c k r (substTerm (liftSubst (rezzCong revScope r) f) u)
 {-# COMPILE AGDA2HS substBranch #-}
 
 substBranches f BsNil = BsNil

@@ -76,7 +76,7 @@ unState r (MkState e v s) = substTerm (envToSubst r e) (applyElims v s)
 
 lookupBranch : Branches α cs → (@0 c : name) (p : c ∈ conScope)
              → Maybe ( Rezz _ (lookupAll fieldScope p)
-                     × Term ((lookupAll fieldScope p) <> α))
+                     × Term (revScope (lookupAll fieldScope p) <> α))
 lookupBranch BsNil c k = Nothing
 lookupBranch (BsCons (BBranch c' k' aty u) bs) c p =
   case decIn k' p of λ where
@@ -139,9 +139,9 @@ opaque
   step sig (MkState e (TCon c q vs) (ECase bs ∷ s)) =
     case lookupBranch bs c q of λ where
       (Just (r , v)) → Just (MkState
-        (extendEnvironment vs e)
+        (extendEnvironment (revSubst vs) e)
         v
-        (weakenElims (subRight (splitRefl r)) s))
+        (weakenElims (subRight (splitRefl (rezzCong revScope r))) s))
       Nothing  → Nothing
   step sig (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
   step sig (MkState e (TCon c q x) s) = Nothing
