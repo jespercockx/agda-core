@@ -56,7 +56,7 @@ addContextTel : Telescope α β → Context α → Context (β <> α)
 addContextTel EmptyTel c = subst' Context (sym (leftIdentity _)) c
 addContextTel (ExtendTel x ty telt) c =
   subst' Context
-    (associativity _ [ x ] _)
+    ({!!})
     (addContextTel telt (c , x ∶ ty))
 {-# COMPILE AGDA2HS addContextTel #-}
 
