@@ -258,7 +258,7 @@ opaque
   {-# COMPILE AGDA2HS raiseSubst #-}
 
   revIdSubst : {@0 α : Scope name} → Rezz _ α → α ⇒ revScope α
-  revIdSubst {α} r = subst0 (λ s →  s ⇒ revScope α) (revrevid α) (revSubst (idSubst (rezzCong revScope r)))
+  revIdSubst {α} r = subst0 (λ s →  s ⇒ revScope α) (revsRevsId α) (revSubst (idSubst (rezzCong revScope r)))
 
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
 raise r = weaken (subRight (splitRefl r))
