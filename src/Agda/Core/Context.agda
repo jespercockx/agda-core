@@ -1,4 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 open import Scope
 open import Agda.Core.GlobalScope using (Globals)
 
@@ -59,7 +58,11 @@ rezzScope (CtxExtend g x _) =
 
 addContextTel : Telescope α β → Context α → Context ((revScope β) <> α)
 addContextTel {α} EmptyTel c =
-  subst0 Context (sym (trans (cong (λ x → x <> α) revScopeMempty) (leftIdentity α))) c
+  subst0 Context
+         (sym $ trans (cong (λ x → x <> α) revScopeMempty) (leftIdentity α))
+         c
 addContextTel (ExtendTel x ty telt) c =
-  subst0 Context {!!} (addContextTel telt (c , x ∶ ty))
+  subst0 Context
+         (trans (associativity _ _ _) (cong (λ t → t <> _) (sym $ revsBind _ x)))
+         (addContextTel telt (c , x ∶ ty))
 {-# COMPILE AGDA2HS addContextTel #-}
