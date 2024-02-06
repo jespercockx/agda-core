@@ -61,11 +61,11 @@
     "scope-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1706777403,
-        "narHash": "sha256-ICp0XAy9kqYxR9mOcq40FrHP7aSiVEFDrX/MaPZbXt0=",
+        "lastModified": 1707234991,
+        "narHash": "sha256-WSXV36DMoapHF71jXyh4hrOiFJMuTJ1pEc/nQNyzZJE=",
         "owner": "jespercockx",
         "repo": "scope",
-        "rev": "de47032afb00e054cdea8f9e32fdd4c3888a1d42",
+        "rev": "95d9a236e18df6e101fd058c4a229bcff1f2a3ab",
         "type": "github"
       },
       "original": {
