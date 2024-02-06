@@ -235,7 +235,7 @@ convertCheck ctx ty t q = do
       CRedL rpg <$> CRedR rpc <$> convLams ctx ty x y u v
     --for app
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) → do
-      snd <$> map2 (CRedL rpg ∘ CRedR rpc) <$> convAppsI ctx u v e f
+      snd <$> map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI ctx u v e f
     --for pi
     (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) → 
       CRedL rpg <$> CRedR rpc <$> convPis ctx ty x y tu tw tv tz
@@ -254,10 +254,10 @@ convertInfer ctx t q = do
   case (rgty , rcty) of λ where
     --for vars
     (TVar x p ⟨ rpg  ⟩ , TVar y q ⟨ rpc ⟩) →
-      map2 (CRedL rpg ∘ CRedR rpc) <$> convVarsI ctx x y p q
+      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convVarsI ctx x y p q
     --for defs
     (TDef x p ⟨ rpg  ⟩ , TDef y q  ⟨ rpc ⟩) →
-      map2 (CRedL rpg ∘ CRedR rpc) <$> convDefsI ctx x y p q
+      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convDefsI ctx x y p q
     --for cons
     (TCon c p lc ⟨ rpg  ⟩ , TCon d q ld ⟨ rpc ⟩) →
       tcError "non implemented yet"
@@ -266,13 +266,13 @@ convertInfer ctx t q = do
       tcError "non inferrable"
     --for app
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) →
-      map2 (CRedL rpg ∘ CRedR rpc) <$> convAppsI ctx u v e f
+      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI ctx u v e f
     --for pi
     (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
       tcError "non implemented yet"
     --for sort
     (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
-      map2 (CRedL rpg ∘ CRedR rpc) <$> convSortsI ctx s t
+      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convSortsI ctx s t
     _ → tcError "sorry"
 
 
