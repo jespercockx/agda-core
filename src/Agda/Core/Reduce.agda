@@ -83,7 +83,6 @@ lookupBranch (BsCons (BBranch c' k' aty u) bs) c p =
     (True  ⟨ refl ⟩) → Just (aty , u)
     (False ⟨ _    ⟩) → lookupBranch bs c p
 
-
 {-# COMPILE AGDA2HS lookupBranch #-}
 
 opaque
