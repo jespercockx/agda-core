@@ -25,6 +25,7 @@ open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Dec
 open import Haskell.Law.Eq
+open import Haskell.Law.Equality
 
 private variable
   @0 α : Scope name
@@ -110,7 +111,11 @@ convCons {α = α} ctx s f g p q lp lq = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
-  (TDef d dp) ⟨ rp ⟩  ← reduceTo r sig s fuel
+  let
+    mapElimView : ∃ (Term α) (ReducesTo _ _)
+                → ∃[ (t , els) ∈ Term α × Elims α ] ReducesTo _ _ (applyElims t els)
+    mapElimView = λ where (v ⟨ p ⟩) → (elimView v) ⟨ subst0 (λ t → ReducesTo _ s t) (sym $ applyElimView v) p ⟩
+  (TDef d dp , els) ⟨ rp ⟩  ← mapElimView <$> reduceTo r sig s fuel
     where
       _ → tcError "can't convert two constructors when their type isn't a definition"
   ifDec (decIn p q)
