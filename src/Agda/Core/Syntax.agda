@@ -136,6 +136,25 @@ elimView (TApp u es2) =
 elimView u = (u , [])
 {-# COMPILE AGDA2HS elimView #-}
 
+applyElimsComp : (t : Term α) → (el1 el2 : Elims α) → applyElims t (el1 ++ el2) ≡ applyElims (applyElims t el1) el2
+applyElimsComp t [] el2 = refl
+applyElimsComp t (x ∷ el1) el2 = applyElimsComp (TApp t x) el1 el2
+{-# COMPILE AGDA2HS applyElimsComp #-}
+
+applyElimView : (t : Term α) → (uncurry applyElims) (elimView t) ≡ t
+applyElimView (TApp t es)
+  rewrite applyElimsComp (fst (elimView t)) (snd (elimView t)) (es ∷ [])
+  rewrite applyElimView t
+  = refl
+applyElimView (TVar _ _) = refl
+applyElimView (TDef _ _) = refl
+applyElimView (TCon _ _ _) = refl
+applyElimView (TLam _ _) = refl
+applyElimView (TPi _ _ _) = refl
+applyElimView (TSort _) = refl
+applyElimView (TLet _ _ _) = refl
+applyElimView (TAnn _ _) = refl
+{-# COMPILE AGDA2HS applyElimView #-}
 lookupSubst : α ⇒ β
             → (@0 x : name)
             → x ∈ α
