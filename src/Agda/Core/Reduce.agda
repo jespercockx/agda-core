@@ -76,12 +76,13 @@ unState r (MkState e v s) = substTerm (envToSubst r e) (applyElims v s)
 
 lookupBranch : Branches α cs → (@0 c : name) (p : c ∈ conScope)
              → Maybe ( Rezz _ (lookupAll fieldScope p)
-                     × Term (revScope (lookupAll fieldScope p) <> α))
+                     × Term (~ lookupAll fieldScope p <> α))
 lookupBranch BsNil c k = Nothing
 lookupBranch (BsCons (BBranch c' k' aty u) bs) c p =
   case decIn k' p of λ where
     (True  ⟨ refl ⟩) → Just (aty , u)
     (False ⟨ _    ⟩) → lookupBranch bs c p
+
 
 {-# COMPILE AGDA2HS lookupBranch #-}
 

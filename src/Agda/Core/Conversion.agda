@@ -108,7 +108,7 @@ data ConvBranch {α} Γ where
   CBBranch : (@0 c : name) (cp : c ∈ conScope) (r1 r2 : _)
              --TODO enforce that tel is the telescope of constructor c applied to params
              (tel : Telescope α (lookupAll fieldScope cp))
-             (t1 t2 : Term (revScope (lookupAll fieldScope cp) <> α))
+             (t1 t2 : Term (~ lookupAll fieldScope cp <> α))
            → (addContextTel tel Γ) ⊢ t1 ≅ t2
            → ConvBranch Γ (BBranch c cp r1 t1) (BBranch c cp r2 t2)
 

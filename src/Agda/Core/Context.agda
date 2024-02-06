@@ -55,15 +55,15 @@ rezzScope (CtxExtend g x _) =
 
 {-# COMPILE AGDA2HS rezzScope #-}
 
-addContextTel : Telescope α β → Context α → Context ((revScope β) <> α)
+addContextTel : Telescope α β → Context α → Context (~ β <> α)
 addContextTel {α} EmptyTel c =
   subst0 Context
-         (sym $ trans (cong (λ x → x <> α) revScopeMempty)
+         (sym $ trans (cong (λ x → x <> α) revsIdentity)
                       (leftIdentity α))
          c
 addContextTel {α} (ExtendTel {β = β} x ty telt) c =
   subst0 Context
-         (trans (associativity (revScope β) [ x ] α)
-                (cong (λ t → t <> α) (sym $ revsBind β x)))
+         (trans (associativity (~ β) [ x ] α)
+                (cong (λ t → t <> α) (sym $ revsBindComp β x)))
          (addContextTel telt (c , x ∶ ty))
 {-# COMPILE AGDA2HS addContextTel #-}
