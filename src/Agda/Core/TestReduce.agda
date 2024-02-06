@@ -74,7 +74,9 @@ module Tests (@0 x y z : name) where
     test₁ = refl
 
     testTerm₂ : Term α
-    testTerm₂ = TApp `true (ECase (BBranch "true" inHere (rezz _) `false ∷ BBranch "false" (inThere inHere) (rezz _) `true ∷ []))
+    testTerm₂ = TApp `true (ECase (BsCons (BBranch "true" inHere (rezz _) `false) 
+                                  (BsCons (BBranch "false" (inThere inHere) (rezz _) `true)
+                                   BsNil)))
 
     @0 testProp₂ : Set
     testProp₂ = reduceClosed sig testTerm₂ fuel ≡ Just `false
