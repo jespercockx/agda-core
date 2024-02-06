@@ -167,7 +167,7 @@ data TyBranch {α} Γ dt ps rt where
             → (let (c∈cons Σ, con ) = lookupAll (dataConstructors dt) c∈dcons)
             → {@0 r : Rezz _ (lookupAll fieldScope c∈cons)}
               {@0 rα : Rezz _ α}
-              (rhs : Term ((revScope $ lookupAll fieldScope c∈cons) <> α))
+              (rhs : Term (~ lookupAll fieldScope c∈cons <> α))
               (let ctel = substTelescope ps (conTelescope con)
                    cargs = weakenSubst (subLeft (splitRefl (rezzCong revScope r)))
                                        (revIdSubst r)

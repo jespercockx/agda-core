@@ -99,7 +99,7 @@ Elims α = List (Elim α)
 data Branch α where
   BBranch : (@0 c : name) → (c∈cons : c ∈ conScope)
           → Rezz _ (lookupAll fieldScope c∈cons)
-          → Term (revScope (lookupAll fieldScope c∈cons) <> α) → Branch α c
+          → Term (~ lookupAll fieldScope c∈cons <> α) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
 data Branches α where
@@ -270,7 +270,7 @@ opaque
   revSubstAcc (SCons x s) p = revSubstAcc s (SCons x p)
   {-# COMPILE AGDA2HS revSubstAcc #-}
 
-  revSubst : {@0 α β : Scope name} → α ⇒ β → (revScope α) ⇒ β
+  revSubst : {@0 α β : Scope name} → α ⇒ β → ~ α ⇒ β
   revSubst = flip revSubstAcc SNil
   {-# COMPILE AGDA2HS revSubst #-}
 
@@ -287,8 +287,8 @@ opaque
       (SCons u (raiseSubst r e))
   {-# COMPILE AGDA2HS raiseSubst #-}
 
-  revIdSubst : {@0 α : Scope name} → Rezz _ α → α ⇒ revScope α
-  revIdSubst {α} r = subst0 (λ s →  s ⇒ revScope α) (revsRevsId α) (revSubst (idSubst (rezzCong revScope r)))
+  revIdSubst : {@0 α : Scope name} → Rezz _ α → α ⇒ ~ α
+  revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezzCong revScope r)))
 
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
 raise r = weaken (subRight (splitRefl r))
