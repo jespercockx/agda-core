@@ -51,11 +51,6 @@ map2 : {a : Set} {b c : @0 a → Set} (f : (x : a) → b x → c x) → Σ a b �
 map2 f (av , bv) = av , f av bv
 {-# COMPILE AGDA2HS map2 #-}
 
--- TODO: move this upstream
-subst' : (@0 p : @0 a → Set) {@0 x y : a} → @0 x ≡ y → p x → p y
-subst' p refl z = z
-{-# COMPILE AGDA2HS subst' transparent #-}
-
 data Fuel : Set where
   None : Fuel
   More : Fuel → Fuel
