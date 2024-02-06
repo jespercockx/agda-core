@@ -47,9 +47,8 @@ syntax Σ         a (λ x → b) =  Σ[ x ∈ a ] b
 pattern ∃⟨_⟩  x = x ⟨ _ ⟩
 pattern Σ0⟨_⟩ x = ⟨ _ ⟩ x
 
-
-map2 : {a : Set} {b c : @0 a → Set} (f : {x : a} → (b x → c x)) → Σ a b →  Σ a c
-map2 f (av , bv) = av , f bv
+map2 : {a : Set} {b c : @0 a → Set} (f : (x : a) → b x → c x) → Σ a b →  Σ a c
+map2 f (av , bv) = av , f av bv
 {-# COMPILE AGDA2HS map2 #-}
 
 -- TODO: move this upstream
