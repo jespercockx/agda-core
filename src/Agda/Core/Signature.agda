@@ -88,8 +88,16 @@ getBody sig x p = case getDefinition sig x p of λ where
 
 getConstructor : (@0 c : name) (cp : c ∈ conScope) (d : Datatype) → Maybe (Constructor (dataParameterScope d) (dataIndexScope d) c cp)
 getConstructor c cp d =
-  findAll (allIn $ dataConstructors d) λ where
-    (cpn Σ, con , _) ret → ifDec (decIn cp cpn) (λ where {{refl}} → Just con) Nothing
+  findAll (allIn $ dataConstructors d) dec
+  where
+    -- can't have a lambda take two arguments for agda2hs, so here's a local def
+    dec : {@0 el : name}
+        → Σ (el ∈ conScope)
+            (Constructor (dataParameterScope d) (dataIndexScope d) el)
+            × In el (dataConstructorScope d)
+        → el ∈ (dataConstructorScope d)
+        → Maybe (Constructor (dataParameterScope d) (dataIndexScope d) c cp)
+    dec (cpn Σ, con , _) ret = ifDec (decIn cp cpn) (λ where {{refl}} → Just con) Nothing
 
 {-# COMPILE AGDA2HS getConstructor #-}
 
@@ -98,9 +106,13 @@ weakenTel : α ⊆ γ → Telescope α β → Telescope γ β
 weakenTel p EmptyTel = EmptyTel
 weakenTel p (ExtendTel x ty t) = ExtendTel x (weakenType p ty) (weakenTel (subBindKeep p) t)
 
+{-# COMPILE AGDA2HS weakenTel #-}
+
 rezzTel : Telescope α β → Rezz _ β
 rezzTel EmptyTel = rezz _
 rezzTel (ExtendTel x ty t) = rezzCong (λ t → singleton x <> t) (rezzTel t)
+
+{-# COMPILE AGDA2HS rezzTel #-}
 
 {-
 addTel : Telescope α β → Telescope ((revScope β) <> α) γ → Telescope α (β <> γ)
