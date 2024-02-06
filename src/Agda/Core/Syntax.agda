@@ -8,7 +8,7 @@ module Agda.Core.Syntax
 
 private open module @0 G = Globals globals
 
-open import Haskell.Prelude hiding (All; coerce)
+open import Haskell.Prelude hiding (All; coerce; a; b; c)
 open import Haskell.Law.Equality using (sym)
 open import Haskell.Law.Monoid.Def using (leftIdentity)
 open import Haskell.Law.Semigroup.Def using (associativity)
@@ -18,16 +18,16 @@ open import Haskell.Extra.Erase
 open import Utils.Misc
 
 private variable
-  @0 x     : name
-  @0 α β γ : Scope name
+  @0 x a b c : name
+  @0 α β γ cs : Scope name
 
 data Term   (@0 α : Scope name) : Set
 data Sort   (@0 α : Scope name) : Set
 record Type (@0 α : Scope name) : Set
 data Elim   (@0 α : Scope name) : Set
-data Branch (@0 α : Scope name) : Set
+data Branch (@0 α : Scope name) : @0 name → Set
 Elims     : (@0 α : Scope name) → Set
-Branches  : (@0 α : Scope name) → Set
+data Branches (@0 α : Scope name) : @0 Scope name → Set
 
 record Type α where
   inductive
@@ -89,7 +89,7 @@ sortType s = El (sucSort s) (TSort s)
 data Elim α where
   EArg  : Term α → Elim α
   EProj : (@0 x : name) → x ∈ defScope → Elim α
-  ECase : (bs : Branches α) → Elim α
+  ECase : (bs : Branches α cs) → Elim α
   -- TODO: do we need a type annotation for the return type of case?
 {-# COMPILE AGDA2HS Elim deriving Show #-}
 
@@ -99,10 +99,12 @@ Elims α = List (Elim α)
 data Branch α where
   BBranch : (@0 c : name) → (c∈cons : c ∈ conScope)
           → Rezz _ (lookupAll fieldScope c∈cons)
-          → Term (lookupAll fieldScope c∈cons <> α) → Branch α
+          → Term (lookupAll fieldScope c∈cons <> α) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
-Branches α = List (Branch α)
+data Branches α where
+  BsNil : Branches α mempty
+  BsCons : Branch α c → Branches α cs → Branches α (c ◃ cs)
 {-# COMPILE AGDA2HS Branches #-}
 
 apply : Term α → Term α → Term α
@@ -140,7 +142,6 @@ lookupSubst : α ⇒ β
             → Term β
 lookupSubst SNil x q = inEmptyCase q
 lookupSubst (SCons u f) x q = inBindCase q (λ _ → u) (lookupSubst f x)
-
 {-# COMPILE AGDA2HS lookupSubst #-}
 
 weaken         : α ⊆ β → Term α → Term β
@@ -148,8 +149,8 @@ weakenSort     : α ⊆ β → Sort α → Sort β
 weakenType     : α ⊆ β → Type α → Type β
 weakenElim     : α ⊆ β → Elim α → Elim β
 weakenElims    : α ⊆ β → Elims α → Elims β
-weakenBranch   : α ⊆ β → Branch α → Branch β
-weakenBranches : α ⊆ β → Branches α → Branches β
+weakenBranch   : α ⊆ β → Branch α c → Branch β c
+weakenBranches : α ⊆ β → Branches α cs → Branches β cs
 weakenSubst    : β ⊆ γ → Subst α β → Subst α γ
 
 weaken p (TVar x k)        = TVar x (coerce p k)
@@ -179,8 +180,8 @@ weakenElims p = map (weakenElim p)
 weakenBranch p (BBranch c k r x) = BBranch c k r (weaken (subJoinKeep r p) x)
 {-# COMPILE AGDA2HS weakenBranch #-}
 
-weakenBranches p []       = []
-weakenBranches p (b ∷ bs) = weakenBranch p b ∷ weakenBranches p bs
+weakenBranches p BsNil         = BsNil
+weakenBranches p (BsCons b bs) = BsCons (weakenBranch p b) (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenBranches #-}
 
 weakenSubst p SNil = SNil
@@ -253,8 +254,8 @@ strengthenSort : α ⊆ β → Sort β → Maybe (Sort α)
 strengthenType : α ⊆ β → Type β → Maybe (Type α)
 strengthenElim : α ⊆ β → Elim β → Maybe (Elim α)
 strengthenElims : α ⊆ β → Elims β → Maybe (Elims α)
-strengthenBranch : α ⊆ β → Branch β → Maybe (Branch α)
-strengthenBranches : α ⊆ β → Branches β → Maybe (Branches α)
+strengthenBranch : α ⊆ β → Branch β c → Maybe (Branch α c)
+strengthenBranches : α ⊆ β → Branches β cs → Maybe (Branches α cs)
 strengthenSubst : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
 
 strengthen p (TVar x q) = diffCase p q (λ q → Just (TVar x q)) (λ _ → Nothing)
@@ -280,8 +281,8 @@ strengthenElims p = traverse (strengthenElim p)
 
 strengthenBranch p (BBranch c q r v) = BBranch c q r <$> strengthen (subJoinKeep r p) v
 
-strengthenBranches p [] = Just []
-strengthenBranches p (b ∷ bs) = _∷_ <$> strengthenBranch p b <*> strengthenBranches p bs
+strengthenBranches p BsNil = Just BsNil
+strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs
 
 strengthenSubst p SNil = Just SNil
 strengthenSubst p (SCons v vs) = SCons <$> strengthen p v <*> strengthenSubst p vs
