@@ -6,7 +6,7 @@ module Agda.Core.Substitute
   (@0 globals : Globals name)
   where
 
-open import Haskell.Prelude hiding (All)
+open import Haskell.Prelude hiding (All; c)
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Erase
 
@@ -16,16 +16,16 @@ open import Agda.Core.Syntax globals
 open import Agda.Core.Signature globals
 
 private variable
-  @0 x     : name
-  @0 α β γ : Scope name
+  @0 x c     : name
+  @0 α β γ cs : Scope name
 
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β
 substType     : α ⇒ β → Type α → Type β
 substElim     : α ⇒ β → Elim α → Elim β
 substElims    : α ⇒ β → Elims α → Elims β
-substBranch   : α ⇒ β → Branch α → Branch β
-substBranches : α ⇒ β → Branches α → Branches β
+substBranch   : α ⇒ β → Branch α c → Branch β c
+substBranches : α ⇒ β → Branches α cs → Branches β cs
 substSubst    : α ⇒ β → γ ⇒ α → γ ⇒ β
 
 substSort f (STyp x) = STyp x
@@ -56,8 +56,8 @@ substElims f = map (substElim f)
 substBranch f (BBranch c k aty u) = BBranch c k aty (substTerm (liftSubst aty f) u)
 {-# COMPILE AGDA2HS substBranch #-}
 
-substBranches f [] = []
-substBranches f (b ∷ bs) = substBranch f b ∷ substBranches f bs
+substBranches f BsNil = BsNil
+substBranches f (BsCons b bs) = BsCons (substBranch f b) (substBranches f bs)
 {-# COMPILE AGDA2HS substBranches #-}
 
 substSubst f SNil = SNil

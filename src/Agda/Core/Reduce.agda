@@ -6,7 +6,7 @@ module Agda.Core.Reduce
   (@0 globals : Globals name)
   where
 
-open import Haskell.Prelude hiding (All; coerce; _,_,_) renaming (_,_ to infixr 5 _,_)
+open import Haskell.Prelude hiding (All; coerce; _,_,_; c) renaming (_,_ to infixr 5 _,_)
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Refinement
 open import Haskell.Extra.Erase
@@ -20,9 +20,9 @@ open import Agda.Core.Utils
 private open module @0 G = Globals globals
 
 private variable
-  @0 x     : name
-  @0 α β γ : Scope name
-  @0 u v w : Term α
+  @0 x c      : name
+  @0 α β γ cs : Scope name
+  @0 u v w    : Term α
 
 data Environment : (@0 α β : Scope name) → Set where
   EnvNil  : Environment α α
@@ -74,11 +74,11 @@ unState r (MkState e v s) = substTerm (envToSubst r e) (applyElims v s)
 
 {-# COMPILE AGDA2HS unState #-}
 
-lookupBranch : Branches α → (@0 c : name) (p : c ∈ conScope)
+lookupBranch : Branches α cs → (@0 c : name) (p : c ∈ conScope)
              → Maybe ( Rezz _ (lookupAll fieldScope p)
                      × Term ((lookupAll fieldScope p) <> α))
-lookupBranch [] c k = Nothing
-lookupBranch (BBranch c' k' aty u ∷ bs) c p =
+lookupBranch BsNil c k = Nothing
+lookupBranch (BsCons (BBranch c' k' aty u) bs) c p =
   case decIn k' p of λ where
     (True  ⟨ refl ⟩) → Just (aty , u)
     (False ⟨ _    ⟩) → lookupBranch bs c p

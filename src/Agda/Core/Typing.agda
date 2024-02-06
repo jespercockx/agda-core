@@ -30,8 +30,8 @@ open import Agda.Core.Substitute globals
 open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
 private variable
-  @0 x y     : name
-  @0 α β pars ixs : Scope name
+  @0 x y con : name
+  @0 α β pars ixs cons : Scope name
   @0 s t u v : Term α
   @0 a b c   : Type α
   @0 k l m   : Sort α
@@ -67,9 +67,13 @@ data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 Type (x ◃
 
 data TySubst (@0 Γ : Context α) : (β ⇒ α) → @0 Telescope α β → Set
 
+data TyBranches (@0 Γ : Context α) (@0 dt : Datatype)
+                (@0 ps : dataParameterScope dt ⇒ α)
+                (@0 rt : Type (x ◃ α)) : @0 Branches α cons → Set
+
 data TyBranch (@0 Γ : Context α) (@0 dt : Datatype)
               (@0 ps : dataParameterScope dt ⇒ α)
-              (@0 rt : Type (x ◃ α)) : @0 Branch α → Set
+              (@0 rt : Type (x ◃ α)) : @0 Branch α con → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -151,15 +155,22 @@ data TyElim {α} Γ where
              (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
              {@0 ps : dataParameterScope dt ⇒ α}
              {@0 is : dataIndexScope dt ⇒ α}
-             (bs : Branches α)
+             (bs : Branches α (dataConstructorScope dt))
              (rt : Type (x ◃ α))
            → Γ ⊢ (unType c) ≅ (unType $ dataType d dp k ps is) ∶ (TSort k)
-           → List.All (λ b → TyBranch Γ dt ps rt b) bs
+           → TyBranches Γ dt ps rt bs
            → TyElim Γ (ECase bs) c rt
     -- TODO: proj
     -- TODO: case
 
 {-# COMPILE AGDA2HS TyElim #-}
+
+data TyBranches {α} Γ dt ps rt where
+  TyBsNil : TyBranches Γ dt ps rt BsNil
+  TyBsCons : ∀ {@0 b : Branch α con} {@0 bs : Branches α cons} 
+           → TyBranch Γ dt ps rt b 
+           → TyBranches Γ dt ps rt bs 
+           → TyBranches Γ dt ps rt (BsCons b bs)
 
 data TyBranch {α} Γ dt ps rt where
   TyBBranch : (@0 c : name) → (c∈dcons : c ∈ dataConstructorScope dt)
