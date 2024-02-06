@@ -2,6 +2,9 @@ open import Scope
 
 open import Haskell.Prelude hiding (All; s; t)
 open import Haskell.Extra.Dec using (ifDec)
+open import Haskell.Extra.Erase
+open import Haskell.Law.Equality
+open import Haskell.Law.Monoid
 
 open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Utils renaming (_,_ to _Σ,_)
@@ -12,8 +15,11 @@ open import Agda.Core.Syntax globals
 private open module @0 G = Globals globals
 
 private variable
-  @0 α β : Scope name
+  @0 α β γ : Scope name
 
+{- Telescopes are like contexts, mapping variables to types.
+   Unlike contexts, they aren't closed.
+   Telescope α β is like an extension of Context α with β.-}
 data Telescope (@0 α : Scope name) : @0 Scope name → Set where
   EmptyTel  : Telescope α mempty
   ExtendTel : (@0 x : name) → Type α → Telescope (x ◃ α) β  → Telescope α (x ◃ β)
@@ -86,3 +92,24 @@ getConstructor c cp d =
     (cpn Σ, con , _) ret → ifDec (decIn cp cpn) (λ where {{refl}} → Just con) Nothing
 
 {-# COMPILE AGDA2HS getConstructor #-}
+
+
+weakenTel : α ⊆ γ → Telescope α β → Telescope γ β
+weakenTel p EmptyTel = EmptyTel
+weakenTel p (ExtendTel x ty t) = ExtendTel x (weakenType p ty) (weakenTel (subBindKeep p) t)
+
+rezzTel : Telescope α β → Rezz _ β
+rezzTel EmptyTel = rezz _
+rezzTel (ExtendTel x ty t) = rezzCong (λ t → singleton x <> t) (rezzTel t)
+
+{-
+addTel : Telescope α β → Telescope ((revScope β) <> α) γ → Telescope α (β <> γ)
+addTel EmptyTel t =
+  subst0 (Telescope _)
+         (sym (leftIdentity _))
+         (subst0 (λ s → Telescope s _)
+                 (trans (cong (λ t → t <> _)
+                         revScopeMempty)
+                 (leftIdentity _))
+                 t)
+addTel (ExtendTel x ty s) t = {!!} -}
