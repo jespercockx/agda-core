@@ -11,3 +11,4 @@ MAlonzo
 lib
 dist-newstyle
 result
+.direnv
