@@ -123,8 +123,14 @@ convCons {α = α} ctx s f g p q lp lq = do
       (DatatypeDef df) ← return $ getDefinition sig d dp
         where
           _ → tcError "can't convert two constructors when their type isn't a datatype"
-      con ← liftMaybe (getConstructor f p df) "can't find a constructor with such a name"
-      csp ← convertSubsts ctx {!!} lp lq
+      con ← liftMaybe (getConstructor f p df)
+        "can't find a constructor with such a name"
+      params ← liftMaybe (traverse maybeArg els)
+        "not all arguments to the datatype are terms"
+      psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+        "couldn't construct a substitution for parameters"
+      let ctel = substTelescope psubst (conTelescope con)
+      csp ← convertSubsts ctx ctel lp lq
       return $ CCon p csp)
     (tcError "constructors not convertible")
 

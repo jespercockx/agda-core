@@ -155,6 +155,12 @@ applyElimView (TSort _) = refl
 applyElimView (TLet _ _ _) = refl
 applyElimView (TAnn _ _) = refl
 {-# COMPILE AGDA2HS applyElimView #-}
+
+maybeArg : Elim α → Maybe (Term α)
+maybeArg (EArg x) = Just x
+maybeArg _        = Nothing
+{-# COMPILE AGDA2HS maybeArg #-}
+
 lookupSubst : α ⇒ β
             → (@0 x : name)
             → x ∈ α
@@ -220,6 +226,11 @@ opaque
 
   singleSubst : Term β → [ x ] ⇒ β
   singleSubst v = SCons v SNil
+
+  listSubst : {@0 β : Scope name} → Rezz _ β → List (Term α) → Maybe (β ⇒ α)
+  listSubst (rezz []) l = Just SNil
+  listSubst (rezz (_ ∷ _)) [] = Nothing
+  listSubst (rezz (_ ∷ β)) (t ∷ l) = SCons t <$> listSubst (rezz β) l
 
   idSubst : {@0 β : Scope name} → Rezz _ β → β ⇒ β
   idSubst (rezz [])      = SNil
