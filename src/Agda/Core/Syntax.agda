@@ -43,6 +43,7 @@ data Subst : (@0 α β : Scope name) → Set where
   SCons : Term β → Subst α β → Subst (x ◃ α) β
 {-# COMPILE AGDA2HS Subst deriving Show #-}
 
+infix 5 Subst
 syntax Subst α β = α ⇒ β
 
 -- This should ideally be the following:
