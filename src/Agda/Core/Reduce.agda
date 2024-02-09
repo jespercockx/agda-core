@@ -10,6 +10,8 @@ open import Haskell.Prelude hiding (All; coerce; _,_,_; c) renaming (_,_ to infi
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Refinement
 open import Haskell.Extra.Erase
+open import Haskell.Law.Equality
+open import Haskell.Law.Monoid
 open import Utils.Either
 
 open import Agda.Core.Syntax globals
@@ -85,70 +87,64 @@ lookupBranch (BsCons (BBranch c' k' aty u) bs) c p =
 
 {-# COMPILE AGDA2HS lookupBranch #-}
 
-opaque
-  unfolding Scope
+rezzFromEnv : β ⇒ γ → Rezz _ β
+rezzFromEnv SNil = rezz _
+rezzFromEnv (SCons v vs) = rezzCong2 (λ (Erased x) α → x ◃ α) rezzErase (rezzFromEnv vs)
+{-# COMPILE AGDA2HS rezzFromEnv #-}
 
-  rezzFromEnv : β ⇒ γ → Rezz _ β
-  rezzFromEnv SNil = rezz _
-  rezzFromEnv (SCons v vs) = rezzCong2 _∷_ rezzErase (rezzFromEnv vs)
+-- TODO: make this into a where function once 
+-- https://github.com/agda/agda2hs/issues/264 is fixed.
+extendEnvironmentAux : Rezz _ β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
+extendEnvironmentAux r SNil e = subst0 (Environment _) (sym (leftIdentity _)) e
+extendEnvironmentAux r (SCons {α = α} {x = x} v vs) e =
+  let r' = rezzUnbind r
+  in  subst0 (Environment _) (associativity _ _ _)
+      (extendEnvironmentAux r' vs e , x ↦ raise r' v) --extendEnvironmentAux r' vs e , _ ↦ raise r' v
+{-# COMPILE AGDA2HS extendEnvironmentAux #-}
 
-  {-# COMPILE AGDA2HS rezzFromEnv #-}
+extendEnvironment : β ⇒ γ → Environment α γ → Environment α (β <> γ)
+extendEnvironment vs e = extendEnvironmentAux (rezzFromEnv vs) vs e
+{-# COMPILE AGDA2HS extendEnvironment #-}
 
-  -- TODO: make this into a where function once 
-  -- https://github.com/agda/agda2hs/issues/264 is fixed.
-  extendEnvironmentAux : Rezz _ β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
-  extendEnvironmentAux r SNil e = e
-  extendEnvironmentAux r (SCons {α = α} v vs) e =
-    let r' = rezzTail r
-    in  extendEnvironmentAux r' vs e , _ ↦ raise r' v
+lookupEnvironment : Environment α β → x ∈ β → Either (x ∈ α) (Term β)
+lookupEnvironment EnvNil      p = Left p
+lookupEnvironment (e , x ↦ v) p = inBindCase p
+  (λ _ → Right (raise (rezz _) v))
+  (λ p → mapRight (raise (rezz _)) (lookupEnvironment e p))
+{-# COMPILE AGDA2HS lookupEnvironment #-}
 
-  {-# COMPILE AGDA2HS extendEnvironmentAux #-}
-
-  extendEnvironment : β ⇒ γ → Environment α γ → Environment α (β <> γ)
-  extendEnvironment vs e = extendEnvironmentAux (rezzFromEnv vs) vs e
-
-  {-# COMPILE AGDA2HS extendEnvironment #-}
-
-  lookupEnvironment : Environment α β → x ∈ β → Either (x ∈ α) (Term β)
-  lookupEnvironment EnvNil      p = Left p
-  lookupEnvironment (e , x ↦ v) p = inBindCase p
-    (λ _ → Right (raise (rezz _) v))
-    (λ p → mapRight (raise (rezz _)) (lookupEnvironment e p))
-
-  {-# COMPILE AGDA2HS lookupEnvironment #-}
-
-  step : (sig : Signature) (s : State α) → Maybe (State α)
-  step sig (MkState e (TVar x p) s) = 
-    case lookupEnvironment e p of λ where
-      (Left _) → Nothing
-      (Right v) → Just (MkState e v s)
-  step sig (MkState e (TApp v w) s) = Just (MkState e v (w ∷ s))
-  step sig (MkState e (TLam x v) (EArg w ∷ s)) =
-    Just (MkState
-      (e , x ↦ w)
+step : (sig : Signature) (s : State α) → Maybe (State α)
+step sig (MkState e (TVar x p) s) = 
+  case lookupEnvironment e p of λ where
+    (Left _) → Nothing
+    (Right v) → Just (MkState e v s)
+step sig (MkState e (TApp v w) s) = Just (MkState e v (w ∷ s))
+step sig (MkState e (TLam x v) (EArg w ∷ s)) =
+  Just (MkState
+    (e , x ↦ w)
+    v
+    (weakenElims (subBindDrop subRefl) s))
+step sig (MkState e (TLet x v w) s) =
+  Just (MkState
+    (e , x ↦ v)
+    w
+    (weakenElims (subBindDrop subRefl) s))
+step sig (MkState e (TDef d q) s) = case getBody sig d q of λ where
+  (Just v) → Just (MkState e (weaken subEmpty v) s)
+  Nothing  → Nothing
+step sig (MkState e (TCon c q vs) (ECase bs ∷ s)) =
+  case lookupBranch bs c q of λ where
+    (Just (r , v)) → Just (MkState
+      (extendEnvironment (revSubst vs) e)
       v
-      (weakenElims (subRight (splitRefl (rezz _))) s))
-  step sig (MkState e (TLet x v w) s) =
-    Just (MkState
-      (e , x ↦ v)
-      w
-      (weakenElims (subRight (splitRefl (rezz _))) s))
-  step sig (MkState e (TDef d q) s) = case getBody sig d q of λ where
-    (Just v) → Just (MkState e (weaken subEmpty v) s)
+      (weakenElims (subJoinDrop (rezzCong revScope r) subRefl) s))
     Nothing  → Nothing
-  step sig (MkState e (TCon c q vs) (ECase bs ∷ s)) =
-    case lookupBranch bs c q of λ where
-      (Just (r , v)) → Just (MkState
-        (extendEnvironment (revSubst vs) e)
-        v
-        (weakenElims (subRight (splitRefl (rezzCong revScope r))) s))
-      Nothing  → Nothing
-  step sig (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
-  step sig (MkState e (TCon c q x) s) = Nothing
-  step sig (MkState e (TLam x v) s) = Nothing
-  step sig (MkState e (TPi x a b) s) = Nothing
-  step sig (MkState e (TSort n) s) = Nothing
-  step sig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
+step sig (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
+step sig (MkState e (TCon c q x) s) = Nothing
+step sig (MkState e (TLam x v) s) = Nothing
+step sig (MkState e (TPi x a b) s) = Nothing
+step sig (MkState e (TSort n) s) = Nothing
+step sig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
 
 {-# COMPILE AGDA2HS step #-}
 
