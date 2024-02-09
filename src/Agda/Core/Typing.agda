@@ -125,7 +125,7 @@ data TyTerm {α} Γ where
   TyAnn
     : Γ ⊢ u ∶ a
     ------------------
-    → Γ ⊢ TAnn u a ∶ sortType (typeSort a)
+    → Γ ⊢ TAnn u a ∶ a
 
   TyConv
     : Γ ⊢ u ∶ a
