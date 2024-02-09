@@ -295,11 +295,11 @@ opaque
   revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezzCong revScope r)))
 
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
-raise r = weaken (subRight (splitRefl r))
+raise r = weaken (subJoinDrop r subRefl)
 {-# COMPILE AGDA2HS raise #-}
 
 raiseType : {@0 α β : Scope name} → Rezz _ α → Type β → Type (α <> β)
-raiseType r = weakenType (subRight (splitRefl r))
+raiseType r = weakenType (subJoinDrop r subRefl)
 {-# COMPILE AGDA2HS raiseType #-}
 
 strengthen : α ⊆ β → Term β → Maybe (Term α)

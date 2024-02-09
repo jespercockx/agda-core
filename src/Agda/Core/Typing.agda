@@ -169,7 +169,7 @@ data TyBranch {α} Γ dt ps rt where
               {@0 rα : Rezz _ α}
               (rhs : Term (~ lookupAll fieldScope c∈cons <> α))
               (let ctel = substTelescope ps (conTelescope con)
-                   cargs = weakenSubst (subLeft (splitRefl (rezzCong revScope r)))
+                   cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
                                        (revIdSubst r)
                    idsubst = weakenSubst (subJoinDrop (rezzCong revScope r) subRefl)
                                          (idSubst rα)
