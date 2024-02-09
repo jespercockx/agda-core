@@ -47,22 +47,22 @@ sig = allEmpty
 
 open import Agda.Core.Reduce globals
 
+{-# TERMINATING #-}
+fuel : Fuel
+fuel = More fuel
+
 opaque
-  unfolding lookupAll inHere inThere splitRefl splitJoinRight subBindDrop subLeft
+  unfolding ScopeThings
 
   `true : Term α
   `true = TCon "true" (inHere) SNil
   `false : Term α
   `false = TCon "false" (inThere inHere) SNil
 
-{-# TERMINATING #-}
-fuel : Fuel
-fuel = More fuel
-
 module Tests (@0 x y z : name) where
 
   opaque
-    unfolding step inBindCase inSplitCase inJoinCase `true `false decIn ∅-⋈-injective
+    unfolding ScopeThings `true `false
 
     testTerm₁ : Term α
     testTerm₁ = apply (TLam x (TVar x inHere)) (TSort (STyp 0))
