@@ -10,7 +10,7 @@ private open module @0 G = Globals globals
 
 open import Haskell.Prelude hiding (All; coerce; a; b; c)
 open import Haskell.Law.Equality using (sym; subst0)
-open import Haskell.Law.Monoid.Def using (leftIdentity)
+open import Haskell.Law.Monoid.Def using (leftIdentity; rightIdentity)
 open import Haskell.Law.Semigroup.Def using (associativity)
 open import Haskell.Extra.Erase
 
@@ -225,49 +225,38 @@ weakenSubst p SNil = SNil
 weakenSubst p (SCons u e) = SCons (weaken p u) (weakenSubst p e)
 {-# COMPILE AGDA2HS weakenSubst #-}
 
+dropSubst : {@0 α β : Scope name} {@0 x : name} → (x ◃ α) ⇒ β → α ⇒ β
+dropSubst f = caseSubstBind f (λ _ g → g)
+{-# COMPILE AGDA2HS dropSubst #-}
+
+listSubst : {@0 β : Scope name} → Rezz _ β → List (Term α) → Maybe (β ⇒ α)
+listSubst (rezz β) [] = 
+  caseScope β 
+    (λ where {{refl}} → Just SNil) 
+    (λ _ _ → Nothing)
+listSubst (rezz β) (v ∷ vs) = 
+  caseScope β 
+    (λ where {{refl}} → Just SNil) 
+    (λ where x γ {{refl}} → SCons v <$> listSubst (rezzUnbind (rezz β)) vs)
+{-# COMPILE AGDA2HS listSubst #-}
+
+concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
+concatSubst SNil q = 
+  subst0 (λ α → Subst α _) (sym (leftIdentity _)) q
+concatSubst (SCons v p) q = 
+  subst0 (λ α → Subst α _) (associativity _ _ _) (SCons v (concatSubst p q))
+
 opaque
   unfolding Scope Sub
 
-  singleSubst : Term β → [ x ] ⇒ β
-  singleSubst v = SCons v SNil
-
-  listSubst : {@0 β : Scope name} → Rezz _ β → List (Term α) → Maybe (β ⇒ α)
-  listSubst (rezz []) l = Just SNil
-  listSubst (rezz (_ ∷ _)) [] = Nothing
-  listSubst (rezz (_ ∷ β)) (t ∷ l) = SCons t <$> listSubst (rezz β) l
-
-  idSubst : {@0 β : Scope name} → Rezz _ β → β ⇒ β
-  idSubst (rezz [])      = SNil
-  idSubst (rezz (x ∷ β)) = SCons (TVar (get x) inHere) (weakenSubst (subBindDrop subRefl) (idSubst (rezz β)))
-  {-# COMPILE AGDA2HS idSubst #-}
-
-  concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
-  concatSubst SNil q = q
-  concatSubst (SCons v p) q = SCons v (concatSubst p q)
-
-  liftSubst : {@0 α β γ : Scope name} → Rezz _ α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
-  liftSubst (rezz []) e = e
-  liftSubst (rezz (x ∷ α)) e =
-    SCons (TVar (get x) inHere)
-          (weakenSubst (subBindDrop subRefl) (liftSubst (rezz α) e))
-  {-# COMPILE AGDA2HS liftSubst #-}
-
-  liftBindSubst : {@0 α β : Scope name} {@0 x y : name} → α ⇒ β → (bind x α) ⇒ (bind y β)
-  liftBindSubst {y = y} e =
-    SCons (TVar y inHere)
-          (weakenSubst (subBindDrop subRefl) e)
-  {-# COMPILE AGDA2HS liftBindSubst #-}
-
-  coerceSubst : {@0 α β γ : Scope name} → Rezz _ α → α ⊆ β → β ⇒ γ → α ⇒ γ
-  coerceSubst (rezz []) p e = SNil
-  coerceSubst (rezz (x ∷ α)) p e =
-    SCons (lookupSubst e _ (bindSubToIn p))
-          (coerceSubst (rezz α) (joinSubRight (rezz [ get x ]) p) e)
-  {-# COMPILE AGDA2HS coerceSubst #-}
-
-  dropSubst : {@0 α β : Scope name} {@0 x : name} → (x ◃ α) ⇒ β → α ⇒ β
-  dropSubst (SCons x f) = f
-  {-# COMPILE AGDA2HS dropSubst #-}
+  subToSubst : Rezz _ α → α ⊆ β → α ⇒ β
+  subToSubst (rezz []) p = SNil
+  subToSubst (rezz (Erased x ∷ α)) p = 
+    SCons (TVar x (coerce p inHere)) 
+          (subToSubst (rezz α) (joinSubRight (rezz _) p))
+  
+opaque
+  unfolding Scope revScope
 
   revSubstAcc : {@0 α β γ : Scope name} → α ⇒ γ → β ⇒ γ → (revScopeAcc α β) ⇒ γ
   revSubstAcc SNil p = p
@@ -278,21 +267,30 @@ opaque
   revSubst = flip revSubstAcc SNil
   {-# COMPILE AGDA2HS revSubst #-}
 
-opaque
-  -- NOTE(flupe): I have to unfold Scope because otherwise the LawfulMonoid instance
-  -- isn't related to the Semigroup definition
-  unfolding Scope
+liftSubst : {@0 α β γ : Scope name} → Rezz _ α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
+liftSubst r f = 
+  concatSubst (subToSubst r (subJoinHere r subRefl)) 
+              (weakenSubst (subJoinDrop r subRefl) f)
+{-# COMPILE AGDA2HS liftSubst #-}
 
-  raiseSubst : {@0 α β : Scope name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
-  raiseSubst {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity β)) (idSubst r)
-  raiseSubst {β = β} r (SCons {α = α} u e) =
-    subst (λ α → α ⇒ β)
-      (associativity (singleton _) α β)
-      (SCons u (raiseSubst r e))
-  {-# COMPILE AGDA2HS raiseSubst #-}
+idSubst : {@0 β : Scope name} → Rezz _ β → β ⇒ β
+idSubst r = subst0 (λ β → Subst β β) (rightIdentity _) (liftSubst r SNil)
+{-# COMPILE AGDA2HS idSubst #-}
 
-  revIdSubst : {@0 α : Scope name} → Rezz _ α → α ⇒ ~ α
-  revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezzCong revScope r)))
+liftBindSubst : {@0 α β : Scope name} {@0 x y : name} → α ⇒ β → (bind x α) ⇒ (bind y β)
+liftBindSubst {y = y} e = SCons (TVar y inHere) (weakenSubst (subBindDrop subRefl) e)
+{-# COMPILE AGDA2HS liftBindSubst #-}
+
+raiseSubst : {@0 α β : Scope name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
+raiseSubst {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity β)) (idSubst r)
+raiseSubst {β = β} r (SCons {α = α} u e) =
+  subst (λ α → α ⇒ β)
+    (associativity (singleton _) α β)
+    (SCons u (raiseSubst r e))
+{-# COMPILE AGDA2HS raiseSubst #-}
+
+revIdSubst : {@0 α : Scope name} → Rezz _ α → α ⇒ ~ α
+revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezzCong revScope r)))
 
 raise : {@0 α β : Scope name} → Rezz _ α → Term β → Term (α <> β)
 raise r = weaken (subJoinDrop r subRefl)
