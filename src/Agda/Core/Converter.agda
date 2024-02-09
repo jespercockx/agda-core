@@ -205,14 +205,14 @@ convertElims ctx t u (EArg w) (EArg w') = do
 convertElims ctx s u w w' = tcError "not implemented yet"
 
 convertSubsts ctx tel SNil p = return CSNil
-convertSubsts ctx tel (SCons x st) p =
-  caseSubstBind (λ ss → TCM (ctx ⊢ (SCons x st) ⇔ ss)) p $ λ y pt →
-  caseTelBind _ tel $ λ a tel → do
-    let r = rezzScope ctx
-    hc ← convertCheck ctx (unType a) x y
-    tc ← convertSubsts ctx (substTelescope (SCons x (idSubst r)) tel) st pt
-    return $ CSCons hc tc
-
+convertSubsts ctx tel (SCons x st) p = 
+  caseSubstBind p λ where
+    y pt {{refl}} → caseTelBind tel λ a rest → do
+      let r = rezzScope ctx
+      hc ← convertCheck ctx (unType a) x y
+      tc ← convertSubsts ctx (substTelescope (SCons x (idSubst r)) rest) st pt
+      return (CSCons hc tc)
+    
 convertCheck ctx ty t q = do
   let r = rezzScope ctx
   fuel      ← tcmFuel

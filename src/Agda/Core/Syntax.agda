@@ -169,14 +169,17 @@ lookupSubst : α ⇒ β
 lookupSubst SNil x q = inEmptyCase q
 lookupSubst (SCons u f) x q = inBindCase q (λ _ → u) (lookupSubst f x)
 
+{-# COMPILE AGDA2HS lookupSubst #-}
+
 opaque
   unfolding Scope
-  caseSubstBind : (P : @0 Subst (bind x α) β → Set) → (s : Subst (bind x α) β)
-                → ((t : Term β) → (s : Subst α β) → P (SCons t s))
-                → P s
-  caseSubstBind P (SCons x s) f = f x s
 
-{-# COMPILE AGDA2HS lookupSubst #-}
+  caseSubstBind : (s : Subst (bind x α) β)
+                → ((t : Term β) → (s' : Subst α β) → @0 {{s ≡ SCons t s'}} → d)
+                → d
+  caseSubstBind (SCons x s) f = f x s
+
+  {-# COMPILE AGDA2HS caseSubstBind #-}
 
 weaken         : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
