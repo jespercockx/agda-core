@@ -15,6 +15,7 @@ open import Agda.Core.Syntax globals
 private open module @0 G = Globals globals
 
 private variable
+  @0 x : name
   @0 α β γ : Scope name
 
 {- Telescopes are like contexts, mapping variables to types.
@@ -28,12 +29,12 @@ data Telescope (@0 α : Scope name) : @0 Scope name → Set where
 
 opaque
   unfolding Scope
-  caseTelBind : {@0 x : name}
-                (P : @0 Telescope α (x ◃ β) → Set)
-                (tel : Telescope α (x ◃ β))
-              → ((a : Type α) (tel : Telescope (x ◃ α) β) → P (ExtendTel x a tel))
-              → P tel
-  caseTelBind P (ExtendTel _ a tel) f = f a tel
+  caseTelBind : (tel : Telescope α (x ◃ β))
+              → ((a : Type α) (rest : Telescope (x ◃ α) β) → @0 {{tel ≡ ExtendTel x a rest}} → d)
+              → d
+  caseTelBind (ExtendTel _ a tel) f = f a tel
+
+{-# COMPILE AGDA2HS caseTelBind #-}
 
 record Constructor (@0 pars : Scope name) (@0 ixs : Scope name) (@0 c : name) (@0 cp  : c ∈ conScope) : Set where
   field
