@@ -30,36 +30,40 @@ open import Haskell.Law.Equality
 open import Haskell.Extra.Erase
 
 private variable
+  @0 x : name
   @0 α : Scope name
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
+checkElim : ∀ (Γ : Context α) u e (ty : Type α) → TCM (Σ[ a ∈ Type α ] TyElim Γ u e ty a)
 
 inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
 inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
 
-inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
-inferApp ctx u (Syntax.EArg v) = do
+checkElim ctx u (Syntax.EArg v) ty = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
-
-  tu  , gtu ← inferType ctx u
-
-  (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r sig (unType tu) fuel
+  (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r sig (unType ty) fuel
     where _ → tcError "couldn't reduce term to a pi type"
 
   gtv ← checkType ctx v at
   let sf = piSort (typeSort at) (typeSort rt)
       gc = CRedL rtp CRefl
-      tytype = weakenType (subBindDrop subRefl) (substTopType r v rt)
-      tyapp = TyAppE {x = x} {r = r} gtu (TyArg {r = r} {w = x} gc gtv)
+      tytype = substTopType r v rt
   
-  return $ substTopType r u tytype , tyapp
+  return $ tytype , TyArg gc gtv
 
-inferApp ctx u (Syntax.EProj _ _) = tcError "not implemented"
-inferApp ctx u (Syntax.ECase bs)  = tcError "not implemented"
+checkElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
+checkElim ctx u (Syntax.ECase bs)  ty = tcError "not implemented"
+
+inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
+inferApp ctx u e = do
+  let r = rezzScope ctx
+  tu , gtu ← inferType ctx u
+  a  , gte ← checkElim ctx u e tu 
+  return $ a , TyAppE gtu gte
 
 inferPi
   : ∀ Γ (@0 x : name)

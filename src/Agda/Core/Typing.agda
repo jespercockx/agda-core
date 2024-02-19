@@ -52,8 +52,8 @@ constructorType d dp c cp con ds pars us =
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
--- TyElim Γ e t f means: if  Γ ⊢ u : t  then  Γ ⊢ appE u [ e ] : f (appE u)
-data TyElim  (@0 Γ : Context α) : @0 Elim α → @0 Type α → @0 Type (x ◃ α) → Set
+-- TyElim Γ u e t a means: if  Γ ⊢ u : t  then  Γ ⊢ appE u e : a
+data TyElim  (@0 Γ : Context α) : @0 Term α → @0 Elim α → @0 Type α → @0 Type α → Set
 
 data TySubst (@0 Γ : Context α) : (β ⇒ α) → @0 Telescope α β → Set
 
@@ -98,12 +98,11 @@ data TyTerm {α} Γ where
     → Γ ⊢ TLam x u ∶ El k (TPi y a b)
 
   TyAppE
-    : {@0 r : Rezz _ α}
-      {b : Type (x ◃ α)}
+    : {b : Type α}
     → Γ ⊢ u ∶ a
-    → TyElim Γ e a b
+    → TyElim Γ u e a b
     ------------------------------------
-    → Γ ⊢ TApp u e ∶ (substTopType r u b)
+    → Γ ⊢ TApp u e ∶ b
 
   TyPi
     : Γ ⊢ u ∶ sortType k
@@ -137,12 +136,11 @@ data TyTerm {α} Γ where
 
 data TyElim {α} Γ where
     TyArg : {@0 r : Rezz _ α}
-            {@0 w : name}
           → Γ ⊢ (unType c) ≅ TPi x a b
-          → Γ ⊢ u ∶ a
-          → TyElim Γ (EArg u) c (weakenType {β = w ◃ α} (subBindDrop subRefl) (substTopType r u b))
-    --TODO: ensure coverage of branches for all constructors and their consistent ordering
-    TyCase : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
+          → Γ ⊢ v ∶ a
+          → TyElim Γ u (EArg v) c (substTopType r v b)
+    TyCase : {@0 r : Rezz _ α}
+             {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
              (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
              {@0 ps : dataParameterScope dt ⇒ α}
              {@0 is : dataIndexScope dt ⇒ α}
@@ -150,7 +148,7 @@ data TyElim {α} Γ where
              (rt : Type (x ◃ α))
            → Γ ⊢ (unType c) ≅ (unType $ dataType d dp k ps is)
            → TyBranches Γ dt ps rt bs
-           → TyElim Γ (ECase bs) c rt
+           → TyElim Γ u (ECase bs) c (substTopType r u rt)
     -- TODO: proj
 
 {-# COMPILE AGDA2HS TyElim #-}
