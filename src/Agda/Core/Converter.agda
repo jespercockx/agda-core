@@ -89,17 +89,18 @@ convSortsI ctx (STyp u) (STyp u') =
     (λ where {{refl}} → return $ (TSort $ sucSort $ STyp u) Σ, CRefl)
     (tcError "can't convert two different sorts")
 
-{-# TERMINATING #-}
-convertCheck : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
-convertInfer : ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q))
-convertElims : ∀ Γ
-                 (s : Term α)
-                 (u : Term α)
-                 (v v' : Elim α)
+convertCheck : Fuel → ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
+convertInfer : Fuel → ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q))
+convertElims : Fuel
+             → ∀ Γ
+                (s : Term α)
+                (u : Term α)
+                (v v' : Elim α)
              → TCM (Σ ((Elim α → Term α) → Term α) (λ f → Γ ⊢ v ≃ v'))
-convertSubsts : ∀ {@0 α β} Γ → (ty : Telescope α β) → (s p : β ⇒ α) → TCM (Γ ⊢ s ⇔ p)
+convertSubsts : ∀ (_ : Fuel) {@0 α β} Γ → (ty : Telescope α β) → (s p : β ⇒ α) → TCM (Γ ⊢ s ⇔ p)
 
-convCons : ∀ Γ
+convCons : Fuel →
+           ∀ Γ
            (s : Term α)
            (@0 f g : name)
            (p : f ∈ conScope)
@@ -107,7 +108,7 @@ convCons : ∀ Γ
            (lp : lookupAll fieldScope p ⇒ α)
            (lq : lookupAll fieldScope q ⇒ α)
          → TCM (Conv {α = α} Γ (TCon f p lp) (TCon g q lq))
-convCons {α = α} ctx s f g p q lp lq = do
+convCons {α = α} fl ctx s f g p q lp lq = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -130,20 +131,21 @@ convCons {α = α} ctx s f g p q lp lq = do
       psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
         "couldn't construct a substitution for parameters"
       let ctel = substTelescope psubst (conTelescope con)
-      csp ← convertSubsts ctx ctel lp lq
+      csp ← convertSubsts fl ctx ctel lp lq
       return $ CCon p csp)
     (tcError "constructors not convertible")
 
-convLams : ∀ Γ
+convLams : Fuel
+         → ∀ Γ
            (s : Term α)
            (@0 x y : name)
            (u : Term (x ◃ α))
            (v : Term (y ◃ α))
          → TCM (Conv {α = α} Γ (TLam x u) (TLam y v))
-convLams ctx (TPi z a b) x y u v = do
+convLams fl ctx (TPi z a b) x y u v = do
   let r = rezzScope ctx
-  CLam <$> convertCheck (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
-convLams ctx ty x y u v = do
+  CLam <$> convertCheck fl (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
+convLams fl ctx ty x y u v = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -151,30 +153,32 @@ convLams ctx ty x y u v = do
   (TPi z a b) ⟨ rp ⟩  ← reduceTo r sig ty fuel
     where
       _ → tcError "can't convert two terms when the type doesn't reduce to a Pi"
-  CLam <$> convertCheck (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
+  CLam <$> convertCheck fl (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
 
-convAppsI : ∀ Γ
+convAppsI : Fuel
+          → ∀ Γ
             (u u' : Term α)
             (w w' : Elim α)
           → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TApp u w) (TApp u' w')))
-convAppsI ctx u u' w w' = do
-  su Σ, cu ← convertInfer ctx u u'
-  f Σ, cv  ← convertElims ctx su u w w'
+convAppsI fl ctx u u' w w' = do
+  su Σ, cu ← convertInfer fl ctx u u'
+  f Σ, cv  ← convertElims fl ctx su u w w'
   return $ (f $ TApp u) Σ, CApp cu cv
 
-convPis : ∀ Γ
+convPis : Fuel
+        → ∀ Γ
           (s : Term α)
           (@0 x y : name)
           (u u' : Type α)
           (v  : Type (x ◃ α))
           (v' : Type (y ◃ α))
         → TCM (Conv {α = α} Γ (TPi x u v) (TPi y u' v'))
-convPis ctx (TSort s) x y u u' v v' = do
+convPis fl ctx (TSort s) x y u u' v v' = do
   let r = rezzScope ctx
 
-  CPi <$> convertCheck ctx (TSort $ typeSort u) (unType u) (unType u')
-      <*> convertCheck (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
-convPis ctx t x y u u' v v' = do
+  CPi <$> convertCheck fl ctx (TSort $ typeSort u) (unType u) (unType u')
+      <*> convertCheck fl (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
+convPis fl ctx t x y u u' v v' = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -182,16 +186,16 @@ convPis ctx t x y u u' v v' = do
   (TSort s) ⟨ rp ⟩  ← reduceTo r sig t fuel
     where
       _ → tcError "can't convert two terms when the type does not reduce to a sort"
-  cu ← convertCheck ctx (TSort $ typeSort u) (unType u) (unType u')
-  cv ← convertCheck (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
+  cu ← convertCheck fl ctx (TSort $ typeSort u) (unType u) (unType u')
+  cv ← convertCheck fl (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
   return $ CPi cu cv
 
-convertElims ctx (TPi x a b) u (EArg w) (EArg w') = do
+convertElims fl ctx (TPi x a b) u (EArg w) (EArg w') = do
   let r = rezzScope ctx
       ksort = piSort (typeSort a) (typeSort b)
-  cw ← convertCheck ctx (unType a) w w'
+  cw ← convertCheck fl ctx (unType a) w w'
   return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
-convertElims ctx t u (EArg w) (EArg w') = do
+convertElims fl ctx t           u (EArg w) (EArg w') = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -200,20 +204,20 @@ convertElims ctx t u (EArg w) (EArg w') = do
     where
       _ → tcError "can't convert two terms when the type does not reduce to a Pi type"
   let ksort = piSort (typeSort a) (typeSort b)
-  cw ← convertCheck ctx (unType a) w w'
+  cw ← convertCheck fl ctx (unType a) w w'
   return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
-convertElims ctx s u w w' = tcError "not implemented yet"
+convertElims fl ctx s u w w' = tcError "not implemented yet"
 
-convertSubsts ctx tel SNil p = return CSNil
-convertSubsts ctx tel (SCons x st) p = 
+convertSubsts fl ctx tel SNil p = return CSNil
+convertSubsts fl ctx tel (SCons x st) p = 
   caseSubstBind p λ where
     y pt {{refl}} → caseTelBind tel λ a rest → do
       let r = rezzScope ctx
-      hc ← convertCheck ctx (unType a) x y
-      tc ← convertSubsts ctx (substTelescope (SCons x (idSubst r)) rest) st pt
+      hc ← convertCheck fl ctx (unType a) x y
+      tc ← convertSubsts fl ctx (substTelescope (SCons x (idSubst r)) rest) st pt
       return (CSCons hc tc)
     
-convertCheck ctx ty t q = do
+convertCheck fl ctx ty t q = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -229,22 +233,22 @@ convertCheck ctx ty t q = do
       CRedL rpg <$> CRedR rpc <$> convDefs ctx ty x y p q
     --for cons
     (TCon c p lc ⟨ rpg  ⟩ , TCon d q ld ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convCons ctx ty c d p q lc ld
+      CRedL rpg <$> CRedR rpc <$> convCons fl ctx ty c d p q lc ld
     --for lambda
     (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convLams ctx ty x y u v
+      CRedL rpg <$> CRedR rpc <$> convLams fl ctx ty x y u v
     --for app
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) → do
-      snd <$> map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI ctx u v e f
+      snd <$> map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI fl ctx u v e f
     --for pi
     (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) → 
-      CRedL rpg <$> CRedR rpc <$> convPis ctx ty x y tu tw tv tz
+      CRedL rpg <$> CRedR rpc <$> convPis fl ctx ty x y tu tw tv tz
     --for sort
     (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convSorts ctx ty s t
     _ → tcError "sorry"
 
-convertInfer ctx t q = do
+convertInfer fl ctx t q = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -260,21 +264,21 @@ convertInfer ctx t q = do
       map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convDefsI ctx x y p q
     --for cons
     (TCon c p lc ⟨ rpg  ⟩ , TCon d q ld ⟨ rpc ⟩) →
-      tcError "non implemented yet"
+      tcError "not implemented yet"
     --for lambda
     (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
       tcError "non inferrable"
     --for app
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) →
-      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI ctx u v e f
+      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI fl ctx u v e f
     --for pi
     (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
-      tcError "non implemented yet"
+      tcError "not implemented yet"
     --for sort
     (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
       map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convSortsI ctx s t
     _ → tcError "sorry"
 
 
-convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
+convert : ∀ (_ : Fuel) Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
 convert = convertCheck
