@@ -176,7 +176,7 @@ data TyBranch {α} Γ dt ps rt where
             → TyBranch Γ dt ps rt (BBranch c c∈cons r rhs)
 
 data TySubst {α} Γ where
-  TyNil  : TySubst Γ SNil EmptyTel
+  TyNil  : TySubst Γ SNil tel
   TyCons : {@0 r : Rezz _ α}
          → TyTerm Γ u a
          → TySubst Γ us (substTelescope (SCons u (idSubst r)) tel)
