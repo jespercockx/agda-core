@@ -173,3 +173,10 @@ ReducesTo {α = α} sig v w = Σ0[ r ∈ Rezz _ α ] ∃[ f ∈ Fuel ] reduce r 
 
 {-# COMPILE AGDA2HS ReducesTo #-}
 
+reduceElimView : ∀ sig (s : Term α)
+               → ∃[ t ∈ Term α ]                   ReducesTo sig s t
+               → ∃[ (t , els) ∈ Term α × Elims α ] ReducesTo sig s (applyElims t els)
+reduceElimView sig s (v ⟨ p ⟩) =
+  (elimView v) ⟨ subst0 (λ t → ReducesTo sig s t) (sym $ applyElimView v) p ⟩
+
+{-# COMPILE AGDA2HS reduceElimView #-}
