@@ -170,3 +170,11 @@ reduceClosed = reduce (rezz _)
 
 ReducesTo : (sig : Signature) (v w : Term α) → Set
 ReducesTo {α = α} sig v w = Σ0[ r ∈ Rezz _ α ] ∃[ f ∈ Fuel ] reduce r sig v f ≡ Just w
+
+reduceElimView : ∀ sig (s : Term α)
+               → ∃[ t ∈ Term α ]                   ReducesTo sig s t
+               → ∃[ (t , els) ∈ Term α × Elims α ] ReducesTo sig s (applyElims t els)
+reduceElimView sig s (v ⟨ p ⟩) =
+  (elimView v) ⟨ subst0 (λ t → ReducesTo sig s t) (sym $ applyElimView v) p ⟩
+
+{-# COMPILE AGDA2HS reduceElimView #-}
