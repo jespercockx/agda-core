@@ -108,7 +108,9 @@ convCons : Fuel →
            (lp : lookupAll fieldScope p ⇒ α)
            (lq : lookupAll fieldScope q ⇒ α)
          → TCM (Conv {α = α} Γ (TCon f p lp) (TCon g q lq))
-convCons {α = α} fl ctx s f g p q lp lq = do
+convCons         None      ctx s f g p q lp lq =
+  tcError "not enough fuel to convert two constructors"
+convCons {α = α} (More fl) ctx s f g p q lp lq = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -142,10 +144,12 @@ convLams : Fuel
            (u : Term (x ◃ α))
            (v : Term (y ◃ α))
          → TCM (Conv {α = α} Γ (TLam x u) (TLam y v))
-convLams fl ctx (TPi z a b) x y u v = do
+convLams None      ctx  ty         x y u v =
+  tcError "can't convert two lambdas when the type isn't a Pi"
+convLams (More fl) ctx (TPi z a b) x y u v = do
   let r = rezzScope ctx
   CLam <$> convertCheck fl (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
-convLams fl ctx ty x y u v = do
+convLams (More fl) ctx  ty         x y u v = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -160,7 +164,9 @@ convAppsI : Fuel
             (u u' : Term α)
             (w w' : Elim α)
           → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TApp u w) (TApp u' w')))
-convAppsI fl ctx u u' w w' = do
+convAppsI None      ctx u u' w w' =
+  tcError "not enough fuel to check conversion of Apps"
+convAppsI (More fl) ctx u u' w w' = do
   su Σ, cu ← convertInfer fl ctx u u'
   f Σ, cv  ← convertElims fl ctx su u w w'
   return $ (f $ TApp u) Σ, CApp cu cv
@@ -173,12 +179,14 @@ convPis : Fuel
           (v  : Type (x ◃ α))
           (v' : Type (y ◃ α))
         → TCM (Conv {α = α} Γ (TPi x u v) (TPi y u' v'))
-convPis fl ctx (TSort s) x y u u' v v' = do
+convPis None      ctx t         x y u u' v v' =
+  tcError "not enough fuel to check conversion of Pis"
+convPis (More fl) ctx (TSort s) x y u u' v v' = do
   let r = rezzScope ctx
 
   CPi <$> convertCheck fl ctx (TSort $ typeSort u) (unType u) (unType u')
       <*> convertCheck fl (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
-convPis fl ctx t x y u u' v v' = do
+convPis (More fl) ctx  t        x y u u' v v' = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -280,5 +288,7 @@ convertInfer fl ctx t q = do
     _ → tcError "sorry"
 
 
-convert : ∀ (_ : Fuel) Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
-convert = convertCheck
+convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
+convert ctx ty t q = do
+  fl ← tcmFuel
+  convertCheck fl ctx ty t q
