@@ -92,6 +92,36 @@ inferDef ctx f p = do
   rezz sig ← tcmSignature
   return $ weakenType subEmpty (getType sig f p) , TyDef p
 
+checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
+checkSubst ctx t s = ?
+
+checkCon : ∀ Γ
+           (@0 c : name)
+           (ccs : c ∈ conScope)
+           (lc : lookupAll fieldScope ccs ⇒ α)
+           (ty : Type α)
+         → TCM (Γ ⊢ TCon c ccs lc ∶ ty)
+checkCon ctx c ccs lc (El s ty) = do
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig ty fuel
+    where
+      _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
+  (DatatypeDef df) ← return $ getDefinition sig d dp
+    where
+      _ → tcError "can't convert two constructors when their type isn't a datatype"
+  con ← liftMaybe (getConstructor c ccs df)
+    "can't find a constructor with such a name"
+  params ← liftMaybe (traverse maybeArg els)
+    "not all arguments to the datatype are terms"
+  psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+    "couldn't construct a substitution for parameters"
+  let ctel = substTelescope psubst (conTelescope con)
+  tySubst ← checkSubst ctx ctel lc
+  let ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst lc
+  checkCoerce ctx (TCon c ccs lc) (ctype , {!TyCon dp df ? ? ? tySubst!}) (El s ty)
+
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
               (ty : Type α)
@@ -128,7 +158,7 @@ checkType ctx (TVar x p) ty = do
 checkType ctx (TDef d p) ty = do
   tdef ← inferDef ctx d p
   checkCoerce ctx (TDef d p) tdef ty
-checkType ctx (TCon c p x) ty = tcError "not implemented yet"
+checkType ctx (TCon c p x) ty = checkCon ctx c p x ty
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
 checkType ctx (TApp u e) ty = do
   tapp ← inferApp ctx u e
