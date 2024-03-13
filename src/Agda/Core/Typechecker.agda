@@ -34,6 +34,13 @@ private variable
   @0 x : name
   @0 α : Scope name
 
+checkCoerce : ∀ Γ (t : Term α)
+            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
+            → (cty : Type α)
+            → TCM (Γ ⊢ t ∶ cty)
+checkCoerce ctx t (gty , dgty) cty =
+  TyConv dgty <$> convert ctx (TSort $ typeSort gty) (unType gty) (unType cty)
+
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
@@ -115,13 +122,6 @@ checkLet ctx x u v ty = do
   dtv       ← checkType (ctx , x ∶ tu) v (weakenType (subWeaken subRefl) ty)
   return $ TyLet {r = rezzScope ctx} dtu dtv
 
-
-checkCoerce : ∀ Γ (t : Term α)
-            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
-            → (cty : Type α)
-            → TCM (Γ ⊢ t ∶ cty)
-checkCoerce ctx t (gty , dgty) cty =
-  TyConv dgty <$> convert ctx (TSort $ typeSort gty) (unType gty) (unType cty)
 
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
