@@ -27,6 +27,7 @@ open import Agda.Core.Converter globals sig
 open import Agda.Core.Utils
 
 open import Haskell.Law.Equality
+open import Haskell.Law.Monoid
 open import Haskell.Extra.Erase
 
 private variable
@@ -93,7 +94,18 @@ inferDef ctx f p = do
   return $ weakenType subEmpty (getType sig f p) , TyDef p
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
-checkSubst ctx t s = ?
+checkSubst ctx t SNil = return TyNil
+checkSubst ctx t (SCons x s) =
+  caseTelBind t λ where ty rest ⦃ refl ⦄ → do
+    tyx ← checkType ctx x ty
+    let
+      r = rezzScope ctx
+      sstel = subst0 (λ (@0 β) → Subst β β)
+                (IsLawfulMonoid.rightIdentity iLawfulMonoidScope _)
+                (concatSubst (subToSubst r (subJoinHere _ subRefl)) SNil)
+      stel = substTelescope (SCons x sstel) rest
+    tyrest ← checkSubst ctx stel s
+    return (TyCons tyx tyrest)
 
 checkCon : ∀ Γ
            (@0 c : name)
