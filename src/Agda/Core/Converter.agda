@@ -97,7 +97,11 @@ convertElims : Fuel
                 (u : Term α)
                 (v v' : Elim α)
              → TCM (Σ ((Elim α → Term α) → Term α) (λ f → Γ ⊢ v ≃ v'))
-convertSubsts : ∀ (_ : Fuel) {@0 α β} Γ → (ty : Telescope α β) → (s p : β ⇒ α) → TCM (Γ ⊢ s ⇔ p)
+convertSubsts : Fuel
+              → ∀ {@0 α β} Γ
+                  (ty : Telescope α β)
+                  (s p : β ⇒ α)
+              → TCM (Γ ⊢ s ⇔ p)
 
 convCons : Fuel →
            ∀ Γ
