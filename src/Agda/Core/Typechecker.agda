@@ -94,7 +94,8 @@ inferDef ctx f p = do
   return $ weakenType subEmpty (getType sig f p) , TyDef p
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
-checkSubst ctx t SNil = return TyNil
+checkSubst ctx t SNil =
+  caseTelEmpty t λ where ⦃ refl ⦄ → return TyNil
 checkSubst ctx t (SCons x s) =
   caseTelBind t λ where ty rest ⦃ refl ⦄ → do
     tyx ← checkType ctx x ty
