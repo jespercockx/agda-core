@@ -94,7 +94,8 @@ getBody sig x p = case getDefinition sig x p of λ where
 
 {-# COMPILE AGDA2HS getBody #-}
 
-getConstructor : (@0 c : name) (cp : c ∈ conScope) (d : Datatype) → Maybe (Constructor (dataParameterScope d) (dataIndexScope d) c cp)
+getConstructor : (@0 c : name) (cp : c ∈ conScope) (d : Datatype)
+               → Maybe (Constructor (dataParameterScope d) (dataIndexScope d) c cp)
 getConstructor c cp d =
   findAll (allIn $ dataConstructors d) dec
   where
