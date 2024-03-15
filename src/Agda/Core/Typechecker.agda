@@ -26,9 +26,11 @@ open import Agda.Core.TCM globals sig
 open import Agda.Core.Converter globals sig
 open import Agda.Core.Utils
 
+open import Haskell.Extra.Dec
+open import Haskell.Extra.Erase
 open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
-open import Haskell.Extra.Erase
+
 
 private variable
   @0 x : name
@@ -111,10 +113,10 @@ checkSubst ctx t (SCons x s) =
 checkCon : ∀ Γ
            (@0 c : name)
            (ccs : c ∈ conScope)
-           (lc : lookupAll fieldScope ccs ⇒ α)
+           (cargs : lookupAll fieldScope ccs ⇒ α)
            (ty : Type α)
-         → TCM (Γ ⊢ TCon c ccs lc ∶ ty)
-checkCon ctx c ccs lc (El s ty) = do
+         → TCM (Γ ⊢ TCon c ccs cargs ∶ ty)
+checkCon ctx c ccs cargs (El s ty) = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -131,9 +133,19 @@ checkCon ctx c ccs lc (El s ty) = do
   psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
     "couldn't construct a substitution for parameters"
   let ctel = substTelescope psubst (conTelescope con)
-  tySubst ← checkSubst ctx ctel lc
-  let ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst lc
-  checkCoerce ctx (TCon c ccs lc) (ctype , {!TyCon dp df ? ? ? tySubst!}) (El s ty)
+  tySubst ← checkSubst ctx ctel cargs
+  let cid : c ∈ (dataConstructorScope df)
+      cid = {!!}
+      lcs = lookupAll (dataConstructors df) cid
+      didp : getDefinition sig d dp ≡ DatatypeDef df
+      didp = {!!}
+      ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
+  ifDec (decIn (fst lcs) ccs)
+    (λ where ⦃ ep ⦄ → do
+      let tycon = TyCon dp df cid didp {!tySubst!}
+      checkCoerce ctx (TCon c ccs cargs) (ctype , {!tycon!}) (El s ty))
+    (tcError "Two constructors have the same name but different indices")
+  
 
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
