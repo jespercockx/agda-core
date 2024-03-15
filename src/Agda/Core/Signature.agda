@@ -29,10 +29,17 @@ data Telescope (@0 α : Scope name) : @0 Scope name → Set where
 
 opaque
   unfolding Scope
+
+  caseTelEmpty : (tel : Telescope α mempty)
+               → (@0 {{tel ≡ EmptyTel}} → d)
+               → d
+  caseTelEmpty EmptyTel f = f
+
   caseTelBind : (tel : Telescope α (x ◃ β))
               → ((a : Type α) (rest : Telescope (x ◃ α) β) → @0 {{tel ≡ ExtendTel x a rest}} → d)
               → d
   caseTelBind (ExtendTel _ a tel) f = f a tel
+
 
 {-# COMPILE AGDA2HS caseTelBind #-}
 
