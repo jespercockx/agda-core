@@ -126,8 +126,9 @@ convCons {α = α} (More fl) ctx s f g p q lp lq = do
       (DatatypeDef df) ← return $ getDefinition sig d dp
         where
           _ → tcError "can't convert two constructors when their type isn't a datatype"
-      con ← liftMaybe (getConstructor f p df)
+      cdi ⟨ refl ⟩ ← liftMaybe (getConstructor f p df)
         "can't find a constructor with such a name"
+      let (_ Σ, con) = lookupAll (dataConstructors df) cdi
       params ← liftMaybe (traverse maybeArg els)
         "not all arguments to the datatype are terms"
       psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
