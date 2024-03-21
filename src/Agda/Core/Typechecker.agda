@@ -123,7 +123,7 @@ checkCon ctx c ccs cargs (El s ty) = do
   (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig ty fuel
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
-  (DatatypeDef df) ← return $ getDefinition sig d dp
+  (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
     where
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   con ← liftMaybe (getConstructor c ccs df)
@@ -142,7 +142,7 @@ checkCon ctx c ccs cargs (El s ty) = do
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
   ifDec (decIn (fst lcs) ccs)
     (λ where ⦃ ep ⦄ → do
-      let tycon = TyCon dp df cid didp {!tySubst!}
+      let tycon = TyCon dp df cid dep {!tySubst!}
       checkCoerce ctx (TCon c ccs cargs) (ctype , {!tycon!}) (El s ty))
     (tcError "Two constructors have the same name but different indices")
   
