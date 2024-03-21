@@ -95,21 +95,24 @@ getBody sig x p = case getDefinition sig x p of λ where
 {-# COMPILE AGDA2HS getBody #-}
 
 getConstructor : (@0 c : name) (cp : c ∈ conScope) (d : Datatype)
-               → Maybe (Constructor (dataParameterScope d) (dataIndexScope d) c cp)
-getConstructor c cp d =
-  findAll (allIn $ dataConstructors d) dec
+               → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
+                         fst (lookupAll (dataConstructors d) cd) ≡ cp)
+getConstructor c cp d = findAll (allLookup (dataConstructors d)) dec
   where
     -- can't have a lambda take two arguments for agda2hs, so here's a local def
     dec : {@0 el : name}
-        → Σ (el ∈ conScope)
-            (Constructor (dataParameterScope d) (dataIndexScope d) el)
-            × In el (dataConstructorScope d)
-        → el ∈ (dataConstructorScope d)
-        → Maybe (Constructor (dataParameterScope d) (dataIndexScope d) c cp)
-    dec (cpn Σ, con , _) ret = ifDec (decIn cp cpn) (λ where {{refl}} → Just con) Nothing
+        → ∃ (el ∈ (dataConstructorScope d) × _)
+            (λ where (i , pi) → lookupAll (dataConstructors d) i ≡ pi)
+        → _
+        → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
+                  fst (lookupAll (dataConstructors d) cd) ≡ cp)
+    dec ((i , (ci Σ, con)) ⟨ ep ⟩) _ =
+      ifDec (decIn cp ci)
+            (λ where
+              {{refl}} → Just (i ⟨ subst0 (λ (cci Σ, ccon) → fst (lookupAll (dataConstructors d) i) ≡ cci) ep refl ⟩))
+            Nothing
 
 {-# COMPILE AGDA2HS getConstructor #-}
-
 
 weakenTel : α ⊆ γ → Telescope α β → Telescope γ β
 weakenTel p EmptyTel = EmptyTel
