@@ -127,25 +127,17 @@ checkCon ctx c ccs cargs (El s ty) = do
   (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
     where
       _ → tcError "can't convert two constructors when their type isn't a datatype"
-  con ← liftMaybe (getConstructor c ccs df)
+  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs df)
     "can't find a constructor with such a name"
   params ← liftMaybe (traverse maybeArg els)
     "not all arguments to the datatype are terms"
   psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
     "couldn't construct a substitution for parameters"
-  let ctel = substTelescope psubst (conTelescope con)
-  tySubst ← checkSubst ctx ctel cargs
-  let cid : c ∈ (dataConstructorScope df)
-      cid = {!!}
-      lcs = lookupAll (dataConstructors df) cid
-      didp : getDefinition sig d dp ≡ DatatypeDef df
-      didp = {!!}
+  let con = snd (lookupAll (dataConstructors df) cid)
+      ctel = substTelescope psubst (conTelescope con)
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
-  ifDec (decIn (fst lcs) ccs)
-    (λ where ⦃ ep ⦄ → do
-      let tycon = TyCon dp df cid dep {!tySubst!}
-      checkCoerce ctx (TCon c ccs cargs) (ctype , {!tycon!}) (El s ty))
-    (tcError "Two constructors have the same name but different indices")
+  tySubst ← checkSubst ctx ctel cargs
+  checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
   
 
 checkLambda : ∀ Γ (@0 x : name)
