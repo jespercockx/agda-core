@@ -117,8 +117,8 @@ data ConvBranch {α} Γ where
 data ConvSubst {α} Γ where
   CSNil : ConvSubst Γ {β = mempty} us vs
   CSCons : {@0 x : name} 
-         → Conv Γ u v
-         → ConvSubst Γ us vs
-         → ConvSubst Γ (SCons {x = x} u us) (SCons {x = x} v vs)
+         → Γ ⊢ u ≅ v
+         → Γ ⊢ us ⇔ vs
+         → Γ ⊢ (SCons {x = x} u us) ⇔ (SCons {x = x} v vs)
 
 {-# COMPILE AGDA2HS ConvSubst #-}
