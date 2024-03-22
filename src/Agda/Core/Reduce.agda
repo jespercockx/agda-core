@@ -170,6 +170,3 @@ reduceClosed = reduce (rezz _)
 
 ReducesTo : (sig : Signature) (v w : Term α) → Set
 ReducesTo {α = α} sig v w = Σ0[ r ∈ Rezz _ α ] ∃[ f ∈ Fuel ] reduce r sig v f ≡ Just w
-
-{-# COMPILE AGDA2HS ReducesTo #-}
-

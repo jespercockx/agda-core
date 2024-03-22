@@ -140,7 +140,6 @@ elimView u = (u , [])
 applyElimsComp : (t : Term α) → (el1 el2 : Elims α) → applyElims t (el1 ++ el2) ≡ applyElims (applyElims t el1) el2
 applyElimsComp t [] el2 = refl
 applyElimsComp t (x ∷ el1) el2 = applyElimsComp (TApp t x) el1 el2
-{-# COMPILE AGDA2HS applyElimsComp #-}
 
 applyElimView : (t : Term α) → (uncurry applyElims) (elimView t) ≡ t
 applyElimView (TApp t es)
@@ -155,7 +154,6 @@ applyElimView (TPi _ _ _) = refl
 applyElimView (TSort _) = refl
 applyElimView (TLet _ _ _) = refl
 applyElimView (TAnn _ _) = refl
-{-# COMPILE AGDA2HS applyElimView #-}
 
 maybeArg : Elim α → Maybe (Term α)
 maybeArg (EArg x) = Just x
