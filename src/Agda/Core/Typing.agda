@@ -55,7 +55,7 @@ data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 -- TyElim Γ u e t a means: if  Γ ⊢ u : t  then  Γ ⊢ appE u e : a
 data TyElim  (@0 Γ : Context α) : @0 Term α → @0 Elim α → @0 Type α → @0 Type α → Set
 
-data TySubst (@0 Γ : Context α) : (β ⇒ α) → @0 Telescope α β → Set
+data TySubst (@0 Γ : Context α) : @0 (β ⇒ α) → @0 Telescope α β → Set
 
 data TyBranches (@0 Γ : Context α) (@0 dt : Datatype)
                 (@0 ps : dataParameterScope dt ⇒ α)
