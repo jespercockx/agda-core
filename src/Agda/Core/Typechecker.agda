@@ -23,6 +23,7 @@ open import Agda.Core.Typing globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.Substitute globals
 open import Agda.Core.TCM globals sig
+open import Agda.Core.TCMInstances
 open import Agda.Core.Converter globals sig
 open import Agda.Core.Utils
 

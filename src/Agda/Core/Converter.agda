@@ -20,6 +20,7 @@ open import Agda.Core.Context globals
 open import Agda.Core.Conversion globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.TCM globals sig
+open import Agda.Core.TCMInstances
 open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
 open import Haskell.Extra.Erase
@@ -29,6 +30,16 @@ open import Haskell.Law.Equality
 
 private variable
   @0 α : Scope name
+
+
+reduceTo : {@0 α : Scope name} (r : Rezz _ α) (sig : Signature) (v : Term α) (f : Fuel)
+         → TCM (∃[ t ∈ Term α ] (ReducesTo sig v t))
+reduceTo r sig v f =
+  case reduce r sig v f of λ where
+    Nothing        → tcError "not enough fuel to reduce a term"
+    (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩
+{-# COMPILE AGDA2HS reduceTo #-}
+
 
 convVars : ∀ Γ
            (s : Term α)
