@@ -122,3 +122,13 @@ data ConvSubst {α} Γ where
          → ConvSubst Γ (SCons {x = x} u us) (SCons {x = x} v vs)
 
 {-# COMPILE AGDA2HS ConvSubst #-}
+
+
+opaque
+  unfolding Scope
+
+  caseConvSubstCons : ∀ {@0 x : name} Γ
+                    → (c : Γ ⊢ (SCons {x = x} u us) ⇔ (SCons {x = x} v vs))
+                    → ((ch : Γ ⊢ u ≅ v) → (ct : Γ ⊢ us ⇔ vs) → @0 {{c ≡ CSCons ch ct}} → d)
+                    → d
+  caseConvSubstCons ctx (CSCons x c) f = f x c

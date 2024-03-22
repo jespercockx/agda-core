@@ -136,8 +136,10 @@ checkCon ctx c ccs cargs (El s ty) = do
       ctel = substTelescope psubst (conTelescope con)
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
   tySubst ← checkSubst ctx ctel cargs
-  checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
-  
+  let tycon = TyCon dp df cid dep tySubst
+      tyconv : ctx ⊢ (unType ctype) ≅ ty
+      tyconv = CRedR rp {!!}
+  return $ TyConv tycon tyconv
 
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))

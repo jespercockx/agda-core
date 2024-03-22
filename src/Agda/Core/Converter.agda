@@ -293,3 +293,22 @@ convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
 convert ctx ty t q = do
   fl ← tcmFuel
   convertCheck fl ctx ty t q
+
+convSubst2Applys : ∀ {@0 α β} Γ (t s : Term α) (args brgs : β ⇒ α)
+                 → Γ ⊢ t ≅ s
+                 → Γ ⊢ args ⇔ brgs
+                 → Γ ⊢ (applys t args) ≅ (applys s brgs)
+convSubst2Applys ctx t s  SNil           brgs cts conv =
+  caseSubstEmpty brgs λ where {{refl}} → cts
+convSubst2Applys ctx t s (SCons x args') brgs cts conv =
+  caseSubstBind  brgs λ where
+    y brgs' {{refl}} → caseConvSubstCons ctx conv λ where
+      ch ct {{refl}} →
+        convSubst2Applys ctx (TApp t $ EArg x) (TApp s $ EArg y) args' brgs' (CApp cts (CEArg ch)) ct
+
+convertApplys : ∀ {@0 α β} Γ (t : Term α) (ty : Telescope α β) (args brgs : β ⇒ α)
+              → TCM (Γ ⊢ applys t args ≅ applys t brgs)
+convertApplys ctx t ty args brgs = do
+  fl ← tcmFuel
+  css ← convertSubsts fl ctx ty args brgs
+  return $ convSubst2Applys ctx t t args brgs CRefl css

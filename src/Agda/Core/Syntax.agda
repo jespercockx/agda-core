@@ -51,6 +51,14 @@ syntax Subst α β = α ⇒ β
 -- but All being opaque prevents the positivity checker to do its job
 -- see #6970
 
+
+-- need this function for dataType and applys
+concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
+concatSubst SNil q =
+  subst0 (λ α → Subst α _) (sym (leftIdentity _)) q
+concatSubst (SCons v p) q =
+  subst0 (λ α → Subst α _) (associativity _ _ _) (SCons v (concatSubst p q))
+
 data Term α where
   -- NOTE(flupe): removed tactic arguments for now because hidden arguments not supported yet #217
   TVar  : (@0 x : name) → x ∈ α → Term α
@@ -127,7 +135,7 @@ dataType : (@0 d : name) → d ∈ defScope
          → (pars : β ⇒ α)
          → (ixs : γ ⇒ α)
          → Type α
-dataType d dp ds pars ixs = El ds (applys (applys (TDef d dp) pars) ixs)
+dataType d dp ds pars ixs = El ds (applys (TDef d dp) (concatSubst pars ixs))
 {-# COMPILE AGDA2HS dataType #-}
 
 elimView : Term α → Term α × Elims α
@@ -178,6 +186,11 @@ opaque
                 → ((t : Term β) → (s' : Subst α β) → @0 {{s ≡ SCons t s'}} → d)
                 → d
   caseSubstBind (SCons x s) f = f x s
+
+  caseSubstEmpty : (s : Subst mempty β)
+                 → (@0 {{s ≡ SNil}} → d)
+                 → d
+  caseSubstEmpty (SNil) f = f
 
   {-# COMPILE AGDA2HS caseSubstBind #-}
 
@@ -239,12 +252,6 @@ listSubst (rezz β) (v ∷ vs) =
     (λ where {{refl}} → Just SNil) 
     (λ where x γ {{refl}} → SCons v <$> listSubst (rezzUnbind (rezz β)) vs)
 {-# COMPILE AGDA2HS listSubst #-}
-
-concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
-concatSubst SNil q = 
-  subst0 (λ α → Subst α _) (sym (leftIdentity _)) q
-concatSubst (SCons v p) q = 
-  subst0 (λ α → Subst α _) (associativity _ _ _) (SCons v (concatSubst p q))
 
 opaque
   unfolding Scope Sub
