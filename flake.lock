@@ -3,11 +3,11 @@
     "agda2hs-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1706098014,
-        "narHash": "sha256-Lz6d5v1ni3UQ2cpXH9GpjC/u2BkBGrsaoJnuqy2a2V8=",
+        "lastModified": 1711124313,
+        "narHash": "sha256-ko10Cber+4lvkntyK7/HwGg3NTHd0FFDJMptclXkMXA=",
         "owner": "agda",
         "repo": "agda2hs",
-        "rev": "48aacea0b9adc548c47fd46b9addd6b84e3a5272",
+        "rev": "4e66970e0709185fb5bf7a4af1a5b825b1716de6",
         "type": "github"
       },
       "original": {
@@ -21,11 +21,11 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1705309234,
-        "narHash": "sha256-uNRRNRKmJyCRC/8y1RqBkqWBLM034y4qN7EprSdmgyA=",
+        "lastModified": 1710146030,
+        "narHash": "sha256-SZ5L6eA7HJ/nmkzGG7/ISclqe6oZdOZTNoesiInkXPQ=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "1ef2e671c3b0c19053962c07dbda38332dcebf26",
+        "rev": "b1d9ab70662946ef0850d488da1c9019f3a9752a",
         "type": "github"
       },
       "original": {
@@ -61,11 +61,11 @@
     "scope-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1707494419,
-        "narHash": "sha256-vnE4nbJQ6BQ9pZc5+ftNOFx62CLGfp0VyhzDN011pmI=",
+        "lastModified": 1710148941,
+        "narHash": "sha256-YQU+U7rl7p+lqjfZr2MwABRDhjt7s7YBJFIXc0LwEco=",
         "owner": "jespercockx",
         "repo": "scope",
-        "rev": "ce0a028e72f106661707904c872330b4b72e5933",
+        "rev": "6f82fabf05044bef02491397ca37bcb18c081c3a",
         "type": "github"
       },
       "original": {

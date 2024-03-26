@@ -21,7 +21,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {inherit system;};
-        haskellPackages = pkgs.haskellPackages;
+        haskellPackages = pkgs.haskell.packages.ghc96;
         agda2hs-hs = haskellPackages.callCabal2nixWithOptions "agda2hs" agda2hs-src "--jailbreak" {};
         agdaDerivation = pkgs.callPackage ./nix/mkAgdaDerivation.nix {};
         agda2hs = pkgs.callPackage ./nix/agda2hs.nix {
