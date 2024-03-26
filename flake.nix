@@ -18,34 +18,36 @@
    };
 
   outputs = {self, nixpkgs, flake-utils, agda2hs-src, scope-src}:
-    (flake-utils.lib.eachDefaultSystem (system:
+    flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; overlays = [self.overlay]; };
+        pkgs = import nixpkgs {inherit system;};
+        haskellPackages = pkgs.haskellPackages;
+        agda2hs-hs = haskellPackages.callCabal2nixWithOptions "agda2hs" agda2hs-src "--jailbreak" {};
         agdaDerivation = pkgs.callPackage ./nix/mkAgdaDerivation.nix {};
-        agda2hslib = agdaDerivation
+        agda2hs = pkgs.callPackage ./nix/agda2hs.nix {
+          inherit self;
+          agda2hs = agda2hs-hs;
+          inherit (haskellPackages) ghcWithPackages;
+        };
+        agda2hs-lib = agdaDerivation
           { pname = "agda2hs";
             meta = {};
             version = "1.3";
             tcDir = "lib";
             src = agda2hs-src;
           };
-        scopelib = agdaDerivation
+        scope-lib = agdaDerivation
           { pname = "scope";
             meta = {};
             version = "0.1.0.0";
             tcDir = "src";
             buildInputs = [
-              agda2hslib
+              agda2hs-lib
             ];
             src = scope-src;
           };
-        agda2hsPackages = pkgs.callPackage ./nix/agda2hs.nix {
-          inherit self;
-          inherit (pkgs.haskellPackages) agda2hs;
-          inherit (pkgs.haskellPackages) ghcWithPackages;
-        };
-        agda2hs = agda2hsPackages.withPackages [agda2hslib scopelib];
-        agda-core = pkgs.haskellPackages.callPackage ./nix/agda-core.nix {inherit agda2hs;};
+        agda2hs-custom = agda2hs.withPackages [agda2hs-lib scope-lib];
+        agda-core = haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
       in {
         packages = {
           agda-core-lib = agdaDerivation
@@ -55,37 +57,22 @@
               libraryName = "agda-core";
               libraryFile = "core.agda-lib";
               tcDir = "src"; # typecheck all files in the src directory
-              buildInputs = [ agda2hslib scopelib ];
+              buildInputs = [ agda2hs-lib scope-lib ];
               src = ./.;
             };
           agda-core = agda-core;
           default = agda-core;
         };
 
-        devShells.default = pkgs.haskellPackages.shellFor {
+        devShells.default = haskellPackages.shellFor {
           packages = p: [agda-core];
-          buildInputs = with pkgs.haskellPackages; [
+          buildInputs = with haskellPackages; [
             cabal-install
             cabal2nix
             haskell-language-server
-            (agda2hsPackages.withPackages [ agda2hslib scopelib])
-            (pkgs.agda.withPackages [ agda2hslib scopelib ])
+            agda2hs-custom
+            (pkgs.agda.withPackages [ agda2hs-lib scope-lib ])
           ];
         };
-      })) // {
-        overlay = final: prev: {
-          haskellPackages = prev.haskellPackages.override {
-            overrides = finalhs: prevhs:
-              let
-                inherit (finalhs) callCabal2nixWithOptions;
-              in {
-                # jailbreak to sidestep aeson constraint in agda2hs,
-                # otherwise we have to rebuild a lot
-                #th-abstraction = prevhs.th-abstraction_0_6_0_0;
-                #aeson = prevhs.aeson_2_2_1_0;
-                agda2hs = callCabal2nixWithOptions "agda2hs" agda2hs-src "--jailbreak" {};
-              };
-          };
-        };
-      };
+      });
 }
