@@ -3,51 +3,28 @@
 
   inputs.nixpkgs.url = github:NixOS/nixpkgs/eabe8d3eface69f5bb16c18f8662a702f50c20d5;
   inputs.flake-utils.url = github:numtide/flake-utils;
-  inputs.agda2hs-src = {
-     type = "github";
-     owner = "agda";
-     repo = "agda2hs";
-     flake = false;
+  inputs.mkAgdaDerivation.url = github:liesnikov/mkAgdaDerivation;
+  inputs.agda2hs = {
+    url = "github:liesnikov/agda2hs";
+    inputs.nixpkgs.follows = "nixpkgs";
+    inputs.mkAgdaDerivation.follows = "mkAgdaDerivation";
   };
-
-  inputs.scope-src = {
-     type = "github";
-     owner = "jespercockx";
-     repo = "scope";
-     flake = false;
+  inputs.scope = {
+    url = "github:liesnikov/scope";
+    inputs.nixpkgs.follows = "nixpkgs";
+    inputs.mkAgdaDerivation.follows = "mkAgdaDerivation";
+    inputs.agda2hs.follows = "agda2hs";
    };
 
-  outputs = {self, nixpkgs, flake-utils, agda2hs-src, scope-src}:
+  outputs = {self, nixpkgs, flake-utils, mkAgdaDerivation, agda2hs, scope}:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {inherit system;};
-        haskellPackages = pkgs.haskell.packages.ghc96;
-        agda2hs-hs = haskellPackages.callCabal2nixWithOptions "agda2hs" agda2hs-src "--jailbreak" {};
-        agdaDerivation = pkgs.callPackage ./nix/mkAgdaDerivation.nix {};
-        agda2hs = pkgs.callPackage ./nix/agda2hs.nix {
-          inherit self;
-          agda2hs = agda2hs-hs;
-          inherit (haskellPackages) ghcWithPackages;
-        };
-        agda2hs-lib = agdaDerivation
-          { pname = "agda2hs";
-            meta = {};
-            version = "1.3";
-            tcDir = "lib";
-            src = agda2hs-src;
-          };
-        scope-lib = agdaDerivation
-          { pname = "scope";
-            meta = {};
-            version = "0.1.0.0";
-            tcDir = "src";
-            buildInputs = [
-              agda2hs-lib
-            ];
-            src = scope-src;
-          };
-        agda2hs-custom = agda2hs.withPackages [agda2hs-lib scope-lib];
-        agda-core = haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
+        agdaDerivation = pkgs.callPackage mkAgdaDerivation.lib.mkAgdaDerivation {};
+        agda2hs-lib = agda2hs.packages.${system}.agda2hs-lib;
+        scope-lib = scope.packages.${system}.scope-lib;
+        agda2hs-custom = agda2hs.lib.${system}.withPackages [agda2hs-lib scope-lib];
+        agda-core = pkgs.haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
       in {
         packages = {
           agda-core-lib = agdaDerivation
@@ -64,9 +41,9 @@
           default = agda-core;
         };
 
-        devShells.default = haskellPackages.shellFor {
+        devShells.default = pkgs.haskellPackages.shellFor {
           packages = p: [agda-core];
-          buildInputs = with haskellPackages; [
+          buildInputs = with pkgs.haskellPackages; [
             cabal-install
             cabal2nix
             haskell-language-server
