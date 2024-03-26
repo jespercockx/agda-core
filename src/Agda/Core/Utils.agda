@@ -55,3 +55,7 @@ data Fuel : Set where
   None : Fuel
   More : Fuel → Fuel
 {-# COMPILE AGDA2HS Fuel #-}
+
+witheq : (x : a) → ∃ a (λ y → x ≡ y)
+witheq x = x ⟨ refl ⟩
+{-# COMPILE AGDA2HS witheq transparent #-}

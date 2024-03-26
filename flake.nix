@@ -12,8 +12,9 @@
 
   inputs.scope-src = {
      type = "github";
-     owner = "jespercockx";
+     owner = "liesnikov";
      repo = "scope";
+     ref = "alllookup";
      flake = false;
    };
 

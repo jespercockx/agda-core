@@ -27,12 +27,22 @@ open import Agda.Core.TCMInstances
 open import Agda.Core.Converter globals sig
 open import Agda.Core.Utils
 
-open import Haskell.Law.Equality
+open import Haskell.Extra.Dec
 open import Haskell.Extra.Erase
+open import Haskell.Law.Equality
+open import Haskell.Law.Monoid
+
 
 private variable
   @0 x : name
   @0 α : Scope name
+
+checkCoerce : ∀ Γ (t : Term α)
+            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
+            → (cty : Type α)
+            → TCM (Γ ⊢ t ∶ cty)
+checkCoerce ctx t (gty , dgty) cty =
+  TyConv dgty <$> convert ctx (TSort $ typeSort gty) (unType gty) (unType cty)
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
@@ -86,6 +96,50 @@ inferDef ctx f p = do
   rezz sig ← tcmSignature
   return $ weakenType subEmpty (getType sig f p) , TyDef p
 
+checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
+checkSubst ctx t SNil =
+  caseTelEmpty t λ where ⦃ refl ⦄ → return TyNil
+checkSubst ctx t (SCons x s) =
+  caseTelBind t λ where ty rest ⦃ refl ⦄ → do
+    tyx ← checkType ctx x ty
+    let
+      r = rezzScope ctx
+      sstel = subst0 (λ (@0 β) → Subst β β)
+                (IsLawfulMonoid.rightIdentity iLawfulMonoidScope _)
+                (concatSubst (subToSubst r (subJoinHere _ subRefl)) SNil)
+      stel = substTelescope (SCons x sstel) rest
+    tyrest ← checkSubst ctx stel s
+    return (TyCons tyx tyrest)
+
+checkCon : ∀ Γ
+           (@0 c : name)
+           (ccs : c ∈ conScope)
+           (cargs : lookupAll fieldScope ccs ⇒ α)
+           (ty : Type α)
+         → TCM (Γ ⊢ TCon c ccs cargs ∶ ty)
+checkCon ctx c ccs cargs (El s ty) = do
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig ty fuel
+    where
+      _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
+  (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
+    where
+      _ → tcError "can't convert two constructors when their type isn't a datatype"
+  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs df)
+    "can't find a constructor with such a name"
+  params ← liftMaybe (traverse maybeArg els)
+    "not all arguments to the datatype are terms"
+  psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+    "couldn't construct a substitution for parameters"
+  let con = snd (lookupAll (dataConstructors df) cid)
+      ctel = substTelescope psubst (conTelescope con)
+      ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
+  tySubst ← checkSubst ctx ctel cargs
+  checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
+  
+
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
               (ty : Type α)
@@ -116,20 +170,13 @@ checkLet ctx x u v ty = do
   return $ TyLet {r = rezzScope ctx} dtu dtv
 
 
-checkCoerce : ∀ Γ (t : Term α)
-            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
-            → (cty : Type α)
-            → TCM (Γ ⊢ t ∶ cty)
-checkCoerce ctx t (gty , dgty) cty =
-  TyConv dgty <$> convert ctx (TSort $ typeSort gty) (unType gty) (unType cty)
-
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
   checkCoerce ctx (TVar x p) tvar ty
 checkType ctx (TDef d p) ty = do
   tdef ← inferDef ctx d p
   checkCoerce ctx (TDef d p) tdef ty
-checkType ctx (TCon c p x) ty = tcError "not implemented yet"
+checkType ctx (TCon c p x) ty = checkCon ctx c p x ty
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
 checkType ctx (TApp u e) ty = do
   tapp ← inferApp ctx u e
