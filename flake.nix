@@ -24,15 +24,16 @@
         agda2hs-lib = agda2hs.packages.${system}.agda2hs-lib;
         scope-lib = scope.packages.${system}.scope-lib;
 
-        compiler = "ghc96";
-        withCompiler = compiler:
-          let haskellPackages =
-                if compiler == "default"
-                then pkgs.haskellPackages
-                else pkgs.haskell.packages.${compiler};
-              agda2hs-custom = (agda2hs.lib.${system}.withCompiler compiler).withPackages [agda2hs-lib scope-lib];
-          in haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
-        agda-core = withCompiler compiler;
+        helper = agda2hs.lib.${system};
+        hpkgs = pkgs.haskell.packages.ghc96;
+        agda2hs-ghc96 = pkgs.callPackage (helper.agda2hs-expr) {
+          inherit self;
+          agda2hs = hpkgs.callPackage (helper.agda2hs-pkg "--jailbreak") {};
+          inherit (hpkgs) ghcWithPackages;
+        };
+        agda2hs-custom = agda2hs-ghc96.withPackages [agda2hs-lib scope-lib];
+        agda-core-pkg = import ./nix/agda-core.nix;
+        agda-core = pkgs.haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
       in {
         packages = {
           agda-core-lib = agdaDerivation
@@ -49,7 +50,7 @@
           default = agda-core;
         };
         lib = {
-          inherit withCompiler;
+          inherit agda-core-pkg;
         };
 
         devShells.default = pkgs.haskellPackages.shellFor {
