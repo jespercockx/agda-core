@@ -23,8 +23,16 @@
         agdaDerivation = pkgs.callPackage mkAgdaDerivation.lib.mkAgdaDerivation {};
         agda2hs-lib = agda2hs.packages.${system}.agda2hs-lib;
         scope-lib = scope.packages.${system}.scope-lib;
-        agda2hs-custom = agda2hs.lib.${system}.withPackages [agda2hs-lib scope-lib];
-        agda-core = pkgs.haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
+
+        compiler = "ghc96";
+        withCompiler = compiler:
+          let haskellPackages =
+                if compiler == "default"
+                then pkgs.haskellPackages
+                else pkgs.haskell.packages.${compiler};
+              agda2hs-custom = (agda2hs.lib.${system}.withCompiler compiler).withPackages [agda2hs-lib scope-lib];
+          in haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
+        agda-core = withCompiler compiler;
       in {
         packages = {
           agda-core-lib = agdaDerivation
@@ -39,6 +47,9 @@
             };
           agda-core = agda-core;
           default = agda-core;
+        };
+        lib = {
+          inherit withCompiler;
         };
 
         devShells.default = pkgs.haskellPackages.shellFor {

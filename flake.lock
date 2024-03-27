@@ -11,11 +11,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1711465177,
-        "narHash": "sha256-COe1mvhOHF9KzZDb9YnwcNJ5ZTyxAq90nHvzsp+42W0=",
+        "lastModified": 1711545796,
+        "narHash": "sha256-SEbDNcd5LrAo1x/mmXhhbL11MK9t8C6oXh4T6/VI5ps=",
         "owner": "liesnikov",
         "repo": "agda2hs",
-        "rev": "db09d73a2319b131750e18bde8adc3bc73d953a0",
+        "rev": "d576bf5d3672efc65569b8e463e0a199c9a4e887",
         "type": "github"
       },
       "original": {
@@ -132,11 +132,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1711466827,
-        "narHash": "sha256-WZfBP0MngFWa8R93aNbmx/SJIqO638t3KtKtDHcEL6U=",
+        "lastModified": 1711546610,
+        "narHash": "sha256-dxugvxuDg3GNRVF2yXXxEKZlNpyVVEbSGg/Z6ilOfUM=",
         "owner": "liesnikov",
         "repo": "scope",
-        "rev": "5b2af94c94246b147693184822448e66b734a097",
+        "rev": "de0307a8d7c08dae59d94c7372b90ef64bf1662b",
         "type": "github"
       },
       "original": {
