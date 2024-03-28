@@ -1,0 +1,22 @@
+name: "CI"
+on:
+  pull_request:
+  push:
+jobs:
+  nix-build:
+    name: ${{ matrix.pretty }} with nix (${{ matrix.derivation }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        derivation: [agda-core-hs, agda-core-lib]
+        include:
+          - pretty: "Build Haskell library"
+            derivation: agda-core-hs
+          - pretty: "Typecheck with Agda"
+            derivation: agda-core-lib
+    steps:
+    - uses: actions/checkout@v3
+    - uses: cachix/install-nix-action@v22
+    - uses: DeterminateSystems/magic-nix-cache-action@v2
+    - run: nix build .#${{ matrix.derivation }} --print-build-logs

@@ -36,6 +36,7 @@
         agda-core = pkgs.haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
       in {
         packages = {
+          inherit agda-core;
           agda-core-lib = agdaDerivation
             { name = "agda-core-lib";
               pname = "agda-core-lib";
@@ -46,7 +47,7 @@
               buildInputs = [ agda2hs-lib scope-lib ];
               src = ./.;
             };
-          agda-core = agda-core;
+          agda-core-hs = agda-core;
           default = agda-core;
         };
         lib = {
