@@ -3,24 +3,20 @@
 
   inputs.nixpkgs.url = github:NixOS/nixpkgs/eabe8d3eface69f5bb16c18f8662a702f50c20d5;
   inputs.flake-utils.url = github:numtide/flake-utils;
-  inputs.mkAgdaDerivation.url = github:liesnikov/mkAgdaDerivation;
   inputs.agda2hs = {
     url = "github:liesnikov/agda2hs";
     inputs.nixpkgs.follows = "nixpkgs";
-    inputs.mkAgdaDerivation.follows = "mkAgdaDerivation";
   };
   inputs.scope = {
     url = "github:liesnikov/scope";
     inputs.nixpkgs.follows = "nixpkgs";
-    inputs.mkAgdaDerivation.follows = "mkAgdaDerivation";
     inputs.agda2hs.follows = "agda2hs";
    };
 
-  outputs = {self, nixpkgs, flake-utils, mkAgdaDerivation, agda2hs, scope}:
+  outputs = {self, nixpkgs, flake-utils, agda2hs, scope}:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {inherit system;};
-        agdaDerivation = pkgs.callPackage mkAgdaDerivation.lib.mkAgdaDerivation {};
         agda2hs-lib = agda2hs.packages.${system}.agda2hs-lib;
         scope-lib = scope.packages.${system}.scope-lib;
 
@@ -37,13 +33,16 @@
       in {
         packages = {
           inherit agda-core;
-          agda-core-lib = agdaDerivation
+          agda-core-lib = pkgs.agdaPackages.mkDerivation
             { name = "agda-core-lib";
               pname = "agda-core-lib";
               meta = {};
               libraryName = "agda-core";
               libraryFile = "core.agda-lib";
-              tcDir = "src"; # typecheck all files in the src directory
+              preBuild = ''
+                echo "module Everything where" > Everything.agda
+                find src -name '*.agda' | sed -e 's/src\///;s/\//./g;s/\.agda$//;s/^/import /' >> Everything.agda
+              '';
               buildInputs = [ agda2hs-lib scope-lib ];
               src = ./.;
             };
