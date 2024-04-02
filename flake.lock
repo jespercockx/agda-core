@@ -3,19 +3,16 @@
     "agda2hs": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "mkAgdaDerivation": [
-          "mkAgdaDerivation"
-        ],
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1711555668,
-        "narHash": "sha256-0LU71MTTfRdJZcueS4lo9HFBZTxrev9MFOwAJvzLQ9U=",
+        "lastModified": 1712053488,
+        "narHash": "sha256-Jj3fIYeHBJbab4lC1RyiEmKh/eBwiJRolca/hrHNa0Q=",
         "owner": "liesnikov",
         "repo": "agda2hs",
-        "rev": "34239074ad061bf0f0f1d087534e7b0263fdebc3",
+        "rev": "f4cea30037db0cf4330ea1ae8542d89d0859fdef",
         "type": "github"
       },
       "original": {
@@ -78,21 +75,6 @@
         "type": "github"
       }
     },
-    "mkAgdaDerivation": {
-      "locked": {
-        "lastModified": 1711465038,
-        "narHash": "sha256-rJFQI7/IcwSnUAdxaQkJOvzBy0BCMWCb6N0OC27LlRk=",
-        "owner": "liesnikov",
-        "repo": "mkAgdaDerivation",
-        "rev": "393785b798a8938063fff14ad681d7ef95356215",
-        "type": "github"
-      },
-      "original": {
-        "owner": "liesnikov",
-        "repo": "mkAgdaDerivation",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1704842529,
@@ -113,7 +95,6 @@
       "inputs": {
         "agda2hs": "agda2hs",
         "flake-utils": "flake-utils_2",
-        "mkAgdaDerivation": "mkAgdaDerivation",
         "nixpkgs": "nixpkgs",
         "scope": "scope"
       }
@@ -124,19 +105,16 @@
           "agda2hs"
         ],
         "flake-utils": "flake-utils_3",
-        "mkAgdaDerivation": [
-          "mkAgdaDerivation"
-        ],
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1711556257,
-        "narHash": "sha256-mhadxb5T6VVxxPy6JqOFEGQoXuJuqYTU7+PWAnKHmnw=",
+        "lastModified": 1712053784,
+        "narHash": "sha256-lO8tgJ6PCcruhpz7/9ECrLg8UldnJXe6earYz531U2A=",
         "owner": "liesnikov",
         "repo": "scope",
-        "rev": "1007b0b925dc1b8910fa113c697ebd5671518a27",
+        "rev": "885e594a0a7a36a0e9abf4de04f5aef0de0e9f0b",
         "type": "github"
       },
       "original": {
