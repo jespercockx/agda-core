@@ -46,17 +46,24 @@ checkCoerce ctx t (gty , dgty) cty =
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
+inferElim : ∀ (Γ : Context α) u e (ty : Type α) → TCM (Σ[ a ∈ Type α ] TyElim Γ u e ty a)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
-checkElim : ∀ (Γ : Context α) u e (ty : Type α) → TCM (Σ[ a ∈ Type α ] TyElim Γ u e ty a)
+checkBranches : ∀ {@0 cons : Scope name}
+                  (Γ : Context α)
+                  (rz : Rezz _ cons)
+                  (bs : Branches α cons)
+                  (dt : Datatype) (ps : dataParameterScope dt ⇒ α)
+                  (rt : Type (x ◃ α))
+                → TCM (TyBranches Γ dt ps rt bs)
 
 inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
 inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
 
-checkElim ctx u (Syntax.EArg v) ty = do
+inferElim ctx u (Syntax.EArg v) tu = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
-  (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r sig (unType ty) fuel
+  (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r sig (unType tu) fuel
     where _ → tcError "couldn't reduce term to a pi type"
 
   gtv ← checkType ctx v at
@@ -65,15 +72,31 @@ checkElim ctx u (Syntax.EArg v) ty = do
       tytype = substTopType r v rt
   
   return $ tytype , TyArg gc gtv
-
-checkElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
-checkElim ctx u (Syntax.ECase bs)  ty = tcError "not implemented"
+inferElim ctx u (Syntax.ECase bs) (El s ty) = do
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig ty fuel
+    where
+      _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
+  (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
+    where
+      _ → tcError "can't convert two constructors when their type isn't a datatype"
+  params ← liftMaybe (traverse maybeArg els)
+    "not all arguments to the datatype are terms"
+  psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+    "couldn't construct a substitution for parameters"
+  let rt = {!!}
+  bc ← checkBranches ctx (rezzBranches bs) bs df psubst rt
+  cc ← convert ctx (TSort s) ty (unType $ dataType d dp s psubst {!!})
+  let tj = TyCase {r = r} dp df dep {! bs!} rt cc {! bc!}
+  return (substTopType r u rt , {! tj!})
+inferElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
 
 inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
 inferApp ctx u e = do
-  let r = rezzScope ctx
   tu , gtu ← inferType ctx u
-  a  , gte ← checkElim ctx u e tu 
+  a  , gte ← inferElim ctx u e tu
   return $ a , TyAppE gtu gte
 
 inferPi
@@ -111,6 +134,16 @@ checkSubst ctx t (SCons x s) =
     tyrest ← checkSubst ctx stel s
     return (TyCons tyx tyrest)
 
+checkBranch : ∀ {@0 con : name} (Γ : Context α) (bs : Branch α con) (dt : Datatype) (ps : dataParameterScope dt ⇒ α) (rt : Type (x ◃ α)) → TCM (TyBranch Γ dt ps rt bs)
+checkBranch ctx (BBranch con pic r rhs) dt ps rt = do
+  return {!TyBBranch!}
+
+checkBranches ctx (rezz cons) bs dt ps rt =
+  caseScope cons
+    (λ where {{refl}} → caseBsNil bs (λ where {{refl}} → return TyBsNil))
+    (λ where ch ct {{refl}} → caseBsCons bs (λ where bh bt {{refl}} → TyBsCons <$> checkBranch ctx bh dt ps rt <*> checkBranches ctx (rezzBranches bt) bt dt ps rt))
+
+
 checkCon : ∀ Γ
            (@0 c : name)
            (ccs : c ∈ conScope)
@@ -138,7 +171,6 @@ checkCon ctx c ccs cargs (El s ty) = do
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
   tySubst ← checkSubst ctx ctel cargs
   checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
-  
 
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
@@ -168,7 +200,6 @@ checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
   dtv       ← checkType (ctx , x ∶ tu) v (weakenType (subWeaken subRefl) ty)
   return $ TyLet {r = rezzScope ctx} dtu dtv
-
 
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p

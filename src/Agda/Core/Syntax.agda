@@ -108,6 +108,25 @@ data Branches α where
   BsCons : Branch α c → Branches α cs → Branches α (c ◃ cs)
 {-# COMPILE AGDA2HS Branches #-}
 
+opaque
+  unfolding Scope
+
+  caseBsNil : (bs : Branches α mempty)
+            → (@0 {{bs ≡ BsNil}} → d)
+            → d
+  caseBsNil BsNil f = f
+  {-# COMPILE AGDA2HS caseBsNil #-}
+
+  caseBsCons : (bs : Branches α (c ◃ cs))
+             → ((bh : Branch α c) (bt : Branches α cs) → @0 {{bs ≡ BsCons bh bt}} → d)
+             → d
+  caseBsCons (BsCons bh bt) f = f bh bt
+  {-# COMPILE AGDA2HS caseBsCons #-}
+
+rezzBranches : Branches α β → Rezz _ β
+rezzBranches BsNil = rezz mempty
+rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◃ cs) (rezzBranches bt)
+
 apply : Term α → Term α → Term α
 apply u v = TApp u (EArg v)
 {-# COMPILE AGDA2HS apply #-}
