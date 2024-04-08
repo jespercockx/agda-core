@@ -43,6 +43,11 @@ checkCoerce : ∀ Γ (t : Term α)
             → TCM (Γ ⊢ t ∶ cty)
 checkCoerce ctx t (gty , dgty) cty =
   TyConv dgty <$> convert ctx (TSort $ typeSort gty) (unType gty) (unType cty)
+{-# COMPILE AGDA2HS checkCoerce #-}
+
+inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
+inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
+{-# COMPILE AGDA2HS inferVar #-}
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
@@ -55,9 +60,6 @@ checkBranches : ∀ {@0 cons : Scope name}
                   (dt : Datatype) (ps : dataParameterScope dt ⇒ α)
                   (rt : Type (x ◃ α))
                 → TCM (TyBranches Γ dt ps rt bs)
-
-inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
-inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
 
 inferElim ctx u (Syntax.EArg v) tu = do
   let r = rezzScope ctx
@@ -99,12 +101,14 @@ inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
   let tj = TyCase {k = s} {r = r} dp df dep {is = is} bs rt cc cb
   return (substTopType r u rt , tj)
 inferElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
+{-# COMPILE AGDA2HS inferElim #-}
 
 inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
 inferApp ctx u e = do
   tu , gtu ← inferType ctx u
   a  , gte ← inferElim ctx u e tu
   return $ a , TyAppE gtu gte
+{-# COMPILE AGDA2HS inferApp #-}
 
 inferPi
   : ∀ Γ (@0 x : name)
@@ -116,15 +120,18 @@ inferPi ctx x (El su u) (El sv v) = do
   tv <- checkType (ctx , x ∶ El su u) v (sortType sv)
   let spi = piSort su sv
   return $ sortType spi , TyPi tu tv
+{-# COMPILE AGDA2HS inferPi #-}
 
 inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s ∶ ty)
 inferTySort ctx (STyp x) = return $ sortType (sucSort (STyp x)) , TyType
+{-# COMPILE AGDA2HS inferTySort #-}
 
 inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope)
          → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
 inferDef ctx f p = do
   rezz sig ← tcmSignature
   return $ weakenType subEmpty (getType sig f p) , TyDef p
+{-# COMPILE AGDA2HS inferDef #-}
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
 checkSubst ctx t SNil =
@@ -140,6 +147,7 @@ checkSubst ctx t (SCons x s) =
       stel = substTelescope (SCons x sstel) rest
     tyrest ← checkSubst ctx stel s
     return (TyCons tyx tyrest)
+{-# COMPILE AGDA2HS checkSubst #-}
 
 checkBranch : ∀ {@0 con : name} (Γ : Context α)
                 (bs : Branch α con)
@@ -160,11 +168,16 @@ checkBranch ctx (BBranch c ccs r rhs) dt ps rt = do
       bsubst = SCons (TCon c ccs cargs) idsubst
   crhs ← checkType (addContextTel ctel ctx) rhs (substType bsubst rt)
   return (TyBBranch c cid {rα = ra} rhs crhs)
+{-# COMPILE AGDA2HS checkBranch #-}
 
 checkBranches ctx (rezz cons) bs dt ps rt =
   caseScope cons
     (λ where {{refl}} → caseBsNil bs (λ where {{refl}} → return TyBsNil))
-    (λ where ch ct {{refl}} → caseBsCons bs (λ where bh bt {{refl}} → TyBsCons <$> checkBranch ctx bh dt ps rt <*> checkBranches ctx (rezzBranches bt) bt dt ps rt))
+    (λ where
+      ch ct {{refl}} → caseBsCons bs (λ where
+        bh bt {{refl}} → TyBsCons <$> checkBranch ctx bh dt ps rt
+                                  <*> checkBranches ctx (rezzBranches bt) bt dt ps rt))
+{-# COMPILE AGDA2HS checkBranches #-}
 
 checkCon : ∀ Γ
            (@0 c : name)
@@ -193,6 +206,7 @@ checkCon ctx c ccs cargs (El s ty) = do
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
   tySubst ← checkSubst ctx ctel cargs
   checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
+{-# COMPILE AGDA2HS checkCon #-}
 
 checkLambda : ∀ Γ (@0 x : name)
               (u : Term (x ◃ α))
@@ -212,6 +226,7 @@ checkLambda ctx x u (El s ty) = do
 
   d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
   return $ TyConv (TyLam {k = sp} d) gc
+{-# COMPILE AGDA2HS checkLambda #-}
 
 checkLet : ∀ Γ (@0 x : name)
            (u : Term α)
@@ -222,6 +237,8 @@ checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
   dtv       ← checkType (ctx , x ∶ tu) v (weakenType (subWeaken subRefl) ty)
   return $ TyLet {r = rezzScope ctx} dtu dtv
+{-# COMPILE AGDA2HS checkLet #-}
+
 
 checkType ctx (TVar x p) ty = do
   tvar ← inferVar ctx x p
