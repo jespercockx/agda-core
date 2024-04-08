@@ -91,7 +91,7 @@ inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
       is : Subst (dataIndexScope df) α
       is = {!!}
   (Erased refl) ← liftMaybe
-    (allInScope {γ = conScope} (allBranches bs) (mapAll fst (dataConstructors df)))
+    (allInScope {γ = conScope} (allBranches bs) (mapAll fst $ dataConstructors df))
     "couldn't verify that branches cover all constructors"
   cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
   -- indexes are SNil because we're only doing parameterised inductives for the moment
@@ -141,15 +141,30 @@ checkSubst ctx t (SCons x s) =
     tyrest ← checkSubst ctx stel s
     return (TyCons tyx tyrest)
 
-checkBranch : ∀ {@0 con : name} (Γ : Context α) (bs : Branch α con) (dt : Datatype) (ps : dataParameterScope dt ⇒ α) (rt : Type (x ◃ α)) → TCM (TyBranch Γ dt ps rt bs)
-checkBranch ctx (BBranch con pic r rhs) dt ps rt = do
-  return {!TyBBranch!}
+checkBranch : ∀ {@0 con : name} (Γ : Context α)
+                (bs : Branch α con)
+                (dt : Datatype)
+                (ps : dataParameterScope dt ⇒ α)
+                (rt : Type (x ◃ α))
+            → TCM (TyBranch Γ dt ps rt bs)
+checkBranch ctx (BBranch c ccs r rhs) dt ps rt = do
+  let ra = rezzScope ctx
+  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs dt)
+    "can't find a constructor with such a name"
+  let (_ , con) = lookupAll (dataConstructors dt) cid
+      ctel = substTelescope ps (conTelescope con)  
+      cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
+                          (revIdSubst r)
+      idsubst = weakenSubst (subJoinDrop (rezzCong revScope r) subRefl)
+                            (idSubst ra)    
+      bsubst = SCons (TCon c ccs cargs) idsubst
+  crhs ← checkType (addContextTel ctel ctx) rhs (substType bsubst rt)
+  return (TyBBranch c cid {rα = ra} rhs crhs)
 
 checkBranches ctx (rezz cons) bs dt ps rt =
   caseScope cons
     (λ where {{refl}} → caseBsNil bs (λ where {{refl}} → return TyBsNil))
     (λ where ch ct {{refl}} → caseBsCons bs (λ where bh bt {{refl}} → TyBsCons <$> checkBranch ctx bh dt ps rt <*> checkBranches ctx (rezzBranches bt) bt dt ps rt))
-
 
 checkCon : ∀ Γ
            (@0 c : name)
