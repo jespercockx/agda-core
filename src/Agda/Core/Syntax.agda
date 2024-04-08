@@ -127,6 +127,10 @@ rezzBranches : Branches α β → Rezz _ β
 rezzBranches BsNil = rezz mempty
 rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◃ cs) (rezzBranches bt)
 
+allBranches : Branches α β → All (λ c → c ∈ conScope) β
+allBranches BsNil = allEmpty
+allBranches (BsCons (BBranch _ ci _ _) bs) = allJoin (allSingl ci) (allBranches bs)
+
 apply : Term α → Term α → Term α
 apply u v = TApp u (EArg v)
 {-# COMPILE AGDA2HS apply #-}

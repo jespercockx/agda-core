@@ -72,7 +72,7 @@ inferElim ctx u (Syntax.EArg v) tu = do
       tytype = substTopType r v rt
   
   return $ tytype , TyArg gc gtv
-inferElim ctx u (Syntax.ECase bs) (El s ty) = do
+inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -86,11 +86,18 @@ inferElim ctx u (Syntax.ECase bs) (El s ty) = do
     "not all arguments to the datatype are terms"
   psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
     "couldn't construct a substitution for parameters"
-  let rt = {!!}
-  bc ← checkBranches ctx (rezzBranches bs) bs df psubst rt
-  cc ← convert ctx (TSort s) ty (unType $ dataType d dp s psubst {!!})
-  let tj = TyCase {r = r} dp df dep {! bs!} rt cc {! bc!}
-  return (substTopType r u rt , {! tj!})
+  let rt : Type ({!!} ◃ α)
+      rt = El (weakenSort (subWeaken subRefl) s) {!!}
+      is : Subst (dataIndexScope df) α
+      is = {!!}
+  (Erased refl) ← liftMaybe
+    (allInScope {γ = conScope} (allBranches bs) (mapAll fst (dataConstructors df)))
+    "couldn't verify that branches cover all constructors"
+  cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
+  -- indexes are SNil because we're only doing parameterised inductives for the moment
+  cc ← convert ctx (TSort s) ty (unType $ dataType d dp s psubst is)
+  let tj = TyCase {k = s} {r = r} dp df dep {is = is} bs rt cc cb
+  return (substTopType r u rt , tj)
 inferElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
 
 inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
