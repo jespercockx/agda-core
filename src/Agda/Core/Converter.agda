@@ -114,6 +114,13 @@ convertSubsts : Fuel
                   (ty : Telescope α β)
                   (s p : β ⇒ α)
               → TCM (Γ ⊢ s ⇔ p)
+convertBranches : Fuel
+                → ∀ {@0 x : name} {@0 cons : Scope name} Γ
+                    (dt : Datatype)
+                    (ps : dataParameterScope dt ⇒ α)
+                    (rty : Term (x ◃ α))
+                    (bs bp : Branches α cons)
+                → TCM (ConvBranches Γ bs bp)
 
 convCons : Fuel →
            ∀ Γ
@@ -227,7 +234,28 @@ convertElims fl ctx t           u (EArg w) (EArg w') = do
   let ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck fl ctx (unType a) w w'
   return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
-convertElims fl ctx s u w w' = tcError "not implemented yet"
+convertElims fl ctx t u (ECase ws) (ECase ws') = do
+  let rt : Term ({!!} ◃ α)
+      rt = {!!}
+  let r = rezzScope ctx
+  rezz sig  ← tcmSignature
+  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig t fl
+    where
+      _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
+  (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
+    where
+      _ → tcError "can't convert two constructors when their type isn't a datatype"
+  params ← liftMaybe (traverse maybeArg els)
+    "not all arguments to the datatype are terms"
+  (psubst , _) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+    "couldn't construct a substitution for parameters"
+  (Erased refl) ← liftMaybe
+    (allInScope {γ = conScope} (allBranches ws) (allBranches ws'))
+    "couldn't verify that branches cover the same constructors"
+  cbs ← convertBranches fl ctx df psubst rt ws ws'
+  return ({!λ _ → substTop r u rt!} Σ, CECase ws ws' cbs)
+convertElims fl ctx s u (EProj _ _) (EProj _ _) = tcError "not implemented yet"
+convertElims fl ctx s u _           _ = tcError "two elims aren't the same shape"
 
 convertSubsts fl ctx tel SNil p = return CSNil
 convertSubsts fl ctx tel (SCons x st) p = 
@@ -237,7 +265,37 @@ convertSubsts fl ctx tel (SCons x st) p =
       hc ← convertCheck fl ctx (unType a) x y
       tc ← convertSubsts fl ctx (substTelescope (SCons x (idSubst r)) rest) st pt
       return (CSCons hc tc)
-    
+
+
+convertBranch : Fuel
+              → ∀ {@0 x con : name} Γ
+                  (dt : Datatype)
+                  (ps : dataParameterScope dt ⇒ α)
+                  (rt : Term (x ◃ α))
+              → (b1 b2 : Branch α con)
+              → TCM (ConvBranch Γ b1 b2)
+convertBranch fl ctx dt ps rt (BBranch _ cp1 rz1 rhs1) (BBranch _ cp2 rz2 rhs2) =
+  ifDec (decIn cp1 cp2)
+    (λ where {{refl}} → do
+      let r = rezzScope ctx
+      cid ⟨ refl ⟩  ← liftMaybe (getConstructor _ cp1 dt)
+         "can't find a constructor with such a name"
+      let (_ Σ, con) = lookupAll (dataConstructors dt) cid
+          ctel = substTelescope ps (conTelescope con)  
+          cargs = weakenSubst (subJoinHere (rezzCong revScope rz1) subRefl)
+                              (revIdSubst rz1)
+          idsubst = weakenSubst (subJoinDrop (rezzCong revScope rz1) subRefl)
+                                (idSubst r)
+          bsubst = SCons (TCon _ cp1 cargs) idsubst
+      CBBranch _ cp1 rz1 rz2 ctel rhs1 rhs2 <$>
+        convertCheck fl (addContextTel ctel ctx) (substTerm bsubst rt) rhs1 rhs2)
+    (tcError "can't convert two branches that match on different constructors")
+
+convertBranches fl ctx df pars rt BsNil        bp = return CBranchesNil
+convertBranches fl ctx df pars rt (BsCons bsh bst) bp =
+  caseBsCons bp (λ where
+    bph bpt {{refl}} → CBranchesCons <$> convertBranch fl ctx df pars rt bsh bph <*> convertBranches fl ctx df pars rt bst bpt)
+
 convertCheck fl ctx ty t q = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
