@@ -40,7 +40,7 @@ data ConvBranch (@0 Γ : Context α) : @0 Branch α cn → @0 Branch α cn → S
 data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → Set
 
 data ConvBranches (@0 Γ : Context α) : @0 Branches α cs → @0 Branches α cs → Set where
-  CBranchesNil : ConvBranches Γ BsNil BsNil
+  CBranchesNil : {bs bp : Branches α mempty} → ConvBranches Γ bs bp
   CBranchesCons : {b1 b2 : Branch α cn} {bs1 bs2 : Branches α cs} → ConvBranch Γ b1 b2 → ConvBranches Γ bs1 bs2 → ConvBranches Γ (BsCons b1 bs1) (BsCons b2 bs2)
 
 
