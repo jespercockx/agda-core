@@ -143,7 +143,7 @@ convCons {α = α} (More fl) ctx s f g p q lp lq = do
       let (_ Σ, con) = lookupAll (dataConstructors df) cdi
       params ← liftMaybe (traverse maybeArg els)
         "not all arguments to the datatype are terms"
-      psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+      (psubst , _) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
         "couldn't construct a substitution for parameters"
       let ctel = substTelescope psubst (conTelescope con)
       csp ← convertSubsts fl ctx ctel lp lq

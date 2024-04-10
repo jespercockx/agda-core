@@ -12,6 +12,7 @@ open import Haskell.Prelude hiding (All; coerce; a; b; c)
 open import Haskell.Law.Equality using (sym; subst0)
 open import Haskell.Law.Monoid.Def using (leftIdentity; rightIdentity)
 open import Haskell.Law.Semigroup.Def using (associativity)
+open import Haskell.Prim.Tuple using (first)
 open import Haskell.Extra.Erase
 
 -- NOTE(flupe): comes from scope library, should be moved upstream probably
@@ -250,15 +251,15 @@ dropSubst : {@0 α β : Scope name} {@0 x : name} → (x ◃ α) ⇒ β → α �
 dropSubst f = caseSubstBind f (λ _ g → g)
 {-# COMPILE AGDA2HS dropSubst #-}
 
-listSubst : {@0 β : Scope name} → Rezz _ β → List (Term α) → Maybe (β ⇒ α)
+listSubst : {@0 β : Scope name} → Rezz _ β → List (Term α) → Maybe ((β ⇒ α) × (List (Term α)))
 listSubst (rezz β) [] = 
   caseScope β 
-    (λ where {{refl}} → Just SNil) 
+    (λ where {{refl}} → Just (SNil , []))
     (λ _ _ → Nothing)
 listSubst (rezz β) (v ∷ vs) = 
   caseScope β 
-    (λ where {{refl}} → Just SNil) 
-    (λ where x γ {{refl}} → SCons v <$> listSubst (rezzUnbind (rezz β)) vs)
+    (λ where {{refl}} → Just (SNil , v ∷ vs))
+    (λ where x γ {{refl}} → first (SCons v) <$> listSubst (rezzUnbind (rezz β)) vs)
 {-# COMPILE AGDA2HS listSubst #-}
 
 concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ

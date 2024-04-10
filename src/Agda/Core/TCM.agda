@@ -50,6 +50,11 @@ tcError : TCError -> TCM a
 tcError = MkTCM ∘ const ∘ Left
 {-# COMPILE AGDA2HS tcError #-}
 
+assert : Bool → TCError → TCM ⊤
+assert False e = tcError e
+assert True e = MkTCM (const (Right tt))
+{-# COMPILE AGDA2HS assert #-}
+
 liftEither : Either TCError a → TCM a
 liftEither (Left e) = MkTCM λ f → Left e
 liftEither (Right v) = MkTCM λ f → Right v
