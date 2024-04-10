@@ -75,6 +75,8 @@ inferElim ctx u (Syntax.EArg v) tu = do
   
   return $ tytype , TyArg gc gtv
 inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
+  let rt : Type ({!!} ◃ α)
+      rt = El (weakenSort (subWeaken subRefl) s) {!!}
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -86,19 +88,18 @@ inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   params ← liftMaybe (traverse maybeArg els)
     "not all arguments to the datatype are terms"
-  psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+  (psubst , ixs) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
     "couldn't construct a substitution for parameters"
-  let rt : Type ({!!} ◃ α)
-      rt = El (weakenSort (subWeaken subRefl) s) {!!}
-      is : Subst (dataIndexScope df) α
-      is = {!!}
+  (isubst , loargs) ← liftMaybe (listSubst (rezzTel (dataIndexTel df)) ixs)
+    "couldn't construct a substitution for indexes"
+  assert (null loargs)
+    "there are more arguments to the datatype then parameters and indices"
   (Erased refl) ← liftMaybe
     (allInScope {γ = conScope} (allBranches bs) (mapAll fst $ dataConstructors df))
     "couldn't verify that branches cover all constructors"
   cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
-  -- indexes are SNil because we're only doing parameterised inductives for the moment
-  cc ← convert ctx (TSort s) ty (unType $ dataType d dp s psubst is)
-  let tj = TyCase {k = s} {r = r} dp df dep {is = is} bs rt cc cb
+  cc ← convert ctx (TSort s) ty (unType $ dataType d dp s psubst isubst)
+  let tj = TyCase {k = s} {r = r} dp df dep {is = isubst} bs rt cc cb
   return (substTopType r u rt , tj)
 inferElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
 {-# COMPILE AGDA2HS inferElim #-}
@@ -199,8 +200,12 @@ checkCon ctx c ccs cargs (El s ty) = do
     "can't find a constructor with such a name"
   params ← liftMaybe (traverse maybeArg els)
     "not all arguments to the datatype are terms"
-  psubst ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+  (psubst , ixs) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
     "couldn't construct a substitution for parameters"
+  (isubst , loargs) ← liftMaybe (listSubst (rezzTel (dataIndexTel df)) ixs)
+    "couldn't construct a substitution for indexes"
+  assert (null loargs)
+    "there are more arguments to the datatype then parameters and indices"
   let con = snd (lookupAll (dataConstructors df) cid)
       ctel = substTelescope psubst (conTelescope con)
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
