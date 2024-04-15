@@ -108,7 +108,7 @@ convertElims : Fuel
                 (s : Term α)
                 (u : Term α)
                 (v v' : Elim α)
-             → TCM (Σ ((Elim α → Term α) → Term α) (λ f → Γ ⊢ v ≃ v'))
+             → TCM (Σ (Term α) (λ f → Γ ⊢ v ≃ v'))
 convertSubsts : Fuel
               → ∀ {@0 α β} Γ
                   (ty : Telescope α β)
@@ -188,8 +188,8 @@ convAppsI None      ctx u u' w w' =
   tcError "not enough fuel to check conversion of Apps"
 convAppsI (More fl) ctx u u' w w' = do
   su Σ, cu ← convertInfer fl ctx u u'
-  f Σ, cv  ← convertElims fl ctx su u w w'
-  return $ (f $ TApp u) Σ, CApp cu cv
+  sw Σ, cv  ← convertElims fl ctx su u w w'
+  return $ sw Σ, CApp cu cv
 
 convPis : Fuel
         → ∀ Γ
@@ -222,7 +222,7 @@ convertElims fl ctx (TPi x a b) u (EArg w) (EArg w') = do
   let r = rezzScope ctx
       ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck fl ctx (unType a) w w'
-  return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
+  return $ substTop r w (unType b) Σ, CEArg cw
 convertElims fl ctx t           u (EArg w) (EArg w') = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
@@ -233,7 +233,7 @@ convertElims fl ctx t           u (EArg w) (EArg w') = do
       _ → tcError "can't convert two terms when the type does not reduce to a Pi type"
   let ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck fl ctx (unType a) w w'
-  return $ (λ _ → substTop r w (unType b)) Σ, CEArg cw
+  return $ substTop r w (unType b) Σ, CEArg cw
 convertElims fl ctx t u (ECase ws) (ECase ws') = do
   let rt : Term ({!!} ◃ α)
       rt = {!!}
@@ -253,7 +253,7 @@ convertElims fl ctx t u (ECase ws) (ECase ws') = do
     (allInScope {γ = conScope} (allBranches ws) (allBranches ws'))
     "couldn't verify that branches cover the same constructors"
   cbs ← convertBranches fl ctx df psubst rt ws ws'
-  return ({!λ _ → substTop r u rt!} Σ, CECase ws ws' cbs)
+  return (substTop r u rt Σ, CECase ws ws' cbs)
 convertElims fl ctx s u (EProj _ _) (EProj _ _) = tcError "not implemented yet"
 convertElims fl ctx s u _           _ = tcError "two elims aren't the same shape"
 
