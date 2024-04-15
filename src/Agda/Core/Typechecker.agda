@@ -97,8 +97,9 @@ inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
     (allInScope {γ = conScope} (allBranches bs) (mapAll fst $ dataConstructors df))
     "couldn't verify that branches cover all constructors"
   cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
-  cc ← convert ctx (TSort s) ty (unType $ dataType d dp s psubst isubst)
-  let tj = TyCase {k = s} {r = r} dp df dep {is = isubst} bs rt cc cb
+  let ds = substSort psubst (dataSort df)
+  cc ← convert ctx (TSort s) ty (unType $ dataType d dp ds psubst isubst)
+  let tj = TyCase {k = ds} {r = r} dp df dep {is = isubst} bs rt cc cb
   return (substTopType r u rt , tj)
 
 inferElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
