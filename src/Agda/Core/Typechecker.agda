@@ -67,13 +67,12 @@ inferElim ctx u (Syntax.EArg v) tu = do
   rezz sig  ← tcmSignature
   (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r sig (unType tu) fuel
     where _ → tcError "couldn't reduce term to a pi type"
-
   gtv ← checkType ctx v at
   let sf = piSort (typeSort at) (typeSort rt)
       gc = CRedL rtp CRefl
       tytype = substTopType r v rt
-  
   return $ tytype , TyArg gc gtv
+
 inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
   let rt : Type ({!!} ◃ α)
       rt = El (weakenSort (subWeaken subRefl) s) {!!}
@@ -101,7 +100,9 @@ inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
   cc ← convert ctx (TSort s) ty (unType $ dataType d dp s psubst isubst)
   let tj = TyCase {k = s} {r = r} dp df dep {is = isubst} bs rt cc cb
   return (substTopType r u rt , tj)
+
 inferElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
+
 {-# COMPILE AGDA2HS inferElim #-}
 
 inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
