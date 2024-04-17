@@ -73,9 +73,7 @@ inferElim ctx u (Syntax.EArg v) tu = do
       tytype = substTopType r v rt
   return $ tytype , TyArg gc gtv
 
-inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
-  let rt : Type ({!!} ◃ α)
-      rt = El (weakenSort (subWeaken subRefl) s) {!!}
+inferElim {α = α} ctx u (Syntax.ECase bs m) (El s ty) = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -96,11 +94,11 @@ inferElim {α = α} ctx u (Syntax.ECase bs) (El s ty) = do
   (Erased refl) ← liftMaybe
     (allInScope {γ = conScope} (allBranches bs) (mapAll fst $ dataConstructors df))
     "couldn't verify that branches cover all constructors"
-  cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
+  cb ← checkBranches ctx (rezzBranches bs) bs df psubst m
   let ds = substSort psubst (dataSort df)
   cc ← convert ctx (TSort s) ty (unType $ dataType d dp ds psubst isubst)
-  let tj = TyCase {k = ds} {r = r} dp df dep {is = isubst} bs rt cc cb
-  return (substTopType r u rt , tj)
+  let tj = TyCase {k = ds} {r = r} dp df dep {is = isubst} bs m cc cb
+  return (substTopType r u m , tj)
 
 inferElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
 

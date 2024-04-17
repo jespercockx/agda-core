@@ -99,9 +99,13 @@ data Conv {α} Γ where
 data ConvElim {α} Γ where
   CEArg  : Γ ⊢ v ≅ v'
          → Γ ⊢ EArg v ≃ EArg v'
-  CECase : (bs bp : Branches α cs)
+  CECase : {@0 r : Rezz _ α}
+           (bs bp : Branches α cs)
+           (ms : Type (x ◃ α)) (mp : Type (y ◃ α))
+         --TODO: enforce that a is the type of the scrutinee
+         → Γ , x ∶ a ⊢ renameTop r (unType ms) ≅ renameTop r (unType mp)
          → ConvBranches Γ bs bp
-         → Γ ⊢ ECase bs ≃ ECase bp
+         → Γ ⊢ ECase bs ms ≃ ECase bp mp
   -- TODO: CEProj : {!   !}
 
 data ConvBranch {α} Γ where
