@@ -103,23 +103,23 @@ convSortsI ctx (STyp u) (STyp u') =
 
 convertCheck : Fuel → ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
 convertInfer : Fuel → ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q))
-convertElims : Fuel
-             → ∀ Γ
-                (s : Term α)
-                (u : Term α)
-                (v v' : Elim α)
-             → TCM (Σ (Term α) (λ f → Γ ⊢ v ≃ v'))
-convertSubsts : Fuel
-              → ∀ {@0 α β} Γ
-                  (ty : Telescope α β)
-                  (s p : β ⇒ α)
+convertElims : Fuel →
+             ∀ Γ
+               (tu   : Term α)
+               (u    : Term α)
+               (v v' : Elim α)
+             → TCM (Σ (Term α) (λ _ → Γ ⊢ v ≃ v'))
+convertSubsts : Fuel →
+              ∀ {@0 α β} Γ
+                (ty : Telescope α β)
+                (s p : β ⇒ α)
               → TCM (Γ ⊢ s ⇔ p)
-convertBranches : Fuel
-                → ∀ {@0 x : name} {@0 cons : Scope name} Γ
-                    (dt : Datatype)
-                    (ps : dataParameterScope dt ⇒ α)
-                    (rty : Term (x ◃ α))
-                    (bs bp : Branches α cons)
+convertBranches : Fuel →
+                ∀ {@0 x : name} {@0 cons : Scope name} Γ
+                  (dt : Datatype)
+                  (ps : dataParameterScope dt ⇒ α)
+                  (rty : Term (x ◃ α))
+                  (bs bp : Branches α cons)
                 → TCM (ConvBranches Γ bs bp)
 
 convCons : Fuel →
