@@ -148,7 +148,7 @@ data TyElim {α} Γ where
              (rt : Type (x ◃ α))
            → Γ ⊢ (unType c) ≅ (unType $ dataType d dp k ps is)
            → TyBranches Γ dt ps rt bs
-           → TyElim Γ u (ECase bs) c (substTopType r u rt)
+           → TyElim Γ u (ECase bs rt) c (substTopType r u rt)
     -- TODO: proj
 
 {-# COMPILE AGDA2HS TyElim #-}

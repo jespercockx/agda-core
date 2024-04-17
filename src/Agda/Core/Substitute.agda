@@ -45,9 +45,10 @@ substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst
 substTerm f (TAnn u t)        = TAnn (substTerm f u) (substType f t)
 {-# COMPILE AGDA2HS substTerm #-}
 
-substElim f (EArg u)    = EArg (substTerm f u)
-substElim f (EProj p k) = EProj p k
-substElim f (ECase bs)  = ECase (substBranches f bs)
+substElim f (EArg u)             = EArg (substTerm f u)
+substElim f (EProj p k)          = EProj p k
+substElim f (ECase {x = x} bs m) = ECase (substBranches f bs)
+                                         (substType (liftBindSubst {y = x} f) m)
 {-# COMPILE AGDA2HS substElim #-}
 
 substElims f = map (substElim f)

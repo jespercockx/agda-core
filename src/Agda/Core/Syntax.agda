@@ -91,7 +91,7 @@ sortType s = El (sucSort s) (TSort s)
 data Elim α where
   EArg  : Term α → Elim α
   EProj : (@0 x : name) → x ∈ defScope → Elim α
-  ECase : (bs : Branches α cs) → Elim α
+  ECase : (bs : Branches α cs) (m : Type (x ◃ α)) → Elim α
   -- TODO: do we need a type annotation for the return type of case?
 {-# COMPILE AGDA2HS Elim deriving Show #-}
 
@@ -230,7 +230,7 @@ weakenType p (El st t) = El (weakenSort p st) (weaken p t)
 
 weakenElim p (EArg x)    = EArg (weaken p x)
 weakenElim p (EProj x k) = EProj x k
-weakenElim p (ECase bs)  = ECase (weakenBranches p bs)
+weakenElim p (ECase bs m)  = ECase (weakenBranches p bs) (weakenType (subBindKeep p) m)
 {-# COMPILE AGDA2HS weakenElim #-}
 
 weakenElims p = map (weakenElim p)
@@ -348,7 +348,7 @@ strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthen p t
 
 strengthenElim p (EArg v) = EArg <$> strengthen p v
 strengthenElim p (EProj f q) = Just (EProj f q)
-strengthenElim p (ECase bs) = ECase <$> strengthenBranches p bs
+strengthenElim p (ECase bs m) = ECase <$> strengthenBranches p bs <*> strengthenType (subBindKeep p) m
 
 strengthenElims p = traverse (strengthenElim p)
 

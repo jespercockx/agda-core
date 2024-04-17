@@ -234,9 +234,7 @@ convertElims fl ctx t           u (EArg w) (EArg w') = do
   let ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck fl ctx (unType a) w w'
   return $ substTop r w (unType b) Σ, CEArg cw
-convertElims fl ctx t u (ECase ws) (ECase ws') = do
-  let rt : Term ({!!} ◃ α)
-      rt = {!!}
+convertElims fl ctx t u (ECase ws m) (ECase ws' m') = do
   let r = rezzScope ctx
   rezz sig  ← tcmSignature
   (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig t fl
@@ -252,8 +250,12 @@ convertElims fl ctx t u (ECase ws) (ECase ws') = do
   (Erased refl) ← liftMaybe
     (allInScope {γ = conScope} (allBranches ws) (allBranches ws'))
     "couldn't verify that branches cover the same constructors"
-  cbs ← convertBranches fl ctx df psubst rt ws ws'
-  return (substTop r u rt Σ, CECase ws ws' cbs)
+  cm ← convertCheck fl (ctx , _ ∶ El {!!} t)
+                       (TSort (typeSort m))
+                       (renameTop r (unType m))
+                       (renameTop r (unType m'))
+  cbs ← convertBranches fl ctx df psubst (unType m) ws ws'
+  return (substTop r u (unType m) Σ, CECase ws ws' m m' cm cbs)
 convertElims fl ctx s u (EProj _ _) (EProj _ _) = tcError "not implemented yet"
 convertElims fl ctx s u _           _ = tcError "two elims aren't the same shape"
 

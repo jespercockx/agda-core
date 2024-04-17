@@ -132,7 +132,7 @@ step sig (MkState e (TLet x v w) s) =
 step sig (MkState e (TDef d q) s) = case getBody sig d q of λ where
   (Just v) → Just (MkState e (weaken subEmpty v) s)
   Nothing  → Nothing
-step sig (MkState e (TCon c q vs) (ECase bs ∷ s)) =
+step sig (MkState e (TCon c q vs) (ECase bs _ ∷ s)) =
   case lookupBranch bs c q of λ where
     (Just (r , v)) → Just (MkState
       (extendEnvironment (revSubst vs) e)
