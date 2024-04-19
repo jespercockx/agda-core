@@ -1,4 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 open import Haskell.Prelude
 
 open import Scope
@@ -234,10 +233,10 @@ convertElims fl ctx t           u (EArg w) (EArg w') = do
   let ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck fl ctx (unType a) w w'
   return $ substTop r w (unType b) Σ, CEArg cw
-convertElims fl ctx t u (ECase ws m) (ECase ws' m') = do
+convertElims fl ctx tu u (ECase ws m) (ECase ws' m') = do
   let r = rezzScope ctx
   rezz sig  ← tcmSignature
-  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig t fl
+  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig tu fl
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
   (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
@@ -250,7 +249,7 @@ convertElims fl ctx t u (ECase ws m) (ECase ws' m') = do
   (Erased refl) ← liftMaybe
     (allInScope {γ = conScope} (allBranches ws) (allBranches ws'))
     "couldn't verify that branches cover the same constructors"
-  cm ← convertCheck fl (ctx , _ ∶ El {!!} t)
+  cm ← convertCheck fl (ctx , _ ∶ El (substSort psubst $ dataSort df) tu)
                        (TSort (typeSort m))
                        (renameTop r (unType m))
                        (renameTop r (unType m'))
