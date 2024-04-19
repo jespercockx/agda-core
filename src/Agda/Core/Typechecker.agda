@@ -263,7 +263,9 @@ checkType ctx (TSort s) ty = do
   tts ← inferTySort ctx s
   checkCoerce ctx (TSort s) tts ty
 checkType ctx (TLet x u v) ty = checkLet ctx x u v ty
-checkType ctx (TAnn u t) ty = tcError "not implemented yet"
+checkType ctx (TAnn u t) ty = do
+  ct ← TyAnn <$> checkType ctx u t
+  checkCoerce ctx (TAnn u t) (t , ct) ty
 
 {-# COMPILE AGDA2HS checkType #-}
 
@@ -274,8 +276,8 @@ inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a l
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s
-inferType ctx (TAnn u t) = tcError "not implemented yet"
 inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"
+inferType ctx (TAnn u t) = (_,_) t <$> TyAnn <$> checkType ctx u t
 
 {-# COMPILE AGDA2HS inferType #-}
 
