@@ -41,7 +41,10 @@ data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → Set
 
 data ConvBranches (@0 Γ : Context α) : @0 Branches α cs → @0 Branches α cs → Set where
   CBranchesNil : {bs bp : Branches α mempty} → ConvBranches Γ bs bp
-  CBranchesCons : {b1 b2 : Branch α cn} {bs1 bs2 : Branches α cs} → ConvBranch Γ b1 b2 → ConvBranches Γ bs1 bs2 → ConvBranches Γ (BsCons b1 bs1) (BsCons b2 bs2)
+  CBranchesCons : {b1 b2 : Branch α cn} {bs1 bs2 : Branches α cs}
+                → ConvBranch Γ b1 b2
+                → ConvBranches Γ bs1 bs2
+                → ConvBranches Γ (BsCons b1 bs1) (BsCons b2 bs2)
 
 
 {-# COMPILE AGDA2HS Conv     #-}
@@ -92,9 +95,7 @@ data Conv {α} Γ where
          → Γ ⊢ u  ≅ v
   CRedR  : @0 ReducesTo sig v v'
          → Γ ⊢ u  ≅ v'
-         → Γ ⊢ u  ≅ v 
-
-{-# COMPILE AGDA2HS Conv #-}
+         → Γ ⊢ u  ≅ v
 
 data ConvElim {α} Γ where
   CEArg  : Γ ⊢ v ≅ v'
@@ -116,7 +117,6 @@ data ConvBranch {α} Γ where
            → (addContextTel tel Γ) ⊢ t1 ≅ t2
            → ConvBranch Γ (BBranch c cp r1 t1) (BBranch c cp r2 t2)
 
-{-# COMPILE AGDA2HS ConvElim #-}
 
 data ConvSubst {α} Γ where
   CSNil : ConvSubst Γ {β = mempty} us vs
@@ -124,5 +124,3 @@ data ConvSubst {α} Γ where
          → Γ ⊢ u ≅ v
          → Γ ⊢ us ⇔ vs
          → Γ ⊢ (SCons {x = x} u us) ⇔ (SCons {x = x} v vs)
-
-{-# COMPILE AGDA2HS ConvSubst #-}

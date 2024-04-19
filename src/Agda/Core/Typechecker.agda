@@ -161,11 +161,11 @@ checkBranch ctx (BBranch c ccs r rhs) dt ps rt = do
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs dt)
     "can't find a constructor with such a name"
   let (_ , con) = lookupAll (dataConstructors dt) cid
-      ctel = substTelescope ps (conTelescope con)  
+      ctel = substTelescope ps (conTelescope con)
       cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
                           (revIdSubst r)
       idsubst = weakenSubst (subJoinDrop (rezzCong revScope r) subRefl)
-                            (idSubst ra)    
+                            (idSubst ra)
       bsubst = SCons (TCon c ccs cargs) idsubst
   crhs ← checkType (addContextTel ctel ctx) rhs (substType bsubst rt)
   return (TyBBranch c cid {rα = ra} rhs crhs)
@@ -269,13 +269,13 @@ checkType ctx (TAnn u t) ty = tcError "not implemented yet"
 
 inferType ctx (TVar x p) = inferVar ctx x p
 inferType ctx (TDef d p) = inferDef ctx d p
-inferType ctx (TCon c p x) = tcError "not implemented yet"
-inferType ctx (TLam x te) = tcError "can't infer the type of a lambda"
+inferType ctx (TCon c p x) = tcError "non inferrable: can't infer the type of a constructor"
+inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s
-inferType ctx (TLet x te te₁) = tcError "can't infer the type of a let"
 inferType ctx (TAnn u t) = tcError "not implemented yet"
+inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"
 
 {-# COMPILE AGDA2HS inferType #-}
 
