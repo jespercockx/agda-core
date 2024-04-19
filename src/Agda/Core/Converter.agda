@@ -190,32 +190,30 @@ convAppsI (More fl) ctx u u' w w' = do
   sw Σ, cv  ← convertElims fl ctx su u w w'
   return $ sw Σ, CApp cu cv
 
-convPis : Fuel
-        → ∀ Γ
-          (s : Term α)
-          (@0 x y : name)
-          (u u' : Type α)
-          (v  : Type (x ◃ α))
-          (v' : Type (y ◃ α))
-        → TCM (Conv {α = α} Γ (TPi x u v) (TPi y u' v'))
-convPis None      ctx t         x y u u' v v' =
-  tcError "not enough fuel to check conversion of Pis"
-convPis (More fl) ctx (TSort s) x y u u' v v' = do
-  let r = rezzScope ctx
+convPisI : Fuel →
+         ∀ Γ
+           (@0 x y : name)
+           (u u' : Type α)
+           (v  : Type (x ◃ α))
+           (v' : Type (y ◃ α))
+         → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TPi x u v) (TPi y u' v')))
+convPisI fl ctx x y u u' v v' = do
+  let r  = rezzScope ctx
+      ps = TSort (piSort (typeSort u) (typeSort v))
+  cpi ← CPi <$> convertCheck fl ctx (TSort $ typeSort u) (unType u) (unType u')
+            <*> convertCheck fl (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
+  return (ps Σ, cpi)
 
-  CPi <$> convertCheck fl ctx (TSort $ typeSort u) (unType u) (unType u')
-      <*> convertCheck fl (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
-convPis (More fl) ctx  t        x y u u' v v' = do
-  let r = rezzScope ctx
-  fuel      ← tcmFuel
-  rezz sig  ← tcmSignature
-
-  (TSort s) ⟨ rp ⟩  ← reduceTo r sig t fuel
-    where
-      _ → tcError "can't convert two terms when the type does not reduce to a sort"
-  cu ← convertCheck fl ctx (TSort $ typeSort u) (unType u) (unType u')
-  cv ← convertCheck fl (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
-  return $ CPi cu cv
+convPis : Fuel →
+         ∀ Γ
+           (s : Term α)
+           (@0 x y : name)
+           (u u' : Type α)
+           (v  : Type (x ◃ α))
+           (v' : Type (y ◃ α))
+         → TCM (Conv {α = α} Γ (TPi x u v) (TPi y u' v'))
+convPis None      _   _ _ _ _ _  _ _  = tcError "not enough fuel"
+convPis (More fl) ctx _ x y u u' v v' = snd <$> convPisI fl ctx x y u u' v v'
 
 convertElims fl ctx (TPi x a b) u (EArg w) (EArg w') = do
   let r = rezzScope ctx
@@ -353,7 +351,7 @@ convertInfer fl ctx t q = do
       map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI fl ctx u v e f
     --for pi
     (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
-      tcError "not implemented yet"
+      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convPisI fl ctx x y tu tw tv tz
     --for sort
     (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
       map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convSortsI ctx s t
