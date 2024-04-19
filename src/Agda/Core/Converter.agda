@@ -1,5 +1,4 @@
 open import Haskell.Prelude
-
 open import Scope
 
 open import Agda.Core.GlobalScope using (Globals)
@@ -10,7 +9,7 @@ module Agda.Core.Converter
     (@0 globals : Globals name)
     (open Signature globals)
     (@0 sig     : Signature)
-  where  
+  where
 
 private open module @0 G = Globals globals
 
@@ -257,7 +256,7 @@ convertElims fl ctx s u (EProj _ _) (EProj _ _) = tcError "not implemented yet"
 convertElims fl ctx s u _           _ = tcError "two elims aren't the same shape"
 
 convertSubsts fl ctx tel SNil p = return CSNil
-convertSubsts fl ctx tel (SCons x st) p = 
+convertSubsts fl ctx tel (SCons x st) p =
   caseSubstBind p λ where
     y pt {{refl}} → caseTelBind tel λ a rest → do
       let r = rezzScope ctx
@@ -280,7 +279,7 @@ convertBranch fl ctx dt ps rt (BBranch _ cp1 rz1 rhs1) (BBranch _ cp2 rz2 rhs2) 
       cid ⟨ refl ⟩  ← liftMaybe (getConstructor _ cp1 dt)
          "can't find a constructor with such a name"
       let (_ Σ, con) = lookupAll (dataConstructors dt) cid
-          ctel = substTelescope ps (conTelescope con)  
+          ctel = substTelescope ps (conTelescope con)
           cargs = weakenSubst (subJoinHere (rezzCong revScope rz1) subRefl)
                               (revIdSubst rz1)
           idsubst = weakenSubst (subJoinDrop (rezzCong revScope rz1) subRefl)
@@ -319,43 +318,45 @@ convertCheck fl ctx ty t q = do
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) → do
       snd <$> map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI fl ctx u v e f
     --for pi
-    (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) → 
+    (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convPis fl ctx ty x y tu tw tv tz
     --for sort
     (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convSorts ctx ty s t
-    _ → tcError "sorry"
+    --let and ann shoudln't appear here since they get reduced away
+    _ → tcError "two terms are not the same and aren't convertible"
 
 convertInfer fl ctx t q = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
 
-  rgty ← reduceTo r sig t fuel
-  rcty ← reduceTo r sig q fuel
-  case (rgty , rcty) of λ where
+  rt ← reduceTo r sig t fuel
+  rq ← reduceTo r sig q fuel
+  case (rt , rq) of λ where
     --for vars
-    (TVar x p ⟨ rpg  ⟩ , TVar y q ⟨ rpc ⟩) →
-      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convVarsI ctx x y p q
+    (TVar x p ⟨ rpt  ⟩ , TVar y q ⟨ rpq ⟩) →
+      map2 (λ _ → CRedL rpt ∘ CRedR rpq) <$> convVarsI ctx x y p q
     --for defs
-    (TDef x p ⟨ rpg  ⟩ , TDef y q  ⟨ rpc ⟩) →
-      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convDefsI ctx x y p q
+    (TDef x p ⟨ rpt  ⟩ , TDef y q  ⟨ rpq ⟩) →
+       map2 (λ _ → CRedL rpt ∘ CRedR rpq) <$> convDefsI ctx x y p q
     --for cons
-    (TCon c p lc ⟨ rpg  ⟩ , TCon d q ld ⟨ rpc ⟩) →
-      tcError "not implemented yet"
+    (TCon c p lc ⟨ rpt  ⟩ , TCon d q ld ⟨ rpq ⟩) →
+      tcError "non inferrable"
     --for lambda
-    (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
+    (TLam x u ⟨ rpt ⟩ , TLam y v ⟨ rpq ⟩) →
       tcError "non inferrable"
     --for app
-    (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) →
-      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI fl ctx u v e f
+    (TApp u e ⟨ rpt ⟩ , TApp v f ⟨ rpq ⟩) →
+      map2 (λ _ → CRedL rpt ∘ CRedR rpq) <$> convAppsI fl ctx u v e f
     --for pi
-    (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
-      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convPisI fl ctx x y tu tw tv tz
+    (TPi x tu tv ⟨ rpt ⟩ , TPi y tw tz ⟨ rpq ⟩) →
+      map2 (λ _ → CRedL rpt ∘ CRedR rpq) <$> convPisI fl ctx x y tu tw tv tz
     --for sort
-    (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
-      map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convSortsI ctx s t
-    _ → tcError "sorry"
+    (TSort s ⟨ rpt ⟩ , TSort t ⟨ rpq ⟩) →
+      map2 (λ _ → CRedL rpt ∘ CRedR rpq) <$> convSortsI ctx s t
+    --let and ann shoudln't appear here since they get reduced away
+    _ → tcError "two terms are not the same and aren't convertible"
 
 
 convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)

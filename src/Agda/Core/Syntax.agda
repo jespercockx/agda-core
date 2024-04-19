@@ -92,7 +92,6 @@ data Elim α where
   EArg  : Term α → Elim α
   EProj : (@0 x : name) → x ∈ defScope → Elim α
   ECase : (bs : Branches α cs) (m : Type (x ◃ α)) → Elim α
-  -- TODO: do we need a type annotation for the return type of case?
 {-# COMPILE AGDA2HS Elim deriving Show #-}
 
 Elims α = List (Elim α)
