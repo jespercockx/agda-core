@@ -56,6 +56,9 @@ data Term α where
   -- NOTE(flupe): removed tactic arguments for now because hidden arguments not supported yet #217
   TVar  : (@0 x : name) → x ∈ α → Term α
   TDef  : (@0 d : name) → d ∈ defScope → Term α
+  TDat  : (@0 d : name) → (d∈dats : d ∈ datScope)
+        → (lookupAll paramScope d∈dats) ⇒ α
+        → (lookupAll indexScope d∈dats) ⇒ α → Term α
   TCon  : (@0 c : name) (c∈cons : c ∈ conScope)
         → (lookupAll fieldScope c∈cons) ⇒ α → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
