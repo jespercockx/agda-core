@@ -1,13 +1,12 @@
 open import Haskell.Prelude hiding (All; a; b; c; s; t)
 
 open import Scope
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 
 import Agda.Core.Signature as Signature
 
 module Agda.Core.Conversion
-  {@0 name    : Set}
-  (@0 globals : Globals name)
+  (@0 globals : Globals)
   (open Signature globals)
   (@0 sig     : Signature)
   where
@@ -25,8 +24,8 @@ open import Agda.Core.Context globals
 open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
 private variable
-  @0 x y z cn       : name
-  @0 α β γ cs       : Scope name
+  @0 x y z cn       : Name
+  @0 α β γ cs       : Scope Name
   @0 s s' t t' u u' v v' w w' : Term α
   @0 k l n sa sb    : Sort α
   @0 a a' b b' c c' : Type α
@@ -89,7 +88,7 @@ data Conv {α} where
          → ConvBranches bs bp
          → TCase u bs ms ≅ TCase u' bp mp
   -- TODO: CProj : {!   !}
-  CCon   : {@0 c : name} (@0 cp : c ∈ conScope)
+  CCon   : {@0 c : Name} (@0 cp : c ∈ conScope)
            {@0 us vs : lookupAll fieldScope cp ⇒ α}
          → us ⇔ vs
          → TCon c cp us ≅ TCon c cp vs
@@ -101,7 +100,7 @@ data Conv {α} where
          → u  ≅ v
 
 data ConvBranch {α} where
-  CBBranch : (@0 c : name) (cp : c ∈ conScope) (r1 r2 : _)
+  CBBranch : (@0 c : Name) (cp : c ∈ conScope) (r1 r2 : _)
              (t1 t2 : Term (~ lookupAll fieldScope cp <> α))
            → t1 ≅ t2
            → ConvBranch (BBranch c cp r1 t1) (BBranch c cp r2 t2)
@@ -109,7 +108,7 @@ data ConvBranch {α} where
 
 data ConvSubst {α} where
   CSNil : ConvSubst {β = mempty} us vs
-  CSCons : {@0 x : name}
+  CSCons : {@0 x : Name}
          → u ≅ v
          → us ⇔ vs
          → (SCons {x = x} u us) ⇔ (SCons {x = x} v vs)

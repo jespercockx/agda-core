@@ -1,9 +1,8 @@
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 import Agda.Core.Signature as Signature
 
 module Agda.Core.TCM
-    {@0 name    : Set}
-    (@0 globals : Globals name)
+    (@0 globals : Globals)
     (open Signature globals)
     (@0 sig     : Signature)
   where

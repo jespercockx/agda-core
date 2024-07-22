@@ -1,9 +1,8 @@
 open import Scope
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 
 module Agda.Core.Reduce
-  {@0 name    : Set}
-  (@0 globals : Globals name)
+  (@0 globals : Globals)
   where
 
 open import Haskell.Prelude hiding (All; coerce; _,_,_; c) renaming (_,_ to infixr 5 _,_)
@@ -22,13 +21,13 @@ open import Agda.Core.Utils
 private open module @0 G = Globals globals
 
 private variable
-  @0 x c      : name
-  @0 α β γ cs : Scope name
+  @0 x c      : Name
+  @0 α β γ cs : Scope Name
   @0 u v w    : Term α
 
-data Environment : (@0 α β : Scope name) → Set where
+data Environment : (@0 α β : Scope Name) → Set where
   EnvNil  : Environment α α
-  EnvCons : Environment α β → (@0 x : name) → Term β → Environment α (x ◃ β)
+  EnvCons : Environment α β → (@0 x : Name) → Term β → Environment α (x ◃ β)
 
 {-# COMPILE AGDA2HS Environment #-}
 
@@ -54,9 +53,9 @@ envToSubst r (env , x ↦ v) =
 
 {-# COMPILE AGDA2HS envToSubst #-}
 
-data Frame (@0 α : Scope name) : Set where
+data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
-  FProj : (@0 x : name) → x ∈ defScope → Frame α
+  FProj : (@0 x : Name) → x ∈ defScope → Frame α
   FCase : (bs : Branches α cs) (m : Type (x ◃ α)) → Frame α
 
 unFrame : Frame α → Term α → Term α
@@ -69,7 +68,7 @@ weakenFrame s (FApp u) = FApp (weaken s u)
 weakenFrame s (FProj u f) = FProj u f
 weakenFrame s (FCase bs m) = FCase (weakenBranches s bs) (weakenType (subBindKeep s) m)
 
-Stack : (@0 α : Scope name) → Set
+Stack : (@0 α : Scope Name) → Set
 Stack α = List (Frame α)
 
 unStack : Stack α → Term α → Term α
@@ -80,10 +79,10 @@ weakenStack : α ⊆ β → Stack α → Stack β
 weakenStack s [] = []
 weakenStack s (f ∷ fs) = weakenFrame s f ∷ weakenStack s fs
 
-record State (@0 α : Scope name) : Set where
+record State (@0 α : Scope Name) : Set where
   constructor MkState
   field
-    @0 {fullScope}  : Scope name
+    @0 {fullScope}  : Scope Name
     env : Environment α fullScope
     focus : Term fullScope
     stack : Stack fullScope
@@ -102,7 +101,7 @@ unState r (MkState e v s) = substTerm (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
-lookupBranch : Branches α cs → (@0 c : name) (p : c ∈ conScope)
+lookupBranch : Branches α cs → (@0 c : Name) (p : c ∈ conScope)
              → Maybe ( Rezz _ (lookupAll fieldScope p)
                      × Term (~ lookupAll fieldScope p <> α))
 lookupBranch BsNil c k = Nothing

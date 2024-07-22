@@ -4,12 +4,11 @@ open import Haskell.Prelude
 
 open import Scope
 
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 import Agda.Core.Signature as Signature
 
 module Agda.Core.Typechecker
-    {@0 name    : Set}
-    (@0 globals : Globals name)
+    (@0 globals : Globals)
     (open Signature globals)
     (@0 sig     : Signature)
   where
@@ -34,8 +33,8 @@ open import Haskell.Law.Monoid
 
 
 private variable
-  @0 x : name
-  @0 α : Scope name
+  @0 x : Name
+  @0 α : Scope Name
 
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
@@ -53,7 +52,7 @@ inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
-checkBranches : ∀ {@0 cons : Scope name}
+checkBranches : ∀ {@0 cons : Scope Name}
                   (Γ : Context α)
                   (rz : Rezz _ cons)
                   (bs : Branches α cons)
@@ -105,7 +104,7 @@ inferCase ctx u bs rt = do
 {-# COMPILE AGDA2HS inferCase #-}
 
 inferPi
-  : ∀ Γ (@0 x : name)
+  : ∀ Γ (@0 x : Name)
   (a : Type α)
   (b : Type (x ◃ α))
   → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TPi x a b ∶ ty)
@@ -120,7 +119,7 @@ inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s 
 inferTySort ctx (STyp x) = return $ sortType (sucSort (STyp x)) , TyType
 {-# COMPILE AGDA2HS inferTySort #-}
 
-inferDef : ∀ Γ (@0 f : name) (p : f ∈ defScope)
+inferDef : ∀ Γ (@0 f : Name) (p : f ∈ defScope)
          → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
 inferDef ctx f p = do
   rezz sig ← tcmSignature
@@ -143,7 +142,7 @@ checkSubst ctx t (SCons x s) =
     return (TyCons tyx tyrest)
 {-# COMPILE AGDA2HS checkSubst #-}
 
-checkBranch : ∀ {@0 con : name} (Γ : Context α)
+checkBranch : ∀ {@0 con : Name} (Γ : Context α)
                 (bs : Branch α con)
                 (dt : Datatype)
                 (ps : dataParameterScope dt ⇒ α)
@@ -174,7 +173,7 @@ checkBranches ctx (rezz cons) bs dt ps rt =
 {-# COMPILE AGDA2HS checkBranches #-}
 
 checkCon : ∀ Γ
-           (@0 c : name)
+           (@0 c : Name)
            (ccs : c ∈ conScope)
            (cargs : lookupAll fieldScope ccs ⇒ α)
            (ty : Type α)
@@ -204,7 +203,7 @@ checkCon ctx c ccs cargs (El s ty) = do
   checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
 {-# COMPILE AGDA2HS checkCon #-}
 
-checkLambda : ∀ Γ (@0 x : name)
+checkLambda : ∀ Γ (@0 x : Name)
               (u : Term (x ◃ α))
               (ty : Type α)
               → TCM (Γ ⊢ TLam x u ∶ ty)
@@ -224,7 +223,7 @@ checkLambda ctx x u (El s ty) = do
   return $ TyConv (TyLam {k = sp} d) gc
 {-# COMPILE AGDA2HS checkLambda #-}
 
-checkLet : ∀ Γ (@0 x : name)
+checkLet : ∀ Γ (@0 x : Name)
            (u : Term α)
            (v : Term (x ◃ α))
            (ty : Type α)

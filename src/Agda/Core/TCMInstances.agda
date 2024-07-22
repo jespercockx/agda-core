@@ -9,8 +9,7 @@ open import Agda.Core.Signature
 open import Agda.Core.TCM
 
 private variable
-  @0 name : Set
-  @0 globals : Globals name
+  @0 globals : Globals
   @0 sig : Signature globals
 
 private

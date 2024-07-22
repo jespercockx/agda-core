@@ -1,9 +1,8 @@
 open import Scope
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 
 module Agda.Core.Substitute
-  {@0 name    : Set}
-  (@0 globals : Globals name)
+  (@0 globals : Globals)
   where
 
 open import Haskell.Prelude hiding (All; c)
@@ -16,8 +15,8 @@ open import Agda.Core.Syntax globals
 open import Agda.Core.Signature globals
 
 private variable
-  @0 x c     : name
-  @0 α β γ cs : Scope name
+  @0 x c     : Name
+  @0 α β γ cs : Scope Name
 
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β

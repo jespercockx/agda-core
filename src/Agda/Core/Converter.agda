@@ -1,12 +1,11 @@
 open import Haskell.Prelude
 open import Scope
 
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 import Agda.Core.Signature as Signature
 
 module Agda.Core.Converter
-    {@0 name    : Set}
-    (@0 globals : Globals name)
+    (@0 globals : Globals)
     (open Signature globals)
     (@0 sig     : Signature)
   where
@@ -28,11 +27,11 @@ open import Haskell.Law.Eq
 open import Haskell.Law.Equality
 
 private variable
-  @0 x y : name
-  @0 α β : Scope name
+  @0 x y : Name
+  @0 α β : Scope Name
 
 
-reduceTo : {@0 α : Scope name} (r : Rezz _ α) (sig : Signature) (v : Term α) (f : Fuel)
+reduceTo : {@0 α : Scope Name} (r : Rezz _ α) (sig : Signature) (v : Term α) (f : Fuel)
          → TCM (∃[ t ∈ Term α ] (ReducesTo sig v t))
 reduceTo r sig v f =
   case reduce r sig v f of λ where
@@ -40,7 +39,7 @@ reduceTo r sig v f =
     (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩
 {-# COMPILE AGDA2HS reduceTo #-}
 
-convVars : (@0 x y : name)
+convVars : (@0 x y : Name)
            (p : x ∈ α) (q : y ∈ α)
          → TCM (Conv (TVar x p) (TVar y q))
 convVars x y p q =
@@ -48,7 +47,7 @@ convVars x y p q =
     (λ where {{refl}} → return CRefl)
     (tcError "variables not convertible")
 
-convDefs : (@0 f g : name)
+convDefs : (@0 f g : Name)
            (p : f ∈ defScope)
            (q : g ∈ defScope)
          → TCM (Conv {α = α} (TDef f p) (TDef g q))
@@ -69,12 +68,12 @@ convertSubsts : Fuel → Rezz _ α →
                 (s p : β ⇒ α)
               → TCM (s ⇔ p)
 convertBranches : Fuel → Rezz _ α →
-                ∀ {@0 cons : Scope name}
+                ∀ {@0 cons : Scope Name}
                   (bs bp : Branches α cons)
                 → TCM (ConvBranches bs bp)
 
 convCons : Fuel → Rezz _ α →
-           (@0 f g : name)
+           (@0 f g : Name)
            (p : f ∈ conScope)
            (q : g ∈ conScope)
            (lp : lookupAll fieldScope p ⇒ α)
@@ -91,7 +90,7 @@ convCons fl r f g p q lp lq = do
 
 convLams : Fuel
          → Rezz _ α
-         → (@0 x y : name)
+         → (@0 x y : Name)
            (u : Term (x ◃ α))
            (v : Term (y ◃ α))
          → TCM (Conv (TLam x u) (TLam y v))
@@ -126,7 +125,7 @@ convertCase {x = x} fl r u u' ws ws' rt rt' = do
 
 convPis : Fuel
         → Rezz _ α
-        → (@0 x y : name)
+        → (@0 x y : Name)
           (u u' : Type α)
           (v  : Type (x ◃ α))
           (v' : Type (y ◃ α))
@@ -145,7 +144,7 @@ convertSubsts fl r (SCons x st) p =
 
 convertBranch : Fuel
               → Rezz _ α
-              → ∀ {@0 con : name}
+              → ∀ {@0 con : Name}
               → (b1 b2 : Branch α con)
               → TCM (ConvBranch b1 b2)
 convertBranch fl r (BBranch _ cp1 rz1 rhs1) (BBranch _ cp2 rz2 rhs2) =

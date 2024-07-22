@@ -6,24 +6,24 @@ open import Haskell.Extra.Erase
 open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
 
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
-module Agda.Core.Signature {@0 name  : Set} (@0 globals : Globals name) where
+module Agda.Core.Signature (@0 globals : Globals) where
 
 open import Agda.Core.Syntax globals
 private open module @0 G = Globals globals
 
 private variable
-  @0 x : name
-  @0 α β γ : Scope name
+  @0 x : Name
+  @0 α β γ : Scope Name
 
 {- Telescopes are like contexts, mapping variables to types.
    Unlike contexts, they aren't closed.
    Telescope α β is like an extension of Context α with β.-}
-data Telescope (@0 α : Scope name) : @0 Scope name → Set where
+data Telescope (@0 α : Scope Name) : @0 Scope Name → Set where
   EmptyTel  : Telescope α mempty
-  ExtendTel : (@0 x : name) → Type α → Telescope (x ◃ α) β  → Telescope α (x ◃ β)
+  ExtendTel : (@0 x : Name) → Type α → Telescope (x ◃ α) β  → Telescope α (x ◃ β)
 
 {-# COMPILE AGDA2HS Telescope #-}
 
@@ -43,7 +43,7 @@ opaque
 
 {-# COMPILE AGDA2HS caseTelBind #-}
 
-record Constructor (@0 pars : Scope name) (@0 ixs : Scope name) (@0 c : name) (@0 cp  : c ∈ conScope) : Set where
+record Constructor (@0 pars : Scope Name) (@0 ixs : Scope Name) (@0 c : Name) (@0 cp  : c ∈ conScope) : Set where
   field
     conTelescope : Telescope pars (lookupAll fieldScope cp)
     conIndices   : ixs ⇒ (revScope (lookupAll fieldScope cp) <> pars)
@@ -53,9 +53,9 @@ open Constructor public
 
 record Datatype : Set where
   field
-    @0 dataParameterScope   : Scope name
-    @0 dataIndexScope       : Scope name
-    @0 dataConstructorScope : Scope name
+    @0 dataParameterScope   : Scope Name
+    @0 dataIndexScope       : Scope Name
+    @0 dataConstructorScope : Scope Name
     dataSort                : Sort dataParameterScope
     dataParameterTel        : Telescope mempty dataParameterScope
     dataIndexTel            : Telescope dataParameterScope dataIndexScope
@@ -76,17 +76,17 @@ Signature = All (λ _ → Type (mempty {{iMonoidScope}}) × Definition) defScope
 
 {-# COMPILE AGDA2HS Signature #-}
 
-getType : Signature → (@0 x : name) → x ∈ defScope → Type mempty
+getType : Signature → (@0 x : Name) → x ∈ defScope → Type mempty
 getType sig x p = fst (lookupAll sig p)
 
 {-# COMPILE AGDA2HS getType #-}
 
-getDefinition : Signature → (@0 x : name) → x ∈ defScope → Definition
+getDefinition : Signature → (@0 x : Name) → x ∈ defScope → Definition
 getDefinition sig x p = snd (lookupAll sig p)
 
 {-# COMPILE AGDA2HS getDefinition #-}
 
-getBody : Signature → (@0 x : name) → x ∈ defScope → Maybe (Term mempty)
+getBody : Signature → (@0 x : Name) → x ∈ defScope → Maybe (Term mempty)
 getBody sig x p = case getDefinition sig x p of λ where
   (FunctionDef body) → Just body
   (DatatypeDef _)    → Nothing
@@ -94,13 +94,13 @@ getBody sig x p = case getDefinition sig x p of λ where
 
 {-# COMPILE AGDA2HS getBody #-}
 
-getConstructor : (@0 c : name) (cp : c ∈ conScope) (d : Datatype)
+getConstructor : (@0 c : Name) (cp : c ∈ conScope) (d : Datatype)
                → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
                          fst (lookupAll (dataConstructors d) cd) ≡ cp)
 getConstructor c cp d = findAll (allLookup (dataConstructors d)) dec
   where
     -- can't have a lambda take two arguments for agda2hs, so here's a local def
-    dec : {@0 el : name}
+    dec : {@0 el : Name}
         → ∃ (el ∈ (dataConstructorScope d) × _)
             (λ where (i , pi) → lookupAll (dataConstructors d) i ≡ pi)
         → _

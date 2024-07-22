@@ -1,9 +1,8 @@
 open import Scope
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 
 module Agda.Core.Context
-  {@0 name    : Set}
-  (@0 globals : Globals name)
+  (@0 globals : Globals)
   where
 
 open import Utils.Either
@@ -20,17 +19,17 @@ open import Agda.Core.Reduce globals
 open import Agda.Core.Signature globals
 
 private variable
-  @0 x y : name
-  @0 α β : Scope name
+  @0 x y : Name
+  @0 α β : Scope Name
   @0 s t u v : Term α
 
-data Context : @0 Scope name → Set where
+data Context : @0 Scope Name → Set where
   CtxEmpty  : Context mempty
-  CtxExtend : Context α → (@0 x : name) → Type α → Context (x ◃ α)
+  CtxExtend : Context α → (@0 x : Name) → Type α → Context (x ◃ α)
 
 {-# COMPILE AGDA2HS Context #-}
 
-_,_∶_ : Context α → (@0 x : name) → Type α → Context (x ◃ α)
+_,_∶_ : Context α → (@0 x : Name) → Type α → Context (x ◃ α)
 _,_∶_ = CtxExtend
 
 infix 4 _,_∶_
@@ -40,7 +39,7 @@ infix 4 _,_∶_
 private variable
   @0 Γ : Context α
 
-lookupVar : (Γ : Context α) (@0 x : name) (p : x ∈ α) → Type α
+lookupVar : (Γ : Context α) (@0 x : Name) (p : x ∈ α) → Type α
 lookupVar CtxEmpty x p = inEmptyCase p
 lookupVar (CtxExtend g y s) x p = raiseType (rezz _) (inBindCase p
   (λ _ → s)
@@ -48,7 +47,7 @@ lookupVar (CtxExtend g y s) x p = raiseType (rezz _) (inBindCase p
 
 {-# COMPILE AGDA2HS lookupVar #-}
 
-rezzScope : (Γ : Context α) → Rezz (Scope name) α
+rezzScope : (Γ : Context α) → Rezz (Scope Name) α
 rezzScope CtxEmpty = rezz _
 rezzScope (CtxExtend g x _) =
   rezzCong (λ t → (singleton x) <> t) (rezzScope g)

@@ -9,14 +9,12 @@ open import Haskell.Law.Equality
 open import Haskell.Extra.Refinement
 
 open import Scope
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Utils renaming ( _,_ to _Σ,_)
 
-name = String
-
 private variable
-  x y : name
-  α : Scope name
+  x y : Name
+  α : Scope Name
 
 instance
   top : In x (x ◃ α)
@@ -29,11 +27,11 @@ defs = singleton "Bool"
 
 cons = bind "true" $ bind "false" mempty
 
-conArity : All (λ _ → Scope name) cons
+conArity : All (λ _ → Scope Name) cons
 conArity = allJoin (allSingl mempty) (allJoin (allSingl mempty) allEmpty)
 
-globals : Globals name
-globals = record 
+globals : Globals
+globals = record
   { defScope = defs
   ; conScope = cons
   ; fieldScope = conArity
@@ -84,7 +82,7 @@ opaque
   `false : Term α
   `false = TCon "false" (inThere inHere) SNil
 
-module Tests (@0 x y z : name) where
+module Tests (@0 x y z : Name) where
 
   opaque
     unfolding ScopeThings `true `false
@@ -99,11 +97,11 @@ module Tests (@0 x y z : name) where
     test₁ = refl
 
     testTerm₂ : Term α
-    testTerm₂ = TApp `true (ECase {x = "condition"}
-                                  (BsCons (BBranch "true" inHere (rezz _) `false) 
+    testTerm₂ = TCase {x = "condition"} `true
+                                  (BsCons (BBranch "true" inHere (rezz _) `false)
                                   (BsCons (BBranch "false" (inThere inHere) (rezz _) `true)
                                    BsNil))
-                                  (El (STyp 0) (TDef "Bool" inHere)))
+                                  (El (STyp 0) (TDef "Bool" inHere))
 
     @0 testProp₂ : Set
     testProp₂ = reduceClosed sig testTerm₂ fuel ≡ Just `false

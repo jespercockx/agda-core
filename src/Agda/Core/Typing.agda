@@ -1,14 +1,13 @@
 open import Scope
 import Utils.List as List
 
-open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.GlobalScope using (Globals; Name)
 import Agda.Core.Signature as Signature
 
 open import Haskell.Prelude hiding (All; a; b; c; e; s; t; m)
 
 module Agda.Core.Typing
-    {@0 name    : Set}
-    (@0 globals : Globals name)
+    (@0 globals : Globals)
     (open Signature globals)
     (@0 sig     : Signature)
   where
@@ -29,8 +28,8 @@ open import Agda.Core.Substitute globals
 open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 
 private variable
-  @0 x y con : name
-  @0 α β pars ixs cons : Scope name
+  @0 x y con : Name
+  @0 α β pars ixs cons : Scope Name
   @0 s t u v : Term α
   @0 a b c   : Type α
   @0 k l m   : Sort α
@@ -38,8 +37,8 @@ private variable
   @0 tel     : Telescope α β
   @0 us vs   : α ⇒ β
 
-constructorType : (@0 d : name) (dp : d ∈ defScope)
-                → (@0 c : name) (cp : c ∈ conScope)
+constructorType : (@0 d : Name) (dp : d ∈ defScope)
+                → (@0 c : Name) (cp : c ∈ conScope)
                 → (con : Constructor pars ixs c cp)
                 → Sort α
                 → pars ⇒ α
@@ -72,13 +71,13 @@ data TyTerm {α} Γ where
     → Γ ⊢ TVar x p ∶ lookupVar Γ x p
 
   TyDef
-    : {@0 f : name} (@0 p : f ∈ defScope)
+    : {@0 f : Name} (@0 p : f ∈ defScope)
     ----------------------------------------------
     → Γ ⊢ TDef f p ∶ weakenType subEmpty (getType sig f p)
 
   TyCon
-    : {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
-    → {@0 c : name} (@0 cq : c ∈ dataConstructorScope dt)
+    : {@0 d : Name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
+    → {@0 c : Name} (@0 cq : c ∈ dataConstructorScope dt)
     → @0 getDefinition sig d dp ≡ DatatypeDef dt
     → (let (cp Σ, con) = lookupAll (dataConstructors dt) cq)
     → {@0 pars : dataParameterScope dt ⇒ α}
@@ -103,7 +102,7 @@ data TyTerm {α} Γ where
 
   TyCase
     : {@0 r : Rezz _ α}
-      {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
+      {@0 d : Name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
       (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
       {@0 ps : dataParameterScope dt ⇒ α}
       {@0 is : dataIndexScope dt ⇒ α}
@@ -154,7 +153,7 @@ data TyBranches {α} Γ dt ps rt where
            → TyBranches Γ dt ps rt (BsCons b bs)
 
 data TyBranch {α} Γ dt ps rt where
-  TyBBranch : (@0 c : name) → (c∈dcons : c ∈ dataConstructorScope dt)
+  TyBBranch : (@0 c : Name) → (c∈dcons : c ∈ dataConstructorScope dt)
             → (let (c∈cons Σ, con ) = lookupAll (dataConstructors dt) c∈dcons)
             → {@0 r : Rezz _ (lookupAll fieldScope c∈cons)}
               {@0 rα : Rezz _ α}
