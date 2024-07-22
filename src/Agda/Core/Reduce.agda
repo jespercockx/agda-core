@@ -54,13 +54,39 @@ envToSubst r (env , x ↦ v) =
 
 {-# COMPILE AGDA2HS envToSubst #-}
 
+data Frame (@0 α : Scope name) : Set where
+  FApp  : (u : Term α) → Frame α
+  FProj : (@0 x : name) → x ∈ defScope → Frame α
+  FCase : (bs : Branches α cs) (m : Type (x ◃ α)) → Frame α
+
+unFrame : Frame α → Term α → Term α
+unFrame (FApp v) u = TApp u v
+unFrame (FProj f p) u = TProj u f p
+unFrame (FCase bs m) u = TCase u bs m
+
+weakenFrame : α ⊆ β → Frame α → Frame β
+weakenFrame s (FApp u) = FApp (weaken s u)
+weakenFrame s (FProj u f) = FProj u f
+weakenFrame s (FCase bs m) = FCase (weakenBranches s bs) (weakenType (subBindKeep s) m)
+
+Stack : (@0 α : Scope name) → Set
+Stack α = List (Frame α)
+
+unStack : Stack α → Term α → Term α
+unStack [] u = u
+unStack (f ∷ fs) u = unStack fs (unFrame f u)
+
+weakenStack : α ⊆ β → Stack α → Stack β
+weakenStack s [] = []
+weakenStack s (f ∷ fs) = weakenFrame s f ∷ weakenStack s fs
+
 record State (@0 α : Scope name) : Set where
   constructor MkState
   field
     @0 {fullScope}  : Scope name
     env : Environment α fullScope
     focus : Term fullScope
-    stack : List (Elim fullScope)
+    stack : Stack fullScope
 
 open State public
 
@@ -72,7 +98,7 @@ makeState {α = α} v = MkState (EnvNil {α = α}) v []
 {-# COMPILE AGDA2HS makeState #-}
 
 unState : Rezz _ α → State α → Term α
-unState r (MkState e v s) = substTerm (envToSubst r e) (applyElims v s)
+unState r (MkState e v s) = substTerm (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
@@ -92,7 +118,7 @@ rezzFromEnv SNil = rezz _
 rezzFromEnv (SCons v vs) = rezzCong2 (λ (Erased x) α → x ◃ α) rezzErase (rezzFromEnv vs)
 {-# COMPILE AGDA2HS rezzFromEnv #-}
 
--- TODO: make this into a where function once 
+-- TODO: make this into a where function once
 -- https://github.com/agda/agda2hs/issues/264 is fixed.
 extendEnvironmentAux : Rezz _ β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
 extendEnvironmentAux r SNil e = subst0 (Environment _) (sym (leftIdentity _)) e
@@ -114,32 +140,34 @@ lookupEnvironment (e , x ↦ v) p = inBindCase p
 {-# COMPILE AGDA2HS lookupEnvironment #-}
 
 step : (sig : Signature) (s : State α) → Maybe (State α)
-step sig (MkState e (TVar x p) s) = 
+step sig (MkState e (TVar x p) s) =
   case lookupEnvironment e p of λ where
     (Left _) → Nothing
     (Right v) → Just (MkState e v s)
-step sig (MkState e (TApp v w) s) = Just (MkState e v (w ∷ s))
-step sig (MkState e (TLam x v) (EArg w ∷ s)) =
+step sig (MkState e (TApp v w) s) = Just (MkState e v (FApp w ∷ s))
+step sig (MkState e (TProj v f p) s) = Just (MkState e v (FProj f p ∷ s))
+step sig (MkState e (TCase v bs m) s) = Just (MkState e v (FCase bs m ∷ s))
+step sig (MkState e (TLam x v) (FApp w ∷ s)) =
   Just (MkState
     (e , x ↦ w)
     v
-    (weakenElims (subBindDrop subRefl) s))
+    (weakenStack (subBindDrop subRefl) s))
 step sig (MkState e (TLet x v w) s) =
   Just (MkState
     (e , x ↦ v)
     w
-    (weakenElims (subBindDrop subRefl) s))
+    (weakenStack (subBindDrop subRefl) s))
 step sig (MkState e (TDef d q) s) = case getBody sig d q of λ where
   (Just v) → Just (MkState e (weaken subEmpty v) s)
   Nothing  → Nothing
-step sig (MkState e (TCon c q vs) (ECase bs _ ∷ s)) =
+step sig (MkState e (TCon c q vs) (FCase bs _ ∷ s)) =
   case lookupBranch bs c q of λ where
     (Just (r , v)) → Just (MkState
       (extendEnvironment (revSubst vs) e)
       v
-      (weakenElims (subJoinDrop (rezzCong revScope r) subRefl) s))
+      (weakenStack (subJoinDrop (rezzCong revScope r) subRefl) s))
     Nothing  → Nothing
-step sig (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
+step sig (MkState e (TCon c q vs) (FProj f p ∷ s)) = Nothing -- TODO
 step sig (MkState e (TCon c q x) s) = Nothing
 step sig (MkState e (TLam x v) s) = Nothing
 step sig (MkState e (TPi x a b) s) = Nothing
@@ -148,12 +176,12 @@ step sig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annota
 
 {-# COMPILE AGDA2HS step #-}
 
--- TODO: make this into a `where` function once 
+-- TODO: make this into a `where` function once
 -- https://github.com/agda/agda2hs/issues/264 is fixed
 reduceState : Rezz _ α
             → (sig : Signature) (s : State α) → Fuel → Maybe (Term α)
 reduceState r sig s None        = Nothing
-reduceState r sig s (More fuel) = case (step sig s) of λ where 
+reduceState r sig s (More fuel) = case (step sig s) of λ where
       (Just s') → reduceState r sig s' fuel
       Nothing   → Just (unState r s)
 {-# COMPILE AGDA2HS reduceState #-}
@@ -171,10 +199,11 @@ reduceClosed = reduce (rezz _)
 ReducesTo : (sig : Signature) (v w : Term α) → Set
 ReducesTo {α = α} sig v w = Σ0[ r ∈ Rezz _ α ] ∃[ f ∈ Fuel ] reduce r sig v f ≡ Just w
 
-reduceElimView : ∀ sig (s : Term α)
-               → ∃[ t ∈ Term α ]                   ReducesTo sig s t
-               → ∃[ (t , els) ∈ Term α × Elims α ] ReducesTo sig s (applyElims t els)
-reduceElimView sig s (v ⟨ p ⟩) =
-  (elimView v) ⟨ subst0 (λ t → ReducesTo sig s t) (sym $ applyElimView v) p ⟩
+reduceAppView : ∀ sig (s : Term α)
+               → ∃[ t ∈ Term α ]                        ReducesTo sig s t
+               → ∃[ (t , vs) ∈ Term α × List (Term α) ] ReducesTo sig s (applys t vs)
+reduceAppView sig s (v ⟨ p ⟩) =
+  (unApps v) ⟨ subst0 (λ t → ReducesTo sig s t) (sym $ unAppsView v) p ⟩
 
-{-# COMPILE AGDA2HS reduceElimView #-}
+{-# COMPILE AGDA2HS reduceAppView #-}
+

@@ -22,8 +22,6 @@ private variable
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β
 substType     : α ⇒ β → Type α → Type β
-substElim     : α ⇒ β → Elim α → Elim β
-substElims    : α ⇒ β → Elims α → Elims β
 substBranch   : α ⇒ β → Branch α c → Branch β c
 substBranches : α ⇒ β → Branches α cs → Branches β cs
 substSubst    : α ⇒ β → γ ⇒ α → γ ⇒ β
@@ -38,21 +36,15 @@ substTerm f (TVar x k)        = lookupSubst f x k
 substTerm f (TDef d k)        = TDef d k
 substTerm f (TCon c k vs)     = TCon c k (substSubst f vs)
 substTerm f (TLam x v)        = TLam x (substTerm (liftBindSubst f) v)
-substTerm f (TApp u v)        = TApp (substTerm f u) (substElim f v)
+substTerm f (TApp u v)        = TApp (substTerm f u) (substTerm f v)
+substTerm f (TProj u p k)     = TProj (substTerm f u) p k
+substTerm f (TCase {x = x} u bs m) =
+  TCase (substTerm f u) (substBranches f bs) (substType (liftBindSubst {y = x} f) m)
 substTerm f (TPi x a b)       = TPi x (substType f a) (substType (liftBindSubst f) b)
 substTerm f (TSort s)         = TSort (substSort f s)
 substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)
 substTerm f (TAnn u t)        = TAnn (substTerm f u) (substType f t)
 {-# COMPILE AGDA2HS substTerm #-}
-
-substElim f (EArg u)             = EArg (substTerm f u)
-substElim f (EProj p k)          = EProj p k
-substElim f (ECase {x = x} bs m) = ECase (substBranches f bs)
-                                         (substType (liftBindSubst {y = x} f) m)
-{-# COMPILE AGDA2HS substElim #-}
-
-substElims f = map (substElim f)
-{-# COMPILE AGDA2HS substElims #-}
 
 substBranch f (BBranch c k r u) = BBranch c k r (substTerm (liftSubst (rezzCong revScope r) f) u)
 {-# COMPILE AGDA2HS substBranch #-}

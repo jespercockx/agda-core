@@ -28,6 +28,7 @@ open import Haskell.Law.Eq
 open import Haskell.Law.Equality
 
 private variable
+  @0 x y : name
   @0 α : Scope name
 
 
@@ -101,12 +102,6 @@ convSortsI ctx (STyp u) (STyp u') =
 
 convertCheck : Fuel → ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
 convertInfer : Fuel → ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q))
-convertElims : Fuel →
-             ∀ Γ
-               (tu   : Term α)
-               (u    : Term α)
-               (v v' : Elim α)
-             → TCM (Σ (Term α) (λ _ → Γ ⊢ v ≃ v'))
 convertSubsts : Fuel →
               ∀ {@0 α β} Γ
                 (ty : Telescope α β)
@@ -135,7 +130,7 @@ convCons {α = α} (More fl) ctx s f g p q lp lq = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
-  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView sig s <$> reduceTo r sig s fuel
+  (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView sig s <$> reduceTo r sig s fuel
     where
       _ → tcError "can't convert two constructors when their type isn't a definition"
   ifDec (decIn p q)
@@ -146,8 +141,6 @@ convCons {α = α} (More fl) ctx s f g p q lp lq = do
       cdi ⟨ refl ⟩ ← liftMaybe (getConstructor f p df)
         "can't find a constructor with such a name"
       let (_ Σ, con) = lookupAll (dataConstructors df) cdi
-      params ← liftMaybe (traverse maybeArg els)
-        "not all arguments to the datatype are terms"
       (psubst , _) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
         "couldn't construct a substitution for parameters"
       let ctel = substTelescope psubst (conTelescope con)
@@ -180,14 +173,50 @@ convLams (More fl) ctx  ty         x y u v = do
 convAppsI : Fuel
           → ∀ Γ
             (u u' : Term α)
-            (w w' : Elim α)
+            (w w' : Term α)
           → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TApp u w) (TApp u' w')))
 convAppsI None      ctx u u' w w' =
   tcError "not enough fuel to check conversion of Apps"
 convAppsI (More fl) ctx u u' w w' = do
   su Σ, cu ← convertInfer fl ctx u u'
-  sw Σ, cv  ← convertElims fl ctx su u w w'
-  return $ sw Σ, CApp cu cv
+  let r = rezzScope ctx
+  fuel      ← tcmFuel
+  rezz sig  ← tcmSignature
+  (TPi x a b) ⟨ rp ⟩  ← reduceTo r sig su fuel
+    where
+      _ → tcError "can't convert two terms when the type does not reduce to a Pi type"
+  cw ← convertCheck fl ctx (unType a) w w'
+  return (substTop r w (unType b) Σ, CApp cu cw)
+
+convertCaseI : Fuel
+             → ∀ Γ
+             → (u u' : Term α)
+             → ∀ {@0 cs cs'} (ws : Branches α cs) (ws' : Branches α cs')
+             → (rt : Type (x ◃ α)) (rt' : Type (y ◃ α))
+             → TCM (Σ[ ty ∈ Term α ] Conv {α = α} Γ (TCase u ws rt) (TCase u' ws' rt'))
+convertCaseI None ctx u u' ws ws' rt rt' =
+  tcError "not enough fuel to check conversion of Cases"
+convertCaseI (More fl) ctx u u' ws ws' rt rt' = do
+  su Σ, cu ← convertInfer fl ctx u u'
+  let r = rezzScope ctx
+  rezz sig  ← tcmSignature
+  (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ _ <$> reduceTo r sig su fl
+    where
+      _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
+  (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
+    where
+      _ → tcError "can't convert two constructors when their type isn't a datatype"
+  (psubst , _) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+    "couldn't construct a substitution for parameters"
+  (Erased refl) ← liftMaybe
+    (allInScope {γ = conScope} (allBranches ws) (allBranches ws'))
+    "couldn't verify that branches cover the same constructors"
+  cm ← convertCheck fl (ctx , _ ∶ El (substSort psubst $ dataSort df) su)
+                       (TSort (typeSort rt))
+                       (renameTop r (unType rt))
+                       (renameTop r (unType rt'))
+  cbs ← convertBranches fl ctx df psubst (unType rt) ws ws'
+  return ((substTop r u (unType rt)) Σ, CCase ws ws' rt rt' cu cm cbs)
 
 convPisI : Fuel →
          ∀ Γ
@@ -213,47 +242,6 @@ convPis : Fuel →
          → TCM (Conv {α = α} Γ (TPi x u v) (TPi y u' v'))
 convPis None      _   _ _ _ _ _  _ _  = tcError "not enough fuel"
 convPis (More fl) ctx _ x y u u' v v' = snd <$> convPisI fl ctx x y u u' v v'
-
-convertElims fl ctx (TPi x a b) u (EArg w) (EArg w') = do
-  let r = rezzScope ctx
-      ksort = piSort (typeSort a) (typeSort b)
-  cw ← convertCheck fl ctx (unType a) w w'
-  return $ substTop r w (unType b) Σ, CEArg cw
-convertElims fl ctx t           u (EArg w) (EArg w') = do
-  let r = rezzScope ctx
-  fuel      ← tcmFuel
-  rezz sig  ← tcmSignature
-
-  (TPi x a b) ⟨ rp ⟩  ← reduceTo r sig t fuel
-    where
-      _ → tcError "can't convert two terms when the type does not reduce to a Pi type"
-  let ksort = piSort (typeSort a) (typeSort b)
-  cw ← convertCheck fl ctx (unType a) w w'
-  return $ substTop r w (unType b) Σ, CEArg cw
-convertElims fl ctx tu u (ECase ws m) (ECase ws' m') = do
-  let r = rezzScope ctx
-  rezz sig  ← tcmSignature
-  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig tu fl
-    where
-      _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
-  (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
-    where
-      _ → tcError "can't convert two constructors when their type isn't a datatype"
-  params ← liftMaybe (traverse maybeArg els)
-    "not all arguments to the datatype are terms"
-  (psubst , _) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
-    "couldn't construct a substitution for parameters"
-  (Erased refl) ← liftMaybe
-    (allInScope {γ = conScope} (allBranches ws) (allBranches ws'))
-    "couldn't verify that branches cover the same constructors"
-  cm ← convertCheck fl (ctx , _ ∶ El (substSort psubst $ dataSort df) tu)
-                       (TSort (typeSort m))
-                       (renameTop r (unType m))
-                       (renameTop r (unType m'))
-  cbs ← convertBranches fl ctx df psubst (unType m) ws ws'
-  return (substTop r u (unType m) Σ, CECase ws ws' m m' cm cbs)
-convertElims fl ctx s u (EProj _ _) (EProj _ _) = tcError "not implemented yet"
-convertElims fl ctx s u _           _ = tcError "two elims aren't the same shape"
 
 convertSubsts fl ctx tel SNil p = return CSNil
 convertSubsts fl ctx tel (SCons x st) p =
@@ -317,6 +305,12 @@ convertCheck fl ctx ty t q = do
     --for app
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) → do
       snd <$> map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convAppsI fl ctx u v e f
+    --for proj
+    (TProj u f p ⟨ rpg ⟩ , TProj v g q ⟨ rpc ⟩) → do
+      tcError "not implemented: conversion of projections"
+    --for case
+    (TCase {cs = cs} u bs rt ⟨ rpg ⟩ , TCase {cs = cs'} u' bs' rt' ⟨ rpc ⟩) → do
+      snd <$> map2 (λ _ → CRedL rpg ∘ CRedR rpc) <$> convertCaseI fl ctx u u' {cs} {cs'} bs bs' rt rt'
     --for pi
     (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convPis fl ctx ty x y tu tw tv tz

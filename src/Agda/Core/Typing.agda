@@ -35,7 +35,6 @@ private variable
   @0 a b c   : Type α
   @0 k l m   : Sort α
   @0 n       : Nat
-  @0 e       : Elim α
   @0 tel     : Telescope α β
   @0 us vs   : α ⇒ β
 
@@ -46,14 +45,11 @@ constructorType : (@0 d : name) (dp : d ∈ defScope)
                 → pars ⇒ α
                 → lookupAll fieldScope cp ⇒ α
                 → Type α
-constructorType d dp c cp con ds pars us = 
+constructorType d dp c cp con ds pars us =
   dataType d dp ds pars (substSubst (concatSubst (revSubst us) pars) (conIndices con))
 {-# COMPILE AGDA2HS constructorType #-}
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
-
--- TyElim Γ u e t a means: if  Γ ⊢ u : t  then  Γ ⊢ appE u e : a
-data TyElim  (@0 Γ : Context α) : @0 Term α → @0 Elim α → @0 Type α → @0 Type α → Set
 
 data TySubst (@0 Γ : Context α) : @0 (β ⇒ α) → @0 Telescope α β → Set
 
@@ -97,12 +93,28 @@ data TyTerm {α} Γ where
     -------------------------------
     → Γ ⊢ TLam x u ∶ El k (TPi y a b)
 
-  TyAppE
-    : {b : Type α}
+  TyApp
+    : {b : Type α} {@0 r : Rezz _ α}
     → Γ ⊢ u ∶ a
-    → TyElim Γ u e a b
+    → Γ ⊢ (unType a) ≅ TPi x b c
+    → Γ ⊢ v ∶ b
     ------------------------------------
-    → Γ ⊢ TApp u e ∶ b
+    → Γ ⊢ TApp u v ∶ substTopType r v c
+
+  TyCase
+    : {@0 r : Rezz _ α}
+      {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
+      (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
+      {@0 ps : dataParameterScope dt ⇒ α}
+      {@0 is : dataIndexScope dt ⇒ α}
+      (bs : Branches α (dataConstructorScope dt))
+      (rt : Type (x ◃ α))
+    → Γ ⊢ u ∶ a
+    → Γ ⊢ (unType a) ≅ (unType $ dataType d dp k ps is)
+    → TyBranches Γ dt ps rt bs
+    → Γ ⊢ TCase u bs rt ∶ (substTopType r u rt)
+
+  -- TODO: proj
 
   TyPi
     : Γ ⊢ u ∶ sortType k
@@ -134,30 +146,11 @@ data TyTerm {α} Γ where
 
 {-# COMPILE AGDA2HS TyTerm #-}
 
-data TyElim {α} Γ where
-    TyArg : {@0 r : Rezz _ α}
-          → Γ ⊢ (unType c) ≅ TPi x a b
-          → Γ ⊢ v ∶ a
-          → TyElim Γ u (EArg v) c (substTopType r v b)
-    TyCase : {@0 r : Rezz _ α}
-             {@0 d : name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
-             (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
-             {@0 ps : dataParameterScope dt ⇒ α}
-             {@0 is : dataIndexScope dt ⇒ α}
-             (bs : Branches α (dataConstructorScope dt))
-             (rt : Type (x ◃ α))
-           → Γ ⊢ (unType c) ≅ (unType $ dataType d dp k ps is)
-           → TyBranches Γ dt ps rt bs
-           → TyElim Γ u (ECase bs rt) c (substTopType r u rt)
-    -- TODO: proj
-
-{-# COMPILE AGDA2HS TyElim #-}
-
 data TyBranches {α} Γ dt ps rt where
   TyBsNil : TyBranches Γ dt ps rt BsNil
-  TyBsCons : ∀ {@0 b : Branch α con} {@0 bs : Branches α cons} 
-           → TyBranch Γ dt ps rt b 
-           → TyBranches Γ dt ps rt bs 
+  TyBsCons : ∀ {@0 b : Branch α con} {@0 bs : Branches α cons}
+           → TyBranch Γ dt ps rt b
+           → TyBranches Γ dt ps rt bs
            → TyBranches Γ dt ps rt (BsCons b bs)
 
 data TyBranch {α} Γ dt ps rt where

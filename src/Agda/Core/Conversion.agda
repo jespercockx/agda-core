@@ -27,15 +27,13 @@ open import Agda.Core.Utils renaming (_,_ to _Σ,_)
 private variable
   @0 x y z cn       : name
   @0 α β γ cs       : Scope name
-  @0 s s' t t' u u' v v' : Term α
+  @0 s s' t t' u u' v v' w w' : Term α
   @0 k l n sa sb    : Sort α
   @0 a a' b b' c c' : Type α
-  @0 w w'           : Elim α
   @0 tel            : Telescope α β
   @0 us vs          : α ⇒ β
 
 data Conv     (@0 Γ : Context α) : @0 Term α → @0 Term α → Set
-data ConvElim (@0 Γ : Context α) : @0 Elim α → @0 Elim α → Set
 data ConvBranch (@0 Γ : Context α) : @0 Branch α cn → @0 Branch α cn → Set
 data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → Set
 
@@ -48,14 +46,12 @@ data ConvBranches (@0 Γ : Context α) : @0 Branches α cs → @0 Branches α cs
 
 
 {-# COMPILE AGDA2HS Conv     #-}
-{-# COMPILE AGDA2HS ConvElim #-}
 {-# COMPILE AGDA2HS ConvBranch #-}
 {-# COMPILE AGDA2HS ConvBranches #-}
 {-# COMPILE AGDA2HS ConvSubst #-}
 
 infix 3 Conv
 syntax Conv Γ x y        = Γ ⊢ x ≅ y
-syntax ConvElim Γ x y    = Γ ⊢ x ≃ y
 syntax ConvSubst Γ us vs = Γ ⊢ us ⇔ vs
 
 renameTop : Rezz _ α → Term (x ◃ α) → Term (y ◃ α)
@@ -82,10 +78,19 @@ data Conv {α} Γ where
   CPi    : {@0 r : Rezz _ α}
          → Γ ⊢ unType a ≅ unType a'
          → Γ , x ∶ a ⊢ unType b ≅ renameTop r (unType b')
-         → Γ ⊢ TPi x a b ≅ TPi y a' b' 
+         → Γ ⊢ TPi x a b ≅ TPi y a' b'
   CApp   : Γ ⊢ u ≅ u'
-         → Γ ⊢ w ≃ w'
+         → Γ ⊢ w ≅ w'
          → Γ ⊢ TApp u w ≅ TApp u' w'
+  CCase  : {@0 r : Rezz _ α}
+           (bs bp : Branches α cs)
+           (ms : Type (x ◃ α)) (mp : Type (y ◃ α))
+         → Γ ⊢ u ≅ u'
+         --TODO: enforce that a is the type of the scrutinee
+         → Γ , x ∶ a ⊢ renameTop r (unType ms) ≅ renameTop r (unType mp)
+         → ConvBranches Γ bs bp
+         → Γ ⊢ TCase u bs ms ≅ TCase u' bp mp
+  -- TODO: CProj : {!   !}
   CCon   : {@0 c : name} (@0 cp : c ∈ conScope)
            {@0 us vs : lookupAll fieldScope cp ⇒ α}
          → Γ ⊢ us ⇔ vs
@@ -96,18 +101,6 @@ data Conv {α} Γ where
   CRedR  : @0 ReducesTo sig v v'
          → Γ ⊢ u  ≅ v'
          → Γ ⊢ u  ≅ v
-
-data ConvElim {α} Γ where
-  CEArg  : Γ ⊢ v ≅ v'
-         → Γ ⊢ EArg v ≃ EArg v'
-  CECase : {@0 r : Rezz _ α}
-           (bs bp : Branches α cs)
-           (ms : Type (x ◃ α)) (mp : Type (y ◃ α))
-         --TODO: enforce that a is the type of the scrutinee
-         → Γ , x ∶ a ⊢ renameTop r (unType ms) ≅ renameTop r (unType mp)
-         → ConvBranches Γ bs bp
-         → Γ ⊢ ECase bs ms ≃ ECase bp mp
-  -- TODO: CEProj : {!   !}
 
 data ConvBranch {α} Γ where
   CBBranch : (@0 c : name) (cp : c ∈ conScope) (r1 r2 : _)
@@ -120,7 +113,7 @@ data ConvBranch {α} Γ where
 
 data ConvSubst {α} Γ where
   CSNil : ConvSubst Γ {β = mempty} us vs
-  CSCons : {@0 x : name} 
+  CSCons : {@0 x : name}
          → Γ ⊢ u ≅ v
          → Γ ⊢ us ⇔ vs
          → Γ ⊢ (SCons {x = x} u us) ⇔ (SCons {x = x} v vs)
