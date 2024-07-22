@@ -33,16 +33,16 @@ private variable
   @0 tel            : Telescope α β
   @0 us vs          : α ⇒ β
 
-data Conv     (@0 Γ : Context α) : @0 Term α → @0 Term α → Set
-data ConvBranch (@0 Γ : Context α) : @0 Branch α cn → @0 Branch α cn → Set
-data ConvSubst (@0 Γ : Context α) : @0 β ⇒ α → @0 β ⇒ α → Set
+data Conv       {@0 α} : @0 Term α → @0 Term α → Set
+data ConvBranch {@0 α} : @0 Branch α cn → @0 Branch α cn → Set
+data ConvSubst  {@0 α} : @0 β ⇒ α → @0 β ⇒ α → Set
 
-data ConvBranches (@0 Γ : Context α) : @0 Branches α cs → @0 Branches α cs → Set where
-  CBranchesNil : {bs bp : Branches α mempty} → ConvBranches Γ bs bp
+data ConvBranches {@0 α} : @0 Branches α cs → @0 Branches α cs → Set where
+  CBranchesNil : {bs bp : Branches α mempty} → ConvBranches bs bp
   CBranchesCons : {b1 b2 : Branch α cn} {bs1 bs2 : Branches α cs}
-                → ConvBranch Γ b1 b2
-                → ConvBranches Γ bs1 bs2
-                → ConvBranches Γ (BsCons b1 bs1) (BsCons b2 bs2)
+                → ConvBranch b1 b2
+                → ConvBranches bs1 bs2
+                → ConvBranches (BsCons b1 bs1) (BsCons b2 bs2)
 
 
 {-# COMPILE AGDA2HS Conv     #-}
@@ -51,8 +51,8 @@ data ConvBranches (@0 Γ : Context α) : @0 Branches α cs → @0 Branches α cs
 {-# COMPILE AGDA2HS ConvSubst #-}
 
 infix 3 Conv
-syntax Conv Γ x y        = Γ ⊢ x ≅ y
-syntax ConvSubst Γ us vs = Γ ⊢ us ⇔ vs
+syntax Conv x y        = x ≅ y
+syntax ConvSubst us vs = us ⇔ vs
 
 renameTop : Rezz _ α → Term (x ◃ α) → Term (y ◃ α)
 renameTop = substTerm ∘ liftBindSubst ∘ idSubst
@@ -69,51 +69,47 @@ renameTopType = substType ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
-data Conv {α} Γ where
-  CRefl  : Γ ⊢ u ≅ u
+data Conv {α} where
+  CRefl  : u ≅ u
   CLam   : {@0 r : Rezz _ α}
-         --TODO: enforce that a is the type of y and z
-         → Γ , x ∶ a ⊢ renameTop r u ≅ renameTop r v
-         → Γ ⊢ TLam y u ≅ TLam z v
+         → renameTop {y = z} r u ≅ renameTop {y = z} r v
+         → TLam y u ≅ TLam z v
   CPi    : {@0 r : Rezz _ α}
-         → Γ ⊢ unType a ≅ unType a'
-         → Γ , x ∶ a ⊢ unType b ≅ renameTop r (unType b')
-         → Γ ⊢ TPi x a b ≅ TPi y a' b'
-  CApp   : Γ ⊢ u ≅ u'
-         → Γ ⊢ w ≅ w'
-         → Γ ⊢ TApp u w ≅ TApp u' w'
+         → unType a ≅ unType a'
+         → unType b ≅ renameTop r (unType b')
+         → TPi x a b ≅ TPi y a' b'
+  CApp   : u ≅ u'
+         → w ≅ w'
+         → TApp u w ≅ TApp u' w'
   CCase  : {@0 r : Rezz _ α}
            (bs bp : Branches α cs)
            (ms : Type (x ◃ α)) (mp : Type (y ◃ α))
-         → Γ ⊢ u ≅ u'
-         --TODO: enforce that a is the type of the scrutinee
-         → Γ , x ∶ a ⊢ renameTop r (unType ms) ≅ renameTop r (unType mp)
-         → ConvBranches Γ bs bp
-         → Γ ⊢ TCase u bs ms ≅ TCase u' bp mp
+         → u ≅ u'
+         → renameTop {y = z} r (unType ms) ≅ renameTop {y = z} r (unType mp)
+         → ConvBranches bs bp
+         → TCase u bs ms ≅ TCase u' bp mp
   -- TODO: CProj : {!   !}
   CCon   : {@0 c : name} (@0 cp : c ∈ conScope)
            {@0 us vs : lookupAll fieldScope cp ⇒ α}
-         → Γ ⊢ us ⇔ vs
-         → Γ ⊢ TCon c cp us ≅ TCon c cp vs
+         → us ⇔ vs
+         → TCon c cp us ≅ TCon c cp vs
   CRedL  : @0 ReducesTo sig u u'
-         → Γ ⊢ u' ≅ v
-         → Γ ⊢ u  ≅ v
+         → u' ≅ v
+         → u  ≅ v
   CRedR  : @0 ReducesTo sig v v'
-         → Γ ⊢ u  ≅ v'
-         → Γ ⊢ u  ≅ v
+         → u  ≅ v'
+         → u  ≅ v
 
-data ConvBranch {α} Γ where
+data ConvBranch {α} where
   CBBranch : (@0 c : name) (cp : c ∈ conScope) (r1 r2 : _)
-             --TODO enforce that tel is the telescope of constructor c applied to params
-             (tel : Telescope α (lookupAll fieldScope cp))
              (t1 t2 : Term (~ lookupAll fieldScope cp <> α))
-           → (addContextTel tel Γ) ⊢ t1 ≅ t2
-           → ConvBranch Γ (BBranch c cp r1 t1) (BBranch c cp r2 t2)
+           → t1 ≅ t2
+           → ConvBranch (BBranch c cp r1 t1) (BBranch c cp r2 t2)
 
 
-data ConvSubst {α} Γ where
-  CSNil : ConvSubst Γ {β = mempty} us vs
+data ConvSubst {α} where
+  CSNil : ConvSubst {β = mempty} us vs
   CSCons : {@0 x : name}
-         → Γ ⊢ u ≅ v
-         → Γ ⊢ us ⇔ vs
-         → Γ ⊢ (SCons {x = x} u us) ⇔ (SCons {x = x} v vs)
+         → u ≅ v
+         → us ⇔ vs
+         → (SCons {x = x} u us) ⇔ (SCons {x = x} v vs)

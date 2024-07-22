@@ -96,7 +96,7 @@ data TyTerm {α} Γ where
   TyApp
     : {b : Type α} {@0 r : Rezz _ α}
     → Γ ⊢ u ∶ a
-    → Γ ⊢ (unType a) ≅ TPi x b c
+    → (unType a) ≅ TPi x b c
     → Γ ⊢ v ∶ b
     ------------------------------------
     → Γ ⊢ TApp u v ∶ substTopType r v c
@@ -110,7 +110,7 @@ data TyTerm {α} Γ where
       (bs : Branches α (dataConstructorScope dt))
       (rt : Type (x ◃ α))
     → Γ ⊢ u ∶ a
-    → Γ ⊢ (unType a) ≅ (unType $ dataType d dp k ps is)
+    → (unType a) ≅ (unType $ dataType d dp k ps is)
     → TyBranches Γ dt ps rt bs
     → Γ ⊢ TCase u bs rt ∶ (substTopType r u rt)
 
@@ -140,7 +140,7 @@ data TyTerm {α} Γ where
 
   TyConv
     : Γ ⊢ u ∶ a
-    → Γ ⊢ (unType a) ≅ (unType b)
+    → (unType a) ≅ (unType b)
     ----------------
     → Γ ⊢ u ∶ b
 

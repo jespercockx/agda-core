@@ -41,8 +41,9 @@ checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
             → (cty : Type α)
             → TCM (Γ ⊢ t ∶ cty)
-checkCoerce ctx t (gty , dgty) cty =
-  TyConv dgty <$> convert ctx (TSort $ typeSort gty) (unType gty) (unType cty)
+checkCoerce ctx t (gty , dgty) cty = do
+  let r = rezzScope ctx
+  TyConv dgty <$> convert r (unType gty) (unType cty)
 {-# COMPILE AGDA2HS checkCoerce #-}
 
 inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
@@ -98,7 +99,7 @@ inferCase ctx u bs rt = do
     "couldn't verify that branches cover all constructors"
   cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
   let ds = substSort psubst (dataSort df)
-  cc ← convert ctx (TSort s) tu (unType $ dataType d dp ds psubst isubst)
+  cc ← convert r tu (unType $ dataType d dp ds psubst isubst)
   return (substTopType r u rt , TyCase {k = ds} {r = r} dp df dep {is = isubst} bs rt gtu cc cb)
 
 {-# COMPILE AGDA2HS inferCase #-}
