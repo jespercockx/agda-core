@@ -46,6 +46,7 @@ convVars x y p q =
   ifDec (decIn p q)
     (λ where {{refl}} → return CRefl)
     (tcError "variables not convertible")
+{-# COMPILE AGDA2HS convVars #-}
 
 convDefs : (@0 f g : Name)
            (p : f ∈ defScope)
@@ -55,6 +56,7 @@ convDefs f g p q =
   ifDec (decIn p q)
     (λ where {{refl}} → return CRefl)
     (tcError "definitions not convertible")
+{-# COMPILE AGDA2HS convDefs #-}
 
 convSorts : (u u' : Sort α)
           → TCM (Conv (TSort u) (TSort u'))
@@ -62,6 +64,7 @@ convSorts (STyp u) (STyp u') =
   ifDec ((u == u') ⟨ isEquality u u' ⟩)
     (λ where {{refl}} → return $ CRefl)
     (tcError "can't convert two different sorts")
+{-# COMPILE AGDA2HS convSorts #-}
 
 convertCheck : Fuel → Rezz _ α → (t q : Term α) → TCM (t ≅ q)
 convertSubsts : Fuel → Rezz _ α →
@@ -88,6 +91,8 @@ convCons fl r f g p q lp lq = do
       return $ CCon p csp)
     (tcError "constructors not convertible")
 
+{-# COMPILE AGDA2HS convCons #-}
+
 convLams : Fuel
          → Rezz _ α
          → (@0 x y : Name)
@@ -96,6 +101,8 @@ convLams : Fuel
          → TCM (Conv (TLam x u) (TLam y v))
 convLams fl r x y u v = do
   CLam <$> convertCheck fl (rezzBind r) (renameTop r u) (renameTop r v)
+
+{-# COMPILE AGDA2HS convLams #-}
 
 convApps : Fuel
          → Rezz _ α
@@ -106,6 +113,8 @@ convApps fl r u u' w w' = do
   cu ← convertCheck fl r u u'
   cw ← convertCheck fl r w w'
   return (CApp cu cw)
+
+{-# COMPILE AGDA2HS convApps #-}
 
 convertCase : Fuel
             → Rezz _ α
@@ -123,6 +132,8 @@ convertCase {x = x} fl r u u' ws ws' rt rt' = do
   cbs ← convertBranches fl r ws ws'
   return (CCase ws ws' rt rt' cu cm cbs)
 
+{-# COMPILE AGDA2HS convertCase #-}
+
 convPis : Fuel
         → Rezz _ α
         → (@0 x y : Name)
@@ -134,6 +145,8 @@ convPis fl r x y u u' v v' = do
   CPi <$> convertCheck fl r (unType u) (unType u')
       <*> convertCheck fl (rezzBind r) (unType v) (renameTop r (unType v'))
 
+{-# COMPILE AGDA2HS convPis #-}
+
 convertSubsts fl r SNil p = return CSNil
 convertSubsts fl r (SCons x st) p =
   caseSubstBind p λ where
@@ -141,6 +154,8 @@ convertSubsts fl r (SCons x st) p =
       hc ← convertCheck fl r x y
       tc ← convertSubsts fl r st pt
       return (CSCons hc tc)
+
+{-# COMPILE AGDA2HS convertSubsts #-}
 
 convertBranch : Fuel
               → Rezz _ α
@@ -154,10 +169,14 @@ convertBranch fl r (BBranch _ cp1 rz1 rhs1) (BBranch _ cp2 rz2 rhs2) =
         convertCheck fl (rezzCong2 _<>_ (rezzCong revScope rz1) r) rhs1 rhs2)
     (tcError "can't convert two branches that match on different constructors")
 
+{-# COMPILE AGDA2HS convertBranch #-}
+
 convertBranches fl r BsNil        bp = return CBranchesNil
 convertBranches fl r (BsCons bsh bst) bp =
   caseBsCons bp (λ where
     bph bpt {{refl}} → CBranchesCons <$> convertBranch fl r bsh bph <*> convertBranches fl r bst bpt)
+
+{-# COMPILE AGDA2HS convertBranches #-}
 
 convertCheck None r t z =
   tcError "not enough fuel to check conversion"
@@ -198,7 +217,11 @@ convertCheck (More fl) r t q = do
     --let and ann shoudln't appear here since they get reduced away
     _ → tcError "two terms are not the same and aren't convertible"
 
+{-# COMPILE AGDA2HS convertCheck #-}
+
 convert : Rezz _ α → ∀ (t q : Term α) → TCM (t ≅ q)
 convert r t q = do
   fl ← tcmFuel
   convertCheck fl r t q
+
+{-# COMPILE AGDA2HS convert #-}
