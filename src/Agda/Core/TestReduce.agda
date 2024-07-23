@@ -11,6 +11,9 @@ open import Haskell.Extra.Refinement
 open import Scope
 open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Utils
+open import Agda.Core.Syntax
+open import Agda.Core.Signature
+open import Agda.Core.Reduce
 
 private variable
   x y : Name
@@ -30,16 +33,13 @@ cons = bind "true" $ bind "false" mempty
 conArity : All (λ _ → Scope Name) cons
 conArity = allJoin (allSingl mempty) (allJoin (allSingl mempty) allEmpty)
 
-globals : Globals
-globals = record
-  { defScope = defs
-  ; conScope = cons
-  ; fieldScope = conArity
-  }
-
-
-open import Agda.Core.Syntax globals
-open import Agda.Core.Signature globals
+instance
+  globals : Globals
+  globals = record
+    { defScope = defs
+    ; conScope = cons
+    ; fieldScope = conArity
+    }
 
 boolcons : All (λ c → Σ (c ∈ cons) (Constructor mempty mempty c)) cons
 boolcons = allJoin (allSingl (inHere
@@ -65,10 +65,9 @@ bool .dataParameterTel = EmptyTel
 bool .dataIndexTel = EmptyTel
 bool .dataConstructors = boolcons
 
-sig : Signature
-sig = allSingl ((El (STyp 1) (TSort $ dataSort bool)) , DatatypeDef bool)
-
-open import Agda.Core.Reduce globals
+instance
+  sig : Signature
+  sig = allSingl ((El (STyp 1) (TSort $ dataSort bool)) , DatatypeDef bool)
 
 {-# TERMINATING #-}
 fuel : Fuel
@@ -91,7 +90,7 @@ module Tests (@0 x y z : Name) where
     testTerm₁ = apply (TLam x (TVar x inHere)) (TSort (STyp 0))
 
     @0 testProp₁ : Set
-    testProp₁ = reduceClosed sig testTerm₁ fuel ≡ Just (TSort (STyp 0))
+    testProp₁ = reduceClosed (rezz sig) testTerm₁ fuel ≡ Just (TSort (STyp 0))
 
     test₁ : testProp₁
     test₁ = refl
@@ -104,7 +103,7 @@ module Tests (@0 x y z : Name) where
                                   (El (STyp 0) (TDef "Bool" inHere))
 
     @0 testProp₂ : Set
-    testProp₂ = reduceClosed sig testTerm₂ fuel ≡ Just `false
+    testProp₂ = reduceClosed (rezz sig) testTerm₂ fuel ≡ Just `false
 
     test₂ : testProp₂
     test₂ = refl

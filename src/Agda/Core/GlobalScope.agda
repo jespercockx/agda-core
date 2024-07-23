@@ -12,3 +12,4 @@ record Globals : Set where
     fieldScope : All (λ _ → Scope Name) conScope
 open Globals public
 {-# COMPILE AGDA2HS Globals #-}
+

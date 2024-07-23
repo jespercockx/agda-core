@@ -5,25 +5,16 @@ open import Haskell.Prelude
 open import Scope
 
 open import Agda.Core.GlobalScope using (Globals; Name)
-import Agda.Core.Signature as Signature
-
-module Agda.Core.Typechecker
-    (@0 globals : Globals)
-    (open Signature globals)
-    (@0 sig     : Signature)
-  where
-
-private open module @0 G = Globals globals
-
-open import Agda.Core.Syntax globals as Syntax
-open import Agda.Core.Context globals
-open import Agda.Core.Conversion globals sig
-open import Agda.Core.Typing globals sig
-open import Agda.Core.Reduce globals
-open import Agda.Core.Substitute globals
-open import Agda.Core.TCM globals sig
+open import Agda.Core.Signature
+open import Agda.Core.Syntax as Syntax
+open import Agda.Core.Context
+open import Agda.Core.Conversion
+open import Agda.Core.Typing
+open import Agda.Core.Reduce
+open import Agda.Core.Substitute
+open import Agda.Core.TCM
 open import Agda.Core.TCMInstances
-open import Agda.Core.Converter globals sig
+open import Agda.Core.Converter
 open import Agda.Core.Utils
 
 open import Haskell.Extra.Dec
@@ -31,6 +22,12 @@ open import Haskell.Extra.Erase
 open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
 
+module Agda.Core.Typechecker
+    {{@0 globals : Globals}}
+    {{@0 sig     : Signature}}
+  where
+
+private open module @0 G = Globals globals
 
 private variable
   @0 x : Name
@@ -44,6 +41,18 @@ checkCoerce ctx t (gty , dgty) cty = do
   let r = rezzScope ctx
   TyConv dgty <$> convert r (unType gty) (unType cty)
 {-# COMPILE AGDA2HS checkCoerce #-}
+
+tcmGetType : (@0 x : Name) (xp : x ∈ defScope) → TCM (Rezz _ (getType sig x xp))
+tcmGetType x xp = do
+  rsig ← tcmSignature
+  return (rezzCong (λ sig → getType sig x xp) rsig)
+{-# COMPILE AGDA2HS tcmGetType #-}
+
+tcmGetDefinition : (@0 x : Name) (xp : x ∈ defScope) → TCM (Rezz _ (getDefinition sig x xp))
+tcmGetDefinition x xp = do
+  rsig ← tcmSignature
+  return (rezzCong (λ sig → getDefinition sig x xp) rsig)
+{-# COMPILE AGDA2HS tcmGetDefinition #-}
 
 inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
 inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
@@ -63,10 +72,8 @@ checkBranches : ∀ {@0 cons : Scope Name}
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
 inferApp ctx u v = do
   let r = rezzScope ctx
-  fuel      ← tcmFuel
-  rezz sig  ← tcmSignature
   tu , gtu ← inferType ctx u
-  (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r sig (unType tu) fuel
+  (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r (unType tu)
     where _ → tcError "couldn't reduce term to a pi type"
   gtv ← checkType ctx v at
   let sf = piSort (typeSort at) (typeSort rt)
@@ -78,13 +85,11 @@ inferApp ctx u v = do
 inferCase : ∀ {@0 cs} Γ u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {cs = cs} {x = x} u bs rt ∶ t)
 inferCase ctx u bs rt = do
   let r = rezzScope ctx
-  fuel     ← tcmFuel
-  rezz sig ← tcmSignature
   El s tu , gtu ← inferType ctx u
-  (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ _ <$> reduceTo r sig tu fuel
+  (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ <$> reduceTo r tu
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
-  (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
+  Rezzed (DatatypeDef df) dep ← tcmGetDefinition d dp
     where
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   (psubst , ixs) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
@@ -99,7 +104,7 @@ inferCase ctx u bs rt = do
   cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
   let ds = substSort psubst (dataSort df)
   cc ← convert r tu (unType $ dataType d dp ds psubst isubst)
-  return (substTopType r u rt , TyCase {k = ds} {r = r} dp df dep {is = isubst} bs rt gtu cc cb)
+  return (substTopType r u rt , TyCase {k = ds} {r = r} dp df (sym dep) {is = isubst} bs rt gtu cc cb)
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -122,8 +127,8 @@ inferTySort ctx (STyp x) = return $ sortType (sucSort (STyp x)) , TyType
 inferDef : ∀ Γ (@0 f : Name) (p : f ∈ defScope)
          → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
 inferDef ctx f p = do
-  rezz sig ← tcmSignature
-  return $ weakenType subEmpty (getType sig f p) , TyDef p
+  Rezzed ty eq ← tcmGetType f p
+  return $ weakenType subEmpty ty , subst0 (λ ty → TyTerm ctx (TDef f p) (weakenType subEmpty ty)) (sym eq) (TyDef p)
 {-# COMPILE AGDA2HS inferDef #-}
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
@@ -180,12 +185,10 @@ checkCon : ∀ Γ
          → TCM (Γ ⊢ TCon c ccs cargs ∶ ty)
 checkCon ctx c ccs cargs (El s ty) = do
   let r = rezzScope ctx
-  fuel      ← tcmFuel
-  rezz sig  ← tcmSignature
-  (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ _ <$> reduceTo r sig ty fuel
+  (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ <$> reduceTo r ty
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
-  (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
+  Rezzed (DatatypeDef df) dep ← tcmGetDefinition d dp
     where
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs df)
@@ -200,7 +203,7 @@ checkCon ctx c ccs cargs (El s ty) = do
       ctel = substTelescope psubst (conTelescope con)
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
   tySubst ← checkSubst ctx ctel cargs
-  checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
+  checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid (sym dep) tySubst) (El s ty)
 {-# COMPILE AGDA2HS checkCon #-}
 
 checkLambda : ∀ Γ (@0 x : Name)
@@ -211,10 +214,8 @@ checkLambda ctx x u (El sp (TPi y tu tv)) =
   TyLam <$> checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
 checkLambda ctx x u (El s ty) = do
   let r = rezzScope ctx
-  rezz sig ← tcmSignature
-  fuel ← tcmFuel
 
-  (TPi y tu tv) ⟨ rtp ⟩ ← reduceTo r sig ty fuel
+  (TPi y tu tv) ⟨ rtp ⟩ ← reduceTo r ty
     where _ → tcError "couldn't reduce a term to a pi type"
   let gc = CRedR rtp CRefl
       sp = piSort (typeSort tu) (typeSort tv)
@@ -279,10 +280,8 @@ inferType ctx (TAnn u t) = (_,_) t <$> TyAnn <$> checkType ctx u t
 
 inferSort ctx t = do
   let r = rezzScope ctx
-  rezz sig ← tcmSignature
-  fuel ← tcmFuel
   st , dt ← inferType ctx t
-  (TSort s) ⟨ rp ⟩ ← reduceTo r sig (unType st) fuel
+  (TSort s) ⟨ rp ⟩ ← reduceTo r (unType st)
     where _ → tcError "couldn't reduce a term to a sort"
   let cp = CRedL rp CRefl
   return $ s , TyConv dt cp

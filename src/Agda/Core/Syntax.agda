@@ -1,11 +1,4 @@
 open import Scope
-open import Agda.Core.GlobalScope using (Globals; Name)
-
-module Agda.Core.Syntax
-  (@0 globals : Globals)
-  where
-
-private open module @0 G = Globals globals
 
 open import Haskell.Prelude hiding (All; coerce; a; b; c)
 open import Haskell.Law.Equality using (sym; subst0)
@@ -16,6 +9,14 @@ open import Haskell.Extra.Erase
 
 -- NOTE(flupe): comes from scope library, should be moved upstream probably
 open import Utils.Misc
+
+open import Agda.Core.GlobalScope using (Globals; Name)
+
+module Agda.Core.Syntax
+  {{@0 globals : Globals}}
+  where
+
+private open module @0 G = Globals globals
 
 private variable
   @0 x a b c : Name

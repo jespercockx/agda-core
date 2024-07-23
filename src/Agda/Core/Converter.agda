@@ -2,22 +2,13 @@ open import Haskell.Prelude as Prelude
 open import Scope
 
 open import Agda.Core.GlobalScope using (Globals; Name)
-import Agda.Core.Signature as Signature
-
-module Agda.Core.Converter
-    (@0 globals : Globals)
-    (open Signature globals)
-    (@0 sig     : Signature)
-  where
-
-private open module @0 G = Globals globals
-
-open import Agda.Core.Syntax globals as Syntax
-open import Agda.Core.Substitute globals
-open import Agda.Core.Context globals
-open import Agda.Core.Conversion globals sig
-open import Agda.Core.Reduce globals
-open import Agda.Core.TCM globals sig
+open import Agda.Core.Signature
+open import Agda.Core.Syntax as Syntax
+open import Agda.Core.Substitute
+open import Agda.Core.Context
+open import Agda.Core.Conversion
+open import Agda.Core.Reduce
+open import Agda.Core.TCM
 open import Agda.Core.TCMInstances
 open import Agda.Core.Utils
 
@@ -26,17 +17,25 @@ open import Haskell.Extra.Dec
 open import Haskell.Law.Eq
 open import Haskell.Law.Equality
 
+module Agda.Core.Converter
+    {{@0 globals : Globals}}
+    {{@0 sig     : Signature}}
+  where
+
+private open module @0 G = Globals globals
+
 private variable
   @0 x y : Name
   @0 α β : Scope Name
 
-
-reduceTo : {@0 α : Scope Name} (r : Rezz _ α) (sig : Signature) (v : Term α) (f : Fuel)
-         → TCM (∃[ t ∈ Term α ] (ReducesTo sig v t))
-reduceTo r sig v f =
-  case reduce r sig v f of λ where
+reduceTo : {@0 α : Scope Name} (r : Rezz _ α) (v : Term α)
+         → TCM (∃[ t ∈ Term α ] (ReducesTo v t))
+reduceTo r v = do
+  f ← tcmFuel
+  rsig ← tcmSignature
+  case reduce r rsig v f of λ where
     Nothing        → tcError "not enough fuel to reduce a term"
-    (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ f ⟨ p ⟩ ⟩
+    (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ ⟨ rsig ⟩ f ⟨ p ⟩ ⟩
 {-# COMPILE AGDA2HS reduceTo #-}
 
 convVars : (@0 x y : Name)
@@ -83,8 +82,6 @@ convCons : Fuel → Rezz _ α →
            (lq : lookupAll fieldScope q ⇒ α)
          → TCM (Conv (TCon f p lp) (TCon g q lq))
 convCons fl r f g p q lp lq = do
-  fuel      ← tcmFuel
-  rezz sig  ← tcmSignature
   ifDec (decIn p q)
     (λ where {{refl}} → do
       csp ← convertSubsts fl r lp lq
@@ -181,11 +178,8 @@ convertBranches fl r (BsCons bsh bst) bp =
 convertCheck None r t z =
   tcError "not enough fuel to check conversion"
 convertCheck (More fl) r t q = do
-  fuel      ← tcmFuel
-  rezz sig  ← tcmSignature
-
-  rgty ← reduceTo r sig t fuel
-  rcty ← reduceTo r sig q fuel
+  rgty ← reduceTo r t
+  rcty ← reduceTo r q
   case (rgty Prelude., rcty) of λ where
     --for vars
     (TVar x p ⟨ rpg  ⟩ , TVar y q  ⟨ rpc ⟩) →

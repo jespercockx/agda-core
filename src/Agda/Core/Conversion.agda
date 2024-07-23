@@ -1,27 +1,25 @@
 open import Haskell.Prelude hiding (All; a; b; c; s; t)
 
 open import Scope
-open import Agda.Core.GlobalScope using (Globals; Name)
-
-import Agda.Core.Signature as Signature
-
-module Agda.Core.Conversion
-  (@0 globals : Globals)
-  (open Signature globals)
-  (@0 sig     : Signature)
-  where
-
-private open module @0 G = Globals globals
 
 open import Haskell.Extra.Dec
 open import Utils.Either
 open import Haskell.Extra.Erase
 
-open import Agda.Core.Syntax globals
-open import Agda.Core.Substitute globals
-open import Agda.Core.Reduce globals
-open import Agda.Core.Context globals
-open import Agda.Core.Utils renaming (_,_ to _Σ,_)
+open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Signature
+open import Agda.Core.Syntax
+open import Agda.Core.Substitute
+open import Agda.Core.Reduce
+open import Agda.Core.Context
+open import Agda.Core.Utils
+
+module Agda.Core.Conversion
+  {{@0 globals : Globals}}
+  {{@0 sig     : Signature}}
+  where
+
+private open module @0 G = Globals globals
 
 private variable
   @0 x y z cn       : Name
@@ -92,10 +90,10 @@ data Conv {α} where
            {@0 us vs : lookupAll fieldScope cp ⇒ α}
          → us ⇔ vs
          → TCon c cp us ≅ TCon c cp vs
-  CRedL  : @0 ReducesTo sig u u'
+  CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v
-  CRedR  : @0 ReducesTo sig v v'
+  CRedR  : @0 ReducesTo v v'
          → u  ≅ v'
          → u  ≅ v
 

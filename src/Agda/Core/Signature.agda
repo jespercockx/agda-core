@@ -8,10 +8,10 @@ open import Haskell.Law.Monoid
 
 open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Utils
+open import Agda.Core.Syntax
 
-module Agda.Core.Signature (@0 globals : Globals) where
+module Agda.Core.Signature {{@0 globals : Globals}} where
 
-open import Agda.Core.Syntax globals
 private open module @0 G = Globals globals
 
 private variable

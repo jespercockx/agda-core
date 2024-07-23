@@ -1,18 +1,7 @@
 open import Scope
 import Utils.List as List
 
-open import Agda.Core.GlobalScope using (Globals; Name)
-import Agda.Core.Signature as Signature
-
 open import Haskell.Prelude hiding (All; a; b; c; e; s; t; m)
-
-module Agda.Core.Typing
-    (@0 globals : Globals)
-    (open Signature globals)
-    (@0 sig     : Signature)
-  where
-
-private open module @0 G = Globals globals
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Loop
@@ -20,12 +9,21 @@ open import Haskell.Law.Equality
 
 open import Utils.Tactics using (auto)
 
-open import Agda.Core.Syntax globals
-open import Agda.Core.Reduce globals
-open import Agda.Core.Conversion globals sig
-open import Agda.Core.Context globals
-open import Agda.Core.Substitute globals
+open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Signature
+open import Agda.Core.Syntax
+open import Agda.Core.Reduce
+open import Agda.Core.Conversion
+open import Agda.Core.Context
+open import Agda.Core.Substitute
 open import Agda.Core.Utils
+
+module Agda.Core.Typing
+    {{@0 globals : Globals}}
+    {{@0 sig     : Signature}}
+  where
+
+private open module @0 G = Globals globals
 
 private variable
   @0 x y con : Name

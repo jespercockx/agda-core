@@ -1,19 +1,20 @@
+
 open import Agda.Core.GlobalScope using (Globals; Name)
-import Agda.Core.Signature as Signature
-
-module Agda.Core.TCM
-    (@0 globals : Globals)
-    (open Signature globals)
-    (@0 sig     : Signature)
-  where
-
+open import Agda.Core.Signature
 open import Scope
-open import Agda.Core.Syntax globals as Syntax
-open import Agda.Core.Reduce globals
+open import Agda.Core.Syntax as Syntax
+open import Agda.Core.Reduce
 
 open import Haskell.Prelude hiding (All; m)
-open import Haskell.Extra.Erase using (Rezz; ⟨_⟩_)
+open import Haskell.Extra.Erase using (Rezz; rezz; ⟨_⟩_)
 open import Agda.Core.Utils using (Fuel; ∃-syntax; _⟨_⟩)
+
+module Agda.Core.TCM
+    {{@0 globals : Globals}}
+    {{@0 sig     : Signature}}
+  where
+
+private open module @0 G = Globals globals
 
 TCError = String
 

@@ -1,9 +1,4 @@
 open import Scope
-open import Agda.Core.GlobalScope using (Globals; Name)
-
-module Agda.Core.Substitute
-  (@0 globals : Globals)
-  where
 
 open import Haskell.Prelude hiding (All; c)
 open import Haskell.Extra.Dec
@@ -11,8 +6,13 @@ open import Haskell.Extra.Erase
 
 open import Utils.Either
 
-open import Agda.Core.Syntax globals
-open import Agda.Core.Signature globals
+open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Syntax
+open import Agda.Core.Signature
+
+module Agda.Core.Substitute
+  {{@0 globals : Globals}}
+  where
 
 private variable
   @0 x c     : Name

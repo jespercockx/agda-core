@@ -1,9 +1,4 @@
 open import Scope
-open import Agda.Core.GlobalScope using (Globals; Name)
-
-module Agda.Core.Context
-  (@0 globals : Globals)
-  where
 
 open import Utils.Either
 open import Utils.Tactics using (auto)
@@ -13,10 +8,14 @@ open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
 open import Haskell.Prelude hiding (All; s; t)
 
+open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Syntax
+open import Agda.Core.Reduce
+open import Agda.Core.Signature
 
-open import Agda.Core.Syntax globals
-open import Agda.Core.Reduce globals
-open import Agda.Core.Signature globals
+module Agda.Core.Context
+  {{@0 globals : Globals}}
+  where
 
 private variable
   @0 x y : Name

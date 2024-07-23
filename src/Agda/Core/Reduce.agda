@@ -1,9 +1,4 @@
 open import Scope
-open import Agda.Core.GlobalScope using (Globals; Name)
-
-module Agda.Core.Reduce
-  (@0 globals : Globals)
-  where
 
 open import Haskell.Prelude hiding (All; coerce; _,_,_; c) renaming (_,_ to infixr 5 _,_)
 open import Haskell.Extra.Dec
@@ -13,10 +8,16 @@ open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
 open import Utils.Either
 
-open import Agda.Core.Syntax globals
-open import Agda.Core.Substitute globals
-open import Agda.Core.Signature globals
+open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Syntax
+open import Agda.Core.Substitute
+open import Agda.Core.Signature
 open import Agda.Core.Utils
+
+module Agda.Core.Reduce
+  {{@0 globals : Globals}}
+  {{@0 sig : Signature}}
+  where
 
 private open module @0 G = Globals globals
 
@@ -138,71 +139,71 @@ lookupEnvironment (e , x ↦ v) p = inBindCase p
   (λ p → mapRight (raise (rezz _)) (lookupEnvironment e p))
 {-# COMPILE AGDA2HS lookupEnvironment #-}
 
-step : (sig : Signature) (s : State α) → Maybe (State α)
-step sig (MkState e (TVar x p) s) =
+step : (rsig : Rezz _ sig) (s : State α) → Maybe (State α)
+step rsig (MkState e (TVar x p) s) =
   case lookupEnvironment e p of λ where
     (Left _) → Nothing
     (Right v) → Just (MkState e v s)
-step sig (MkState e (TApp v w) s) = Just (MkState e v (FApp w ∷ s))
-step sig (MkState e (TProj v f p) s) = Just (MkState e v (FProj f p ∷ s))
-step sig (MkState e (TCase v bs m) s) = Just (MkState e v (FCase bs m ∷ s))
-step sig (MkState e (TLam x v) (FApp w ∷ s)) =
+step rsig (MkState e (TApp v w) s) = Just (MkState e v (FApp w ∷ s))
+step rsig (MkState e (TProj v f p) s) = Just (MkState e v (FProj f p ∷ s))
+step rsig (MkState e (TCase v bs m) s) = Just (MkState e v (FCase bs m ∷ s))
+step rsig (MkState e (TLam x v) (FApp w ∷ s)) =
   Just (MkState
     (e , x ↦ w)
     v
     (weakenStack (subBindDrop subRefl) s))
-step sig (MkState e (TLet x v w) s) =
+step rsig (MkState e (TLet x v w) s) =
   Just (MkState
     (e , x ↦ v)
     w
     (weakenStack (subBindDrop subRefl) s))
-step sig (MkState e (TDef d q) s) = case getBody sig d q of λ where
+step (rezz sig) (MkState e (TDef d q) s) = case getBody sig d q of λ where
   (Just v) → Just (MkState e (weaken subEmpty v) s)
   Nothing  → Nothing
-step sig (MkState e (TCon c q vs) (FCase bs _ ∷ s)) =
+step rsig (MkState e (TCon c q vs) (FCase bs _ ∷ s)) =
   case lookupBranch bs c q of λ where
     (Just (r , v)) → Just (MkState
       (extendEnvironment (revSubst vs) e)
       v
       (weakenStack (subJoinDrop (rezzCong revScope r) subRefl) s))
     Nothing  → Nothing
-step sig (MkState e (TCon c q vs) (FProj f p ∷ s)) = Nothing -- TODO
-step sig (MkState e (TCon c q x) s) = Nothing
-step sig (MkState e (TLam x v) s) = Nothing
-step sig (MkState e (TPi x a b) s) = Nothing
-step sig (MkState e (TSort n) s) = Nothing
-step sig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
+step rsig (MkState e (TCon c q vs) (FProj f p ∷ s)) = Nothing -- TODO
+step rsig (MkState e (TCon c q x) s) = Nothing
+step rsig (MkState e (TLam x v) s) = Nothing
+step rsig (MkState e (TPi x a b) s) = Nothing
+step rsig (MkState e (TSort n) s) = Nothing
+step rsig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annotations on non-inferrable terms
 
 {-# COMPILE AGDA2HS step #-}
 
 -- TODO: make this into a `where` function once
 -- https://github.com/agda/agda2hs/issues/264 is fixed
 reduceState : Rezz _ α
-            → (sig : Signature) (s : State α) → Fuel → Maybe (Term α)
-reduceState r sig s None        = Nothing
-reduceState r sig s (More fuel) = case (step sig s) of λ where
-      (Just s') → reduceState r sig s' fuel
+            → (rsig : Rezz _ sig) (s : State α) → Fuel → Maybe (Term α)
+reduceState r rsig s None        = Nothing
+reduceState r rsig s (More fuel) = case (step rsig s) of λ where
+      (Just s') → reduceState r rsig s' fuel
       Nothing   → Just (unState r s)
 {-# COMPILE AGDA2HS reduceState #-}
 
 reduce : Rezz _ α
-       → (sig : Signature) (v : Term α) → Fuel → Maybe (Term α)
-reduce {α = α} r sig v = reduceState r sig (makeState v)
+       → (rsig : Rezz _ sig) (v : Term α) → Fuel → Maybe (Term α)
+reduce {α = α} r rsig v = reduceState r rsig (makeState v)
 {-# COMPILE AGDA2HS reduce #-}
 
-reduceClosed : (sig : Signature) (v : Term mempty) → Fuel → Maybe (Term mempty)
+reduceClosed : (rsig : Rezz _ sig) (v : Term mempty) → Fuel → Maybe (Term mempty)
 reduceClosed = reduce (rezz _)
 
 {-# COMPILE AGDA2HS reduceClosed #-}
 
-ReducesTo : (sig : Signature) (v w : Term α) → Set
-ReducesTo {α = α} sig v w = Σ0[ r ∈ Rezz _ α ] ∃[ f ∈ Fuel ] reduce r sig v f ≡ Just w
+ReducesTo : (v w : Term α) → Set
+ReducesTo {α = α} v w = Σ0[ r ∈ Rezz _ α ] Σ0[ rsig ∈ Rezz _ sig ] ∃[ f ∈ Fuel ] reduce r rsig v f ≡ Just w
 
-reduceAppView : ∀ sig (s : Term α)
-               → ∃[ t ∈ Term α ]                        ReducesTo sig s t
-               → ∃[ (t , vs) ∈ Term α × List (Term α) ] ReducesTo sig s (applys t vs)
-reduceAppView sig s (v ⟨ p ⟩) =
-  (unApps v) ⟨ subst0 (λ t → ReducesTo sig s t) (sym $ unAppsView v) p ⟩
+reduceAppView : ∀ (s : Term α)
+               → ∃[ t ∈ Term α ]                        ReducesTo s t
+               → ∃[ (t , vs) ∈ Term α × List (Term α) ] ReducesTo s (applys t vs)
+reduceAppView s (v ⟨ p ⟩) =
+  (unApps v) ⟨ subst0 (λ t → ReducesTo s t) (sym $ unAppsView v) p ⟩
 
 {-# COMPILE AGDA2HS reduceAppView #-}
 
