@@ -10,7 +10,7 @@ open import Haskell.Extra.Refinement
 
 open import Scope
 open import Agda.Core.GlobalScope using (Globals; Name)
-open import Agda.Core.Utils renaming ( _,_ to _Σ,_)
+open import Agda.Core.Utils
 
 private variable
   x y : Name
@@ -43,13 +43,13 @@ open import Agda.Core.Signature globals
 
 boolcons : All (λ c → Σ (c ∈ cons) (Constructor mempty mempty c)) cons
 boolcons = allJoin (allSingl (inHere
-                             Σ, record { conTelescope =
+                             , record { conTelescope =
                                           subst0 (λ x → Telescope mempty x)
                                                  (sym $ lookupHere _ _)
                                                  EmptyTel
                                       ; conIndices = SNil } )) $
            allJoin (allSingl (inThere inHere
-                             Σ, record { conTelescope =
+                             , record { conTelescope =
                                           subst0 (λ x → Telescope mempty x)
                                                  (sym $ lookupThere (lookupHere _ _))
                                                  EmptyTel

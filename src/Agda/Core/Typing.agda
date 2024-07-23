@@ -25,7 +25,7 @@ open import Agda.Core.Reduce globals
 open import Agda.Core.Conversion globals sig
 open import Agda.Core.Context globals
 open import Agda.Core.Substitute globals
-open import Agda.Core.Utils renaming (_,_ to _Σ,_)
+open import Agda.Core.Utils
 
 private variable
   @0 x y con : Name
@@ -79,7 +79,7 @@ data TyTerm {α} Γ where
     : {@0 d : Name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
     → {@0 c : Name} (@0 cq : c ∈ dataConstructorScope dt)
     → @0 getDefinition sig d dp ≡ DatatypeDef dt
-    → (let (cp Σ, con) = lookupAll (dataConstructors dt) cq)
+    → (let (cp , con) = lookupAll (dataConstructors dt) cq)
     → {@0 pars : dataParameterScope dt ⇒ α}
     → {@0 us : lookupAll fieldScope cp ⇒ α}
     → TySubst Γ us (substTelescope pars (conTelescope con))
@@ -154,7 +154,7 @@ data TyBranches {α} Γ dt ps rt where
 
 data TyBranch {α} Γ dt ps rt where
   TyBBranch : (@0 c : Name) → (c∈dcons : c ∈ dataConstructorScope dt)
-            → (let (c∈cons Σ, con ) = lookupAll (dataConstructors dt) c∈dcons)
+            → (let (c∈cons , con ) = lookupAll (dataConstructors dt) c∈dcons)
             → {@0 r : Rezz _ (lookupAll fieldScope c∈cons)}
               {@0 rα : Rezz _ α}
               (rhs : Term (~ lookupAll fieldScope c∈cons <> α))

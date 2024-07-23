@@ -7,7 +7,7 @@ open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
 
 open import Agda.Core.GlobalScope using (Globals; Name)
-open import Agda.Core.Utils renaming (_,_ to _Σ,_)
+open import Agda.Core.Utils
 
 module Agda.Core.Signature (@0 globals : Globals) where
 
@@ -106,10 +106,10 @@ getConstructor c cp d = findAll (allLookup (dataConstructors d)) dec
         → _
         → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
                   fst (lookupAll (dataConstructors d) cd) ≡ cp)
-    dec ((i , (ci Σ, con)) ⟨ ep ⟩) _ =
+    dec ((i , (ci , con)) ⟨ ep ⟩) _ =
       ifDec (decIn cp ci)
             (λ where
-              {{refl}} → Just (i ⟨ subst0 (λ (cci Σ, ccon) → fst (lookupAll (dataConstructors d) i) ≡ cci) ep refl ⟩))
+              {{refl}} → Just (i ⟨ subst0 (λ (cci , ccon) → fst (lookupAll (dataConstructors d) i) ≡ cci) ep refl ⟩))
             Nothing
 
 {-# COMPILE AGDA2HS getConstructor #-}

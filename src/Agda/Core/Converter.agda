@@ -1,4 +1,4 @@
-open import Haskell.Prelude
+open import Haskell.Prelude as Prelude
 open import Scope
 
 open import Agda.Core.GlobalScope using (Globals; Name)
@@ -19,7 +19,7 @@ open import Agda.Core.Conversion globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.TCM globals sig
 open import Agda.Core.TCMInstances
-open import Agda.Core.Utils renaming (_,_ to _Σ,_)
+open import Agda.Core.Utils
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Dec
@@ -167,7 +167,7 @@ convertCheck (More fl) r t q = do
 
   rgty ← reduceTo r sig t fuel
   rcty ← reduceTo r sig q fuel
-  case (rgty , rcty) of λ where
+  case (rgty Prelude., rcty) of λ where
     --for vars
     (TVar x p ⟨ rpg  ⟩ , TVar y q  ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convVars x y p q
