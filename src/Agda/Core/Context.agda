@@ -46,7 +46,7 @@ lookupVar (CtxExtend g y s) x p = raiseType (rezz _) (inBindCase p
 
 {-# COMPILE AGDA2HS lookupVar #-}
 
-rezzScope : (Γ : Context α) → Rezz (Scope Name) α
+rezzScope : (Γ : Context α) → Rezz α
 rezzScope CtxEmpty = rezz _
 rezzScope (CtxExtend g x _) =
   rezzCong (λ t → (singleton x) <> t) (rezzScope g)

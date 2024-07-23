@@ -120,7 +120,7 @@ weakenTel p (ExtendTel x ty t) = ExtendTel x (weakenType p ty) (weakenTel (subBi
 
 {-# COMPILE AGDA2HS weakenTel #-}
 
-rezzTel : Telescope α β → Rezz _ β
+rezzTel : Telescope α β → Rezz β
 rezzTel EmptyTel = rezz _
 rezzTel (ExtendTel x ty t) = rezzCong (λ t → singleton x <> t) (rezzTel t)
 

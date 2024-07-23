@@ -23,7 +23,7 @@ TCError = String
 record TCEnv : Set where
   constructor MkTCEnv
   field
-    tcSignature : Rezz _ sig
+    tcSignature : Rezz sig
     tcFuel      : Fuel
 open TCEnv public
 
@@ -41,7 +41,7 @@ tcmFuel = MkTCM (Right ∘ tcFuel)
 
 {-# COMPILE AGDA2HS tcmFuel #-}
 
-tcmSignature : TCM (Rezz _ sig)
+tcmSignature : TCM (Rezz sig)
 tcmSignature = MkTCM (Right ∘ tcSignature)
 
 {-# COMPILE AGDA2HS tcmSignature #-}

@@ -28,7 +28,7 @@ private variable
   @0 x y : Name
   @0 α β : Scope Name
 
-reduceTo : {@0 α : Scope Name} (r : Rezz _ α) (v : Term α)
+reduceTo : {@0 α : Scope Name} (r : Rezz α) (v : Term α)
          → TCM (∃[ t ∈ Term α ] (ReducesTo v t))
 reduceTo r v = do
   f ← tcmFuel
@@ -65,16 +65,16 @@ convSorts (STyp u) (STyp u') =
     (tcError "can't convert two different sorts")
 {-# COMPILE AGDA2HS convSorts #-}
 
-convertCheck : Fuel → Rezz _ α → (t q : Term α) → TCM (t ≅ q)
-convertSubsts : Fuel → Rezz _ α →
+convertCheck : Fuel → Rezz α → (t q : Term α) → TCM (t ≅ q)
+convertSubsts : Fuel → Rezz α →
                 (s p : β ⇒ α)
               → TCM (s ⇔ p)
-convertBranches : Fuel → Rezz _ α →
+convertBranches : Fuel → Rezz α →
                 ∀ {@0 cons : Scope Name}
                   (bs bp : Branches α cons)
                 → TCM (ConvBranches bs bp)
 
-convCons : Fuel → Rezz _ α →
+convCons : Fuel → Rezz α →
            (@0 f g : Name)
            (p : f ∈ conScope)
            (q : g ∈ conScope)
@@ -91,7 +91,7 @@ convCons fl r f g p q lp lq = do
 {-# COMPILE AGDA2HS convCons #-}
 
 convLams : Fuel
-         → Rezz _ α
+         → Rezz α
          → (@0 x y : Name)
            (u : Term (x ◃ α))
            (v : Term (y ◃ α))
@@ -102,7 +102,7 @@ convLams fl r x y u v = do
 {-# COMPILE AGDA2HS convLams #-}
 
 convApps : Fuel
-         → Rezz _ α
+         → Rezz α
          → (u u' : Term α)
            (w w' : Term α)
          → TCM (Conv (TApp u w) (TApp u' w'))
@@ -114,7 +114,7 @@ convApps fl r u u' w w' = do
 {-# COMPILE AGDA2HS convApps #-}
 
 convertCase : Fuel
-            → Rezz _ α
+            → Rezz α
             → (u u' : Term α)
             → ∀ {@0 cs cs'} (ws : Branches α cs) (ws' : Branches α cs')
             → (rt : Type (x ◃ α)) (rt' : Type (y ◃ α))
@@ -132,7 +132,7 @@ convertCase {x = x} fl r u u' ws ws' rt rt' = do
 {-# COMPILE AGDA2HS convertCase #-}
 
 convPis : Fuel
-        → Rezz _ α
+        → Rezz α
         → (@0 x y : Name)
           (u u' : Type α)
           (v  : Type (x ◃ α))
@@ -155,7 +155,7 @@ convertSubsts fl r (SCons x st) p =
 {-# COMPILE AGDA2HS convertSubsts #-}
 
 convertBranch : Fuel
-              → Rezz _ α
+              → Rezz α
               → ∀ {@0 con : Name}
               → (b1 b2 : Branch α con)
               → TCM (ConvBranch b1 b2)
@@ -213,7 +213,7 @@ convertCheck (More fl) r t q = do
 
 {-# COMPILE AGDA2HS convertCheck #-}
 
-convert : Rezz _ α → ∀ (t q : Term α) → TCM (t ≅ q)
+convert : Rezz α → ∀ (t q : Term α) → TCM (t ≅ q)
 convert r t q = do
   fl ← tcmFuel
   convertCheck fl r t q

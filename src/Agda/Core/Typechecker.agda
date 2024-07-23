@@ -42,13 +42,13 @@ checkCoerce ctx t (gty , dgty) cty = do
   TyConv dgty <$> convert r (unType gty) (unType cty)
 {-# COMPILE AGDA2HS checkCoerce #-}
 
-tcmGetType : (@0 x : Name) (xp : x ∈ defScope) → TCM (Rezz _ (getType sig x xp))
+tcmGetType : (@0 x : Name) (xp : x ∈ defScope) → TCM (Rezz (getType sig x xp))
 tcmGetType x xp = do
   rsig ← tcmSignature
   return (rezzCong (λ sig → getType sig x xp) rsig)
 {-# COMPILE AGDA2HS tcmGetType #-}
 
-tcmGetDefinition : (@0 x : Name) (xp : x ∈ defScope) → TCM (Rezz _ (getDefinition sig x xp))
+tcmGetDefinition : (@0 x : Name) (xp : x ∈ defScope) → TCM (Rezz (getDefinition sig x xp))
 tcmGetDefinition x xp = do
   rsig ← tcmSignature
   return (rezzCong (λ sig → getDefinition sig x xp) rsig)
@@ -63,7 +63,7 @@ inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
 checkBranches : ∀ {@0 cons : Scope Name}
                   (Γ : Context α)
-                  (rz : Rezz _ cons)
+                  (rz : Rezz cons)
                   (bs : Branches α cons)
                   (dt : Datatype) (ps : dataParameterScope dt ⇒ α)
                   (rt : Type (x ◃ α))
@@ -89,7 +89,7 @@ inferCase ctx u bs rt = do
   (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ <$> reduceTo r tu
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
-  Rezzed (DatatypeDef df) dep ← tcmGetDefinition d dp
+  DatatypeDef df ⟨ dep ⟩ ← tcmGetDefinition d dp
     where
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   (psubst , ixs) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
@@ -104,7 +104,7 @@ inferCase ctx u bs rt = do
   cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
   let ds = substSort psubst (dataSort df)
   cc ← convert r tu (unType $ dataType d dp ds psubst isubst)
-  return (substTopType r u rt , TyCase {k = ds} {r = r} dp df (sym dep) {is = isubst} bs rt gtu cc cb)
+  return (substTopType r u rt , TyCase {k = ds} {r = r} dp df dep {is = isubst} bs rt gtu cc cb)
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -127,8 +127,8 @@ inferTySort ctx (STyp x) = return $ sortType (sucSort (STyp x)) , TyType
 inferDef : ∀ Γ (@0 f : Name) (p : f ∈ defScope)
          → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
 inferDef ctx f p = do
-  Rezzed ty eq ← tcmGetType f p
-  return $ weakenType subEmpty ty , subst0 (λ ty → TyTerm ctx (TDef f p) (weakenType subEmpty ty)) (sym eq) (TyDef p)
+  ty ⟨ eq ⟩ ← tcmGetType f p
+  return $ weakenType subEmpty ty , subst0 (λ ty → TyTerm ctx (TDef f p) (weakenType subEmpty ty)) eq (TyDef p)
 {-# COMPILE AGDA2HS inferDef #-}
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
@@ -188,7 +188,7 @@ checkCon ctx c ccs cargs (El s ty) = do
   (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ <$> reduceTo r ty
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
-  Rezzed (DatatypeDef df) dep ← tcmGetDefinition d dp
+  DatatypeDef df ⟨ dep ⟩ ← tcmGetDefinition d dp
     where
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs df)
@@ -203,7 +203,7 @@ checkCon ctx c ccs cargs (El s ty) = do
       ctel = substTelescope psubst (conTelescope con)
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
   tySubst ← checkSubst ctx ctel cargs
-  checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid (sym dep) tySubst) (El s ty)
+  checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
 {-# COMPILE AGDA2HS checkCon #-}
 
 checkLambda : ∀ Γ (@0 x : Name)

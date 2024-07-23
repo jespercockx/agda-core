@@ -90,7 +90,7 @@ sortType s = El (sucSort s) (TSort s)
 
 data Branch α where
   BBranch : (@0 c : Name) → (c∈cons : c ∈ conScope)
-          → Rezz _ (lookupAll fieldScope c∈cons)
+          → Rezz (lookupAll fieldScope c∈cons)
           → Term (~ lookupAll fieldScope c∈cons <> α) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
@@ -114,7 +114,7 @@ opaque
   caseBsCons (BsCons bh bt) f = f bh bt
   {-# COMPILE AGDA2HS caseBsCons #-}
 
-rezzBranches : Branches α β → Rezz _ β
+rezzBranches : Branches α β → Rezz β
 rezzBranches BsNil = rezz mempty
 rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◃ cs) (rezzBranches bt)
 
@@ -231,7 +231,7 @@ dropSubst : {@0 α β : Scope Name} {@0 x : Name} → (x ◃ α) ⇒ β → α �
 dropSubst f = caseSubstBind f (λ _ g → g)
 {-# COMPILE AGDA2HS dropSubst #-}
 
-listSubst : {@0 β : Scope Name} → Rezz _ β → List (Term α) → Maybe ((β ⇒ α) × (List (Term α)))
+listSubst : {@0 β : Scope Name} → Rezz β → List (Term α) → Maybe ((β ⇒ α) × (List (Term α)))
 listSubst (rezz β) [] =
   caseScope β
     (λ where {{refl}} → Just (SNil , []))
@@ -251,7 +251,7 @@ concatSubst (SCons v p) q =
 opaque
   unfolding Scope Sub
 
-  subToSubst : Rezz _ α → α ⊆ β → α ⇒ β
+  subToSubst : Rezz α → α ⊆ β → α ⇒ β
   subToSubst (rezz []) p = SNil
   subToSubst (rezz (Erased x ∷ α)) p =
     SCons (TVar x (coerce p inHere))
@@ -269,13 +269,13 @@ opaque
   revSubst = flip revSubstAcc SNil
   {-# COMPILE AGDA2HS revSubst #-}
 
-liftSubst : {@0 α β γ : Scope Name} → Rezz _ α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
+liftSubst : {@0 α β γ : Scope Name} → Rezz α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
 liftSubst r f =
   concatSubst (subToSubst r (subJoinHere r subRefl))
               (weakenSubst (subJoinDrop r subRefl) f)
 {-# COMPILE AGDA2HS liftSubst #-}
 
-idSubst : {@0 β : Scope Name} → Rezz _ β → β ⇒ β
+idSubst : {@0 β : Scope Name} → Rezz β → β ⇒ β
 idSubst r = subst0 (λ β → Subst β β) (rightIdentity _) (liftSubst r SNil)
 {-# COMPILE AGDA2HS idSubst #-}
 
@@ -283,7 +283,7 @@ liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → (bind 
 liftBindSubst {y = y} e = SCons (TVar y inHere) (weakenSubst (subBindDrop subRefl) e)
 {-# COMPILE AGDA2HS liftBindSubst #-}
 
-raiseSubst : {@0 α β : Scope Name} → Rezz _ β → α ⇒ β → (α <> β) ⇒ β
+raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
 raiseSubst {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity β)) (idSubst r)
 raiseSubst {β = β} r (SCons {α = α} u e) =
   subst (λ α → α ⇒ β)
@@ -291,14 +291,14 @@ raiseSubst {β = β} r (SCons {α = α} u e) =
     (SCons u (raiseSubst r e))
 {-# COMPILE AGDA2HS raiseSubst #-}
 
-revIdSubst : {@0 α : Scope Name} → Rezz _ α → α ⇒ ~ α
+revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
 revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezzCong revScope r)))
 
-raise : {@0 α β : Scope Name} → Rezz _ α → Term β → Term (α <> β)
+raise : {@0 α β : Scope Name} → Rezz α → Term β → Term (α <> β)
 raise r = weaken (subJoinDrop r subRefl)
 {-# COMPILE AGDA2HS raise #-}
 
-raiseType : {@0 α β : Scope Name} → Rezz _ α → Type β → Type (α <> β)
+raiseType : {@0 α β : Scope Name} → Rezz α → Type β → Type (α <> β)
 raiseType r = weakenType (subJoinDrop r subRefl)
 {-# COMPILE AGDA2HS raiseType #-}
 

@@ -51,34 +51,34 @@ infix 3 Conv
 syntax Conv x y        = x ≅ y
 syntax ConvSubst us vs = us ⇔ vs
 
-renameTop : Rezz _ α → Term (x ◃ α) → Term (y ◃ α)
+renameTop : Rezz α → Term (x ◃ α) → Term (y ◃ α)
 renameTop = substTerm ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTop #-}
 
-renameTopSort : Rezz _ α → Sort (x ◃ α) → Sort (y ◃ α)
+renameTopSort : Rezz α → Sort (x ◃ α) → Sort (y ◃ α)
 renameTopSort = substSort ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopSort #-}
 
-renameTopType : Rezz _ α → Type (x ◃ α) → Type (y ◃ α)
+renameTopType : Rezz α → Type (x ◃ α) → Type (y ◃ α)
 renameTopType = substType ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
 data Conv {α} where
   CRefl  : u ≅ u
-  CLam   : {@0 r : Rezz _ α}
+  CLam   : {@0 r : Rezz α}
          → renameTop {y = z} r u ≅ renameTop {y = z} r v
          → TLam y u ≅ TLam z v
-  CPi    : {@0 r : Rezz _ α}
+  CPi    : {@0 r : Rezz α}
          → unType a ≅ unType a'
          → unType b ≅ renameTop r (unType b')
          → TPi x a b ≅ TPi y a' b'
   CApp   : u ≅ u'
          → w ≅ w'
          → TApp u w ≅ TApp u' w'
-  CCase  : {@0 r : Rezz _ α}
+  CCase  : {@0 r : Rezz α}
            (bs bp : Branches α cs)
            (ms : Type (x ◃ α)) (mp : Type (y ◃ α))
          → u ≅ u'

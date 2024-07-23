@@ -46,7 +46,7 @@ envToLets (env , x ↦ u) v = envToLets env (TLet x u v)
 
 {-# COMPILE AGDA2HS envToLets #-}
 
-envToSubst : Rezz _ α → Environment α β → β ⇒ α
+envToSubst : Rezz α → Environment α β → β ⇒ α
 envToSubst r EnvNil = idSubst r
 envToSubst r (env , x ↦ v) =
   let s = envToSubst r env
@@ -97,13 +97,13 @@ makeState {α = α} v = MkState (EnvNil {α = α}) v []
 
 {-# COMPILE AGDA2HS makeState #-}
 
-unState : Rezz _ α → State α → Term α
+unState : Rezz α → State α → Term α
 unState r (MkState e v s) = substTerm (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
 lookupBranch : Branches α cs → (@0 c : Name) (p : c ∈ conScope)
-             → Maybe ( Rezz _ (lookupAll fieldScope p)
+             → Maybe ( Rezz (lookupAll fieldScope p)
                      × Term (~ lookupAll fieldScope p <> α))
 lookupBranch BsNil c k = Nothing
 lookupBranch (BsCons (BBranch c' k' aty u) bs) c p =
@@ -113,14 +113,14 @@ lookupBranch (BsCons (BBranch c' k' aty u) bs) c p =
 
 {-# COMPILE AGDA2HS lookupBranch #-}
 
-rezzFromEnv : β ⇒ γ → Rezz _ β
+rezzFromEnv : β ⇒ γ → Rezz β
 rezzFromEnv SNil = rezz _
 rezzFromEnv (SCons v vs) = rezzCong2 (λ (Erased x) α → x ◃ α) rezzErase (rezzFromEnv vs)
 {-# COMPILE AGDA2HS rezzFromEnv #-}
 
 -- TODO: make this into a where function once
 -- https://github.com/agda/agda2hs/issues/264 is fixed.
-extendEnvironmentAux : Rezz _ β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
+extendEnvironmentAux : Rezz β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
 extendEnvironmentAux r SNil e = subst0 (Environment _) (sym (leftIdentity _)) e
 extendEnvironmentAux r (SCons {α = α} {x = x} v vs) e =
   let r' = rezzUnbind r
@@ -139,7 +139,7 @@ lookupEnvironment (e , x ↦ v) p = inBindCase p
   (λ p → mapRight (raise (rezz _)) (lookupEnvironment e p))
 {-# COMPILE AGDA2HS lookupEnvironment #-}
 
-step : (rsig : Rezz _ sig) (s : State α) → Maybe (State α)
+step : (rsig : Rezz sig) (s : State α) → Maybe (State α)
 step rsig (MkState e (TVar x p) s) =
   case lookupEnvironment e p of λ where
     (Left _) → Nothing
@@ -178,26 +178,26 @@ step rsig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annot
 
 -- TODO: make this into a `where` function once
 -- https://github.com/agda/agda2hs/issues/264 is fixed
-reduceState : Rezz _ α
-            → (rsig : Rezz _ sig) (s : State α) → Fuel → Maybe (Term α)
+reduceState : Rezz α
+            → (rsig : Rezz sig) (s : State α) → Fuel → Maybe (Term α)
 reduceState r rsig s None        = Nothing
 reduceState r rsig s (More fuel) = case (step rsig s) of λ where
       (Just s') → reduceState r rsig s' fuel
       Nothing   → Just (unState r s)
 {-# COMPILE AGDA2HS reduceState #-}
 
-reduce : Rezz _ α
-       → (rsig : Rezz _ sig) (v : Term α) → Fuel → Maybe (Term α)
+reduce : Rezz α
+       → (rsig : Rezz sig) (v : Term α) → Fuel → Maybe (Term α)
 reduce {α = α} r rsig v = reduceState r rsig (makeState v)
 {-# COMPILE AGDA2HS reduce #-}
 
-reduceClosed : (rsig : Rezz _ sig) (v : Term mempty) → Fuel → Maybe (Term mempty)
+reduceClosed : (rsig : Rezz sig) (v : Term mempty) → Fuel → Maybe (Term mempty)
 reduceClosed = reduce (rezz _)
 
 {-# COMPILE AGDA2HS reduceClosed #-}
 
 ReducesTo : (v w : Term α) → Set
-ReducesTo {α = α} v w = Σ0[ r ∈ Rezz _ α ] Σ0[ rsig ∈ Rezz _ sig ] ∃[ f ∈ Fuel ] reduce r rsig v f ≡ Just w
+ReducesTo {α = α} v w = Σ0[ r ∈ Rezz α ] Σ0[ rsig ∈ Rezz sig ] ∃[ f ∈ Fuel ] reduce r rsig v f ≡ Just w
 
 reduceAppView : ∀ (s : Term α)
                → ∃[ t ∈ Term α ]                        ReducesTo s t

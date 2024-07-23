@@ -85,13 +85,13 @@ data TyTerm {α} Γ where
     → Γ ⊢ TCon c cp us ∶ constructorType d dp c cp con (substSort pars (dataSort dt)) pars us
 
   TyLam
-    : {@0 r : Rezz _ α}
+    : {@0 r : Rezz α}
     → Γ , x ∶ a ⊢ u ∶ renameTopType r b
     -------------------------------
     → Γ ⊢ TLam x u ∶ El k (TPi y a b)
 
   TyApp
-    : {b : Type α} {@0 r : Rezz _ α}
+    : {b : Type α} {@0 r : Rezz α}
     → Γ ⊢ u ∶ a
     → (unType a) ≅ TPi x b c
     → Γ ⊢ v ∶ b
@@ -99,7 +99,7 @@ data TyTerm {α} Γ where
     → Γ ⊢ TApp u v ∶ substTopType r v c
 
   TyCase
-    : {@0 r : Rezz _ α}
+    : {@0 r : Rezz α}
       {@0 d : Name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
       (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
       {@0 ps : dataParameterScope dt ⇒ α}
@@ -124,7 +124,7 @@ data TyTerm {α} Γ where
     : Γ ⊢ TSort k ∶ sortType (sucSort k)
 
   TyLet
-    : {@0 r : Rezz _ α}
+    : {@0 r : Rezz α}
     → Γ ⊢ u ∶ a
     → Γ , x ∶ a ⊢ v ∶ weakenType (subWeaken subRefl) b
     ----------------------------------------------
@@ -153,8 +153,8 @@ data TyBranches {α} Γ dt ps rt where
 data TyBranch {α} Γ dt ps rt where
   TyBBranch : (@0 c : Name) → (c∈dcons : c ∈ dataConstructorScope dt)
             → (let (c∈cons , con ) = lookupAll (dataConstructors dt) c∈dcons)
-            → {@0 r : Rezz _ (lookupAll fieldScope c∈cons)}
-              {@0 rα : Rezz _ α}
+            → {@0 r : Rezz (lookupAll fieldScope c∈cons)}
+              {@0 rα : Rezz α}
               (rhs : Term (~ lookupAll fieldScope c∈cons <> α))
               (let ctel = substTelescope ps (conTelescope con)
                    cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
@@ -167,7 +167,7 @@ data TyBranch {α} Γ dt ps rt where
 
 data TySubst {α} Γ where
   TyNil  : TySubst Γ SNil EmptyTel
-  TyCons : {@0 r : Rezz _ α}
+  TyCons : {@0 r : Rezz α}
          → TyTerm Γ u a
          → TySubst Γ us (substTelescope (SCons u (idSubst r)) tel)
          → TySubst Γ (SCons u us) (ExtendTel x a tel)
