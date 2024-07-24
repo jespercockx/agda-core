@@ -9,6 +9,7 @@ open import Haskell.Extra.Erase
 
 -- NOTE(flupe): comes from scope library, should be moved upstream probably
 open import Utils.Misc
+open import Utils.Tactics using (auto)
 
 open import Agda.Core.GlobalScope using (Globals; Name)
 
@@ -51,14 +52,13 @@ syntax Subst α β = α ⇒ β
 -- see #6970
 
 data Term α where
-  -- NOTE(flupe): removed tactic arguments for now because hidden arguments not supported yet #217
-  TVar  : (@0 x : Name) → x ∈ α → Term α
-  TDef  : (@0 d : Name) → d ∈ defScope → Term α
-  TCon  : (@0 c : Name) (c∈cons : c ∈ conScope)
-        → (lookupAll fieldScope c∈cons) ⇒ α → Term α
+  TVar  : (@0 x : Name) → {@(tactic auto) _ : x ∈ α} → Term α
+  TDef  : (@0 d : Name) → {@(tactic auto) _ : d ∈ defScope} → Term α
+  TCon  : (@0 c : Name) {@(tactic auto) cp : c ∈ conScope}
+        → (lookupAll fieldScope cp) ⇒ α → Term α
   TLam  : (@0 x : Name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
-  TProj : (u : Term α) (@0 x : Name) → x ∈ defScope → Term α
+  TProj : (u : Term α) (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Term α
   TCase : (u : Term α) (bs : Branches α cs) (m : Type (x ◃ α)) → Term α
   TPi   : (@0 x : Name) (u : Type α) (v : Type (x ◃ α)) → Term α
   TSort : Sort α → Term α
@@ -89,9 +89,9 @@ sortType s = El (sucSort s) (TSort s)
 {-# COMPILE AGDA2HS sortType #-}
 
 data Branch α where
-  BBranch : (@0 c : Name) → (c∈cons : c ∈ conScope)
-          → Rezz (lookupAll fieldScope c∈cons)
-          → Term (~ lookupAll fieldScope c∈cons <> α) → Branch α c
+  BBranch : (@0 c : Name) → {@(tactic auto) cp : c ∈ conScope}
+          → Rezz (lookupAll fieldScope cp)
+          → Term (~ lookupAll fieldScope cp <> α) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
 data Branches α where
@@ -120,7 +120,7 @@ rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◃ cs) (rezzBranche
 
 allBranches : Branches α β → All (λ c → c ∈ conScope) β
 allBranches BsNil = allEmpty
-allBranches (BsCons (BBranch _ ci _ _) bs) = allJoin (allSingl ci) (allBranches bs)
+allBranches (BsCons (BBranch _ {ci} _ _) bs) = allJoin (allSingl ci) (allBranches bs)
 
 apply : Term α → Term α → Term α
 apply u v = TApp u v
@@ -136,12 +136,12 @@ applySubst {γ = γ} v SNil = v
 applySubst {γ = γ} v (SCons u us) = applySubst (TApp v u) us
 {-# COMPILE AGDA2HS applySubst #-}
 
-dataType : (@0 d : Name) → d ∈ defScope
+dataType : (@0 d : Name) → {@(tactic auto) _ : d ∈ defScope}
          → Sort α
          → (pars : β ⇒ α)
          → (ixs : γ ⇒ α)
          → Type α
-dataType d dp ds pars ixs = El ds (applySubst (applySubst (TDef d dp) pars) ixs)
+dataType d ds pars ixs = El ds (applySubst (applySubst (TDef d) pars) ixs)
 {-# COMPILE AGDA2HS dataType #-}
 
 unApps : Term α → Term α × List (Term α)
@@ -160,10 +160,10 @@ unAppsView (TApp t es)
   rewrite applysComp (fst (unApps t)) (snd (unApps t)) (es ∷ [])
   rewrite unAppsView t
   = refl
-unAppsView (TVar _ _) = refl
-unAppsView (TDef _ _) = refl
-unAppsView (TCon _ _ _) = refl
-unAppsView (TProj _ _ _) = refl
+unAppsView (TVar _) = refl
+unAppsView (TDef _) = refl
+unAppsView (TCon _ _) = refl
+unAppsView (TProj _ _) = refl
 unAppsView (TCase _ _ _) = refl
 unAppsView (TLam _ _) = refl
 unAppsView (TPi _ _ _) = refl
@@ -198,12 +198,12 @@ weakenBranch   : α ⊆ β → Branch α c → Branch β c
 weakenBranches : α ⊆ β → Branches α cs → Branches β cs
 weakenSubst    : β ⊆ γ → Subst α β → Subst α γ
 
-weaken p (TVar x k)        = TVar x (coerce p k)
-weaken p (TDef d k)        = TDef d k
-weaken p (TCon c k vs)     = TCon c k (weakenSubst p vs)
+weaken p (TVar x {k})      = TVar x {coerce p k}
+weaken p (TDef d)          = TDef d
+weaken p (TCon c vs)       = TCon c (weakenSubst p vs)
 weaken p (TLam x v)        = TLam x (weaken (subBindKeep p) v)
 weaken p (TApp u e)        = TApp (weaken p u) (weaken p e)
-weaken p (TProj u x k)     = TProj (weaken p u) x k
+weaken p (TProj u x)       = TProj (weaken p u) x
 weaken p (TCase u bs m)    = TCase (weaken p u) (weakenBranches p bs) (weakenType (subBindKeep p) m)
 weaken p (TPi x a b)       = TPi x (weakenType p a) (weakenType (subBindKeep p) b)
 weaken p (TSort α)         = TSort (weakenSort p α)
@@ -216,7 +216,7 @@ weakenSort p (STyp x) = STyp x
 
 weakenType p (El st t) = El (weakenSort p st) (weaken p t)
 
-weakenBranch p (BBranch c k r x) = BBranch c k r (weaken (subJoinKeep (rezzCong revScope r) p) x)
+weakenBranch p (BBranch c r x) = BBranch c r (weaken (subJoinKeep (rezzCong revScope r) p) x)
 {-# COMPILE AGDA2HS weakenBranch #-}
 
 weakenBranches p BsNil         = BsNil
@@ -254,7 +254,7 @@ opaque
   subToSubst : Rezz α → α ⊆ β → α ⇒ β
   subToSubst (rezz []) p = SNil
   subToSubst (rezz (Erased x ∷ α)) p =
-    SCons (TVar x (coerce p inHere))
+    SCons (TVar x {coerce p inHere})
           (subToSubst (rezz α) (joinSubRight (rezz _) p))
 
 opaque
@@ -280,7 +280,7 @@ idSubst r = subst0 (λ β → Subst β β) (rightIdentity _) (liftSubst r SNil)
 {-# COMPILE AGDA2HS idSubst #-}
 
 liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → (bind x α) ⇒ (bind y β)
-liftBindSubst {y = y} e = SCons (TVar y inHere) (weakenSubst (subBindDrop subRefl) e)
+liftBindSubst {y = y} e = SCons (TVar y {inHere}) (weakenSubst (subBindDrop subRefl) e)
 {-# COMPILE AGDA2HS liftBindSubst #-}
 
 raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
@@ -309,12 +309,12 @@ strengthenBranch : α ⊆ β → Branch β c → Maybe (Branch α c)
 strengthenBranches : α ⊆ β → Branches β cs → Maybe (Branches α cs)
 strengthenSubst : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
 
-strengthen p (TVar x q) = diffCase p q (λ q → Just (TVar x q)) (λ _ → Nothing)
-strengthen p (TDef d q) = Just (TDef d q)
-strengthen p (TCon c q vs) = TCon c q <$> strengthenSubst p vs
+strengthen p (TVar x {q}) = diffCase p q (λ q → Just (TVar x {q})) (λ _ → Nothing)
+strengthen p (TDef d) = Just (TDef d)
+strengthen p (TCon c vs) = TCon c <$> strengthenSubst p vs
 strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
 strengthen p (TApp v e) = TApp <$> strengthen p v <*> strengthen p e
-strengthen p (TProj u f q) = (λ v → TProj v f q) <$> strengthen p u
+strengthen p (TProj u f) = (λ v → TProj v f) <$> strengthen p u
 strengthen p (TCase u bs m) =
   TCase <$> strengthen p u <*> strengthenBranches p bs <*> strengthenType (subBindKeep p) m
 strengthen p (TPi x a b) =
@@ -327,7 +327,7 @@ strengthenSort p (STyp n) = Just (STyp n)
 
 strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthen p t
 
-strengthenBranch p (BBranch c q r v) = BBranch c q r <$> strengthen (subJoinKeep (rezzCong revScope r) p) v
+strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthen (subJoinKeep (rezzCong revScope r) p) v
 
 strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs

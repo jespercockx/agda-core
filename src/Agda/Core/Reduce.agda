@@ -7,6 +7,7 @@ open import Haskell.Extra.Erase
 open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
 open import Utils.Either
+open import Utils.Tactics using (auto)
 
 open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Syntax
@@ -56,17 +57,17 @@ envToSubst r (env , x ↦ v) =
 
 data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
-  FProj : (@0 x : Name) → x ∈ defScope → Frame α
+  FProj : (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Frame α
   FCase : (bs : Branches α cs) (m : Type (x ◃ α)) → Frame α
 
 unFrame : Frame α → Term α → Term α
 unFrame (FApp v) u = TApp u v
-unFrame (FProj f p) u = TProj u f p
+unFrame (FProj f) u = TProj u f
 unFrame (FCase bs m) u = TCase u bs m
 
 weakenFrame : α ⊆ β → Frame α → Frame β
 weakenFrame s (FApp u) = FApp (weaken s u)
-weakenFrame s (FProj u f) = FProj u f
+weakenFrame s (FProj f) = FProj f
 weakenFrame s (FCase bs m) = FCase (weakenBranches s bs) (weakenType (subBindKeep s) m)
 
 Stack : (@0 α : Scope Name) → Set
@@ -102,14 +103,14 @@ unState r (MkState e v s) = substTerm (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
-lookupBranch : Branches α cs → (@0 c : Name) (p : c ∈ conScope)
+lookupBranch : Branches α cs → (@0 c : Name) {@(tactic auto) p : c ∈ conScope}
              → Maybe ( Rezz (lookupAll fieldScope p)
                      × Term (~ lookupAll fieldScope p <> α))
-lookupBranch BsNil c k = Nothing
-lookupBranch (BsCons (BBranch c' k' aty u) bs) c p =
+lookupBranch BsNil c = Nothing
+lookupBranch (BsCons (BBranch c' {k'} aty u) bs) c {p} =
   case decIn k' p of λ where
     (True  ⟨ refl ⟩) → Just (aty , u)
-    (False ⟨ _    ⟩) → lookupBranch bs c p
+    (False ⟨ _    ⟩) → lookupBranch bs c
 
 {-# COMPILE AGDA2HS lookupBranch #-}
 
@@ -140,12 +141,12 @@ lookupEnvironment (e , x ↦ v) p = inBindCase p
 {-# COMPILE AGDA2HS lookupEnvironment #-}
 
 step : (rsig : Rezz sig) (s : State α) → Maybe (State α)
-step rsig (MkState e (TVar x p) s) =
+step rsig (MkState e (TVar x {p}) s) =
   case lookupEnvironment e p of λ where
     (Left _) → Nothing
     (Right v) → Just (MkState e v s)
 step rsig (MkState e (TApp v w) s) = Just (MkState e v (FApp w ∷ s))
-step rsig (MkState e (TProj v f p) s) = Just (MkState e v (FProj f p ∷ s))
+step rsig (MkState e (TProj v f) s) = Just (MkState e v (FProj f ∷ s))
 step rsig (MkState e (TCase v bs m) s) = Just (MkState e v (FCase bs m ∷ s))
 step rsig (MkState e (TLam x v) (FApp w ∷ s)) =
   Just (MkState
@@ -157,18 +158,18 @@ step rsig (MkState e (TLet x v w) s) =
     (e , x ↦ v)
     w
     (weakenStack (subBindDrop subRefl) s))
-step (rezz sig) (MkState e (TDef d q) s) = case getBody sig d q of λ where
+step (rezz sig) (MkState e (TDef d) s) = case getBody sig d of λ where
   (Just v) → Just (MkState e (weaken subEmpty v) s)
   Nothing  → Nothing
-step rsig (MkState e (TCon c q vs) (FCase bs _ ∷ s)) =
-  case lookupBranch bs c q of λ where
+step rsig (MkState e (TCon c vs) (FCase bs _ ∷ s)) =
+  case lookupBranch bs c of λ where
     (Just (r , v)) → Just (MkState
       (extendEnvironment (revSubst vs) e)
       v
       (weakenStack (subJoinDrop (rezzCong revScope r) subRefl) s))
     Nothing  → Nothing
-step rsig (MkState e (TCon c q vs) (FProj f p ∷ s)) = Nothing -- TODO
-step rsig (MkState e (TCon c q x) s) = Nothing
+step rsig (MkState e (TCon c vs) (FProj f ∷ s)) = Nothing -- TODO
+step rsig (MkState e (TCon c x) s) = Nothing
 step rsig (MkState e (TLam x v) s) = Nothing
 step rsig (MkState e (TPi x a b) s) = Nothing
 step rsig (MkState e (TSort n) s) = Nothing

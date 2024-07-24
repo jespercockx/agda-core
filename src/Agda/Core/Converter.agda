@@ -1,5 +1,6 @@
 open import Haskell.Prelude as Prelude
 open import Scope
+open import Utils.Tactics using (auto)
 
 open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Signature
@@ -39,19 +40,19 @@ reduceTo r v = do
 {-# COMPILE AGDA2HS reduceTo #-}
 
 convVars : (@0 x y : Name)
-           (p : x ∈ α) (q : y ∈ α)
-         → TCM (Conv (TVar x p) (TVar y q))
-convVars x y p q =
+           {@(tactic auto) p : x ∈ α} {@(tactic auto) q : y ∈ α}
+         → TCM (Conv (TVar x) (TVar y))
+convVars x y {p} {q} =
   ifDec (decIn p q)
     (λ where {{refl}} → return CRefl)
     (tcError "variables not convertible")
 {-# COMPILE AGDA2HS convVars #-}
 
 convDefs : (@0 f g : Name)
-           (p : f ∈ defScope)
-           (q : g ∈ defScope)
-         → TCM (Conv {α = α} (TDef f p) (TDef g q))
-convDefs f g p q =
+           {@(tactic auto) p : f ∈ defScope}
+           {@(tactic auto) q : g ∈ defScope}
+         → TCM (Conv {α = α} (TDef f) (TDef g))
+convDefs f g {p} {q} =
   ifDec (decIn p q)
     (λ where {{refl}} → return CRefl)
     (tcError "definitions not convertible")
@@ -76,12 +77,12 @@ convertBranches : Fuel → Rezz α →
 
 convCons : Fuel → Rezz α →
            (@0 f g : Name)
-           (p : f ∈ conScope)
-           (q : g ∈ conScope)
+           {@(tactic auto) p : f ∈ conScope}
+           {@(tactic auto) q : g ∈ conScope}
            (lp : lookupAll fieldScope p ⇒ α)
            (lq : lookupAll fieldScope q ⇒ α)
-         → TCM (Conv (TCon f p lp) (TCon g q lq))
-convCons fl r f g p q lp lq = do
+         → TCM (Conv (TCon f lp) (TCon g lq))
+convCons fl r f g {p} {q} lp lq = do
   ifDec (decIn p q)
     (λ where {{refl}} → do
       csp ← convertSubsts fl r lp lq
@@ -159,7 +160,7 @@ convertBranch : Fuel
               → ∀ {@0 con : Name}
               → (b1 b2 : Branch α con)
               → TCM (ConvBranch b1 b2)
-convertBranch fl r (BBranch _ cp1 rz1 rhs1) (BBranch _ cp2 rz2 rhs2) =
+convertBranch fl r (BBranch _ {cp1} rz1 rhs1) (BBranch _ {cp2} rz2 rhs2) =
   ifDec (decIn cp1 cp2)
     (λ where {{refl}} → do
       CBBranch _ cp1 rz1 rz2 rhs1 rhs2 <$>
@@ -182,14 +183,14 @@ convertCheck (More fl) r t q = do
   rcty ← reduceTo r q
   case (rgty Prelude., rcty) of λ where
     --for vars
-    (TVar x p ⟨ rpg  ⟩ , TVar y q  ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convVars x y p q
+    (TVar x ⟨ rpg  ⟩ , TVar y  ⟨ rpc ⟩) →
+      CRedL rpg <$> CRedR rpc <$> convVars x y
     --for defs
-    (TDef x p ⟨ rpg  ⟩ , TDef y q  ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convDefs x y p q
+    (TDef x ⟨ rpg  ⟩ , TDef y ⟨ rpc ⟩) →
+      CRedL rpg <$> CRedR rpc <$> convDefs x y
     --for cons
-    (TCon c p lc ⟨ rpg  ⟩ , TCon d q ld ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convCons fl r c d p q lc ld
+    (TCon c lc ⟨ rpg  ⟩ , TCon d ld ⟨ rpc ⟩) →
+      CRedL rpg <$> CRedR rpc <$> convCons fl r c d lc ld
     --for lambda
     (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convLams fl r x y u v
@@ -197,7 +198,7 @@ convertCheck (More fl) r t q = do
     (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) → do
       (CRedL rpg ∘ CRedR rpc) <$> convApps fl r u v e f
     --for proj
-    (TProj u f p ⟨ rpg ⟩ , TProj v g q ⟨ rpc ⟩) → do
+    (TProj u f ⟨ rpg ⟩ , TProj v g ⟨ rpc ⟩) → do
       tcError "not implemented: conversion of projections"
     --for case
     (TCase {cs = cs} u bs rt ⟨ rpg ⟩ , TCase {cs = cs'} u' bs' rt' ⟨ rpc ⟩) → do

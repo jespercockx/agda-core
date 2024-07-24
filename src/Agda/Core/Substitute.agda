@@ -31,12 +31,12 @@ substSort f (STyp x) = STyp x
 substType f (El st t) = El (substSort f st) (substTerm f t)
 {-# COMPILE AGDA2HS substType #-}
 
-substTerm f (TVar x k)        = lookupSubst f x k
-substTerm f (TDef d k)        = TDef d k
-substTerm f (TCon c k vs)     = TCon c k (substSubst f vs)
+substTerm f (TVar x {k})      = lookupSubst f x k
+substTerm f (TDef d)          = TDef d
+substTerm f (TCon c vs)       = TCon c (substSubst f vs)
 substTerm f (TLam x v)        = TLam x (substTerm (liftBindSubst f) v)
 substTerm f (TApp u v)        = TApp (substTerm f u) (substTerm f v)
-substTerm f (TProj u p k)     = TProj (substTerm f u) p k
+substTerm f (TProj u p)       = TProj (substTerm f u) p
 substTerm f (TCase {x = x} u bs m) =
   TCase (substTerm f u) (substBranches f bs) (substType (liftBindSubst {y = x} f) m)
 substTerm f (TPi x a b)       = TPi x (substType f a) (substType (liftBindSubst f) b)
@@ -45,7 +45,7 @@ substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst
 substTerm f (TAnn u t)        = TAnn (substTerm f u) (substType f t)
 {-# COMPILE AGDA2HS substTerm #-}
 
-substBranch f (BBranch c k r u) = BBranch c k r (substTerm (liftSubst (rezzCong revScope r) f) u)
+substBranch f (BBranch c r u) = BBranch c r (substTerm (liftSubst (rezzCong revScope r) f) u)
 {-# COMPILE AGDA2HS substBranch #-}
 
 substBranches f BsNil = BsNil

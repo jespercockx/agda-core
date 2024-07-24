@@ -5,6 +5,7 @@ open import Haskell.Extra.Dec using (ifDec)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
+open import Utils.Tactics using (auto)
 
 open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Utils
@@ -76,28 +77,28 @@ Signature = All (λ _ → Type (mempty {{iMonoidScope}}) × Definition) defScope
 
 {-# COMPILE AGDA2HS Signature #-}
 
-getType : Signature → (@0 x : Name) → x ∈ defScope → Type mempty
-getType sig x p = fst (lookupAll sig p)
+getType : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Type mempty
+getType sig x {p} = fst (lookupAll sig p)
 
 {-# COMPILE AGDA2HS getType #-}
 
-getDefinition : Signature → (@0 x : Name) → x ∈ defScope → Definition
-getDefinition sig x p = snd (lookupAll sig p)
+getDefinition : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Definition
+getDefinition sig x {p} = snd (lookupAll sig p)
 
 {-# COMPILE AGDA2HS getDefinition #-}
 
-getBody : Signature → (@0 x : Name) → x ∈ defScope → Maybe (Term mempty)
-getBody sig x p = case getDefinition sig x p of λ where
+getBody : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Maybe (Term mempty)
+getBody sig x = case getDefinition sig x of λ where
   (FunctionDef body) → Just body
   (DatatypeDef _)    → Nothing
   RecordDef          → Nothing
 
 {-# COMPILE AGDA2HS getBody #-}
 
-getConstructor : (@0 c : Name) (cp : c ∈ conScope) (d : Datatype)
+getConstructor : (@0 c : Name) {@(tactic auto) cp : c ∈ conScope} (d : Datatype)
                → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
                          fst (lookupAll (dataConstructors d) cd) ≡ cp)
-getConstructor c cp d = findAll (allLookup (dataConstructors d)) dec
+getConstructor c {cp} d = findAll (allLookup (dataConstructors d)) dec
   where
     -- can't have a lambda take two arguments for agda2hs, so here's a local def
     dec : {@0 el : Name}

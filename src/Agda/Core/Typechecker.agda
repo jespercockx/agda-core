@@ -3,6 +3,7 @@ open import Haskell.Prelude
   renaming (_,_ to infixr 5 _,_)
 
 open import Scope
+open import Utils.Tactics using (auto)
 
 open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Signature
@@ -42,20 +43,20 @@ checkCoerce ctx t (gty , dgty) cty = do
   TyConv dgty <$> convert r (unType gty) (unType cty)
 {-# COMPILE AGDA2HS checkCoerce #-}
 
-tcmGetType : (@0 x : Name) (xp : x ∈ defScope) → TCM (Rezz (getType sig x xp))
-tcmGetType x xp = do
+tcmGetType : (@0 x : Name) {@(tactic auto) xp : x ∈ defScope} → TCM (Rezz (getType sig x))
+tcmGetType x = do
   rsig ← tcmSignature
-  return (rezzCong (λ sig → getType sig x xp) rsig)
+  return (rezzCong (λ sig → getType sig x) rsig)
 {-# COMPILE AGDA2HS tcmGetType #-}
 
-tcmGetDefinition : (@0 x : Name) (xp : x ∈ defScope) → TCM (Rezz (getDefinition sig x xp))
-tcmGetDefinition x xp = do
+tcmGetDefinition : (@0 x : Name) {@(tactic auto) xp : x ∈ defScope} → TCM (Rezz (getDefinition sig x))
+tcmGetDefinition x = do
   rsig ← tcmSignature
-  return (rezzCong (λ sig → getDefinition sig x xp) rsig)
+  return (rezzCong (λ sig → getDefinition sig x) rsig)
 {-# COMPILE AGDA2HS tcmGetDefinition #-}
 
-inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
-inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
+inferVar : ∀ Γ (@0 x) {@(tactic auto) p : x ∈ α} → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
+inferVar ctx x = return $ lookupVar ctx x , TyTVar x
 {-# COMPILE AGDA2HS inferVar #-}
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
@@ -86,10 +87,10 @@ inferCase : ∀ {@0 cs} Γ u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {cs
 inferCase ctx u bs rt = do
   let r = rezzScope ctx
   El s tu , gtu ← inferType ctx u
-  (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ <$> reduceTo r tu
+  (TDef d , params) ⟨ rp ⟩  ← reduceAppView _ <$> reduceTo r tu
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
-  DatatypeDef df ⟨ dep ⟩ ← tcmGetDefinition d dp
+  DatatypeDef df ⟨ dep ⟩ ← tcmGetDefinition d
     where
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   (psubst , ixs) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
@@ -103,8 +104,8 @@ inferCase ctx u bs rt = do
     "couldn't verify that branches cover all constructors"
   cb ← checkBranches ctx (rezzBranches bs) bs df psubst rt
   let ds = substSort psubst (dataSort df)
-  cc ← convert r tu (unType $ dataType d dp ds psubst isubst)
-  return (substTopType r u rt , TyCase {k = ds} {r = r} dp df dep {is = isubst} bs rt gtu cc cb)
+  cc ← convert r tu (unType $ dataType d ds psubst isubst)
+  return (substTopType r u rt , TyCase {k = ds} d df dep {is = isubst} bs rt gtu cc cb)
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -124,11 +125,11 @@ inferTySort : ∀ Γ (s : Sort α) → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TSort s 
 inferTySort ctx (STyp x) = return $ sortType (sucSort (STyp x)) , TyType
 {-# COMPILE AGDA2HS inferTySort #-}
 
-inferDef : ∀ Γ (@0 f : Name) (p : f ∈ defScope)
-         → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f p ∶ ty)
-inferDef ctx f p = do
-  ty ⟨ eq ⟩ ← tcmGetType f p
-  return $ weakenType subEmpty ty , subst0 (λ ty → TyTerm ctx (TDef f p) (weakenType subEmpty ty)) eq (TyDef p)
+inferDef : ∀ Γ (@0 f : Name) {@(tactic auto) p : f ∈ defScope}
+         → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f ∶ ty)
+inferDef ctx f = do
+  ty ⟨ eq ⟩ ← tcmGetType f
+  return $ weakenType subEmpty ty , subst0 (λ ty → TyTerm ctx (TDef f) (weakenType subEmpty ty)) eq (TyDef f)
 {-# COMPILE AGDA2HS inferDef #-}
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
@@ -153,17 +154,17 @@ checkBranch : ∀ {@0 con : Name} (Γ : Context α)
                 (ps : dataParameterScope dt ⇒ α)
                 (rt : Type (x ◃ α))
             → TCM (TyBranch Γ dt ps rt bs)
-checkBranch ctx (BBranch c ccs r rhs) dt ps rt = do
+checkBranch ctx (BBranch c r rhs) dt ps rt = do
   let ra = rezzScope ctx
-  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs dt)
+  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
-  let (_ , con) = lookupAll (dataConstructors dt) cid
+  let (c∈conScope , con) = lookupAll (dataConstructors dt) cid
       ctel = substTelescope ps (conTelescope con)
       cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
                           (revIdSubst r)
       idsubst = weakenSubst (subJoinDrop (rezzCong revScope r) subRefl)
                             (idSubst ra)
-      bsubst = SCons (TCon c ccs cargs) idsubst
+      bsubst = SCons (TCon c {c∈conScope} cargs) idsubst
   crhs ← checkType (addContextTel ctel ctx) rhs (substType bsubst rt)
   return (TyBBranch c cid {rα = ra} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
@@ -179,19 +180,19 @@ checkBranches ctx (rezz cons) bs dt ps rt =
 
 checkCon : ∀ Γ
            (@0 c : Name)
-           (ccs : c ∈ conScope)
+           {@(tactic auto) ccs : c ∈ conScope}
            (cargs : lookupAll fieldScope ccs ⇒ α)
            (ty : Type α)
-         → TCM (Γ ⊢ TCon c ccs cargs ∶ ty)
-checkCon ctx c ccs cargs (El s ty) = do
+         → TCM (Γ ⊢ TCon c cargs ∶ ty)
+checkCon ctx c {ccs} cargs (El s ty) = do
   let r = rezzScope ctx
-  (TDef d dp , params) ⟨ rp ⟩  ← reduceAppView _ <$> reduceTo r ty
+  (TDef d , params) ⟨ rp ⟩  ← reduceAppView _ <$> reduceTo r ty
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
-  DatatypeDef df ⟨ dep ⟩ ← tcmGetDefinition d dp
+  DatatypeDef df ⟨ dep ⟩ ← tcmGetDefinition d
     where
       _ → tcError "can't convert two constructors when their type isn't a datatype"
-  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs df)
+  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c df)
     "can't find a constructor with such a name"
   (psubst , ixs) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
     "couldn't construct a substitution for parameters"
@@ -201,9 +202,9 @@ checkCon ctx c ccs cargs (El s ty) = do
     "there are more arguments to the datatype then parameters and indices"
   let con = snd (lookupAll (dataConstructors df) cid)
       ctel = substTelescope psubst (conTelescope con)
-      ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
+      ctype = constructorType d c {ccs} con (substSort psubst (dataSort df)) psubst cargs
   tySubst ← checkSubst ctx ctel cargs
-  checkCoerce ctx (TCon c ccs cargs) (ctype , TyCon dp df cid dep tySubst) (El s ty)
+  checkCoerce ctx (TCon c {ccs} cargs) (ctype , TyCon d c dep tySubst) (El s ty)
 {-# COMPILE AGDA2HS checkCon #-}
 
 checkLambda : ∀ Γ (@0 x : Name)
@@ -236,13 +237,13 @@ checkLet ctx x u v ty = do
 {-# COMPILE AGDA2HS checkLet #-}
 
 
-checkType ctx (TVar x p) ty = do
-  tvar ← inferVar ctx x p
-  checkCoerce ctx (TVar x p) tvar ty
-checkType ctx (TDef d p) ty = do
-  tdef ← inferDef ctx d p
-  checkCoerce ctx (TDef d p) tdef ty
-checkType ctx (TCon c p x) ty = checkCon ctx c p x ty
+checkType ctx (TVar x) ty = do
+  tvar ← inferVar ctx x
+  checkCoerce ctx (TVar x) tvar ty
+checkType ctx (TDef d) ty = do
+  tdef ← inferDef ctx d
+  checkCoerce ctx (TDef d) tdef ty
+checkType ctx (TCon c x) ty = checkCon ctx c x ty
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
 checkType ctx (TApp u e) ty = do
   tapp ← inferApp ctx u e
@@ -250,7 +251,7 @@ checkType ctx (TApp u e) ty = do
 checkType ctx (TCase {cs = cs} u bs rt) ty = do
   tapp ← inferCase {cs = cs} ctx u bs rt
   checkCoerce ctx (TCase u bs rt) tapp ty
-checkType ctx (TProj u f fp) ty = tcError "not implemented: projections"
+checkType ctx (TProj u f) ty = tcError "not implemented: projections"
 checkType ctx (TPi x tu tv) ty = do
   tpi ← inferPi ctx x tu tv
   checkCoerce ctx (TPi x tu tv) tpi ty
@@ -264,13 +265,13 @@ checkType ctx (TAnn u t) ty = do
 
 {-# COMPILE AGDA2HS checkType #-}
 
-inferType ctx (TVar x p) = inferVar ctx x p
-inferType ctx (TDef d p) = inferDef ctx d p
-inferType ctx (TCon c p x) = tcError "non inferrable: can't infer the type of a constructor"
+inferType ctx (TVar x) = inferVar ctx x
+inferType ctx (TDef d) = inferDef ctx d
+inferType ctx (TCon c x) = tcError "non inferrable: can't infer the type of a constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase u bs rt) = inferCase ctx u bs rt
-inferType ctx (TProj u bs rt) = tcError "not implemented: projections"
+inferType ctx (TProj u f) = tcError "not implemented: projections"
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s
 inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"

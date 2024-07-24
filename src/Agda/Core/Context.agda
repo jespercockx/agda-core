@@ -38,11 +38,11 @@ infix 4 _,_∶_
 private variable
   @0 Γ : Context α
 
-lookupVar : (Γ : Context α) (@0 x : Name) (p : x ∈ α) → Type α
-lookupVar CtxEmpty x p = inEmptyCase p
-lookupVar (CtxExtend g y s) x p = raiseType (rezz _) (inBindCase p
+lookupVar : (Γ : Context α) (@0 x : Name) {@(tactic auto) p : x ∈ α} → Type α
+lookupVar CtxEmpty x {p} = inEmptyCase p
+lookupVar (CtxExtend g y s) x {p} = raiseType (rezz _) (inBindCase p
   (λ _ → s)
-  (λ q → lookupVar g x q))
+  (λ q → lookupVar g x))
 
 {-# COMPILE AGDA2HS lookupVar #-}
 

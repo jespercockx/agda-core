@@ -89,7 +89,7 @@ data Conv {α} where
   CCon   : {@0 c : Name} (@0 cp : c ∈ conScope)
            {@0 us vs : lookupAll fieldScope cp ⇒ α}
          → us ⇔ vs
-         → TCon c cp us ≅ TCon c cp vs
+         → TCon c us ≅ TCon c vs
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v
@@ -101,7 +101,7 @@ data ConvBranch {α} where
   CBBranch : (@0 c : Name) (cp : c ∈ conScope) (r1 r2 : _)
              (t1 t2 : Term (~ lookupAll fieldScope cp <> α))
            → t1 ≅ t2
-           → ConvBranch (BBranch c cp r1 t1) (BBranch c cp r2 t2)
+           → ConvBranch (BBranch c r1 t1) (BBranch c r2 t2)
 
 
 data ConvSubst {α} where

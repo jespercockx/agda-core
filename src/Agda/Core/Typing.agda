@@ -35,15 +35,15 @@ private variable
   @0 tel     : Telescope α β
   @0 us vs   : α ⇒ β
 
-constructorType : (@0 d : Name) (dp : d ∈ defScope)
-                → (@0 c : Name) (cp : c ∈ conScope)
+constructorType : (@0 d : Name) {@(tactic auto) dp : d ∈ defScope}
+                → (@0 c : Name) {@(tactic auto) cp : c ∈ conScope}
                 → (con : Constructor pars ixs c cp)
                 → Sort α
                 → pars ⇒ α
                 → lookupAll fieldScope cp ⇒ α
                 → Type α
-constructorType d dp c cp con ds pars us =
-  dataType d dp ds pars (substSubst (concatSubst (revSubst us) pars) (conIndices con))
+constructorType d c con ds pars us =
+  dataType d ds pars (substSubst (concatSubst (revSubst us) pars) (conIndices con))
 {-# COMPILE AGDA2HS constructorType #-}
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
@@ -64,25 +64,25 @@ syntax TyTerm Γ u t = Γ ⊢ u ∶ t
 data TyTerm {α} Γ where
 
   TyTVar
-    : (@0 p : x ∈ α)
+    : (@0 x : Name) {@(tactic auto) p : x ∈ α}
     ----------------------------------
-    → Γ ⊢ TVar x p ∶ lookupVar Γ x p
+    → Γ ⊢ TVar x ∶ lookupVar Γ x
 
   TyDef
-    : {@0 f : Name} (@0 p : f ∈ defScope)
+    : (@0 f : Name) {@(tactic auto) p : f ∈ defScope}
     ----------------------------------------------
-    → Γ ⊢ TDef f p ∶ weakenType subEmpty (getType sig f p)
+    → Γ ⊢ TDef f ∶ weakenType subEmpty (getType sig f)
 
   TyCon
-    : {@0 d : Name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
-    → {@0 c : Name} (@0 cq : c ∈ dataConstructorScope dt)
-    → @0 getDefinition sig d dp ≡ DatatypeDef dt
+    : (@0 d : Name) {@(tactic auto) dp : d ∈ defScope} {@0 dt : Datatype}
+    → (@0 c : Name) {@(tactic auto) cq : c ∈ dataConstructorScope dt}
+    → @0 getDefinition sig d ≡ DatatypeDef dt
     → (let (cp , con) = lookupAll (dataConstructors dt) cq)
     → {@0 pars : dataParameterScope dt ⇒ α}
     → {@0 us : lookupAll fieldScope cp ⇒ α}
     → TySubst Γ us (substTelescope pars (conTelescope con))
     -----------------------------------------------------------
-    → Γ ⊢ TCon c cp us ∶ constructorType d dp c cp con (substSort pars (dataSort dt)) pars us
+    → Γ ⊢ TCon c {cp} us ∶ constructorType d c {cp} con (substSort pars (dataSort dt)) pars us
 
   TyLam
     : {@0 r : Rezz α}
@@ -100,14 +100,14 @@ data TyTerm {α} Γ where
 
   TyCase
     : {@0 r : Rezz α}
-      {@0 d : Name} (@0 dp : d ∈ defScope) (@0 dt : Datatype)
-      (@0 de : getDefinition sig d dp ≡ DatatypeDef dt)
+      (@0 d : Name) {@(tactic auto) dp : d ∈ defScope} (@0 dt : Datatype)
+      (@0 de : getDefinition sig d ≡ DatatypeDef dt)
       {@0 ps : dataParameterScope dt ⇒ α}
       {@0 is : dataIndexScope dt ⇒ α}
       (bs : Branches α (dataConstructorScope dt))
       (rt : Type (x ◃ α))
     → Γ ⊢ u ∶ a
-    → (unType a) ≅ (unType $ dataType d dp k ps is)
+    → (unType a) ≅ (unType $ dataType d k ps is)
     → TyBranches Γ dt ps rt bs
     → Γ ⊢ TCase u bs rt ∶ (substTopType r u rt)
 
@@ -161,9 +161,9 @@ data TyBranch {α} Γ dt ps rt where
                                        (revIdSubst r)
                    idsubst = weakenSubst (subJoinDrop (rezzCong revScope r) subRefl)
                                          (idSubst rα)
-                   bsubst = SCons (TCon c c∈cons cargs) idsubst)
+                   bsubst = SCons (TCon c {c∈cons} cargs) idsubst)
             → TyTerm (addContextTel ctel Γ) rhs (substType bsubst rt)
-            → TyBranch Γ dt ps rt (BBranch c c∈cons r rhs)
+            → TyBranch Γ dt ps rt (BBranch c {c∈cons} r rhs)
 
 data TySubst {α} Γ where
   TyNil  : TySubst Γ SNil EmptyTel
