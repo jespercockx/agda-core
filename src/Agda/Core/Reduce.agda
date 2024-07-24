@@ -104,8 +104,8 @@ unState r (MkState e v s) = substTerm (envToSubst r e) (unStack s v)
 {-# COMPILE AGDA2HS unState #-}
 
 lookupBranch : Branches α cs → (@0 c : Name) {@(tactic auto) p : c ∈ conScope}
-             → Maybe ( Rezz (lookupAll fieldScope p)
-                     × Term (~ lookupAll fieldScope p <> α))
+             → Maybe ( Rezz (fieldScope c)
+                     × Term (~ fieldScope c <> α))
 lookupBranch BsNil c = Nothing
 lookupBranch (BsCons (BBranch c' {k'} aty u) bs) c {p} =
   case decIn k' p of λ where
@@ -158,9 +158,9 @@ step rsig (MkState e (TLet x v w) s) =
     (e , x ↦ v)
     w
     (weakenStack (subBindDrop subRefl) s))
-step (rezz sig) (MkState e (TDef d) s) = case getBody sig d of λ where
-  (Just v) → Just (MkState e (weaken subEmpty v) s)
-  Nothing  → Nothing
+step (rezz sig) (MkState e (TDef d) s) =
+  case getBody sig d of λ where
+    v → Just (MkState e (weaken subEmpty v) s)
 step rsig (MkState e (TCon c vs) (FCase bs _ ∷ s)) =
   case lookupBranch bs c of λ where
     (Just (r , v)) → Just (MkState
@@ -168,6 +168,7 @@ step rsig (MkState e (TCon c vs) (FCase bs _ ∷ s)) =
       v
       (weakenStack (subJoinDrop (rezzCong revScope r) subRefl) s))
     Nothing  → Nothing
+step rsig (MkState e (TData d ps is) s) = Nothing
 step rsig (MkState e (TCon c vs) (FProj f ∷ s)) = Nothing -- TODO
 step rsig (MkState e (TCon c x) s) = Nothing
 step rsig (MkState e (TLam x v) s) = Nothing

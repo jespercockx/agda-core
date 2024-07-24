@@ -75,18 +75,35 @@ convertBranches : Fuel → Rezz α →
                   (bs bp : Branches α cons)
                 → TCM (ConvBranches bs bp)
 
+convDatas : Fuel → Rezz α →
+           (@0 d e : Name)
+           {@(tactic auto) dp : d ∈ dataScope}
+           {@(tactic auto) ep : e ∈ dataScope}
+           (ps : dataParScope d ⇒ α) (qs : dataParScope e ⇒ α)
+           (is : dataIxScope d ⇒ α) (ks : dataIxScope e ⇒ α)
+         → TCM (Conv (TData d ps is) (TData e qs ks))
+convDatas fl r d e {dp} {ep} ps qs is ks = do
+  ifDec (decIn dp ep)
+    (λ where {{refl}} → do
+      cps ← convertSubsts fl r ps qs
+      cis ← convertSubsts fl r is ks
+      return $ CData d cps cis)
+    (tcError "datatypes not convertible")
+
+{-# COMPILE AGDA2HS convDatas #-}
+
 convCons : Fuel → Rezz α →
            (@0 f g : Name)
            {@(tactic auto) p : f ∈ conScope}
            {@(tactic auto) q : g ∈ conScope}
-           (lp : lookupAll fieldScope p ⇒ α)
-           (lq : lookupAll fieldScope q ⇒ α)
+           (lp : fieldScope f ⇒ α)
+           (lq : fieldScope g ⇒ α)
          → TCM (Conv (TCon f lp) (TCon g lq))
 convCons fl r f g {p} {q} lp lq = do
   ifDec (decIn p q)
     (λ where {{refl}} → do
       csp ← convertSubsts fl r lp lq
-      return $ CCon p csp)
+      return $ CCon f csp)
     (tcError "constructors not convertible")
 
 {-# COMPILE AGDA2HS convCons #-}
@@ -189,6 +206,8 @@ convertCheck (More fl) r t q = do
     (TDef x ⟨ rpg  ⟩ , TDef y ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convDefs x y
     --for cons
+    (TData d ps is ⟨ rpg  ⟩ , TData e qs ks ⟨ rpc ⟩) →
+      CRedL rpg <$> CRedR rpc <$> convDatas fl r d e ps qs is ks
     (TCon c lc ⟨ rpg  ⟩ , TCon d ld ⟨ rpc ⟩) →
       CRedL rpg <$> CRedR rpc <$> convCons fl r c d lc ld
     --for lambda

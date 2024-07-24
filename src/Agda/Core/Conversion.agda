@@ -3,8 +3,9 @@ open import Haskell.Prelude hiding (All; a; b; c; s; t)
 open import Scope
 
 open import Haskell.Extra.Dec
-open import Utils.Either
 open import Haskell.Extra.Erase
+open import Utils.Either
+open import Utils.Tactics using (auto)
 
 open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Signature
@@ -86,8 +87,14 @@ data Conv {α} where
          → ConvBranches bs bp
          → TCase u bs ms ≅ TCase u' bp mp
   -- TODO: CProj : {!   !}
-  CCon   : {@0 c : Name} (@0 cp : c ∈ conScope)
-           {@0 us vs : lookupAll fieldScope cp ⇒ α}
+  CData  : (@0 d : Name) {@(tactic auto) cd : d ∈ dataScope}
+           {@0 ps qs : dataParScope d ⇒ α}
+           {@0 is ks : dataIxScope d ⇒ α}
+         → ps ⇔ qs
+         → is ⇔ ks
+         → TData d ps is ≅ TData d qs ks
+  CCon   : (@0 c : Name) {@(tactic auto) cp : c ∈ conScope}
+           {@0 us vs : fieldScope c ⇒ α}
          → us ⇔ vs
          → TCon c us ≅ TCon c vs
   CRedL  : @0 ReducesTo u u'
@@ -99,7 +106,7 @@ data Conv {α} where
 
 data ConvBranch {α} where
   CBBranch : (@0 c : Name) (cp : c ∈ conScope) (r1 r2 : _)
-             (t1 t2 : Term (~ lookupAll fieldScope cp <> α))
+             (t1 t2 : Term (~ fieldScope c <> α))
            → t1 ≅ t2
            → ConvBranch (BBranch c r1 t1) (BBranch c r2 t2)
 

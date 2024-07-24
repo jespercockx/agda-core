@@ -33,6 +33,7 @@ substType f (El st t) = El (substSort f st) (substTerm f t)
 
 substTerm f (TVar x {k})      = lookupSubst f x k
 substTerm f (TDef d)          = TDef d
+substTerm f (TData d ps is)   = TData d (substSubst f ps) (substSubst f is)
 substTerm f (TCon c vs)       = TCon c (substSubst f vs)
 substTerm f (TLam x v)        = TLam x (substTerm (liftBindSubst f) v)
 substTerm f (TApp u v)        = TApp (substTerm f u) (substTerm f v)

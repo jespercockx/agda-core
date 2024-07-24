@@ -46,56 +46,55 @@ opaque
 
 record Constructor (@0 pars : Scope Name) (@0 ixs : Scope Name) (@0 c : Name) (@0 cp  : c ∈ conScope) : Set where
   field
-    conTelescope : Telescope pars (lookupAll fieldScope cp)
-    conIndices   : ixs ⇒ (revScope (lookupAll fieldScope cp) <> pars)
+    conTelescope : Telescope pars (fieldScope c)
+    conIndices   : ixs ⇒ (revScope (fieldScope c) <> pars)
 open Constructor public
 
 {-# COMPILE AGDA2HS Constructor #-}
 
-record Datatype : Set where
+record Datatype (@0 pars : Scope Name) (@0 ixs : Scope Name) : Set where
   field
-    @0 dataParameterScope   : Scope Name
-    @0 dataIndexScope       : Scope Name
     @0 dataConstructorScope : Scope Name
-    dataSort                : Sort dataParameterScope
-    dataParameterTel        : Telescope mempty dataParameterScope
-    dataIndexTel            : Telescope dataParameterScope dataIndexScope
-    dataConstructors        : All (λ c → Σ (c ∈ conScope) (Constructor dataParameterScope dataIndexScope c)) dataConstructorScope
+    dataSort                : Sort pars
+    dataParameterTel        : Telescope mempty pars
+    dataIndexTel            : Telescope pars ixs
+    dataConstructors        : All (λ c → Σ (c ∈ conScope) (Constructor pars ixs c)) dataConstructorScope
 open Datatype public
 
 {-# COMPILE AGDA2HS Datatype #-}
 
 data Definition : Set where
   FunctionDef : (funBody : Term mempty) → Definition
-  DatatypeDef : (datatypeDef : Datatype) → Definition
-  RecordDef   : {- TODO → -} Definition
 
 {-# COMPILE AGDA2HS Definition #-}
 
-Signature : Set
-Signature = All (λ _ → Type (mempty {{iMonoidScope}}) × Definition) defScope
+record Signature : Set where
+  field
+    sigData : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
+            → Datatype (dataParScope d) (dataIxScope d)
+    sigDefs : All (λ _ → Type (mempty {{iMonoidScope}}) × Definition) defScope
+open Signature public
 
 {-# COMPILE AGDA2HS Signature #-}
 
 getType : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Type mempty
-getType sig x {p} = fst (lookupAll sig p)
+getType sig x {p} = fst (lookupAll (sigDefs sig) p)
 
 {-# COMPILE AGDA2HS getType #-}
 
 getDefinition : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Definition
-getDefinition sig x {p} = snd (lookupAll sig p)
+getDefinition sig x {p} = snd (lookupAll (sigDefs sig) p)
 
 {-# COMPILE AGDA2HS getDefinition #-}
 
-getBody : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Maybe (Term mempty)
+getBody : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Term mempty
 getBody sig x = case getDefinition sig x of λ where
-  (FunctionDef body) → Just body
-  (DatatypeDef _)    → Nothing
-  RecordDef          → Nothing
+  (FunctionDef body) → body
 
 {-# COMPILE AGDA2HS getBody #-}
 
-getConstructor : (@0 c : Name) {@(tactic auto) cp : c ∈ conScope} (d : Datatype)
+getConstructor : (@0 c : Name) {@(tactic auto) cp : c ∈ conScope}
+               → ∀ {@0 pars ixs} (d : Datatype pars ixs)
                → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
                          fst (lookupAll (dataConstructors d) cd) ≡ cp)
 getConstructor c {cp} d = findAll (allLookup (dataConstructors d)) dec

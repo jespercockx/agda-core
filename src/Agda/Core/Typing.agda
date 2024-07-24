@@ -35,12 +35,12 @@ private variable
   @0 tel     : Telescope α β
   @0 us vs   : α ⇒ β
 
-constructorType : (@0 d : Name) {@(tactic auto) dp : d ∈ defScope}
+constructorType : (@0 d : Name) {@(tactic auto) dp : d ∈ dataScope}
                 → (@0 c : Name) {@(tactic auto) cp : c ∈ conScope}
-                → (con : Constructor pars ixs c cp)
+                → (con : Constructor (dataParScope d) (dataIxScope d) c cp)
                 → Sort α
-                → pars ⇒ α
-                → lookupAll fieldScope cp ⇒ α
+                → (pars : dataParScope d ⇒ α)
+                → fieldScope c ⇒ α
                 → Type α
 constructorType d c con ds pars us =
   dataType d ds pars (substSubst (concatSubst (revSubst us) pars) (conIndices con))
@@ -50,12 +50,14 @@ data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
 data TySubst (@0 Γ : Context α) : @0 (β ⇒ α) → @0 Telescope α β → Set
 
-data TyBranches (@0 Γ : Context α) (@0 dt : Datatype)
-                (@0 ps : dataParameterScope dt ⇒ α)
+data TyBranches (@0 Γ : Context α)
+                {@0 pars ixs} (@0 dt : Datatype pars ixs)
+                (@0 ps : pars ⇒ α)
                 (@0 rt : Type (x ◃ α)) : @0 Branches α cons → Set
 
-data TyBranch (@0 Γ : Context α) (@0 dt : Datatype)
-              (@0 ps : dataParameterScope dt ⇒ α)
+data TyBranch (@0 Γ : Context α)
+              {@0 pars ixs} (@0 dt : Datatype pars ixs)
+              (@0 ps : pars ⇒ α)
               (@0 rt : Type (x ◃ α)) : @0 Branch α con → Set
 
 infix 3 TyTerm
@@ -73,16 +75,26 @@ data TyTerm {α} Γ where
     ----------------------------------------------
     → Γ ⊢ TDef f ∶ weakenType subEmpty (getType sig f)
 
+  TyData
+    : (@0 d : Name) {@(tactic auto) dp : d ∈ dataScope}
+    → (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d {dp} ≡ dt
+    → {@0 pars : dataParScope d ⇒ α}
+    → {@0 ixs : dataIxScope d ⇒ α}
+    → TySubst Γ pars (weakenTel subEmpty (dataParameterTel dt))
+    → TySubst Γ ixs (substTelescope pars (dataIndexTel dt))
+    ----------------------------------------------
+    → Γ ⊢ dataTypeTerm d pars ixs ∶ sortType (substSort pars (dataSort dt))
+
   TyCon
-    : (@0 d : Name) {@(tactic auto) dp : d ∈ defScope} {@0 dt : Datatype}
+    : (@0 d : Name) {@(tactic auto) dp : d ∈ dataScope}
+    → (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d {dp} ≡ dt
     → (@0 c : Name) {@(tactic auto) cq : c ∈ dataConstructorScope dt}
-    → @0 getDefinition sig d ≡ DatatypeDef dt
     → (let (cp , con) = lookupAll (dataConstructors dt) cq)
-    → {@0 pars : dataParameterScope dt ⇒ α}
-    → {@0 us : lookupAll fieldScope cp ⇒ α}
+    → {@0 pars : dataParScope d ⇒ α}
+    → {@0 us : fieldScope c {cp} ⇒ α}
     → TySubst Γ us (substTelescope pars (conTelescope con))
     -----------------------------------------------------------
-    → Γ ⊢ TCon c {cp} us ∶ constructorType d c {cp} con (substSort pars (dataSort dt)) pars us
+    → Γ ⊢ TCon c {cp} us ∶ constructorType d {dp} c {cp} con (substSort pars (dataSort dt)) pars us
 
   TyLam
     : {@0 r : Rezz α}
@@ -100,10 +112,10 @@ data TyTerm {α} Γ where
 
   TyCase
     : {@0 r : Rezz α}
-      (@0 d : Name) {@(tactic auto) dp : d ∈ defScope} (@0 dt : Datatype)
-      (@0 de : getDefinition sig d ≡ DatatypeDef dt)
-      {@0 ps : dataParameterScope dt ⇒ α}
-      {@0 is : dataIndexScope dt ⇒ α}
+      (@0 d : Name) {@(tactic auto) dp : d ∈ dataScope}
+      (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt →
+      {@0 ps : dataParScope d ⇒ α}
+      {@0 is : dataIxScope d ⇒ α}
       (bs : Branches α (dataConstructorScope dt))
       (rt : Type (x ◃ α))
     → Γ ⊢ u ∶ a
@@ -153,9 +165,9 @@ data TyBranches {α} Γ dt ps rt where
 data TyBranch {α} Γ dt ps rt where
   TyBBranch : (@0 c : Name) → (c∈dcons : c ∈ dataConstructorScope dt)
             → (let (c∈cons , con ) = lookupAll (dataConstructors dt) c∈dcons)
-            → {@0 r : Rezz (lookupAll fieldScope c∈cons)}
+            → {@0 r : Rezz (fieldScope c {c∈cons})}
               {@0 rα : Rezz α}
-              (rhs : Term (~ lookupAll fieldScope c∈cons <> α))
+              (rhs : Term (~ fieldScope c {c∈cons} <> α))
               (let ctel = substTelescope ps (conTelescope con)
                    cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
                                        (revIdSubst r)

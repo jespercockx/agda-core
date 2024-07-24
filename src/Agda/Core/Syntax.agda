@@ -54,8 +54,12 @@ syntax Subst α β = α ⇒ β
 data Term α where
   TVar  : (@0 x : Name) → {@(tactic auto) _ : x ∈ α} → Term α
   TDef  : (@0 d : Name) → {@(tactic auto) _ : d ∈ defScope} → Term α
+  TData : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
+        → (dataParScope d ⇒ α)
+        → (dataIxScope d ⇒ α)
+        → Term α
   TCon  : (@0 c : Name) {@(tactic auto) cp : c ∈ conScope}
-        → (lookupAll fieldScope cp) ⇒ α → Term α
+        → (fieldScope c ⇒ α) → Term α
   TLam  : (@0 x : Name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
   TProj : (u : Term α) (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Term α
@@ -90,8 +94,8 @@ sortType s = El (sucSort s) (TSort s)
 
 data Branch α where
   BBranch : (@0 c : Name) → {@(tactic auto) cp : c ∈ conScope}
-          → Rezz (lookupAll fieldScope cp)
-          → Term (~ lookupAll fieldScope cp <> α) → Branch α c
+          → Rezz (fieldScope c)
+          → Term (~ fieldScope c <> α) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
 data Branches α where
@@ -136,12 +140,20 @@ applySubst {γ = γ} v SNil = v
 applySubst {γ = γ} v (SCons u us) = applySubst (TApp v u) us
 {-# COMPILE AGDA2HS applySubst #-}
 
-dataType : (@0 d : Name) → {@(tactic auto) _ : d ∈ defScope}
+
+dataTypeTerm : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
+         → (pars : dataParScope d ⇒ α)
+         → (ixs : dataIxScope d ⇒ α)
+         → Term α
+dataTypeTerm d pars ixs = TData d pars ixs
+{-# COMPILE AGDA2HS dataTypeTerm #-}
+
+dataType : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
          → Sort α
-         → (pars : β ⇒ α)
-         → (ixs : γ ⇒ α)
+         → (pars : dataParScope d ⇒ α)
+         → (ixs : dataIxScope d ⇒ α)
          → Type α
-dataType d ds pars ixs = El ds (applySubst (applySubst (TDef d) pars) ixs)
+dataType d ds pars ixs = El ds (dataTypeTerm d pars ixs)
 {-# COMPILE AGDA2HS dataType #-}
 
 unApps : Term α → Term α × List (Term α)
@@ -162,6 +174,7 @@ unAppsView (TApp t es)
   = refl
 unAppsView (TVar _) = refl
 unAppsView (TDef _) = refl
+unAppsView (TData _ _ _) = refl
 unAppsView (TCon _ _) = refl
 unAppsView (TProj _ _) = refl
 unAppsView (TCase _ _ _) = refl
@@ -200,6 +213,7 @@ weakenSubst    : β ⊆ γ → Subst α β → Subst α γ
 
 weaken p (TVar x {k})      = TVar x {coerce p k}
 weaken p (TDef d)          = TDef d
+weaken p (TData d ps is)   = TData d (weakenSubst p ps) (weakenSubst p is)
 weaken p (TCon c vs)       = TCon c (weakenSubst p vs)
 weaken p (TLam x v)        = TLam x (weaken (subBindKeep p) v)
 weaken p (TApp u e)        = TApp (weaken p u) (weaken p e)
@@ -311,6 +325,7 @@ strengthenSubst : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
 
 strengthen p (TVar x {q}) = diffCase p q (λ q → Just (TVar x {q})) (λ _ → Nothing)
 strengthen p (TDef d) = Just (TDef d)
+strengthen p (TData d ps is) = TData d <$> strengthenSubst p ps <*> strengthenSubst p is
 strengthen p (TCon c vs) = TCon c <$> strengthenSubst p vs
 strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
 strengthen p (TApp v e) = TApp <$> strengthen p v <*> strengthen p e
