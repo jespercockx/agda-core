@@ -9,6 +9,7 @@ open import Haskell.Law.Equality
 open import Haskell.Extra.Refinement
 
 open import Scope
+open import Utils.Tactics using (auto)
 open import Agda.Core.GlobalScope using (Globals; Name)
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
@@ -46,14 +47,18 @@ instance
     ; fieldScope = λ _ → mempty
     }
 
-boolcons : All (λ c → Σ (c ∈ cons) (Constructor mempty mempty c)) cons
-boolcons = allJoin (allSingl (inHere
-                             , record { conTelescope = EmptyTel
-                                      ; conIndices = SNil } )) $
-           allJoin (allSingl (inThere inHere
-                             , record { conTelescope = EmptyTel
-                                      ; conIndices = SNil })) $
-           allEmpty
+boolcons : (@0 c : Name) {@(tactic auto) _ : c ∈ cons}
+         → Σ (c ∈ cons) (Constructor mempty mempty c)
+boolcons c {cp} = lookupAll
+  {p = λ c → Σ (c ∈ cons) (Constructor mempty mempty c)}
+  (allJoin (allSingl (inHere
+                     , record { conTelescope = EmptyTel
+                              ; conIndices = SNil } )) $
+   allJoin (allSingl (inThere inHere
+                     , record { conTelescope = EmptyTel
+                              ; conIndices = SNil })) $
+   allEmpty)
+  cp
 
 bool : Datatype mempty mempty
 bool .dataConstructorScope = cons

@@ -32,7 +32,7 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x : Name
-  @0 α : Scope Name
+  @0 α cs cs' pars ixs : Scope Name
 
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
@@ -60,6 +60,22 @@ tcmGetDatatype d = do
   rsig ← tcmSignature
   return (rezzCong (λ sig → sigData sig d) rsig)
 {-# COMPILE AGDA2HS tcmGetDatatype #-}
+
+checkCoverage : (dt : Datatype pars ixs)
+              → Branches α cs
+              → TCM (Erase (dataConstructorScope dt ≡ cs))
+checkCoverage dt bs =
+  liftMaybe
+    (allInScope
+      (tabulateAll (rezz _) (λ cp → fst (dataConstructors dt _ {cp})))
+      (branchesToAll bs))
+    "case statement does not cover all branches"
+  where
+    branchesToAll : Branches α cs → All (λ c → c ∈ conScope) cs
+    branchesToAll BsNil = allEmpty
+    branchesToAll (BsCons (BBranch c {cp} _ _) bs) = allJoin (allSingl cp) (branchesToAll bs)
+
+{-# COMPILE AGDA2HS checkCoverage #-}
 
 inferVar : ∀ Γ (@0 x) {@(tactic auto) p : x ∈ α} → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
 inferVar ctx x = return $ lookupVar ctx x , TyTVar x
@@ -98,9 +114,7 @@ inferCase ctx u bs rt = do
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
   df ⟨ deq ⟩ ← tcmGetDatatype d
-  (Erased refl) ← liftMaybe
-    (allInScope {γ = conScope} (allBranches bs) (mapAll fst $ dataConstructors df))
-    "couldn't verify that branches cover all constructors"
+  Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
   let ds = substSort params (dataSort df)
   cc ← convert r tu (unType $ dataType d ds params ixs)
@@ -166,7 +180,7 @@ checkBranch ctx (BBranch c r rhs) dt ps rt = do
   let ra = rezzScope ctx
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
-  let (c∈conScope , con) = lookupAll (dataConstructors dt) cid
+  let (c∈conScope , con) = dataConstructors dt c
       ctel = substTelescope ps (conTelescope con)
       cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
                           (revIdSubst r)
@@ -200,7 +214,7 @@ checkCon ctx c {ccs} cargs (El s ty) = do
   df ⟨ deq ⟩ ← tcmGetDatatype d
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c df)
     "can't find a constructor with such a name"
-  let con = snd (lookupAll (dataConstructors df) cid)
+  let con = snd (dataConstructors df c)
       ctel = substTelescope params (conTelescope con)
       ctype = constructorType d c {ccs} con (substSort params (dataSort df)) params cargs
   tySubst ← checkSubst ctx ctel cargs

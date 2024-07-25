@@ -89,7 +89,7 @@ data TyTerm {α} Γ where
     : (@0 d : Name) {@(tactic auto) dp : d ∈ dataScope}
     → (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d {dp} ≡ dt
     → (@0 c : Name) {@(tactic auto) cq : c ∈ dataConstructorScope dt}
-    → (let (cp , con) = lookupAll (dataConstructors dt) cq)
+    → (let (cp , con) = dataConstructors dt c)
     → {@0 pars : dataParScope d ⇒ α}
     → {@0 us : fieldScope c {cp} ⇒ α}
     → TySubst Γ us (substTelescope pars (conTelescope con))
@@ -164,7 +164,7 @@ data TyBranches {α} Γ dt ps rt where
 
 data TyBranch {α} Γ dt ps rt where
   TyBBranch : (@0 c : Name) → (c∈dcons : c ∈ dataConstructorScope dt)
-            → (let (c∈cons , con ) = lookupAll (dataConstructors dt) c∈dcons)
+            → (let (c∈cons , con ) = dataConstructors dt c)
             → {@0 r : Rezz (fieldScope c {c∈cons})}
               {@0 rα : Rezz α}
               (rhs : Term (~ fieldScope c {c∈cons} <> α))
