@@ -72,18 +72,26 @@ record Signature : Set where
   field
     sigData : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
             → Datatype (dataParScope d) (dataIxScope d)
-    sigDefs : All (λ _ → Type (mempty {{iMonoidScope}}) × Definition) defScope
+    sigDefs : (@0 f : Name) → {@(tactic auto) fp : f ∈ defScope}
+            → Type (mempty {{iMonoidScope}}) × Definition
 open Signature public
 
 {-# COMPILE AGDA2HS Signature #-}
 
 getType : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Type mempty
-getType sig x {p} = fst (lookupAll (sigDefs sig) p)
+getType sig x = fst defs
+  where
+    -- inlining this seems to trigger a bug in agda2hs
+    -- TODO: investigate further
+    defs = sigDefs sig x
 
 {-# COMPILE AGDA2HS getType #-}
 
 getDefinition : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Definition
-getDefinition sig x {p} = snd (lookupAll (sigDefs sig) p)
+getDefinition sig x = snd defs
+  where
+    -- see above
+    defs = sigDefs sig x
 
 {-# COMPILE AGDA2HS getDefinition #-}
 

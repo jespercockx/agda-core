@@ -65,7 +65,7 @@ bool .dataConstructors = boolcons
 instance
   sig : Signature
   sig .sigData = λ _ → bool
-  sig .sigDefs = allEmpty
+  sig .sigDefs = λ _ {p} → inEmptyCase p
 
 {-# TERMINATING #-}
 fuel : Fuel
