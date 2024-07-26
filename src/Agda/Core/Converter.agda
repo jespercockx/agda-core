@@ -39,6 +39,38 @@ reduceTo r v = do
     (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ ⟨ rsig ⟩ it ⟨ p ⟩ ⟩
 {-# COMPILE AGDA2HS reduceTo #-}
 
+reduceToPi : {@0 α : Scope Name} (r : Rezz α)
+           → (v : Term α)
+           → String
+           → TCM (Σ0[ x ∈ Name                        ]
+                   ∃[ (a , b) ∈ Type α × Type (x ◃ α) ]
+                   ReducesTo v (TPi x a b))
+reduceToPi r v err = reduceTo r v >>= λ where
+  (TPi x a b ⟨ redv ⟩) → return (⟨ x ⟩ ((a , b) ⟨ redv ⟩))
+  _ → tcError err
+{-# COMPILE AGDA2HS reduceToPi #-}
+
+reduceToData : {@0 α : Scope Name} (r : Rezz α)
+           → (v : Term α)
+           → String
+           → TCM (Σ0[ d ∈ Name ]
+                   Σ[ dp ∈ d ∈ dataScope ]
+                   ∃[ (pars , ixs) ∈ (dataParScope d ⇒ α) × (dataIxScope d ⇒ α) ]
+                   ReducesTo v (TData d pars ixs))
+reduceToData r v err = reduceTo r v >>= λ where
+  (TData d pars ixs ⟨ redv ⟩) → return (⟨ d ⟩ (_ , (pars , ixs) ⟨ redv ⟩))
+  _ → tcError err
+{-# COMPILE AGDA2HS reduceToData #-}
+
+reduceToSort : {@0 α : Scope Name} (r : Rezz α)
+           → (v : Term α)
+           → String
+           → TCM (∃[ s ∈ Sort α ] ReducesTo v (TSort s))
+reduceToSort r v err = reduceTo r v >>= λ where
+  (TSort s ⟨ redv ⟩) → return (s ⟨ redv ⟩)
+  _ → tcError err
+{-# COMPILE AGDA2HS reduceToSort #-}
+
 convVars : (@0 x y : Name)
            {@(tactic auto) p : x ∈ α} {@(tactic auto) q : y ∈ α}
          → TCM (Conv (TVar x) (TVar y))

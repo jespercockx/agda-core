@@ -97,8 +97,8 @@ inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
 inferApp ctx u v = do
   let r = rezzScope ctx
   tu , gtu ← inferType ctx u
-  (TPi x at rt) ⟨ rtp ⟩  ← reduceTo r (unType tu)
-    where _ → tcError "couldn't reduce term to a pi type"
+  ⟨ x ⟩ (at , rt) ⟨ rtp ⟩ ← reduceToPi r (unType tu)
+    "couldn't reduce term to a pi type"
   gtv ← checkType ctx v at
   let sf = piSort (typeSort at) (typeSort rt)
       gc = CRedL rtp CRefl
@@ -110,9 +110,8 @@ inferCase : ∀ {@0 cs} Γ u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {cs
 inferCase ctx u bs rt = do
   let r = rezzScope ctx
   El s tu , gtu ← inferType ctx u
-  (TData d params ixs) ⟨ rp ⟩ ← reduceTo r tu
-    where
-      _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
+  ⟨ d ⟩ _ , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
+    "can't typecheck a constrctor with a type that isn't a def application"
   df ⟨ deq ⟩ ← tcmGetDatatype d
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
@@ -208,9 +207,8 @@ checkCon : ∀ Γ
          → TCM (Γ ⊢ TCon c cargs ∶ ty)
 checkCon ctx c {ccs} cargs (El s ty) = do
   let r = rezzScope ctx
-  (TData d params ixs) ⟨ rp ⟩  ← reduceTo r ty
-    where
-      _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
+  ⟨ d ⟩ _ , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
+    "can't typecheck a constrctor with a type that isn't a def application"
   df ⟨ deq ⟩ ← tcmGetDatatype d
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c df)
     "can't find a constructor with such a name"
@@ -230,8 +228,8 @@ checkLambda ctx x u (El sp (TPi y tu tv)) =
 checkLambda ctx x u (El s ty) = do
   let r = rezzScope ctx
 
-  (TPi y tu tv) ⟨ rtp ⟩ ← reduceTo r ty
-    where _ → tcError "couldn't reduce a term to a pi type"
+  ⟨ y ⟩ (tu , tv) ⟨ rtp ⟩ ← reduceToPi r ty
+    "couldn't reduce a term to a pi type"
   let gc = CRedR rtp CRefl
       sp = piSort (typeSort tu) (typeSort tv)
 
@@ -300,8 +298,7 @@ inferType ctx (TAnn u t) = (_,_) t <$> TyAnn <$> checkType ctx u t
 inferSort ctx t = do
   let r = rezzScope ctx
   st , dt ← inferType ctx t
-  (TSort s) ⟨ rp ⟩ ← reduceTo r (unType st)
-    where _ → tcError "couldn't reduce a term to a sort"
+  s ⟨ rp ⟩ ← reduceToSort r (unType st) "couldn't reduce a term to a sort"
   let cp = CRedL rp CRefl
   return $ s , TyConv dt cp
 
