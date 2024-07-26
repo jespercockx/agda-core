@@ -18,6 +18,9 @@ open import Haskell.Extra.Erase
 -- NOTE(flupe): comes from scope library, should be moved upstream probably
 open import Utils.Misc
 
+∅ : Scope name
+∅ = mempty
+
 private variable
   @0 x a b c : name
   @0 α β γ cs : Scope name
@@ -52,12 +55,14 @@ syntax Subst α β = α ⇒ β
 -- but All being opaque prevents the positivity checker to do its job
 -- see #6970
 
+@0 fieldsOf : {@0 c : name} (c∈cons : c ∈ conScope) → Scope name
+fieldsOf = lookupAll fieldScope
+
 data Term α where
   -- NOTE(flupe): removed tactic arguments for now because hidden arguments not supported yet #217
+  TDef  : ∀ (@0 d) → d ∈ defScope → Term α
+  TCon  : ∀ (@0 c) (cp : c ∈ conScope) → (fieldsOf cp) ⇒ α → Term α
   TVar  : (@0 x : name) → x ∈ α → Term α
-  TDef  : (@0 d : name) → d ∈ defScope → Term α
-  TCon  : (@0 c : name) (c∈cons : c ∈ conScope)
-        → (lookupAll fieldScope c∈cons) ⇒ α → Term α
   TLam  : (@0 x : name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (es : Elim α) → Term α
   TPi   : (@0 x : name) (u : Type α) (v : Type (x ◃ α)) → Term α
@@ -90,7 +95,6 @@ sortType s = El (sucSort s) (TSort s)
 
 data Elim α where
   EArg  : Term α → Elim α
-  EProj : (@0 x : name) → x ∈ defScope → Elim α
   ECase : (bs : Branches α cs) (m : Type (x ◃ α)) → Elim α
 {-# COMPILE AGDA2HS Elim deriving Show #-}
 
@@ -98,9 +102,9 @@ Elims α = List (Elim α)
 {-# COMPILE AGDA2HS Elims #-}
 
 data Branch α where
-  BBranch : (@0 c : name) → (c∈cons : c ∈ conScope)
-          → Rezz _ (lookupAll fieldScope c∈cons)
-          → Term (~ lookupAll fieldScope c∈cons <> α) → Branch α c
+  BBranch :  (@0 c : name) (c∈cons : c ∈ conScope)
+             (let args = fieldsOf c∈cons)
+          →  Rezz _ args  →  Term (~ args <> α) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
 data Branches α where
@@ -148,9 +152,8 @@ applyElims u (e ∷ es) = applyElims (TApp u e) es
 dataType : (@0 d : name) → d ∈ defScope
          → Sort α
          → (pars : β ⇒ α)
-         → (ixs : γ ⇒ α)
          → Type α
-dataType d dp ds pars ixs = El ds (applys (applys (TDef d dp) pars) ixs)
+dataType d dp ds pars = El ds (applys (TDef d dp) pars)
 {-# COMPILE AGDA2HS dataType #-}
 
 elimView : Term α → Term α × Elims α
@@ -228,7 +231,6 @@ weakenSort p (STyp x) = STyp x
 weakenType p (El st t) = El (weakenSort p st) (weaken p t)
 
 weakenElim p (EArg x)    = EArg (weaken p x)
-weakenElim p (EProj x k) = EProj x k
 weakenElim p (ECase bs m)  = ECase (weakenBranches p bs) (weakenType (subBindKeep p) m)
 {-# COMPILE AGDA2HS weakenElim #-}
 
@@ -245,6 +247,12 @@ weakenBranches p (BsCons b bs) = BsCons (weakenBranch p b) (weakenBranches p bs)
 weakenSubst p SNil = SNil
 weakenSubst p (SCons u e) = SCons (weaken p u) (weakenSubst p e)
 {-# COMPILE AGDA2HS weakenSubst #-}
+
+weakenGlobal : Term ∅ → Term α
+weakenGlobal l = weaken subEmpty l
+
+weakenGlobalType : Type ∅ → Type α
+weakenGlobalType l = weakenType subEmpty l
 
 dropSubst : {@0 α β : Scope name} {@0 x : name} → (x ◃ α) ⇒ β → α ⇒ β
 dropSubst f = caseSubstBind f (λ _ g → g)
@@ -346,7 +354,6 @@ strengthenSort p (STyp n) = Just (STyp n)
 strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthen p t
 
 strengthenElim p (EArg v) = EArg <$> strengthen p v
-strengthenElim p (EProj f q) = Just (EProj f q)
 strengthenElim p (ECase bs m) = ECase <$> strengthenBranches p bs <*> strengthenType (subBindKeep p) m
 
 strengthenElims p = traverse (strengthenElim p)

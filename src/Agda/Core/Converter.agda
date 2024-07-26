@@ -1,4 +1,4 @@
-open import Haskell.Prelude
+open import Haskell.Prelude renaming (_,_ to _,p_; _×_ to _×p_)
 open import Scope
 
 open import Agda.Core.GlobalScope using (Globals)
@@ -20,7 +20,7 @@ open import Agda.Core.Conversion globals sig
 open import Agda.Core.Reduce globals
 open import Agda.Core.TCM globals sig
 open import Agda.Core.TCMInstances
-open import Agda.Core.Utils renaming (_,_ to _Σ,_)
+open import Agda.Core.Utils --renaming (_,_ to _Σ,_)
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Dec
@@ -40,102 +40,103 @@ reduceTo r sig v f =
 {-# COMPILE AGDA2HS reduceTo #-}
 
 
-convVars : ∀ Γ
+
+convVars : (Γ : Context α)
            (s : Term α)
            (@0 x y : name)
            (p : x ∈ α) (q : y ∈ α)
-         → TCM (Conv Γ (TVar x p) (TVar y q))
+         → TCM (Conv (TVar x p) (TVar y q))
 convVars ctx _ x y p q =
   ifDec (decIn p q)
     (λ where {{refl}} → return CRefl)
     (tcError "variables not convertible")
 
-convVarsI : ∀ Γ
+convVarsI : (Γ : Context α)
             (@0 x y : name)
             (p : x ∈ α) (q : y ∈ α)
-          → TCM (Σ[ ty ∈ Term α ] (Γ ⊢ (TVar x p) ≅ (TVar y q)))
+          → TCM (Σ[ ty ∈ Term α ] ((TVar x p) ≅ (TVar y q)))
 convVarsI ctx x y p q =
   ifDec (decIn p q)
-    (λ where {{refl}} → return $ (unType $ lookupVar ctx x p) Σ, CRefl)
+    (λ where {{refl}} → return $ (unType $ lookupVar ctx x p) , CRefl)
     (tcError "variables not convertible")
 
-convDefs : ∀ Γ
+convDefs : (Γ : Context α)
            (s : Term α)
            (@0 f g : name)
            (p : f ∈ defScope)
            (q : g ∈ defScope)
-         → TCM (Conv {α = α} Γ (TDef f p) (TDef g q))
+         → TCM (Conv {α = α} (TDef f p) (TDef g q))
 convDefs ctx s f g p q =
   ifDec (decIn p q)
     (λ where {{refl}} → return CRefl)
     (tcError "definitions not convertible")
 
-convDefsI : ∀ Γ
+convDefsI : (Γ : Context α)
             (@0 f g : name)
             (p : f ∈ defScope)
             (q : g ∈ defScope)
-          → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TDef f p) (TDef g q)))
+          → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} (TDef f p) (TDef g q)))
 convDefsI ctx f g p q = do
   rezz sig ← tcmSignature
   let ty = unType $ weakenType subEmpty $ getType sig f p
   ifDec (decIn p q)
-    (λ where {{refl}} → return $ ty Σ, CRefl)
+    (λ where {{refl}} → return $ ty , CRefl)
     (tcError "definitions not convertible")
 
-convSorts : ∀ Γ
+convSorts : (Γ : Context α)
             (s : Term α)
             (u u' : Sort α)
-          → TCM (Conv {α = α} Γ (TSort u) (TSort u'))
+          → TCM (Conv {α = α} (TSort u) (TSort u'))
 convSorts ctx s (STyp u) (STyp u') =
   ifDec ((u == u') ⟨ isEquality u u' ⟩)
     (λ where {{refl}} → return $ CRefl)
     (tcError "can't convert two different sorts")
 
-convSortsI : ∀ Γ
+convSortsI : (Γ : Context α)
              (u u' : Sort α)
-           → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TSort u) (TSort u')))
+           → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} (TSort u) (TSort u')))
 convSortsI ctx (STyp u) (STyp u') =
   ifDec ((u == u') ⟨ isEquality u u' ⟩)
-    (λ where {{refl}} → return $ (TSort $ sucSort $ STyp u) Σ, CRefl)
+    (λ where {{refl}} → return $ (TSort $ sucSort $ STyp u) , CRefl)
     (tcError "can't convert two different sorts")
 
-convertCheck : Fuel → ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
-convertInfer : Fuel → ∀ Γ (t q : Term α) → TCM (Σ (Term α) (λ ty → Γ ⊢ t ≅ q))
+convertCheck : Fuel → (Γ : Context α) (ty : Term α) (t q : Term α) → TCM (t ≅ q)
+convertInfer : Fuel → (Γ : Context α) (t q : Term α) → TCM (Σ (Term α) (λ ty → t ≅ q))
 convertElims : Fuel →
-             ∀ Γ
+               (Γ : Context α)
                (tu   : Term α)
                (u    : Term α)
                (v v' : Elim α)
-             → TCM (Σ (Term α) (λ _ → Γ ⊢ v ≃ v'))
+             → TCM (Σ (Term α) (λ _ → v ≃ v'))
 convertSubsts : Fuel →
-              ∀ {@0 α β} Γ
+              ∀ {@0 α β} (Γ : Context α)
                 (ty : Telescope α β)
                 (s p : β ⇒ α)
-              → TCM (Γ ⊢ s ⇔ p)
+              → TCM (s ⇔ p)
 convertBranches : Fuel →
-                ∀ {@0 x : name} {@0 cons : Scope name} Γ
+                ∀ {@0 x : name} {@0 cons : Scope name} (Γ : Context α)
                   (dt : Datatype)
-                  (ps : dataParameterScope dt ⇒ α)
+                  (ps : dataPars dt ⇒ α)
                   (rty : Term (x ◃ α))
                   (bs bp : Branches α cons)
-                → TCM (ConvBranches Γ bs bp)
+                → TCM (ConvBranches bs bp)
 
 convCons : Fuel →
-           ∀ Γ
+           (Γ : Context α)
            (s : Term α)
            (@0 f g : name)
            (p : f ∈ conScope)
            (q : g ∈ conScope)
-           (lp : lookupAll fieldScope p ⇒ α)
-           (lq : lookupAll fieldScope q ⇒ α)
-         → TCM (Conv {α = α} Γ (TCon f p lp) (TCon g q lq))
+           (lp : fieldsOf p ⇒ α)
+           (lq : fieldsOf q ⇒ α)
+         → TCM (Conv {α = α} (TCon f p lp) (TCon g q lq))
 convCons         None      ctx s f g p q lp lq =
   tcError "not enough fuel to convert two constructors"
 convCons {α = α} (More fl) ctx s f g p q lp lq = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
-  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView sig s <$> reduceTo r sig s fuel
+  (TDef d dp ,p els) ⟨ rp ⟩  ← reduceElimView sig s <$> reduceTo r sig s fuel
     where
       _ → tcError "can't convert two constructors when their type isn't a definition"
   ifDec (decIn p q)
@@ -145,10 +146,10 @@ convCons {α = α} (More fl) ctx s f g p q lp lq = do
           _ → tcError "can't convert two constructors when their type isn't a datatype"
       cdi ⟨ refl ⟩ ← liftMaybe (getConstructor f p df)
         "can't find a constructor with such a name"
-      let (_ Σ, con) = lookupAll (dataConstructors df) cdi
+      let (_ , con) = lookupAll (dataConstructors df) cdi
       params ← liftMaybe (traverse maybeArg els)
         "not all arguments to the datatype are terms"
-      (psubst , _) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+      (psubst ,p _) ← liftMaybe (listSubst (rezzTel (dataParTel df)) params)
         "couldn't construct a substitution for parameters"
       let ctel = substTelescope psubst (conTelescope con)
       csp ← convertSubsts fl ctx ctel lp lq
@@ -156,12 +157,12 @@ convCons {α = α} (More fl) ctx s f g p q lp lq = do
     (tcError "constructors not convertible")
 
 convLams : Fuel
-         → ∀ Γ
+         → (Γ : Context α)
            (s : Term α)
            (@0 x y : name)
            (u : Term (x ◃ α))
            (v : Term (y ◃ α))
-         → TCM (Conv {α = α} Γ (TLam x u) (TLam y v))
+         → TCM (Conv {α = α} (TLam x u) (TLam y v))
 convLams None      ctx  ty         x y u v =
   tcError "can't convert two lambdas when the type isn't a Pi"
 convLams (More fl) ctx (TPi z a b) x y u v = do
@@ -178,39 +179,39 @@ convLams (More fl) ctx  ty         x y u v = do
   CLam <$> convertCheck fl (ctx , z ∶ a) (unType b) (renameTop r u) (renameTop r v)
 
 convAppsI : Fuel
-          → ∀ Γ
+          → (Γ : Context α)
             (u u' : Term α)
             (w w' : Elim α)
-          → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TApp u w) (TApp u' w')))
+          → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} (TApp u w) (TApp u' w')))
 convAppsI None      ctx u u' w w' =
   tcError "not enough fuel to check conversion of Apps"
 convAppsI (More fl) ctx u u' w w' = do
-  su Σ, cu ← convertInfer fl ctx u u'
-  sw Σ, cv  ← convertElims fl ctx su u w w'
-  return $ sw Σ, CApp cu cv
+  su , cu ← convertInfer fl ctx u u'
+  sw , cv  ← convertElims fl ctx su u w w'
+  return $ sw , CApp cu cv
 
 convPisI : Fuel →
-         ∀ Γ
+           (Γ : Context α)
            (@0 x y : name)
            (u u' : Type α)
            (v  : Type (x ◃ α))
            (v' : Type (y ◃ α))
-         → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} Γ (TPi x u v) (TPi y u' v')))
+         → TCM (Σ[ ty ∈ Term α ] (Conv {α = α} (TPi x u v) (TPi y u' v')))
 convPisI fl ctx x y u u' v v' = do
   let r  = rezzScope ctx
       ps = TSort (piSort (typeSort u) (typeSort v))
   cpi ← CPi <$> convertCheck fl ctx (TSort $ typeSort u) (unType u) (unType u')
             <*> convertCheck fl (ctx , x ∶ u) (TSort $ typeSort v) (unType v) (renameTop r (unType v'))
-  return (ps Σ, cpi)
+  return (ps , cpi)
 
 convPis : Fuel →
-         ∀ Γ
+           (Γ : Context α)
            (s : Term α)
            (@0 x y : name)
            (u u' : Type α)
            (v  : Type (x ◃ α))
            (v' : Type (y ◃ α))
-         → TCM (Conv {α = α} Γ (TPi x u v) (TPi y u' v'))
+         → TCM (Conv {α = α} (TPi x u v) (TPi y u' v'))
 convPis None      _   _ _ _ _ _  _ _  = tcError "not enough fuel"
 convPis (More fl) ctx _ x y u u' v v' = snd <$> convPisI fl ctx x y u u' v v'
 
@@ -218,7 +219,7 @@ convertElims fl ctx (TPi x a b) u (EArg w) (EArg w') = do
   let r = rezzScope ctx
       ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck fl ctx (unType a) w w'
-  return $ substTop r w (unType b) Σ, CEArg cw
+  return $ substTop r w (unType b) , CEArg cw
 convertElims fl ctx t           u (EArg w) (EArg w') = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
@@ -229,11 +230,11 @@ convertElims fl ctx t           u (EArg w) (EArg w') = do
       _ → tcError "can't convert two terms when the type does not reduce to a Pi type"
   let ksort = piSort (typeSort a) (typeSort b)
   cw ← convertCheck fl ctx (unType a) w w'
-  return $ substTop r w (unType b) Σ, CEArg cw
+  return $ substTop r w (unType b) , CEArg cw
 convertElims fl ctx tu u (ECase ws m) (ECase ws' m') = do
   let r = rezzScope ctx
   rezz sig  ← tcmSignature
-  (TDef d dp , els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig tu fl
+  (TDef d dp ,p els) ⟨ rp ⟩  ← reduceElimView _ _ <$> reduceTo r sig tu fl
     where
       _ → tcError "can't typecheck a constrctor with a type that isn't a def application"
   (DatatypeDef df) ⟨ dep ⟩ ← return $ witheq (getDefinition sig d dp)
@@ -241,7 +242,7 @@ convertElims fl ctx tu u (ECase ws m) (ECase ws' m') = do
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   params ← liftMaybe (traverse maybeArg els)
     "not all arguments to the datatype are terms"
-  (psubst , _) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+  (psubst ,p _) ← liftMaybe (listSubst (rezzTel (dataParTel df)) params)
     "couldn't construct a substitution for parameters"
   (Erased refl) ← liftMaybe
     (allInScope {γ = conScope} (allBranches ws) (allBranches ws'))
@@ -251,8 +252,7 @@ convertElims fl ctx tu u (ECase ws m) (ECase ws' m') = do
                        (renameTop r (unType m))
                        (renameTop r (unType m'))
   cbs ← convertBranches fl ctx df psubst (unType m) ws ws'
-  return (substTop r u (unType m) Σ, CECase ws ws' m m' cm cbs)
-convertElims fl ctx s u (EProj _ _) (EProj _ _) = tcError "not implemented yet"
+  return (substTop r u (unType m) , CECase ws ws' m m' cm cbs)
 convertElims fl ctx s u _           _ = tcError "two elims aren't the same shape"
 
 convertSubsts fl ctx tel SNil p = return CSNil
@@ -264,28 +264,27 @@ convertSubsts fl ctx tel (SCons x st) p =
       tc ← convertSubsts fl ctx (substTelescope (SCons x (idSubst r)) rest) st pt
       return (CSCons hc tc)
 
-
 convertBranch : Fuel
-              → ∀ {@0 x con : name} Γ
+              → ∀ {@0 x con : name} (Γ : Context α)
                   (dt : Datatype)
-                  (ps : dataParameterScope dt ⇒ α)
+                  (ps : dataPars dt ⇒ α)
                   (rt : Term (x ◃ α))
               → (b1 b2 : Branch α con)
-              → TCM (ConvBranch Γ b1 b2)
+              → TCM (ConvBranch b1 b2)
 convertBranch fl ctx dt ps rt (BBranch _ cp1 rz1 rhs1) (BBranch _ cp2 rz2 rhs2) =
   ifDec (decIn cp1 cp2)
     (λ where {{refl}} → do
       let r = rezzScope ctx
       cid ⟨ refl ⟩  ← liftMaybe (getConstructor _ cp1 dt)
          "can't find a constructor with such a name"
-      let (_ Σ, con) = lookupAll (dataConstructors dt) cid
+      let (_ , con) = lookupAll (dataConstructors dt) cid
           ctel = substTelescope ps (conTelescope con)
           cargs = weakenSubst (subJoinHere (rezzCong revScope rz1) subRefl)
                               (revIdSubst rz1)
           idsubst = weakenSubst (subJoinDrop (rezzCong revScope rz1) subRefl)
                                 (idSubst r)
           bsubst = SCons (TCon _ cp1 cargs) idsubst
-      CBBranch _ cp1 rz1 rz2 ctel rhs1 rhs2 <$>
+      CBBranch _ cp1 rz1 rz2 rhs1 rhs2 <$>
         convertCheck fl (addContextTel ctel ctx) (substTerm bsubst rt) rhs1 rhs2)
     (tcError "can't convert two branches that match on different constructors")
 
@@ -293,6 +292,7 @@ convertBranches fl ctx df pars rt BsNil        bp = return CBranchesNil
 convertBranches fl ctx df pars rt (BsCons bsh bst) bp =
   caseBsCons bp (λ where
     bph bpt {{refl}} → CBranchesCons <$> convertBranch fl ctx df pars rt bsh bph <*> convertBranches fl ctx df pars rt bst bpt)
+
 
 convertCheck fl ctx ty t q = do
   let r = rezzScope ctx
@@ -358,8 +358,7 @@ convertInfer fl ctx t q = do
     --let and ann shoudln't appear here since they get reduced away
     _ → tcError "two terms are not the same and aren't convertible"
 
-
-convert : ∀ Γ (ty : Term α) (t q : Term α) → TCM (Γ ⊢ t ≅ q)
+convert : (Γ : Context α) (ty : Term α) (t q : Term α) → TCM (t ≅ q)
 convert ctx ty t q = do
   fl ← tcmFuel
   convertCheck fl ctx ty t q

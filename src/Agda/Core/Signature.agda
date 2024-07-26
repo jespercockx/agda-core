@@ -43,23 +43,21 @@ opaque
 
 {-# COMPILE AGDA2HS caseTelBind #-}
 
-record Constructor (@0 pars : Scope name) (@0 ixs : Scope name) (@0 c : name) (@0 cp  : c ∈ conScope) : Set where
-  field
-    conTelescope : Telescope pars (lookupAll fieldScope cp)
-    conIndices   : ixs ⇒ (revScope (lookupAll fieldScope cp) <> pars)
+record Constructor (@0 pars : Scope name) (@0 c : name) (@0 cp  : c ∈ conScope) : Set
+record Constructor pars c cp where
+  field conTelescope : Telescope pars (fieldsOf cp)
 open Constructor public
 
 {-# COMPILE AGDA2HS Constructor #-}
 
 record Datatype : Set where
-  field
-    @0 dataParameterScope   : Scope name
-    @0 dataIndexScope       : Scope name
-    @0 dataConstructorScope : Scope name
-    dataSort                : Sort dataParameterScope
-    dataParameterTel        : Telescope mempty dataParameterScope
-    dataIndexTel            : Telescope dataParameterScope dataIndexScope
-    dataConstructors        : All (λ c → Σ (c ∈ conScope) (Constructor dataParameterScope dataIndexScope c)) dataConstructorScope
+  field @0 dataPars       :  Scope name
+        @0 dataCons       :  Scope name
+        dataSort          :  Sort dataPars
+        dataParTel        :  Telescope ∅ dataPars
+        dataConstructors  :  All  (λ c → Σ  (c ∈ conScope)
+                                            (Constructor dataPars c))
+                                  dataCons
 open Datatype public
 
 {-# COMPILE AGDA2HS Datatype #-}
@@ -95,16 +93,16 @@ getBody sig x p = case getDefinition sig x p of λ where
 {-# COMPILE AGDA2HS getBody #-}
 
 getConstructor : (@0 c : name) (cp : c ∈ conScope) (d : Datatype)
-               → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
+               → Maybe (∃[ cd ∈ (c ∈ dataCons d) ]
                          fst (lookupAll (dataConstructors d) cd) ≡ cp)
 getConstructor c cp d = findAll (allLookup (dataConstructors d)) dec
   where
     -- can't have a lambda take two arguments for agda2hs, so here's a local def
     dec : {@0 el : name}
-        → ∃ (el ∈ (dataConstructorScope d) × _)
-            (λ where (i , pi) → lookupAll (dataConstructors d) i ≡ pi)
+        → ∃ ((el ∈ (dataCons d)) × _)
+           (λ where (i , pi) → lookupAll (dataConstructors d) i ≡ pi)
         → _
-        → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
+        → Maybe (∃[ cd ∈ (c ∈ dataCons d) ]
                   fst (lookupAll (dataConstructors d) cd) ≡ cp)
     dec ((i , (ci Σ, con)) ⟨ ep ⟩) _ =
       ifDec (decIn cp ci)

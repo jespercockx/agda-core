@@ -43,28 +43,24 @@ globals = record
 open import Agda.Core.Syntax globals
 open import Agda.Core.Signature globals
 
-boolcons : All (λ c → Σ (c ∈ cons) (Constructor mempty mempty c)) cons
+boolcons : All (λ c → Σ (c ∈ cons) (Constructor mempty c)) cons
 boolcons = allJoin (allSingl (inHere
                              Σ, record { conTelescope =
                                           subst0 (λ x → Telescope mempty x)
                                                  (sym $ lookupHere _ _)
-                                                 EmptyTel
-                                      ; conIndices = SNil } )) $
+                                                 EmptyTel } )) $
            allJoin (allSingl (inThere inHere
                              Σ, record { conTelescope =
                                           subst0 (λ x → Telescope mempty x)
                                                  (sym $ lookupThere (lookupHere _ _))
-                                                 EmptyTel
-                                      ; conIndices = SNil })) $
+                                                 EmptyTel })) $
            allEmpty
 
 bool : Datatype
-bool .dataParameterScope = mempty
-bool .dataIndexScope = mempty
-bool .dataConstructorScope = cons
+bool .dataPars = mempty
+bool .dataCons = cons
 bool .dataSort = STyp 0
-bool .dataParameterTel = EmptyTel
-bool .dataIndexTel = EmptyTel
+bool .dataParTel = EmptyTel
 bool .dataConstructors = boolcons
 
 sig : Signature

@@ -37,6 +37,7 @@ private variable
   @0 x : name
   @0 α : Scope name
 
+
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
             → (cty : Type α)
@@ -48,20 +49,27 @@ checkCoerce ctx t (gty , dgty) cty =
 inferVar : ∀ Γ (@0 x) (p : x ∈ α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x p ∶ t)
 inferVar ctx x p = return $ lookupVar ctx x p , TyTVar p
 {-# COMPILE AGDA2HS inferVar #-}
-
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 inferElim : ∀ (Γ : Context α) u e (ty : Type α) → TCM (Σ[ a ∈ Type α ] TyElim Γ u e ty a)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
+
+checkBranch : ∀ {@0 con : name} (Γ : Context α)
+                (bs : Branch α con)
+                (dt : Datatype)
+                (ps : dataPars dt ⇒ α)
+                (rt : Type (x ◃ α))
+            → TCM (TyBranch Γ dt ps rt bs)
 checkBranches : ∀ {@0 cons : Scope name}
                   (Γ : Context α)
                   (rz : Rezz _ cons)
                   (bs : Branches α cons)
-                  (dt : Datatype) (ps : dataParameterScope dt ⇒ α)
+                  (dt : Datatype) (ps : dataPars dt ⇒ α)
                   (rt : Type (x ◃ α))
                 → TCM (TyBranches Γ dt ps rt bs)
+checkSubst    : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
 
-inferElim ctx u (Syntax.EArg v) tu = do
+inferElim ctx u (EArg v) tu = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -73,7 +81,7 @@ inferElim ctx u (Syntax.EArg v) tu = do
       tytype = substTopType r v rt
   return $ tytype , TyArg gc gtv
 
-inferElim {α = α} ctx u (Syntax.ECase bs m) (El s ty) = do
+inferElim {α = α} ctx u (ECase bs m) (El s ty) = do
   let r = rezzScope ctx
   fuel      ← tcmFuel
   rezz sig  ← tcmSignature
@@ -85,25 +93,20 @@ inferElim {α = α} ctx u (Syntax.ECase bs m) (El s ty) = do
       _ → tcError "can't convert two constructors when their type isn't a datatype"
   params ← liftMaybe (traverse maybeArg els)
     "not all arguments to the datatype are terms"
-  (psubst , ixs) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+  (psubst , loargs) ← liftMaybe (listSubst (rezzTel (dataParTel df)) params)
     "couldn't construct a substitution for parameters"
-  (isubst , loargs) ← liftMaybe (listSubst (rezzTel (dataIndexTel df)) ixs)
-    "couldn't construct a substitution for indexes"
   assert (null loargs)
-    "there are more arguments to the datatype then parameters and indices"
+    "there are more arguments to the datatype then parameters"
   (Erased refl) ← liftMaybe
     (allInScope {γ = conScope} (allBranches bs) (mapAll fst $ dataConstructors df))
     "couldn't verify that branches cover all constructors"
   cb ← checkBranches ctx (rezzBranches bs) bs df psubst m
   let ds = substSort psubst (dataSort df)
-  cc ← convert ctx (TSort s) ty (unType $ dataType d dp ds psubst isubst)
-  let tj = TyCase {k = ds} {r = r} dp df dep {is = isubst} bs m cc cb
+  cc ← convert ctx (TSort s) ty (unType $ dataType d dp ds psubst)
+  let tj = TyCase {k = ds} dp df dep bs m cc cb
   return (substTopType r u m , tj)
 
-inferElim ctx u (Syntax.EProj _ _) ty = tcError "not implemented"
-
 {-# COMPILE AGDA2HS inferElim #-}
-
 inferApp : ∀ Γ u e → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u e ∶ t)
 inferApp ctx u e = do
   tu , gtu ← inferType ctx u
@@ -134,7 +137,6 @@ inferDef ctx f p = do
   return $ weakenType subEmpty (getType sig f p) , TyDef p
 {-# COMPILE AGDA2HS inferDef #-}
 
-checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
 checkSubst ctx t SNil =
   caseTelEmpty t λ where ⦃ refl ⦄ → return TyNil
 checkSubst ctx t (SCons x s) =
@@ -150,12 +152,6 @@ checkSubst ctx t (SCons x s) =
     return (TyCons tyx tyrest)
 {-# COMPILE AGDA2HS checkSubst #-}
 
-checkBranch : ∀ {@0 con : name} (Γ : Context α)
-                (bs : Branch α con)
-                (dt : Datatype)
-                (ps : dataParameterScope dt ⇒ α)
-                (rt : Type (x ◃ α))
-            → TCM (TyBranch Γ dt ps rt bs)
 checkBranch ctx (BBranch c ccs r rhs) dt ps rt = do
   let ra = rezzScope ctx
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c ccs dt)
@@ -168,7 +164,7 @@ checkBranch ctx (BBranch c ccs r rhs) dt ps rt = do
                             (idSubst ra)
       bsubst = SCons (TCon c ccs cargs) idsubst
   crhs ← checkType (addContextTel ctel ctx) rhs (substType bsubst rt)
-  return (TyBBranch c cid {rα = ra} rhs crhs)
+  return (TyBBranch cid rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
 checkBranches ctx (rezz cons) bs dt ps rt =
@@ -183,7 +179,7 @@ checkBranches ctx (rezz cons) bs dt ps rt =
 checkCon : ∀ Γ
            (@0 c : name)
            (ccs : c ∈ conScope)
-           (cargs : lookupAll fieldScope ccs ⇒ α)
+           (cargs : fieldsOf ccs ⇒ α)
            (ty : Type α)
          → TCM (Γ ⊢ TCon c ccs cargs ∶ ty)
 checkCon ctx c ccs cargs (El s ty) = do
@@ -200,12 +196,10 @@ checkCon ctx c ccs cargs (El s ty) = do
     "can't find a constructor with such a name"
   params ← liftMaybe (traverse maybeArg els)
     "not all arguments to the datatype are terms"
-  (psubst , ixs) ← liftMaybe (listSubst (rezzTel (dataParameterTel df)) params)
+  (psubst , loargs) ← liftMaybe (listSubst (rezzTel (dataParTel df)) params)
     "couldn't construct a substitution for parameters"
-  (isubst , loargs) ← liftMaybe (listSubst (rezzTel (dataIndexTel df)) ixs)
-    "couldn't construct a substitution for indexes"
   assert (null loargs)
-    "there are more arguments to the datatype then parameters and indices"
+    "there are more arguments to the datatype then parameters"
   let con = snd (lookupAll (dataConstructors df) cid)
       ctel = substTelescope psubst (conTelescope con)
       ctype = constructorType d dp c ccs con (substSort psubst (dataSort df)) psubst cargs
@@ -241,7 +235,7 @@ checkLet : ∀ Γ (@0 x : name)
 checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
   dtv       ← checkType (ctx , x ∶ tu) v (weakenType (subWeaken subRefl) ty)
-  return $ TyLet {r = rezzScope ctx} dtu dtv
+  return $ TyLet dtu dtv
 {-# COMPILE AGDA2HS checkLet #-}
 
 
@@ -280,7 +274,6 @@ inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type 
 inferType ctx (TAnn u t) = (_,_) t <$> TyAnn <$> checkType ctx u t
 
 {-# COMPILE AGDA2HS inferType #-}
-
 inferSort ctx t = do
   let r = rezzScope ctx
   rezz sig ← tcmSignature
@@ -290,5 +283,4 @@ inferSort ctx t = do
     where _ → tcError "couldn't reduce a term to a sort"
   let cp = CRedL rp CRefl
   return $ s , TyConv dt cp
-
 {-# COMPILE AGDA2HS inferSort #-}

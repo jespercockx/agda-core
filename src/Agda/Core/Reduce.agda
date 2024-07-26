@@ -139,7 +139,6 @@ step sig (MkState e (TCon c q vs) (ECase bs _ ∷ s)) =
       v
       (weakenElims (subJoinDrop (rezzCong revScope r) subRefl) s))
     Nothing  → Nothing
-step sig (MkState e (TCon c q vs) (EProj f p ∷ s)) = Nothing -- TODO
 step sig (MkState e (TCon c q x) s) = Nothing
 step sig (MkState e (TLam x v) s) = Nothing
 step sig (MkState e (TPi x a b) s) = Nothing
