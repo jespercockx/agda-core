@@ -106,11 +106,11 @@ inferApp ctx u v = do
   return (tytype , TyApp gtu gc gtv)
 {-# COMPILE AGDA2HS inferApp #-}
 
-inferCase : ∀ {@0 cs} Γ u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {cs = cs} {x = x} u bs rt ∶ t)
+inferCase : ∀ {@0 cs} Γ u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} u bs rt ∶ t)
 inferCase ctx u bs rt = do
   let r = rezzScope ctx
   El s tu , gtu ← inferType ctx u
-  ⟨ d ⟩ _ , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
+  ⟨ d ⟩ dp , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
     "can't typecheck a constrctor with a type that isn't a def application"
   df ⟨ deq ⟩ ← tcmGetDatatype d
   Erased refl ← checkCoverage df bs
@@ -207,7 +207,7 @@ checkCon : ∀ Γ
          → TCM (Γ ⊢ TCon c cargs ∶ ty)
 checkCon ctx c {ccs} cargs (El s ty) = do
   let r = rezzScope ctx
-  ⟨ d ⟩ _ , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
+  ⟨ d ⟩ dp , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
     "can't typecheck a constrctor with a type that isn't a def application"
   df ⟨ deq ⟩ ← tcmGetDatatype d
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c df)
