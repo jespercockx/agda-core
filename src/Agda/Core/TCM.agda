@@ -7,7 +7,7 @@ open import Agda.Core.Reduce
 
 open import Haskell.Prelude hiding (All; m)
 open import Haskell.Extra.Erase using (Rezz; rezz; ⟨_⟩_)
-open import Agda.Core.Utils using (Fuel; ∃-syntax; _⟨_⟩)
+open import Agda.Core.Utils using (Fuel; ∃-syntax; _⟨_⟩; Instance; I)
 
 module Agda.Core.TCM
     {{@0 globals : Globals}}
@@ -36,8 +36,8 @@ open TCM public
 
 {-# COMPILE AGDA2HS TCM #-}
 
-tcmFuel : TCM Fuel
-tcmFuel = MkTCM (Right ∘ tcFuel)
+tcmFuel : TCM (Instance Fuel)
+tcmFuel = MkTCM (Right ∘ (λ x → I {{x}}) ∘ tcFuel)
 
 {-# COMPILE AGDA2HS tcmFuel #-}
 

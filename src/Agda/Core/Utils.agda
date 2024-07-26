@@ -43,9 +43,19 @@ map2 f (av , bv) = av , f av bv
 
 data Fuel : Set where
   None : Fuel
-  More : Fuel → Fuel
+  More : {{Fuel}} → Fuel
 {-# COMPILE AGDA2HS Fuel #-}
 
 witheq : (x : a) → ∃ a (λ y → x ≡ y)
 witheq x = x ⟨ refl ⟩
 {-# COMPILE AGDA2HS witheq transparent #-}
+
+it : {{a}} → a
+it {{x}} = x
+
+record Instance (a : Set) : Set where
+  constructor I
+  field
+    {{inst}} : a
+
+{-# COMPILE AGDA2HS Instance unboxed #-}

@@ -181,25 +181,25 @@ step rsig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annot
 -- TODO: make this into a `where` function once
 -- https://github.com/agda/agda2hs/issues/264 is fixed
 reduceState : Rezz α
-            → (rsig : Rezz sig) (s : State α) → Fuel → Maybe (Term α)
-reduceState r rsig s None        = Nothing
-reduceState r rsig s (More fuel) = case (step rsig s) of λ where
-      (Just s') → reduceState r rsig s' fuel
+            → (rsig : Rezz sig) (s : State α) → {{Fuel}} → Maybe (Term α)
+reduceState r rsig s {{None}}        = Nothing
+reduceState r rsig s {{More}} = case (step rsig s) of λ where
+      (Just s') → reduceState r rsig s'
       Nothing   → Just (unState r s)
 {-# COMPILE AGDA2HS reduceState #-}
 
 reduce : Rezz α
-       → (rsig : Rezz sig) (v : Term α) → Fuel → Maybe (Term α)
+       → (rsig : Rezz sig) (v : Term α) → {{Fuel}} → Maybe (Term α)
 reduce {α = α} r rsig v = reduceState r rsig (makeState v)
 {-# COMPILE AGDA2HS reduce #-}
 
-reduceClosed : (rsig : Rezz sig) (v : Term mempty) → Fuel → Maybe (Term mempty)
+reduceClosed : (rsig : Rezz sig) (v : Term mempty) → {{Fuel}} → Maybe (Term mempty)
 reduceClosed = reduce (rezz _)
 
 {-# COMPILE AGDA2HS reduceClosed #-}
 
 ReducesTo : (v w : Term α) → Set
-ReducesTo {α = α} v w = Σ0[ r ∈ Rezz α ] Σ0[ rsig ∈ Rezz sig ] ∃[ f ∈ Fuel ] reduce r rsig v f ≡ Just w
+ReducesTo {α = α} v w = Σ0[ r ∈ Rezz α ] Σ0[ rsig ∈ Rezz sig ] ∃[ f ∈ Fuel ] reduce r rsig v {{f}} ≡ Just w
 
 reduceAppView : ∀ (s : Term α)
                → ∃[ t ∈ Term α ]                        ReducesTo s t
