@@ -193,43 +193,29 @@ convertBranches fl r (BsCons bsh bst) bp =
 
 {-# COMPILE AGDA2HS convertBranches #-}
 
+convertWhnf : Fuel → Rezz α → (t q : Term α) → TCM (t ≅ q)
+convertWhnf fl r (TVar x) (TVar y) = convVars x y
+convertWhnf fl r (TDef x) (TDef y) = convDefs x y
+convertWhnf fl r (TData d ps is) (TData e qs ks) = convDatas fl r d e ps qs is ks
+convertWhnf fl r (TCon c lc) (TCon d ld) = convCons fl r c d lc ld
+convertWhnf fl r (TLam x u) (TLam y v) = convLams fl r x y u v
+convertWhnf fl r (TApp u e) (TApp v f) = convApps fl r u v e f
+convertWhnf fl r (TProj u f) (TProj v g) = tcError "not implemented: conversion of projections"
+convertWhnf fl r (TCase {cs = cs} u bs rt) (TCase {cs = cs'} u' bs' rt') =
+  convertCase fl r u u' {cs} {cs'} bs bs' rt rt'
+convertWhnf fl r (TPi x tu tv) (TPi y tw tz) = convPis fl r x y tu tw tv tz
+convertWhnf fl r (TSort s) (TSort t) = convSorts s t
+--let and ann shoudln't appear here since they get reduced away
+convertWhnf fl r _ _ = tcError "two terms are not the same and aren't convertible"
+
+{-# COMPILE AGDA2HS convertWhnf #-}
+
 convertCheck None r t z =
   tcError "not enough fuel to check conversion"
 convertCheck (More fl) r t q = do
-  rgty ← reduceTo r t
-  rcty ← reduceTo r q
-  case (rgty Prelude., rcty) of λ where
-    --for vars
-    (TVar x ⟨ rpg  ⟩ , TVar y  ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convVars x y
-    --for defs
-    (TDef x ⟨ rpg  ⟩ , TDef y ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convDefs x y
-    --for cons
-    (TData d ps is ⟨ rpg  ⟩ , TData e qs ks ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convDatas fl r d e ps qs is ks
-    (TCon c lc ⟨ rpg  ⟩ , TCon d ld ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convCons fl r c d lc ld
-    --for lambda
-    (TLam x u ⟨ rpg ⟩ , TLam y v ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convLams fl r x y u v
-    --for app
-    (TApp u e ⟨ rpg ⟩ , TApp v f ⟨ rpc ⟩) → do
-      (CRedL rpg ∘ CRedR rpc) <$> convApps fl r u v e f
-    --for proj
-    (TProj u f ⟨ rpg ⟩ , TProj v g ⟨ rpc ⟩) → do
-      tcError "not implemented: conversion of projections"
-    --for case
-    (TCase {cs = cs} u bs rt ⟨ rpg ⟩ , TCase {cs = cs'} u' bs' rt' ⟨ rpc ⟩) → do
-      (CRedL rpg ∘ CRedR rpc) <$> convertCase fl r u u' {cs} {cs'} bs bs' rt rt'
-    --for pi
-    (TPi x tu tv ⟨ rpg ⟩ , TPi y tw tz ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convPis fl r x y tu tw tv tz
-    --for sort
-    (TSort s ⟨ rpg ⟩ , TSort t ⟨ rpc ⟩) →
-      CRedL rpg <$> CRedR rpc <$> convSorts s t
-    --let and ann shoudln't appear here since they get reduced away
-    _ → tcError "two terms are not the same and aren't convertible"
+  t ⟨ tred ⟩ ← reduceTo r t
+  q ⟨ qred ⟩ ← reduceTo r q
+  (CRedL tred ∘ CRedR qred) <$> convertWhnf fl r t q
 
 {-# COMPILE AGDA2HS convertCheck #-}
 
