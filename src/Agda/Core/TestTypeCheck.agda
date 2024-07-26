@@ -62,8 +62,7 @@ opaque
   `unit = TCon "unit" (inThere $ inThere inHere) SNil
 
 opaque
-  unfolding All Sub Split inHere inThere lookupAll
-  unfolding subLeft splitRefl subBindDrop subJoinDrop splitJoinRight
+  unfolding ScopeThings lookupAll
 
   trueCon : Constructor ∅ "true" inHere
   trueCon = record { conTelescope = EmptyTel }
@@ -165,5 +164,8 @@ body = TLam "x" $
                                           (weaken subEmpty (unType unitType))
                                           (El (STyp 1) (TSort (STyp 0)))
 
-test : typecheck CtxEmpty body type ≡ "Typechecked!"
-test = {!refl!}
+opaque
+  unfolding ScopeThings `true `false `unit
+
+  test : typecheck CtxEmpty body type ≡ "Typechecked!"
+  test = {!refl!}
