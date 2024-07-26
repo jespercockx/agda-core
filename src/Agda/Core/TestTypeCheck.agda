@@ -148,17 +148,22 @@ if-then-else c t e ty =
     ty)
 
 type : Type ∅
-type = El (STyp 0)
-          (TLam "x"
-            (if-then-else (TVar "x" inHere)
-                          (weaken subEmpty (unType trueType))
-                          (weaken subEmpty (unType unitType))
-                          (weakenType subEmpty (El (STyp 1) (TSort (STyp 0))))))
+type = El (STyp 1)
+          (TPi "x"
+            (trueType)
+            (El (STyp 0)
+                (if-then-else {x = "xs"} (TVar "x" inHere)
+                              (weaken subEmpty (unType trueType))
+                              (weaken subEmpty (unType unitType))
+                              (weakenType subEmpty (El (STyp 1) (TSort (STyp 0)))))))
 
 body : Term ∅
 body = TLam "x" $
-  if-then-else (TVar "x" inHere) `true `unit $
-               El (STyp 0) $ if-then-else (TVar _ inHere)
+  if-then-else {x = "xs"} (TVar "x" inHere) `true `unit $
+               El (STyp 0) $ if-then-else {x = "xs"} (TVar _ inHere)
                                           (weaken subEmpty (unType trueType))
                                           (weaken subEmpty (unType unitType))
                                           (El (STyp 1) (TSort (STyp 0)))
+
+test : typecheck CtxEmpty body type ≡ "Typechecked!"
+test = {!refl!}
