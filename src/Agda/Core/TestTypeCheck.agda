@@ -165,7 +165,8 @@ body = TLam "x" $
                                           (El (STyp 1) (TSort (STyp 0)))
 
 opaque
-  unfolding ScopeThings `true `false `unit
+  unfolding ScopeThings SyntaxThings SignatureThings
+  unfolding `true `false `unit trueCon falseCon unitCon
 
   test : typecheck CtxEmpty body type ≡ "Typechecked!"
   test = {!refl!}

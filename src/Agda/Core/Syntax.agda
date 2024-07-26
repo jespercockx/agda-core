@@ -365,3 +365,9 @@ strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengt
 
 strengthenSubst p SNil = Just SNil
 strengthenSubst p (SCons v vs) = SCons <$> strengthen p v <*> strengthenSubst p vs
+
+opaque
+  unfolding caseBsNil caseBsCons caseSubstBind subToSubst revSubstAcc revSubst
+
+  SyntaxThings : Set₁
+  SyntaxThings = Set

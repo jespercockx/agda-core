@@ -135,3 +135,10 @@ addTel EmptyTel t =
                  (leftIdentity _))
                  t)
 addTel (ExtendTel x ty s) t = {!!} -}
+
+
+opaque
+  unfolding caseTelEmpty caseTelBind
+
+  SignatureThings : Set₁
+  SignatureThings = Set
