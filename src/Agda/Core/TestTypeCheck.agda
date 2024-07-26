@@ -133,9 +133,6 @@ trueType = constructorType "Bool" inHere "true" inHere trueCon (STyp 0) SNil (su
 unitType : Type ∅
 unitType = constructorType "Unit" (inThere inHere) "unit" (inThere $ inThere inHere) unitCon (STyp 0) SNil (subst0 (λ p → p ⇒ ∅) (sym $ lookupThere $ lookupThere $ lookupHere _ ∅) SNil)
 
-r : String
-r = typecheck CtxEmpty `true trueType
-
 if-then-else : Term α → Term α → Term α → Type (x ◃ α) → Term α
 if-then-else c t e ty =
   TApp c (ECase
@@ -146,15 +143,18 @@ if-then-else c t e ty =
      BsNil)
     ty)
 
+typeterm : Term ∅
+typeterm = TPi "x"
+           (trueType)
+           (El (STyp 0)
+               (if-then-else {x = "xs"} (TVar "x" inHere)
+                             (weaken subEmpty (unType trueType))
+                             (weaken subEmpty (unType unitType))
+                             (weakenType subEmpty (El (STyp 1) (TSort (STyp 0))))))
+
+
 type : Type ∅
-type = El (STyp 1)
-          (TPi "x"
-            (trueType)
-            (El (STyp 0)
-                (if-then-else {x = "xs"} (TVar "x" inHere)
-                              (weaken subEmpty (unType trueType))
-                              (weaken subEmpty (unType unitType))
-                              (weakenType subEmpty (El (STyp 1) (TSort (STyp 0)))))))
+type = El (STyp 0) typeterm
 
 body : Term ∅
 body = TLam "x" $
@@ -166,7 +166,15 @@ body = TLam "x" $
 
 opaque
   unfolding ScopeThings SyntaxThings SignatureThings
+  unfolding lookupHere lookupThere allLookup
   unfolding `true `false `unit trueCon falseCon unitCon
 
+  test0 : typecheck CtxEmpty `true trueType ≡ "Typechecked!"
+  test0 = refl
+
+  test1 : Either TCError (Σ[ ty ∈ Type ∅ ] CtxEmpty ⊢ typeterm ∶ ty)
+  test1 = runTCM (inferType CtxEmpty typeterm) tcmenv
+
   test : typecheck CtxEmpty body type ≡ "Typechecked!"
-  test = {!refl!}
+  test = refl
+
