@@ -36,7 +36,7 @@ record Type α where
     typeSort : Sort α
     unType   : Term α
 open Type public
-{-# COMPILE AGDA2HS Type #-}
+{-# COMPILE AGDA2HS Type deriving Show #-}
 
 data Subst : (@0 α β : Scope Name) → Set where
   SNil  : Subst mempty β
@@ -101,7 +101,7 @@ data Branch α where
 data Branches α where
   BsNil : Branches α mempty
   BsCons : Branch α c → Branches α cs → Branches α (c ◃ cs)
-{-# COMPILE AGDA2HS Branches #-}
+{-# COMPILE AGDA2HS Branches deriving Show #-}
 
 opaque
   unfolding Scope
@@ -121,10 +121,12 @@ opaque
 rezzBranches : Branches α β → Rezz β
 rezzBranches BsNil = rezz mempty
 rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◃ cs) (rezzBranches bt)
+{-# COMPILE AGDA2HS rezzBranches #-}
 
 allBranches : Branches α β → All (λ c → c ∈ conScope) β
 allBranches BsNil = allEmpty
 allBranches (BsCons (BBranch _ {ci} _ _) bs) = allJoin (allSingl ci) (allBranches bs)
+{-# COMPILE AGDA2HS allBranches #-}
 
 apply : Term α → Term α → Term α
 apply u v = TApp u v
@@ -229,6 +231,7 @@ weakenSort p (STyp x) = STyp x
 {-# COMPILE AGDA2HS weakenSort #-}
 
 weakenType p (El st t) = El (weakenSort p st) (weaken p t)
+{-# COMPILE AGDA2HS weakenType #-}
 
 weakenBranch p (BBranch c r x) = BBranch c r (weaken (subJoinKeep (rezzCong revScope r) p) x)
 {-# COMPILE AGDA2HS weakenBranch #-}
@@ -262,6 +265,8 @@ concatSubst SNil q =
 concatSubst (SCons v p) q =
   subst0 (λ α → Subst α _) (associativity _ _ _) (SCons v (concatSubst p q))
 
+{-# COMPILE AGDA2HS concatSubst #-}
+
 opaque
   unfolding Scope Sub
 
@@ -270,6 +275,8 @@ opaque
   subToSubst (rezz (Erased x ∷ α)) p =
     SCons (TVar x {coerce p inHere})
           (subToSubst (rezz α) (joinSubRight (rezz _) p))
+
+{-# COMPILE AGDA2HS subToSubst #-}
 
 opaque
   unfolding Scope revScope
@@ -307,6 +314,7 @@ raiseSubst {β = β} r (SCons {α = α} u e) =
 
 revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
 revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezzCong revScope r)))
+{-# COMPILE AGDA2HS revIdSubst #-}
 
 raise : {@0 α β : Scope Name} → Rezz α → Term β → Term (α <> β)
 raise r = weaken (subJoinDrop r subRefl)

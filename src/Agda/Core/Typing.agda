@@ -162,6 +162,8 @@ data TyBranches {α} Γ dt ps rt where
            → TyBranches Γ dt ps rt bs
            → TyBranches Γ dt ps rt (BsCons b bs)
 
+{-# COMPILE AGDA2HS TyBranches #-}
+
 data TyBranch {α} Γ dt ps rt where
   TyBBranch : (@0 c : Name) → (c∈dcons : c ∈ dataConstructorScope dt)
             → (let (c∈cons , con ) = dataConstructors dt c)
@@ -176,6 +178,8 @@ data TyBranch {α} Γ dt ps rt where
                    bsubst = SCons (TCon c {c∈cons} cargs) idsubst)
             → TyTerm (addContextTel ctel Γ) rhs (substType bsubst rt)
             → TyBranch Γ dt ps rt (BBranch c {c∈cons} r rhs)
+
+{-# COMPILE AGDA2HS TyBranch #-}
 
 data TySubst {α} Γ where
   TyNil  : TySubst Γ SNil EmptyTel

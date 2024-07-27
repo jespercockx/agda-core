@@ -41,7 +41,7 @@ opaque
               → d
   caseTelBind (ExtendTel _ a tel) f = f a tel
 
-
+{-# COMPILE AGDA2HS caseTelEmpty #-}
 {-# COMPILE AGDA2HS caseTelBind #-}
 
 record Constructor (@0 pars : Scope Name) (@0 ixs : Scope Name) (@0 c : Name) (@0 cp  : c ∈ conScope) : Set where

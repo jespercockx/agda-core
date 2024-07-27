@@ -168,6 +168,7 @@ inferData ctx d pars ixs = do
   typars ← checkSubst ctx (weakenTel subEmpty (dataParameterTel dt)) pars
   tyixs ← checkSubst ctx (substTelescope pars (dataIndexTel dt)) ixs
   return (sortType (substSort pars (dataSort dt)) , TyData d dt deq typars tyixs)
+{-# COMPILE AGDA2HS inferData #-}
 
 checkBranch : ∀ {@0 con : Name} (Γ : Context α)
                 (bs : Branch α con)

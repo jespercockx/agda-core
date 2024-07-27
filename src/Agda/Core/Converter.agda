@@ -23,6 +23,8 @@ module Agda.Core.Converter
     {{@0 sig     : Signature}}
   where
 
+{-# FOREIGN AGDA2HS import Agda.Core.TCMInstances #-}
+
 private open module @0 G = Globals globals
 
 private variable

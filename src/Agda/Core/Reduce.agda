@@ -60,26 +60,38 @@ data Frame (@0 α : Scope Name) : Set where
   FProj : (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Frame α
   FCase : (bs : Branches α cs) (m : Type (x ◃ α)) → Frame α
 
+{-# COMPILE AGDA2HS Frame #-}
+
 unFrame : Frame α → Term α → Term α
 unFrame (FApp v) u = TApp u v
 unFrame (FProj f) u = TProj u f
 unFrame (FCase bs m) u = TCase u bs m
+
+{-# COMPILE AGDA2HS unFrame #-}
 
 weakenFrame : α ⊆ β → Frame α → Frame β
 weakenFrame s (FApp u) = FApp (weaken s u)
 weakenFrame s (FProj f) = FProj f
 weakenFrame s (FCase bs m) = FCase (weakenBranches s bs) (weakenType (subBindKeep s) m)
 
+{-# COMPILE AGDA2HS weakenFrame #-}
+
 Stack : (@0 α : Scope Name) → Set
 Stack α = List (Frame α)
+
+{-# COMPILE AGDA2HS Stack #-}
 
 unStack : Stack α → Term α → Term α
 unStack [] u = u
 unStack (f ∷ fs) u = unStack fs (unFrame f u)
 
+{-# COMPILE AGDA2HS unStack #-}
+
 weakenStack : α ⊆ β → Stack α → Stack β
 weakenStack s [] = []
 weakenStack s (f ∷ fs) = weakenFrame s f ∷ weakenStack s fs
+
+{-# COMPILE AGDA2HS weakenStack #-}
 
 record State (@0 α : Scope Name) : Set where
   constructor MkState
