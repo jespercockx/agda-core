@@ -34,7 +34,7 @@ private variable
 reduceTo : {@0 α : Scope Name} (r : Rezz α) (v : Term α)
          → TCM (∃[ t ∈ Term α ] (ReducesTo v t))
 reduceTo r v = do
-  _ ← tcmFuel
+  (I {{fl}}) ← tcmFuel
   rsig ← tcmSignature
   case reduce r rsig v of λ where
     Nothing        → tcError "not enough fuel to reduce a term"
@@ -100,16 +100,16 @@ convSorts (STyp u) (STyp u') =
     (tcError "can't convert two different sorts")
 {-# COMPILE AGDA2HS convSorts #-}
 
-convertCheck : {{Fuel}} → Rezz α → (t q : Term α) → TCM (t ≅ q)
-convertSubsts : {{Fuel}} → Rezz α →
+convertCheck : {{fl : Fuel}} → Rezz α → (t q : Term α) → TCM (t ≅ q)
+convertSubsts : {{fl : Fuel}} → Rezz α →
                 (s p : β ⇒ α)
               → TCM (s ⇔ p)
-convertBranches : {{Fuel}} → Rezz α →
+convertBranches : {{fl : Fuel}} → Rezz α →
                 ∀ {@0 cons : Scope Name}
                   (bs bp : Branches α cons)
                 → TCM (ConvBranches bs bp)
 
-convDatas : {{Fuel}} → Rezz α →
+convDatas : {{fl : Fuel}} → Rezz α →
            (@0 d e : Name)
            {@(tactic auto) dp : d ∈ dataScope}
            {@(tactic auto) ep : e ∈ dataScope}
@@ -126,7 +126,7 @@ convDatas r d e {dp} {ep} ps qs is ks = do
 
 {-# COMPILE AGDA2HS convDatas #-}
 
-convCons : {{Fuel}} → Rezz α →
+convCons : {{fl : Fuel}} → Rezz α →
            (@0 f g : Name)
            {@(tactic auto) p : f ∈ conScope}
            {@(tactic auto) q : g ∈ conScope}
@@ -142,7 +142,7 @@ convCons r f g {p} {q} lp lq = do
 
 {-# COMPILE AGDA2HS convCons #-}
 
-convLams : {{Fuel}}
+convLams : {{fl : Fuel}}
          → Rezz α
          → (@0 x y : Name)
            (u : Term (x ◃ α))
@@ -153,7 +153,7 @@ convLams r x y u v = do
 
 {-# COMPILE AGDA2HS convLams #-}
 
-convApps : {{Fuel}}
+convApps : {{fl : Fuel}}
          → Rezz α
          → (u u' : Term α)
            (w w' : Term α)
@@ -165,7 +165,7 @@ convApps r u u' w w' = do
 
 {-# COMPILE AGDA2HS convApps #-}
 
-convertCase : {{Fuel}}
+convertCase : {{fl : Fuel}}
             → Rezz α
             → (u u' : Term α)
             → ∀ {@0 cs cs'} (ws : Branches α cs) (ws' : Branches α cs')
@@ -183,7 +183,7 @@ convertCase {x = x} r u u' ws ws' rt rt' = do
 
 {-# COMPILE AGDA2HS convertCase #-}
 
-convPis : {{Fuel}}
+convPis : {{fl : Fuel}}
         → Rezz α
         → (@0 x y : Name)
           (u u' : Type α)
@@ -206,7 +206,7 @@ convertSubsts r (SCons x st) p =
 
 {-# COMPILE AGDA2HS convertSubsts #-}
 
-convertBranch : {{Fuel}}
+convertBranch : {{fl : Fuel}}
               → Rezz α
               → ∀ {@0 con : Name}
               → (b1 b2 : Branch α con)
@@ -227,14 +227,14 @@ convertBranches r (BsCons bsh bst) bp =
 
 {-# COMPILE AGDA2HS convertBranches #-}
 
-convertWhnf : {{Fuel}} → Rezz α → (t q : Term α) → TCM (t ≅ q)
-convertWhnf r (TVar x) (TVar y) = convVars x y
-convertWhnf r (TDef x) (TDef y) = convDefs x y
-convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
-convertWhnf r (TCon c lc) (TCon d ld) = convCons r c d lc ld
+convertWhnf : {{fl : Fuel}} → Rezz α → (t q : Term α) → TCM (t ≅ q)
+convertWhnf r (TVar x {xp}) (TVar y {yp}) = convVars x y
+convertWhnf r (TDef x {xp}) (TDef y {yp}) = convDefs x y
+convertWhnf r (TData d {dp} ps is) (TData e {ep} qs ks) = convDatas r d e ps qs is ks
+convertWhnf r (TCon c {cp} lc) (TCon d {dp} ld) = convCons r c d lc ld
 convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
 convertWhnf r (TApp u e) (TApp v f) = convApps r u v e f
-convertWhnf r (TProj u f) (TProj v g) = tcError "not implemented: conversion of projections"
+convertWhnf r (TProj u f {fp}) (TProj v g {gp}) = tcError "not implemented: conversion of projections"
 convertWhnf r (TCase {cs = cs} u bs rt) (TCase {cs = cs'} u' bs' rt') =
   convertCase r u u' {cs} {cs'} bs bs' rt rt'
 convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
@@ -255,7 +255,7 @@ convertCheck {{More}} r t q = do
 
 convert : Rezz α → ∀ (t q : Term α) → TCM (t ≅ q)
 convert r t q = do
-  ! ← tcmFuel
+  (I {{fl}}) ← tcmFuel
   convertCheck r t q
 
 {-# COMPILE AGDA2HS convert #-}
