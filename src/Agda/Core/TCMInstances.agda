@@ -31,11 +31,7 @@ private
 instance
   iFunctorTCM : Functor TCM
   iFunctorTCM .fmap  = fmapTCM
-  iFunctorTCM ._<$>_ = fmapTCM
-  iFunctorTCM ._<&>_ = λ x f → fmapTCM f x
   iFunctorTCM ._<$_  = λ x m → fmapTCM (λ b → x {{b}}) m
-  iFunctorTCM ._$>_  = λ m x → fmapTCM (λ b → x {{b}}) m
-  iFunctorTCM .void  = fmapTCM (const tt)
   {-# COMPILE AGDA2HS iFunctorTCM #-}
 
 instance
@@ -51,5 +47,4 @@ instance
   iMonadTCM ._>>=_  = bindTCM
   iMonadTCM .return = pureTCM
   iMonadTCM ._>>_   = λ x y → bindTCM x (λ z → y {{z}})
-  iMonadTCM ._=<<_  = flip bindTCM
   {-# COMPILE AGDA2HS iMonadTCM #-}
