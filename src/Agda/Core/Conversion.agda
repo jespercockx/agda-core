@@ -42,12 +42,6 @@ data ConvBranches {@0 α} : @0 Branches α cs → @0 Branches α cs → Set wher
                 → ConvBranches bs1 bs2
                 → ConvBranches (BsCons b1 bs1) (BsCons b2 bs2)
 
-
-{-# COMPILE AGDA2HS Conv     #-}
-{-# COMPILE AGDA2HS ConvBranch #-}
-{-# COMPILE AGDA2HS ConvBranches #-}
-{-# COMPILE AGDA2HS ConvSubst #-}
-
 infix 3 Conv
 syntax Conv x y        = x ≅ y
 syntax ConvSubst us vs = us ⇔ vs
@@ -117,3 +111,9 @@ data ConvSubst {α} where
          → u ≅ v
          → us ⇔ vs
          → (SCons {x = x} u us) ⇔ (SCons {x = x} v vs)
+
+-- These have to be here, see https://github.com/agda/agda2hs/issues/346
+{-# COMPILE AGDA2HS Conv     #-}
+{-# COMPILE AGDA2HS ConvBranch #-}
+{-# COMPILE AGDA2HS ConvBranches #-}
+{-# COMPILE AGDA2HS ConvSubst #-}
