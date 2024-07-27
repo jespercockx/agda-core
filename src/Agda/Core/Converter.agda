@@ -23,6 +23,7 @@ module Agda.Core.Converter
     {{@0 sig     : Signature}}
   where
 
+-- Workaround for https://github.com/agda/agda2hs/issues/324
 {-# FOREIGN AGDA2HS import Agda.Core.TCMInstances #-}
 
 private open module @0 G = Globals globals
