@@ -72,9 +72,10 @@ instance
   sig .sigData = λ _ → bool
   sig .sigDefs = λ _ {p} → inEmptyCase p
 
-{-# TERMINATING #-}
-fuel : Fuel
-fuel = More fuel
+instance
+  {-# TERMINATING #-}
+  fuel : Fuel
+  fuel = More {{fuel}}
 
 opaque
   unfolding ScopeThings
@@ -93,7 +94,7 @@ module TestReduce (@0 x y z : Name) where
     testTerm₁ = apply (TLam x (TVar x {inHere})) (TSort (STyp 0))
 
     @0 testProp₁ : Set
-    testProp₁ = reduceClosed (rezz sig) testTerm₁ fuel ≡ Just (TSort (STyp 0))
+    testProp₁ = reduceClosed (rezz sig) testTerm₁ ≡ Just (TSort (STyp 0))
 
     test₁ : testProp₁
     test₁ = refl
@@ -106,7 +107,7 @@ module TestReduce (@0 x y z : Name) where
                                   (El (STyp 0) (TData "Bool" {inHere} SNil SNil))
 
     @0 testProp₂ : Set
-    testProp₂ = reduceClosed (rezz sig) testTerm₂ fuel ≡ Just `false
+    testProp₂ = reduceClosed (rezz sig) testTerm₂ ≡ Just `false
 
     test₂ : testProp₂
     test₂ = refl
