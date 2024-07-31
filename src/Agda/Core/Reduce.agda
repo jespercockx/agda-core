@@ -9,7 +9,8 @@ open import Haskell.Law.Monoid
 open import Utils.Either
 open import Utils.Tactics using (auto)
 
-open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Name
+open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Syntax
 open import Agda.Core.Substitute
 open import Agda.Core.Signature
@@ -57,7 +58,7 @@ envToSubst r (env , x ↦ v) =
 
 data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
-  FProj : (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Frame α
+  FProj : (x : NameIn defScope) → Frame α
   FCase : (bs : Branches α cs) (m : Type (x ◃ α)) → Frame α
 
 {-# COMPILE AGDA2HS Frame #-}
@@ -115,12 +116,12 @@ unState r (MkState e v s) = substTerm (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
-lookupBranch : Branches α cs → (@0 c : Name) {@(tactic auto) p : c ∈ conScope}
+lookupBranch : Branches α cs → (c : NameIn conScope)
              → Maybe ( Rezz (fieldScope c)
                      × Term (~ fieldScope c <> α))
 lookupBranch BsNil c = Nothing
-lookupBranch (BsCons (BBranch c' {k'} aty u) bs) c {p} =
-  case decIn k' p of λ where
+lookupBranch (BsCons (BBranch c' aty u) bs) c =
+  case decNamesIn c' c of λ where
     (True  ⟨ refl ⟩) → Just (aty , u)
     (False ⟨ _    ⟩) → lookupBranch bs c
 
@@ -153,7 +154,7 @@ lookupEnvironment (e , x ↦ v) p = inBindCase p
 {-# COMPILE AGDA2HS lookupEnvironment #-}
 
 step : (rsig : Rezz sig) (s : State α) → Maybe (State α)
-step rsig (MkState e (TVar x {p}) s) =
+step rsig (MkState e (TVar (⟨ x ⟩ p)) s) =
   case lookupEnvironment e p of λ where
     (Left _) → Nothing
     (Right v) → Just (MkState e v s)

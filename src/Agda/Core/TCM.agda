@@ -1,5 +1,5 @@
 
-open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Signature
 open import Scope
 open import Agda.Core.Syntax as Syntax

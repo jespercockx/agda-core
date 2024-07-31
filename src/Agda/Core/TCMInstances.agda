@@ -2,7 +2,8 @@
 
 
 open import Haskell.Prelude
-open import Agda.Core.GlobalScope using (Globals; Name)
+
+open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Signature
 open import Agda.Core.TCM
 

@@ -9,7 +9,9 @@ open import Haskell.Extra.Refinement
 
 open import Scope
 open import Utils.Tactics using (auto)
-open import Agda.Core.GlobalScope using (Globals; Name)
+
+open import Agda.Core.Name
+open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
 open import Agda.Core.Signature
@@ -46,10 +48,10 @@ instance
     ; fieldScope = λ _ → mempty
     }
 
-boolcons : (@0 c : Name) {@(tactic auto) _ : c ∈ cons}
-         → Σ (c ∈ cons) (Constructor mempty mempty c)
-boolcons c {cp} = lookupAll
-  {p = λ c → Σ (c ∈ cons) (Constructor mempty mempty c)}
+boolcons : (c : NameIn cons)
+         → Σ (proj₁ c ∈ cons) (λ cp → Constructor mempty mempty (⟨ _ ⟩ cp))
+boolcons (⟨ c ⟩ cp) = lookupAll
+  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ _ ⟩ cp))}
   (allJoin (allSingl (inHere
                      , record { conTelescope = EmptyTel
                               ; conIndices = SNil } )) $
@@ -69,7 +71,7 @@ bool .dataConstructors = boolcons
 instance
   sig : Signature
   sig .sigData = λ _ → bool
-  sig .sigDefs = λ _ {p} → inEmptyCase p
+  sig .sigDefs = nameInEmptyCase
 
 instance
   {-# TERMINATING #-}
@@ -80,9 +82,9 @@ opaque
   unfolding ScopeThings
 
   `true : Term α
-  `true = TCon "true" {inHere} SNil
+  `true = TCon (⟨ "true" ⟩ inHere) SNil
   `false : Term α
-  `false = TCon "false" {inThere inHere} SNil
+  `false = TCon (⟨ "false" ⟩ inThere inHere) SNil
 
 module TestReduce (@0 x y z : Name) where
 
@@ -90,7 +92,7 @@ module TestReduce (@0 x y z : Name) where
     unfolding ScopeThings `true `false
 
     testTerm₁ : Term α
-    testTerm₁ = apply (TLam x (TVar x {inHere})) (TSort (STyp 0))
+    testTerm₁ = apply (TLam x (TVar (⟨ x ⟩ inHere))) (TSort (STyp 0))
 
     @0 testProp₁ : Set
     testProp₁ = reduceClosed (rezz sig) testTerm₁ ≡ Just (TSort (STyp 0))
@@ -100,10 +102,10 @@ module TestReduce (@0 x y z : Name) where
 
     testTerm₂ : Term α
     testTerm₂ = TCase {x = "condition"} `true
-                                  (BsCons (BBranch "true" {inHere} (rezz _) `false)
-                                  (BsCons (BBranch "false" {inThere inHere} (rezz _) `true)
+                                  (BsCons (BBranch (⟨ "true" ⟩ inHere) (rezz _) `false)
+                                  (BsCons (BBranch (⟨ "false" ⟩ inThere inHere) (rezz _) `true)
                                    BsNil))
-                                  (El (STyp 0) (TData "Bool" {inHere} SNil SNil))
+                                  (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil))
 
     @0 testProp₂ : Set
     testProp₂ = reduceClosed (rezz sig) testTerm₂ ≡ Just `false
@@ -117,10 +119,10 @@ module TestTypechecker (@0 x y z : Name) where
     unfolding ScopeThings `true `false
 
     testTerm₁ : Term α
-    testTerm₁ = TLam x (TVar x {inHere})
+    testTerm₁ = TLam x (TVar (⟨ x ⟩ inHere))
 
     testType₁ : Type α
-    testType₁ = El (STyp 0) (TPi y (El (STyp 0) (TData "Bool" SNil SNil)) (El (STyp 0) (TData "Bool" SNil SNil)))
+    testType₁ = El (STyp 0) (TPi y (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil)) (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil)))
 
     testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
     testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (rezz _) fuel)

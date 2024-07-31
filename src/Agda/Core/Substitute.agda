@@ -6,7 +6,8 @@ open import Haskell.Extra.Erase
 
 open import Utils.Either
 
-open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Name
+open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Syntax
 open import Agda.Core.Signature
 
@@ -31,7 +32,7 @@ substSort f (STyp x) = STyp x
 substType f (El st t) = El (substSort f st) (substTerm f t)
 {-# COMPILE AGDA2HS substType #-}
 
-substTerm f (TVar x {k})      = lookupSubst f x k
+substTerm f (TVar (⟨ x ⟩ k))  = lookupSubst f x k
 substTerm f (TDef d)          = TDef d
 substTerm f (TData d ps is)   = TData d (substSubst f ps) (substSubst f is)
 substTerm f (TCon c vs)       = TCon c (substSubst f vs)

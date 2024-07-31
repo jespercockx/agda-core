@@ -11,7 +11,9 @@ open import Haskell.Extra.Erase
 open import Utils.Misc
 open import Utils.Tactics using (auto)
 
-open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Name
+open import Agda.Core.GlobalScope using (Globals)
+open import Agda.Core.Utils
 
 module Agda.Core.Syntax
   {{@0 globals : Globals}}
@@ -52,17 +54,17 @@ syntax Subst α β = α ⇒ β
 -- see #6970
 
 data Term α where
-  TVar  : (@0 x : Name) → {@(tactic auto) _ : x ∈ α} → Term α
-  TDef  : (@0 d : Name) → {@(tactic auto) _ : d ∈ defScope} → Term α
-  TData : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
+  TVar  : (x : NameIn α) → Term α
+  TDef  : (d : NameIn defScope) → Term α
+  TData : (d : NameIn dataScope)
         → (dataParScope d ⇒ α)
         → (dataIxScope d ⇒ α)
         → Term α
-  TCon  : (@0 c : Name) {@(tactic auto) cp : c ∈ conScope}
+  TCon  : (c : NameIn conScope)
         → (fieldScope c ⇒ α) → Term α
   TLam  : (@0 x : Name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
-  TProj : (u : Term α) (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Term α
+  TProj : (u : Term α) (x : NameIn defScope) → Term α
   TCase : (u : Term α) (bs : Branches α cs) (m : Type (x ◃ α)) → Term α
   TPi   : (@0 x : Name) (u : Type α) (v : Type (x ◃ α)) → Term α
   TSort : Sort α → Term α
@@ -93,9 +95,9 @@ sortType s = El (sucSort s) (TSort s)
 {-# COMPILE AGDA2HS sortType #-}
 
 data Branch α where
-  BBranch : (@0 c : Name) → {@(tactic auto) cp : c ∈ conScope}
+  BBranch : (c : NameIn conScope)
           → Rezz (fieldScope c)
-          → Term (~ fieldScope c <> α) → Branch α c
+          → Term (~ fieldScope c <> α) → Branch α (proj₁ c)
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
 data Branches α where
@@ -125,7 +127,7 @@ rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◃ cs) (rezzBranche
 
 allBranches : Branches α β → All (λ c → c ∈ conScope) β
 allBranches BsNil = allEmpty
-allBranches (BsCons (BBranch _ {ci} _ _) bs) = allJoin (allSingl ci) (allBranches bs)
+allBranches (BsCons (BBranch (⟨ _ ⟩ ci) _ _) bs) = allJoin (allSingl ci) (allBranches bs)
 {-# COMPILE AGDA2HS allBranches #-}
 
 apply : Term α → Term α → Term α
@@ -143,14 +145,14 @@ applySubst {γ = γ} v (SCons u us) = applySubst (TApp v u) us
 {-# COMPILE AGDA2HS applySubst #-}
 
 
-dataTypeTerm : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
+dataTypeTerm : (d : NameIn dataScope)
          → (pars : dataParScope d ⇒ α)
          → (ixs : dataIxScope d ⇒ α)
          → Term α
 dataTypeTerm d pars ixs = TData d pars ixs
 {-# COMPILE AGDA2HS dataTypeTerm #-}
 
-dataType : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
+dataType : (d : NameIn dataScope)
          → Sort α
          → (pars : dataParScope d ⇒ α)
          → (ixs : dataIxScope d ⇒ α)
@@ -186,7 +188,6 @@ unAppsView (TSort _) = refl
 unAppsView (TLet _ _ _) = refl
 unAppsView (TAnn _ _) = refl
 
-
 lookupSubst : α ⇒ β
             → (@0 x : Name)
             → x ∈ α
@@ -213,7 +214,7 @@ weakenBranch   : α ⊆ β → Branch α c → Branch β c
 weakenBranches : α ⊆ β → Branches α cs → Branches β cs
 weakenSubst    : β ⊆ γ → Subst α β → Subst α γ
 
-weaken p (TVar x {k})      = TVar x {coerce p k}
+weaken p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
 weaken p (TDef d)          = TDef d
 weaken p (TData d ps is)   = TData d (weakenSubst p ps) (weakenSubst p is)
 weaken p (TCon c vs)       = TCon c (weakenSubst p vs)
@@ -273,7 +274,7 @@ opaque
   subToSubst : Rezz α → α ⊆ β → α ⇒ β
   subToSubst (rezz []) p = SNil
   subToSubst (rezz (Erased x ∷ α)) p =
-    SCons (TVar x {coerce p inHere})
+    SCons (TVar (⟨ x ⟩ coerce p inHere))
           (subToSubst (rezz α) (joinSubRight (rezz _) p))
 
 {-# COMPILE AGDA2HS subToSubst #-}
@@ -301,7 +302,7 @@ idSubst r = subst0 (λ β → Subst β β) (rightIdentity _) (liftSubst r SNil)
 {-# COMPILE AGDA2HS idSubst #-}
 
 liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → (bind x α) ⇒ (bind y β)
-liftBindSubst {y = y} e = SCons (TVar y {inHere}) (weakenSubst (subBindDrop subRefl) e)
+liftBindSubst {y = y} e = SCons (TVar (⟨ y ⟩ inHere)) (weakenSubst (subBindDrop subRefl) e)
 {-# COMPILE AGDA2HS liftBindSubst #-}
 
 raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
@@ -331,7 +332,7 @@ strengthenBranch : α ⊆ β → Branch β c → Maybe (Branch α c)
 strengthenBranches : α ⊆ β → Branches β cs → Maybe (Branches α cs)
 strengthenSubst : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
 
-strengthen p (TVar x {q}) = diffCase p q (λ q → Just (TVar x {q})) (λ _ → Nothing)
+strengthen p (TVar (⟨ x ⟩ q)) = diffCase p q (λ q → Just (TVar (⟨ x ⟩ q))) (λ _ → Nothing)
 strengthen p (TDef d) = Just (TDef d)
 strengthen p (TData d ps is) = TData d <$> strengthenSubst p ps <*> strengthenSubst p is
 strengthen p (TCon c vs) = TCon c <$> strengthenSubst p vs

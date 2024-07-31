@@ -8,7 +8,8 @@ open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
 open import Haskell.Prelude hiding (All; s; t)
 
-open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Name
+open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
 open import Agda.Core.Signature
@@ -38,11 +39,11 @@ infix 4 _,_∶_
 private variable
   @0 Γ : Context α
 
-lookupVar : (Γ : Context α) (@0 x : Name) {@(tactic auto) p : x ∈ α} → Type α
-lookupVar CtxEmpty x {p} = inEmptyCase p
-lookupVar (CtxExtend g y s) x {p} = raiseType (rezz _) (inBindCase p
+lookupVar : (Γ : Context α) (x : NameIn α) → Type α
+lookupVar CtxEmpty x = nameInEmptyCase x
+lookupVar (CtxExtend g y s) x = raiseType (rezz _) (nameInBindCase x
   (λ _ → s)
-  (λ q → lookupVar g x))
+  (λ q → lookupVar g (⟨ _ ⟩ q)))
 
 {-# COMPILE AGDA2HS lookupVar #-}
 

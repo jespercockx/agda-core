@@ -7,7 +7,8 @@ open import Haskell.Law.Equality
 open import Haskell.Law.Monoid
 open import Utils.Tactics using (auto)
 
-open import Agda.Core.GlobalScope using (Globals; Name)
+open import Agda.Core.Name
+open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
 
@@ -44,7 +45,7 @@ opaque
 {-# COMPILE AGDA2HS caseTelEmpty #-}
 {-# COMPILE AGDA2HS caseTelBind #-}
 
-record Constructor (@0 pars : Scope Name) (@0 ixs : Scope Name) (@0 c : Name) (@0 cp  : c ∈ conScope) : Set where
+record Constructor (@0 pars : Scope Name) (@0 ixs : Scope Name) (@0 c : NameIn conScope) : Set where
   field
     conTelescope : Telescope pars (fieldScope c)
     conIndices   : ixs ⇒ (revScope (fieldScope c) <> pars)
@@ -58,8 +59,8 @@ record Datatype (@0 pars : Scope Name) (@0 ixs : Scope Name) : Set where
     dataSort             : Sort pars
     dataParameterTel     : Telescope mempty pars
     dataIndexTel         : Telescope pars ixs
-    dataConstructors     : (@0 c : Name) {@(tactic auto) _ : c ∈ dataConstructorScope}
-                         → Σ (c ∈ conScope) (Constructor pars ixs c)
+    dataConstructors     : ((⟨ c ⟩ cp) : NameIn  dataConstructorScope)
+                         → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ _ ⟩ p))
 open Datatype public
 
 {-# COMPILE AGDA2HS Datatype #-}
@@ -71,15 +72,15 @@ data Definition : Set where
 
 record Signature : Set where
   field
-    sigData : (@0 d : Name) → {@(tactic auto) dp : d ∈ dataScope}
+    sigData : (d : NameIn dataScope)
             → Datatype (dataParScope d) (dataIxScope d)
-    sigDefs : (@0 f : Name) → {@(tactic auto) fp : f ∈ defScope}
+    sigDefs : (f : NameIn defScope)
             → Type (mempty {{iMonoidScope}}) × Definition
 open Signature public
 
 {-# COMPILE AGDA2HS Signature #-}
 
-getType : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Type mempty
+getType : Signature → (x : NameIn defScope) → Type mempty
 getType sig x = fst defs
   where
     -- inlining this seems to trigger a bug in agda2hs
@@ -88,7 +89,7 @@ getType sig x = fst defs
 
 {-# COMPILE AGDA2HS getType #-}
 
-getDefinition : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Definition
+getDefinition : Signature → (x : NameIn defScope) → Definition
 getDefinition sig x = snd defs
   where
     -- see above
@@ -96,19 +97,19 @@ getDefinition sig x = snd defs
 
 {-# COMPILE AGDA2HS getDefinition #-}
 
-getBody : Signature → (@0 x : Name) → {@(tactic auto) _ : x ∈ defScope} → Term mempty
+getBody : Signature → (x : NameIn defScope) → Term mempty
 getBody sig x = case getDefinition sig x of λ where
   (FunctionDef body) → body
 
 {-# COMPILE AGDA2HS getBody #-}
 
-getConstructor : (@0 c : Name) {@(tactic auto) cp : c ∈ conScope}
+getConstructor : ((⟨ c ⟩ cp) : NameIn conScope)
                → ∀ {@0 pars ixs} (d : Datatype pars ixs)
                → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
-                         fst (dataConstructors d c) ≡ cp)
-getConstructor c {cp} d =
+                         fst (dataConstructors d (⟨ _ ⟩ cd)) ≡ cp)
+getConstructor c d =
   findAll (tabulateAll (rezz (dataConstructorScope d)) (λ _ → tt))
-      λ _ p → ifDec (decIn (fst (dataConstructors d _ {p})) cp)
+      λ _ p → ifEqualNamesIn (⟨ _ ⟩ fst (dataConstructors d (⟨ _ ⟩ p))) c
         (λ where {{refl}} → Just (p ⟨ refl ⟩))
         Nothing
 
