@@ -1,4 +1,3 @@
-{-# OPTIONS --overlapping-instances #-}
 
 module Agda.Core.Tests where
 
