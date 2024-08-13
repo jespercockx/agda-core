@@ -7,3 +7,5 @@ Something is slowly growing here. It is still fragile so better not disturb it, 
 **How is it implemented?** Agda Core is implemented in Agda, naturally. It consists of a well-scoped syntax, an environment-based evaluator, a formal definition of the typing and conversion rules, and a derivation-producing type checker.
 
 **What can I use it for?** First of all, you can appreciate the beauty of the typing rules. Secondly, we plan to link Agda Core to the main Agda system as a backend, so you can double-check its results. Finally, this project is also intended to serve as a demonstration of how to implement a correct-by-construction type checker for dependent types.
+
+**How to build it?** Using nix: `nix build .#agda-core-lib`. Using system's Agda you'll also need `agda2hs` library and `scope` library. You can find the revisions built against in the flake.lock file.
