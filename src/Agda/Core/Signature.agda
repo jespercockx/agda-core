@@ -60,7 +60,7 @@ record Datatype (@0 pars : Scope Name) (@0 ixs : Scope Name) : Set where
     dataParameterTel     : Telescope mempty pars
     dataIndexTel         : Telescope pars ixs
     dataConstructors     : ((⟨ c ⟩ cp) : NameIn  dataConstructorScope)
-                         → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ _ ⟩ p))
+                         → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ c ⟩ p))
 open Datatype public
 
 {-# COMPILE AGDA2HS Datatype #-}
@@ -106,7 +106,7 @@ getBody sig x = case getDefinition sig x of λ where
 getConstructor : ((⟨ c ⟩ cp) : NameIn conScope)
                → ∀ {@0 pars ixs} (d : Datatype pars ixs)
                → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
-                         fst (dataConstructors d (⟨ _ ⟩ cd)) ≡ cp)
+                         fst (dataConstructors d (⟨ c ⟩ cd)) ≡ cp)
 getConstructor c d =
   findAll (tabulateAll (rezz (dataConstructorScope d)) (λ _ → tt))
       λ _ p → ifEqualNamesIn (⟨ _ ⟩ fst (dataConstructors d (⟨ _ ⟩ p))) c

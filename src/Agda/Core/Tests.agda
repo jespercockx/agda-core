@@ -48,10 +48,10 @@ instance
     ; fieldScope = λ _ → mempty
     }
 
-boolcons : (c : NameIn cons)
-         → Σ (proj₁ c ∈ cons) (λ cp → Constructor mempty mempty (⟨ _ ⟩ cp))
+boolcons : ((⟨ c ⟩ cp) : NameIn cons)
+         → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))
 boolcons (⟨ c ⟩ cp) = lookupAll
-  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ _ ⟩ cp))}
+  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
   (allJoin (allSingl (inHere
                      , record { conTelescope = EmptyTel
                               ; conIndices = SNil } )) $
@@ -101,7 +101,7 @@ module TestReduce (@0 x y z : Name) where
     test₁ = refl
 
     testTerm₂ : Term α
-    testTerm₂ = TCase {x = "condition"} `true
+    testTerm₂ = TCase {x = "condition"} (⟨ "Bool" ⟩ inHere) (rezz _) `true
                                   (BsCons (BBranch (⟨ "true" ⟩ inHere) (rezz _) `false)
                                   (BsCons (BBranch (⟨ "false" ⟩ inThere inHere) (rezz _) `true)
                                    BsNil))

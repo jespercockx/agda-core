@@ -65,7 +65,11 @@ data Term α where
   TLam  : (@0 x : Name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
   TProj : (u : Term α) (x : NameIn defScope) → Term α
-  TCase : (u : Term α) (bs : Branches α cs) (m : Type (x ◃ α)) → Term α
+  TCase : (d : NameIn dataScope)
+        → Rezz (dataIxScope d)
+        → (u : Term α) (bs : Branches α cs)
+        → (m : Type (x ◃ (dataIxScope d <> α)))
+        → Term α
   TPi   : (@0 x : Name) (u : Type α) (v : Type (x ◃ α)) → Term α
   TSort : Sort α → Term α
   TLet  : (@0 x : Name) (u : Term α) (v : Term (x ◃ α)) → Term α
@@ -181,7 +185,7 @@ unAppsView (TDef _) = refl
 unAppsView (TData _ _ _) = refl
 unAppsView (TCon _ _) = refl
 unAppsView (TProj _ _) = refl
-unAppsView (TCase _ _ _) = refl
+unAppsView (TCase _ _ _ _ _) = refl
 unAppsView (TLam _ _) = refl
 unAppsView (TPi _ _ _) = refl
 unAppsView (TSort _) = refl
@@ -221,7 +225,7 @@ weaken p (TCon c vs)       = TCon c (weakenSubst p vs)
 weaken p (TLam x v)        = TLam x (weaken (subBindKeep p) v)
 weaken p (TApp u e)        = TApp (weaken p u) (weaken p e)
 weaken p (TProj u x)       = TProj (weaken p u) x
-weaken p (TCase u bs m)    = TCase (weaken p u) (weakenBranches p bs) (weakenType (subBindKeep p) m)
+weaken p (TCase d r u bs m) = TCase d r (weaken p u) (weakenBranches p bs) (weakenType (subBindKeep (subJoinKeep r p)) m)
 weaken p (TPi x a b)       = TPi x (weakenType p a) (weakenType (subBindKeep p) b)
 weaken p (TSort α)         = TSort (weakenSort p α)
 weaken p (TLet x v t)      = TLet x (weaken p v) (weaken (subBindKeep p) t)
@@ -339,8 +343,10 @@ strengthen p (TCon c vs) = TCon c <$> strengthenSubst p vs
 strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
 strengthen p (TApp v e) = TApp <$> strengthen p v <*> strengthen p e
 strengthen p (TProj u f) = (λ v → TProj v f) <$> strengthen p u
-strengthen p (TCase u bs m) =
-  TCase <$> strengthen p u <*> strengthenBranches p bs <*> strengthenType (subBindKeep p) m
+strengthen p (TCase d r u bs m) =
+  TCase d r <$> strengthen p u
+            <*> strengthenBranches p bs
+            <*> strengthenType (subBindKeep (subJoinKeep r p)) m
 strengthen p (TPi x a b) =
   TPi x <$> strengthenType p a <*> strengthenType (subBindKeep p) b
 strengthen p (TSort s) = TSort <$> strengthenSort p s

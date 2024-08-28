@@ -91,7 +91,7 @@ checkBranches : ∀ {@0 pars ixs cons : Scope Name}
                   (bs : Branches α cons)
                   (dt : Datatype pars ixs)
                   (ps : pars ⇒ α)
-                  (rt : Type (x ◃ α))
+                  (rt : Type (x ◃ (ixs <> α)))
                 → TCM (TyBranches Γ dt ps rt bs)
 
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
@@ -107,18 +107,19 @@ inferApp ctx u v = do
   return (tytype , TyApp gtu gc gtv)
 {-# COMPILE AGDA2HS inferApp #-}
 
-inferCase : ∀ {@0 cs} Γ u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} u bs rt ∶ t)
-inferCase ctx u bs rt = do
+inferCase : ∀ {@0 cs} Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
+inferCase ctx d rixs u bs rt = do
   let r = rezzScope ctx
   El s tu , gtu ← inferType ctx u
-  d , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
+  d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
     "can't typecheck a constrctor with a type that isn't a def application"
+  refl ← convNamesIn d d'
   df ⟨ deq ⟩ ← tcmGetDatatype d
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
   let ds = substSort params (dataSort df)
   cc ← convert r tu (unType $ dataType d ds params ixs)
-  return (substTopType r u rt , TyCase {k = ds} d df deq {is = ixs} bs rt gtu cc cb)
+  return (_ , TyCase {k = ds} {r = r} d df deq rixs bs rt gtu cc cb)
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -175,20 +176,13 @@ checkBranch : ∀ {@0 con : Name} (Γ : Context α)
                 (bs : Branch α con)
                 {@0 pars ixs} (dt : Datatype pars ixs)
                 (ps : pars ⇒ α)
-                (rt : Type (x ◃ α))
+                (rt : Type (x ◃ ixs <> _))
             → TCM (TyBranch Γ dt ps rt bs)
 checkBranch ctx (BBranch c r rhs) dt ps rt = do
   let ra = rezzScope ctx
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
-  let (c∈conScope , con) = dataConstructors dt (⟨ _ ⟩ cid)
-      ctel = substTelescope ps (conTelescope con)
-      cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
-                          (revIdSubst r)
-      idsubst = weakenSubst (subJoinDrop (rezzCong revScope r) subRefl)
-                            (idSubst ra)
-      bsubst = SCons (TCon (⟨ _ ⟩ c∈conScope) cargs) idsubst
-  crhs ← checkType (addContextTel ctel ctx) rhs (substType bsubst rt)
+  crhs ← checkType _ _ _
   return (TyBBranch (⟨ _ ⟩ cid) {rα = ra} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
@@ -264,9 +258,9 @@ checkType ctx (TLam x te) ty = checkLambda ctx x te ty
 checkType ctx (TApp u e) ty = do
   tapp ← inferApp ctx u e
   checkCoerce ctx (TApp u e) tapp ty
-checkType ctx (TCase {cs = cs} u bs rt) ty = do
-  tapp ← inferCase {cs = cs} ctx u bs rt
-  checkCoerce ctx (TCase u bs rt) tapp ty
+checkType ctx (TCase {cs = cs} d r u bs rt) ty = do
+  tapp ← inferCase {cs = cs} ctx d r u bs rt
+  checkCoerce ctx (TCase d r u bs rt) tapp ty
 checkType ctx (TProj u f) ty = tcError "not implemented: projections"
 checkType ctx (TPi x tu tv) ty = do
   tpi ← inferPi ctx x tu tv
@@ -287,7 +281,7 @@ inferType ctx (TData d ps is) = inferData ctx d ps is
 inferType ctx (TCon c x) = tcError "non inferrable: can't infer the type of a constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
-inferType ctx (TCase u bs rt) = inferCase ctx u bs rt
+inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
 inferType ctx (TProj u f) = tcError "not implemented: projections"
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s

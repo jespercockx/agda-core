@@ -54,12 +54,12 @@ data TySubst (@0 Γ : Context α) : @0 (β ⇒ α) → @0 Telescope α β → Se
 data TyBranches (@0 Γ : Context α)
                 {@0 pars ixs} (@0 dt : Datatype pars ixs)
                 (@0 ps : pars ⇒ α)
-                (@0 rt : Type (x ◃ α)) : @0 Branches α cons → Set
+                (@0 rt : Type (x ◃ (ixs <> α))) : @0 Branches α cons → Set
 
 data TyBranch (@0 Γ : Context α)
               {@0 pars ixs} (@0 dt : Datatype pars ixs)
               (@0 ps : pars ⇒ α)
-              (@0 rt : Type (x ◃ α)) : @0 Branch α con → Set
+              (@0 rt : Type (x ◃ (ixs <> α))) : @0 Branch α con → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -117,12 +117,13 @@ data TyTerm {α} Γ where
       (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt →
       {@0 ps : dataParScope d ⇒ α}
       {@0 is : dataIxScope d ⇒ α}
+      (ri : Rezz (dataIxScope d))
       (bs : Branches α (dataConstructorScope dt))
-      (rt : Type (x ◃ α))
+      (rt : Type (x ◃ (dataIxScope d <> α)))
     → Γ ⊢ u ∶ a
     → (unType a) ≅ (unType $ dataType d k ps is)
     → TyBranches Γ dt ps rt bs
-    → Γ ⊢ TCase u bs rt ∶ (substTopType r u rt)
+    → Γ ⊢ TCase d ri u bs rt ∶ (substType (SCons u (concatSubst is (idSubst r))) rt)
 
   -- TODO: proj
 
@@ -165,19 +166,41 @@ data TyBranches {α} Γ dt ps rt where
 
 {-# COMPILE AGDA2HS TyBranches #-}
 
-data TyBranch {α} Γ dt ps rt where
+data TyBranch {α} {x} Γ {pars} {ixs} dt ps rt where
   TyBBranch : (c : NameIn (dataConstructorScope dt))
-            → (let (c∈cons , con ) = dataConstructors dt c)
-            → {@0 r : Rezz (fieldScope (⟨ _ ⟩ c∈cons))}
+            → (let (c∈cons , con ) = dataConstructors dt c
+                   fields = fieldScope (⟨ _ ⟩ c∈cons)
+                   β = ~ fields <> α)
+            → {@0 r : Rezz fields}
               {@0 rα : Rezz α}
-              (rhs : Term (~ fieldScope (⟨ _ ⟩ c∈cons) <> α))
-              (let ctel = substTelescope ps (conTelescope con)
-                   cargs = weakenSubst (subJoinHere (rezzCong revScope r) subRefl)
-                                       (revIdSubst r)
-                   idsubst = weakenSubst (subJoinDrop (rezzCong revScope r) subRefl)
-                                         (idSubst rα)
-                   bsubst = SCons (TCon (⟨ _ ⟩ c∈cons) cargs) idsubst)
-            → TyTerm (addContextTel ctel Γ) rhs (substType bsubst rt)
+              (rhs : Term β)
+              (let rr = rezzCong revScope r
+
+                   Γ' : Context β
+                   Γ' = addContextTel (substTelescope ps (conTelescope con)) Γ
+
+                   cargs : Subst fields β
+                   cargs = weakenSubst (subJoinHere rr subRefl) (revIdSubst r)
+
+                   parssubst : Subst pars β
+                   parssubst = weakenSubst (subJoinDrop rr subRefl) ps
+
+                   parsAndArgsSubst : Subst (~ fields <> pars) β
+                   parsAndArgsSubst = concatSubst (revSubst cargs) parssubst
+
+                   ixsubst : Subst ixs β
+                   ixsubst = substSubst parsAndArgsSubst (conIndices con)
+
+                   idsubst : Subst α β
+                   idsubst = weakenSubst (subJoinDrop rr subRefl) (idSubst rα)
+
+                   bsubst : Subst (x ◃ (ixs <> α)) β
+                   bsubst = SCons (TCon (⟨ _ ⟩ c∈cons) cargs) (concatSubst ixsubst idsubst)
+
+                   rt' : Type β
+                   rt' = substType bsubst rt)
+
+            → TyTerm Γ' rhs rt'
             → TyBranch Γ dt ps rt (BBranch (⟨ _ ⟩ c∈cons) r rhs)
 
 {-# COMPILE AGDA2HS TyBranch #-}
@@ -191,14 +214,3 @@ data TySubst {α} Γ where
 
 {-# COMPILE AGDA2HS TySubst #-}
 
-{-
--- TyElims Γ es f t₁ t₂ means: if  Γ ⊢ h [] : t₁  then  Γ ⊢ h es : t₂
-data TyElims Γ where
-    TyDone : ∀ {@0 u} → TyElims Γ [] u t t
-    TyMore : ∀ {@0 h f}
-        → TyElim  Γ e        s             f
-        → TyElims Γ es       (h ∘ (e ∷_)) (f h) t
-        → TyElims Γ (e ∷ es) h             s    t
-
-{-# COMPILE AGDA2HS TyElims #-}
--}

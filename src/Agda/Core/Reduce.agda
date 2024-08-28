@@ -59,21 +59,25 @@ envToSubst r (env , x ↦ v) =
 data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
   FProj : (x : NameIn defScope) → Frame α
-  FCase : (bs : Branches α cs) (m : Type (x ◃ α)) → Frame α
+  FCase : (d : NameIn dataScope) (r : Rezz (dataIxScope d))
+          (bs : Branches α cs) (m : Type (x ◃ (dataIxScope d <> α))) → Frame α
 
 {-# COMPILE AGDA2HS Frame #-}
 
 unFrame : Frame α → Term α → Term α
 unFrame (FApp v) u = TApp u v
 unFrame (FProj f) u = TProj u f
-unFrame (FCase bs m) u = TCase u bs m
+unFrame (FCase d r bs m) u = TCase d r u bs m
 
 {-# COMPILE AGDA2HS unFrame #-}
 
 weakenFrame : α ⊆ β → Frame α → Frame β
 weakenFrame s (FApp u) = FApp (weaken s u)
 weakenFrame s (FProj f) = FProj f
-weakenFrame s (FCase bs m) = FCase (weakenBranches s bs) (weakenType (subBindKeep s) m)
+weakenFrame s (FCase d r bs m) =
+  FCase d r
+    (weakenBranches s bs)
+    (weakenType (subBindKeep (subJoinKeep r s)) m)
 
 {-# COMPILE AGDA2HS weakenFrame #-}
 
@@ -160,7 +164,7 @@ step rsig (MkState e (TVar (⟨ x ⟩ p)) s) =
     (Right v) → Just (MkState e v s)
 step rsig (MkState e (TApp v w) s) = Just (MkState e v (FApp w ∷ s))
 step rsig (MkState e (TProj v f) s) = Just (MkState e v (FProj f ∷ s))
-step rsig (MkState e (TCase v bs m) s) = Just (MkState e v (FCase bs m ∷ s))
+step rsig (MkState e (TCase d r v bs m) s) = Just (MkState e v (FCase d r bs m ∷ s))
 step rsig (MkState e (TLam x v) (FApp w ∷ s)) =
   Just (MkState
     (e , x ↦ w)
@@ -174,7 +178,7 @@ step rsig (MkState e (TLet x v w) s) =
 step (rezz sig) (MkState e (TDef d) s) =
   case getBody sig d of λ where
     v → Just (MkState e (weaken subEmpty v) s)
-step rsig (MkState e (TCon c vs) (FCase bs _ ∷ s)) =
+step rsig (MkState e (TCon c vs) (FCase d r bs _ ∷ s)) =
   case lookupBranch bs c of λ where
     (Just (r , v)) → Just (MkState
       (extendEnvironment (revSubst vs) e)

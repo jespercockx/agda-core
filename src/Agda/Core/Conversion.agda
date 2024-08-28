@@ -74,13 +74,16 @@ data Conv {α} where
   CApp   : u ≅ u'
          → w ≅ w'
          → TApp u w ≅ TApp u' w'
-  CCase  : {@0 r : Rezz α}
+  CCase  : ∀ {@0 x y z cs} {u u' : Term α} {@0 r : Rezz α}
+           (d : NameIn dataScope)
+           (r1 r2 : Rezz (dataIxScope d))
            (bs bp : Branches α cs)
-           (ms : Type (x ◃ α)) (mp : Type (y ◃ α))
+           (ms : Type _) (mp : Type _)
          → u ≅ u'
-         → renameTop {y = z} r (unType ms) ≅ renameTop {y = z} r (unType mp)
+         →   renameTop {y = z} (rezzCong2 _<>_ r1 r) (unType ms)
+           ≅ renameTop {y = z} (rezzCong2 _<>_ r2 r) (unType mp)
          → ConvBranches bs bp
-         → TCase u bs ms ≅ TCase u' bp mp
+         → TCase {x = x} d r1 u bs ms ≅ TCase {x = y} d r2 u' bp mp
   -- TODO: CProj : {!   !}
   CData  : (@0 d : NameIn dataScope)
            {@0 ps qs : dataParScope d ⇒ α}

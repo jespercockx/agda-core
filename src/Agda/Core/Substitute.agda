@@ -39,8 +39,11 @@ substTerm f (TCon c vs)       = TCon c (substSubst f vs)
 substTerm f (TLam x v)        = TLam x (substTerm (liftBindSubst f) v)
 substTerm f (TApp u v)        = TApp (substTerm f u) (substTerm f v)
 substTerm f (TProj u p)       = TProj (substTerm f u) p
-substTerm f (TCase {x = x} u bs m) =
-  TCase (substTerm f u) (substBranches f bs) (substType (liftBindSubst {y = x} f) m)
+substTerm f (TCase {x = x} d r u bs m) =
+  TCase {x = x} d r
+    (substTerm f u)
+    (substBranches f bs)
+    (substType (liftBindSubst (liftSubst r f)) m)
 substTerm f (TPi x a b)       = TPi x (substType f a) (substType (liftBindSubst f) b)
 substTerm f (TSort s)         = TSort (substSort f s)
 substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)

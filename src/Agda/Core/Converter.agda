@@ -74,12 +74,17 @@ reduceToSort r v err = reduceTo r v >>= λ where
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToSort #-}
 
+convNamesIn : (x y : NameIn α) → TCM (x ≡ y)
+convNamesIn x y =
+  ifEqualNamesIn x y
+    (λ where {{refl}} → return refl)
+    (tcError "names not equal")
+
 convVars : (x y : NameIn α)
          → TCM (Conv (TVar x) (TVar y))
-convVars x y =
-  ifEqualNamesIn x y
-    (λ where {{refl}} → return CRefl)
-    (tcError "variables not convertible")
+convVars x y = do
+  refl ← convNamesIn x y
+  return CRefl
 {-# COMPILE AGDA2HS convVars #-}
 
 convDefs : (f g : NameIn defScope)
@@ -161,19 +166,23 @@ convApps r u u' w w' = do
 
 convertCase : {{fl : Fuel}}
             → Rezz α
+            → (d d' : NameIn dataScope)
+            → (r : Rezz (dataIxScope d)) (r' : Rezz (dataIxScope d'))
             → (u u' : Term α)
             → ∀ {@0 cs cs'} (ws : Branches α cs) (ws' : Branches α cs')
-            → (rt : Type (x ◃ α)) (rt' : Type (y ◃ α))
-            → TCM (Conv (TCase u ws rt) (TCase u' ws' rt'))
-convertCase {x = x} r u u' ws ws' rt rt' = do
-  cu ← convertCheck r u u'
+            → (rt : Type (x ◃ _)) (rt' : Type (y ◃ _))
+            → TCM (Conv (TCase d r u ws rt) (TCase d' r' u' ws' rt'))
+convertCase {x = x} rα d d' ri ri' u u' ws ws' rt rt' = do
+  refl ← convNamesIn d d'
+  cu ← convertCheck rα u u'
+  let r = rezzCong2 _<>_ ri rα
   cm ← convertCheck (rezzBind {x = x} r)
                        (renameTop r (unType rt))
-                       (renameTop r (unType rt'))
+                       (renameTop _ (unType rt'))
   Erased refl ← liftMaybe (allInScope (allBranches ws) (allBranches ws'))
     "comparing case statements with different branches"
-  cbs ← convertBranches r ws ws'
-  return (CCase ws ws' rt rt' cu cm cbs)
+  cbs ← convertBranches rα ws ws'
+  return (CCase d ri ri' ws ws' rt rt' cu cm cbs)
 
 {-# COMPILE AGDA2HS convertCase #-}
 
@@ -209,7 +218,7 @@ convertBranch r (BBranch (⟨ c1 ⟩ cp1) rz1 rhs1) (BBranch (⟨ c2 ⟩ cp2) rz
   ifDec (decIn cp1 cp2)
     (λ where {{refl}} → do
       CBBranch (⟨ c1 ⟩ cp1) rz1 rz2 rhs1 rhs2 <$>
-        convertCheck (rezzCong2 _<>_ (rezzCong revScope rz1) r) rhs1 rhs2)
+        convertCheck (rezzCong2 _<>_ (rezzCong revScope rz2) r) rhs1 rhs2)
     (tcError "can't convert two branches that match on different constructors")
 
 {-# COMPILE AGDA2HS convertBranch #-}
@@ -229,8 +238,8 @@ convertWhnf r (TCon c lc) (TCon d ld) = convCons r c d lc ld
 convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
 convertWhnf r (TApp u e) (TApp v f) = convApps r u v e f
 convertWhnf r (TProj u f) (TProj v g) = tcError "not implemented: conversion of projections"
-convertWhnf r (TCase {cs = cs} u bs rt) (TCase {cs = cs'} u' bs' rt') =
-  convertCase r u u' {cs} {cs'} bs bs' rt rt'
+convertWhnf r (TCase {cs = cs} d ri u bs rt) (TCase {cs = cs'} d' ri' u' bs' rt') =
+  convertCase r d d' ri ri' u u' {cs} {cs'} bs bs' rt rt'
 convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
 convertWhnf r (TSort s) (TSort t) = convSorts s t
 --let and ann shoudln't appear here since they get reduced away
