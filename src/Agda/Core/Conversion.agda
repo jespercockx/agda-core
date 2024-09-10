@@ -80,8 +80,8 @@ data Conv {α} where
            (bs bp : Branches α cs)
            (ms : Type _) (mp : Type _)
          → u ≅ u'
-         →   renameTop {y = z} (rezzCong2 _<>_ r1 r) (unType ms)
-           ≅ renameTop {y = z} (rezzCong2 _<>_ r2 r) (unType mp)
+         →   renameTop {y = z} (rezz<> (rezz~ r1) r) (unType ms)
+           ≅ renameTop {y = z} (rezz<> (rezz~ r2) r) (unType mp)
          → ConvBranches bs bp
          → TCase {x = x} d r1 u bs ms ≅ TCase {x = y} d r2 u' bp mp
   -- TODO: CProj : {!   !}

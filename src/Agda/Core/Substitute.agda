@@ -43,14 +43,14 @@ substTerm f (TCase {x = x} d r u bs m) =
   TCase {x = x} d r
     (substTerm f u)
     (substBranches f bs)
-    (substType (liftBindSubst (liftSubst r f)) m)
+    (substType (liftBindSubst (liftSubst (rezz~ r) f)) m)
 substTerm f (TPi x a b)       = TPi x (substType f a) (substType (liftBindSubst f) b)
 substTerm f (TSort s)         = TSort (substSort f s)
 substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)
 substTerm f (TAnn u t)        = TAnn (substTerm f u) (substType f t)
 {-# COMPILE AGDA2HS substTerm #-}
 
-substBranch f (BBranch c r u) = BBranch c r (substTerm (liftSubst (rezzCong revScope r) f) u)
+substBranch f (BBranch c r u) = BBranch c r (substTerm (liftSubst (rezz~ r) f) u)
 {-# COMPILE AGDA2HS substBranch #-}
 
 substBranches f BsNil = BsNil

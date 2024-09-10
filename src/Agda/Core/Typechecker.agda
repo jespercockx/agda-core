@@ -91,7 +91,7 @@ checkBranches : ∀ {@0 pars ixs cons : Scope Name}
                   (bs : Branches α cons)
                   (dt : Datatype pars ixs)
                   (ps : pars ⇒ α)
-                  (rt : Type (x ◃ (ixs <> α)))
+                  (rt : Type (x ◃ (~ ixs <> α)))
                 → TCM (TyBranches Γ dt ps rt bs)
 
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
@@ -110,16 +110,21 @@ inferApp ctx u v = do
 inferCase : ∀ {@0 cs} Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
 inferCase ctx d rixs u bs rt = do
   let r = rezzScope ctx
+
   El s tu , gtu ← inferType ctx u
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
     "can't typecheck a constrctor with a type that isn't a def application"
   refl ← convNamesIn d d'
   df ⟨ deq ⟩ ← tcmGetDatatype d
+  let ds = substSort params (dataSort df)
+      gtu' = TyConv gtu (CRedL rp CRefl)
+
+  grt ← checkType _ _ _
+
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
-  let ds = substSort params (dataSort df)
-  cc ← convert r tu (unType $ dataType d ds params ixs)
-  return (_ , TyCase {k = ds} {r = r} d df deq rixs bs rt gtu cc cb)
+
+  return (_ , TyCase {k = ds} {r = r} d df deq rixs bs rt grt cb gtu')
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -176,7 +181,7 @@ checkBranch : ∀ {@0 con : Name} (Γ : Context α)
                 (bs : Branch α con)
                 {@0 pars ixs} (dt : Datatype pars ixs)
                 (ps : pars ⇒ α)
-                (rt : Type (x ◃ ixs <> _))
+                (rt : Type (x ◃ ~ ixs <> _))
             → TCM (TyBranch Γ dt ps rt bs)
 checkBranch ctx (BBranch c r rhs) dt ps rt = do
   let ra = rezzScope ctx

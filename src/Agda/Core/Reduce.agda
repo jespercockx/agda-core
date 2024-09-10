@@ -60,7 +60,7 @@ data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
   FProj : (x : NameIn defScope) → Frame α
   FCase : (d : NameIn dataScope) (r : Rezz (dataIxScope d))
-          (bs : Branches α cs) (m : Type (x ◃ (dataIxScope d <> α))) → Frame α
+          (bs : Branches α cs) (m : Type (x ◃ (~ dataIxScope d <> α))) → Frame α
 
 {-# COMPILE AGDA2HS Frame #-}
 
@@ -77,7 +77,7 @@ weakenFrame s (FProj f) = FProj f
 weakenFrame s (FCase d r bs m) =
   FCase d r
     (weakenBranches s bs)
-    (weakenType (subBindKeep (subJoinKeep r s)) m)
+    (weakenType (subBindKeep (subJoinKeep (rezz~ r) s)) m)
 
 {-# COMPILE AGDA2HS weakenFrame #-}
 
@@ -183,7 +183,7 @@ step rsig (MkState e (TCon c vs) (FCase d r bs _ ∷ s)) =
     (Just (r , v)) → Just (MkState
       (extendEnvironment (revSubst vs) e)
       v
-      (weakenStack (subJoinDrop (rezzCong revScope r) subRefl) s))
+      (weakenStack (subJoinDrop (rezz~ r) subRefl) s))
     Nothing  → Nothing
 step rsig (MkState e (TData d ps is) s) = Nothing
 step rsig (MkState e (TCon c vs) (FProj f ∷ s)) = Nothing -- TODO

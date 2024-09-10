@@ -175,10 +175,11 @@ convertCase : {{fl : Fuel}}
 convertCase {x = x} rα d d' ri ri' u u' ws ws' rt rt' = do
   refl ← convNamesIn d d'
   cu ← convertCheck rα u u'
-  let r = rezzCong2 _<>_ ri rα
+  let r  = rezz<> (rezz~ ri) rα
+      r' = rezz<> (rezz~ ri') rα
   cm ← convertCheck (rezzBind {x = x} r)
-                       (renameTop r (unType rt))
-                       (renameTop _ (unType rt'))
+                    (renameTop r (unType rt))
+                    (renameTop r' (unType rt'))
   Erased refl ← liftMaybe (allInScope (allBranches ws) (allBranches ws'))
     "comparing case statements with different branches"
   cbs ← convertBranches rα ws ws'
@@ -218,7 +219,7 @@ convertBranch r (BBranch (⟨ c1 ⟩ cp1) rz1 rhs1) (BBranch (⟨ c2 ⟩ cp2) rz
   ifDec (decIn cp1 cp2)
     (λ where {{refl}} → do
       CBBranch (⟨ c1 ⟩ cp1) rz1 rz2 rhs1 rhs2 <$>
-        convertCheck (rezzCong2 _<>_ (rezzCong revScope rz2) r) rhs1 rhs2)
+        convertCheck (rezz<> (rezz~ rz2) r) rhs1 rhs2)
     (tcError "can't convert two branches that match on different constructors")
 
 {-# COMPILE AGDA2HS convertBranch #-}

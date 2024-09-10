@@ -68,7 +68,7 @@ data Term α where
   TCase : (d : NameIn dataScope)
         → Rezz (dataIxScope d)
         → (u : Term α) (bs : Branches α cs)
-        → (m : Type (x ◃ (dataIxScope d <> α)))
+        → (m : Type (x ◃ (~ dataIxScope d <> α)))
         → Term α
   TPi   : (@0 x : Name) (u : Type α) (v : Type (x ◃ α)) → Term α
   TSort : Sort α → Term α
@@ -211,6 +211,12 @@ opaque
 
   {-# COMPILE AGDA2HS caseSubstBind #-}
 
+rezz~ : Rezz α → Rezz (~ α)
+rezz~ = rezzCong revScope
+
+rezz<> : Rezz α → Rezz β → Rezz (α <> β)
+rezz<> = rezzCong2 _<>_
+
 weaken         : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
 weakenType     : α ⊆ β → Type α → Type β
@@ -225,7 +231,7 @@ weaken p (TCon c vs)       = TCon c (weakenSubst p vs)
 weaken p (TLam x v)        = TLam x (weaken (subBindKeep p) v)
 weaken p (TApp u e)        = TApp (weaken p u) (weaken p e)
 weaken p (TProj u x)       = TProj (weaken p u) x
-weaken p (TCase d r u bs m) = TCase d r (weaken p u) (weakenBranches p bs) (weakenType (subBindKeep (subJoinKeep r p)) m)
+weaken p (TCase d r u bs m) = TCase d r (weaken p u) (weakenBranches p bs) (weakenType (subBindKeep (subJoinKeep (rezz~ r) p)) m)
 weaken p (TPi x a b)       = TPi x (weakenType p a) (weakenType (subBindKeep p) b)
 weaken p (TSort α)         = TSort (weakenSort p α)
 weaken p (TLet x v t)      = TLet x (weaken p v) (weaken (subBindKeep p) t)
@@ -238,7 +244,7 @@ weakenSort p (STyp x) = STyp x
 weakenType p (El st t) = El (weakenSort p st) (weaken p t)
 {-# COMPILE AGDA2HS weakenType #-}
 
-weakenBranch p (BBranch c r x) = BBranch c r (weaken (subJoinKeep (rezzCong revScope r) p) x)
+weakenBranch p (BBranch c r x) = BBranch c r (weaken (subJoinKeep (rezz~ r) p) x)
 {-# COMPILE AGDA2HS weakenBranch #-}
 
 weakenBranches p BsNil         = BsNil
@@ -318,7 +324,7 @@ raiseSubst {β = β} r (SCons {α = α} u e) =
 {-# COMPILE AGDA2HS raiseSubst #-}
 
 revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
-revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezzCong revScope r)))
+revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezz~ r)))
 {-# COMPILE AGDA2HS revIdSubst #-}
 
 raise : {@0 α β : Scope Name} → Rezz α → Term β → Term (α <> β)
@@ -346,7 +352,7 @@ strengthen p (TProj u f) = (λ v → TProj v f) <$> strengthen p u
 strengthen p (TCase d r u bs m) =
   TCase d r <$> strengthen p u
             <*> strengthenBranches p bs
-            <*> strengthenType (subBindKeep (subJoinKeep r p)) m
+            <*> strengthenType (subBindKeep (subJoinKeep (rezz~ r) p)) m
 strengthen p (TPi x a b) =
   TPi x <$> strengthenType p a <*> strengthenType (subBindKeep p) b
 strengthen p (TSort s) = TSort <$> strengthenSort p s
@@ -357,7 +363,7 @@ strengthenSort p (STyp n) = Just (STyp n)
 
 strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthen p t
 
-strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthen (subJoinKeep (rezzCong revScope r) p) v
+strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthen (subJoinKeep (rezz~ r) p) v
 
 strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs
