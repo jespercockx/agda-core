@@ -74,16 +74,16 @@ reduceToSort r v err = reduceTo r v >>= λ where
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToSort #-}
 
-convNamesIn : (x y : NameIn α) → TCM (x ≡ y)
+convNamesIn : (x y : NameIn α) → TCM (Erase (x ≡ y))
 convNamesIn x y =
   ifEqualNamesIn x y
-    (λ where {{refl}} → return refl)
+    (λ where {{refl}} → return (Erased refl))
     (tcError "names not equal")
 
 convVars : (x y : NameIn α)
          → TCM (Conv (TVar x) (TVar y))
 convVars x y = do
-  refl ← convNamesIn x y
+  Erased refl ← convNamesIn x y
   return CRefl
 {-# COMPILE AGDA2HS convVars #-}
 
@@ -173,7 +173,7 @@ convertCase : {{fl : Fuel}}
             → (rt : Type (x ◃ _)) (rt' : Type (y ◃ _))
             → TCM (Conv (TCase d r u ws rt) (TCase d' r' u' ws' rt'))
 convertCase {x = x} rα d d' ri ri' u u' ws ws' rt rt' = do
-  refl ← convNamesIn d d'
+  Erased refl ← convNamesIn d d'
   cu ← convertCheck rα u u'
   let r  = rezz<> (rezz~ ri) rα
       r' = rezz<> (rezz~ ri') rα

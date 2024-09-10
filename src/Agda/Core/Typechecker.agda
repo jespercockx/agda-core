@@ -114,7 +114,7 @@ inferCase ctx d rixs u bs rt = do
   El s tu , gtu ← inferType ctx u
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
     "can't typecheck a constrctor with a type that isn't a def application"
-  refl ← convNamesIn d d'
+  Erased refl ← convNamesIn d d'
   df ⟨ deq ⟩ ← tcmGetDatatype d
   let ds = substSort params (dataSort df)
       gtu' = TyConv gtu (CRedL rp CRefl)
