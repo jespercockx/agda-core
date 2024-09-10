@@ -291,7 +291,7 @@ inferType ctx (TProj u f) = tcError "not implemented: projections"
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s
 inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"
-inferType ctx (TAnn u t) = (_,_) t <$> TyAnn <$> checkType ctx u t
+inferType ctx (TAnn u t) = (_,_) t <$> (TyAnn <$> checkType ctx u t)
 
 {-# COMPILE AGDA2HS inferType #-}
 
