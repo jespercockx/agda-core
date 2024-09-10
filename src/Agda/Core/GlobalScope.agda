@@ -7,6 +7,7 @@ open import Haskell.Prelude hiding (All; s; t)
 open import Agda.Core.Name
 
 record Globals : Set where
+  no-eta-equality
   field
     defScope     : Scope Name
     dataScope    : Scope Name
