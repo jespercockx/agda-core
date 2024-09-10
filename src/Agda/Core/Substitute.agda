@@ -1,6 +1,6 @@
 open import Scope
 
-open import Haskell.Prelude hiding (All; c)
+open import Haskell.Prelude hiding (All; c; t)
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Erase
 
@@ -18,6 +18,8 @@ module Agda.Core.Substitute
 private variable
   @0 x c     : Name
   @0 α β γ cs : Scope Name
+  t : @0 Scope Name → Set
+
 
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β
@@ -61,15 +63,41 @@ substSubst f SNil = SNil
 substSubst f (SCons x e) = SCons (substTerm f x) (substSubst f e)
 {-# COMPILE AGDA2HS substSubst #-}
 
-substTop : Rezz α → Term α → Term (x ◃ α) → Term α
-substTop r u = substTerm (SCons u (idSubst r))
-{-# COMPILE AGDA2HS substTop #-}
+record Substitute (t : @0 Scope Name → Set) : Set where
+  field subst : (α ⇒ β) → t α → t β
+open Substitute {{...}} public
+{-# COMPILE AGDA2HS Substitute class #-}
 
-substTopType : Rezz α → Term α → Type (x ◃ α) → Type α
-substTopType r u = substType (SCons u (idSubst r))
-{-# COMPILE AGDA2HS substTopType #-}
+instance
+  iSubstTerm : Substitute Term
+  iSubstTerm .subst = substTerm
+  iSubstType : Substitute Type
+  iSubstType .subst = substType
+  iSubstSort : Substitute Sort
+  iSubstSort .subst = substSort
+  iSubstBranch : Substitute (λ α → Branch α c)
+  iSubstBranch .subst = substBranch
+  iSubstBranches : Substitute (λ α → Branches α cs)
+  iSubstBranches .subst = substBranches
+  iSubstSubst : Substitute (Subst α)
+  iSubstSubst .subst = substSubst
+{-# COMPILE AGDA2HS iSubstTerm #-}
+{-# COMPILE AGDA2HS iSubstType #-}
+{-# COMPILE AGDA2HS iSubstSort #-}
+{-# COMPILE AGDA2HS iSubstBranch #-}
+{-# COMPILE AGDA2HS iSubstBranches #-}
+{-# COMPILE AGDA2HS iSubstSubst #-}
+
+substTop : {{Substitute t}} → Rezz α → Term α → t (x ◃ α) → t α
+substTop r u = subst (SCons u (idSubst r))
+{-# COMPILE AGDA2HS substTop #-}
 
 substTelescope : (α ⇒ β) → Telescope α γ → Telescope β γ
 substTelescope f EmptyTel = EmptyTel
 substTelescope f (ExtendTel x a tel) = ExtendTel x (substType f a) (substTelescope (liftBindSubst f) tel)
 {-# COMPILE AGDA2HS substTelescope #-}
+
+instance
+  iSubstTelescope : Substitute (λ α → Telescope α β)
+  iSubstTelescope .subst = substTelescope
+{-# COMPILE AGDA2HS iSubstTelescope #-}

@@ -48,17 +48,17 @@ syntax Conv x y        = x ≅ y
 syntax ConvSubst us vs = us ⇔ vs
 
 renameTop : Rezz α → Term (x ◃ α) → Term (y ◃ α)
-renameTop = substTerm ∘ liftBindSubst ∘ idSubst
+renameTop = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTop #-}
 
 renameTopSort : Rezz α → Sort (x ◃ α) → Sort (y ◃ α)
-renameTopSort = substSort ∘ liftBindSubst ∘ idSubst
+renameTopSort = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopSort #-}
 
 renameTopType : Rezz α → Type (x ◃ α) → Type (y ◃ α)
-renameTopType = substType ∘ liftBindSubst ∘ idSubst
+renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 

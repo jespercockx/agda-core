@@ -4,7 +4,7 @@ open import Haskell.Prelude hiding (All; coerce; _,_,_; c) renaming (_,_ to infi
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Refinement
 open import Haskell.Extra.Erase
-open import Haskell.Law.Equality
+open import Haskell.Law.Equality renaming (subst to transport)
 open import Haskell.Law.Monoid
 open import Utils.Either
 open import Utils.Tactics using (auto)
@@ -52,7 +52,7 @@ envToSubst : Rezz α → Environment α β → β ⇒ α
 envToSubst r EnvNil = idSubst r
 envToSubst r (env , x ↦ v) =
   let s = envToSubst r env
-  in  SCons (substTerm s v) s
+  in  SCons (subst s v) s
 
 {-# COMPILE AGDA2HS envToSubst #-}
 
@@ -76,8 +76,8 @@ weakenFrame s (FApp u) = FApp (weaken s u)
 weakenFrame s (FProj f) = FProj f
 weakenFrame s (FCase d r bs m) =
   FCase d r
-    (weakenBranches s bs)
-    (weakenType (subBindKeep (subJoinKeep (rezz~ r) s)) m)
+    (weaken s bs)
+    (weaken (subBindKeep (subJoinKeep (rezz~ r) s)) m)
 
 {-# COMPILE AGDA2HS weakenFrame #-}
 
@@ -116,7 +116,7 @@ makeState {α = α} v = MkState (EnvNil {α = α}) v []
 {-# COMPILE AGDA2HS makeState #-}
 
 unState : Rezz α → State α → Term α
-unState r (MkState e v s) = substTerm (envToSubst r e) (unStack s v)
+unState r (MkState e v s) = subst (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 

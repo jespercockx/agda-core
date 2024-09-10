@@ -5,7 +5,7 @@ open import Haskell.Prelude hiding (All; a; b; c; e; s; t; m)
 
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Loop
-open import Haskell.Law.Equality
+open import Haskell.Law.Equality renaming (subst to transport)
 
 open import Utils.Tactics using (auto)
 
@@ -44,7 +44,7 @@ constructorType : (d : NameIn dataScope)
                 → fieldScope c ⇒ α
                 → Type α
 constructorType d c con ds pars us =
-  dataType d ds pars (substSubst (concatSubst (revSubst us) pars) (conIndices con))
+  dataType d ds pars (subst (concatSubst (revSubst us) pars) (conIndices con))
 {-# COMPILE AGDA2HS constructorType #-}
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
@@ -74,17 +74,17 @@ data TyTerm {α} Γ where
   TyDef
     : (f : NameIn defScope)
     ----------------------------------------------
-    → Γ ⊢ TDef f ∶ weakenType subEmpty (getType sig f)
+    → Γ ⊢ TDef f ∶ weaken subEmpty (getType sig f)
 
   TyData
     : (d : NameIn dataScope)
     → (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt
     → {@0 pars : dataParScope d ⇒ α}
     → {@0 ixs : dataIxScope d ⇒ α}
-    → TySubst Γ pars (weakenTel subEmpty (dataParameterTel dt))
+    → TySubst Γ pars (weaken subEmpty (dataParameterTel dt))
     → TySubst Γ ixs (substTelescope pars (dataIndexTel dt))
     ----------------------------------------------
-    → Γ ⊢ dataTypeTerm d pars ixs ∶ sortType (substSort pars (dataSort dt))
+    → Γ ⊢ dataTypeTerm d pars ixs ∶ sortType (subst pars (dataSort dt))
 
   TyCon
     : (d : NameIn dataScope)
@@ -95,7 +95,7 @@ data TyTerm {α} Γ where
     → {@0 us : fieldScope (⟨ _ ⟩ cp) ⇒ α}
     → TySubst Γ us (substTelescope pars (conTelescope con))
     -----------------------------------------------------------
-    → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (substSort pars (dataSort dt)) pars us
+    → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (subst pars (dataSort dt)) pars us
 
   TyLam
     : {@0 r : Rezz α}
@@ -109,7 +109,7 @@ data TyTerm {α} Γ where
     → (unType a) ≅ TPi x b c
     → Γ ⊢ v ∶ b
     ------------------------------------
-    → Γ ⊢ TApp u v ∶ substTopType r v c
+    → Γ ⊢ TApp u v ∶ substTop r v c
 
   TyCase
     : {@0 r : Rezz α}
@@ -127,13 +127,13 @@ data TyTerm {α} Γ where
            Γ' = addContextTel (substTelescope ps (dataIndexTel dt)) Γ
 
            ixsubst : Subst (dataIxScope d) (~ dataIxScope d <> α)
-           ixsubst = weakenSubst (subJoinHere (rezz~ ri) subRefl) (revIdSubst ri)
+           ixsubst = weaken (subJoinHere (rezz~ ri) subRefl) (revIdSubst ri)
 
            tx : Type (~ dataIxScope d <> α)
-           tx = dataType d (weakenSort wk k) (weakenSubst wk ps) ixsubst
+           tx = dataType d (weaken wk k) (weaken wk ps) ixsubst
 
            tret : Type α
-           tret = substType (SCons u (concatSubst (revSubst is) (idSubst r))) rt)
+           tret = subst (SCons u (concatSubst (revSubst is) (idSubst r))) rt)
 
     → Γ' , x ∶ tx ⊢ unType rt ∶ sortType (typeSort rt)
     → TyBranches Γ dt ps rt bs
@@ -196,25 +196,25 @@ data TyBranch {α} {x} Γ {pars} {ixs} dt ps rt where
                    Γ' = addContextTel (substTelescope ps (conTelescope con)) Γ
 
                    cargs : Subst fields β
-                   cargs = weakenSubst (subJoinHere rr subRefl) (revIdSubst r)
+                   cargs = weaken (subJoinHere rr subRefl) (revIdSubst r)
 
                    parssubst : Subst pars β
-                   parssubst = weakenSubst (subJoinDrop rr subRefl) ps
+                   parssubst = weaken (subJoinDrop rr subRefl) ps
 
                    parsAndArgsSubst : Subst (~ fields <> pars) β
                    parsAndArgsSubst = concatSubst (revSubst cargs) parssubst
 
                    ixsubst : Subst ixs β
-                   ixsubst = substSubst parsAndArgsSubst (conIndices con)
+                   ixsubst = subst parsAndArgsSubst (conIndices con)
 
                    idsubst : Subst α β
-                   idsubst = weakenSubst (subJoinDrop rr subRefl) (idSubst rα)
+                   idsubst = weaken (subJoinDrop rr subRefl) (idSubst rα)
 
                    bsubst : Subst (x ◃ (~ ixs <> α)) β
                    bsubst = SCons (TCon (⟨ _ ⟩ c∈cons) cargs) (concatSubst (revSubst ixsubst) idsubst)
 
                    rt' : Type β
-                   rt' = substType bsubst rt)
+                   rt' = subst bsubst rt)
 
             → TyTerm Γ' rhs rt'
             → TyBranch Γ dt ps rt (BBranch (⟨ _ ⟩ c∈cons) r rhs)

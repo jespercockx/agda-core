@@ -117,9 +117,13 @@ getConstructor c d =
 
 weakenTel : α ⊆ γ → Telescope α β → Telescope γ β
 weakenTel p EmptyTel = EmptyTel
-weakenTel p (ExtendTel x ty t) = ExtendTel x (weakenType p ty) (weakenTel (subBindKeep p) t)
+weakenTel p (ExtendTel x ty t) = ExtendTel x (weaken p ty) (weakenTel (subBindKeep p) t)
 
 {-# COMPILE AGDA2HS weakenTel #-}
+
+instance
+  iWeakenTel : Weaken (λ α → Telescope α β)
+  iWeakenTel .weaken = weakenTel
 
 rezzTel : Telescope α β → Rezz β
 rezzTel EmptyTel = rezz _

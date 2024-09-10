@@ -21,7 +21,7 @@ open import Agda.Core.Utils
 
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Erase
-open import Haskell.Law.Equality
+open import Haskell.Law.Equality renaming (subst to transport)
 open import Haskell.Law.Monoid
 
 module Agda.Core.Typechecker
@@ -103,7 +103,7 @@ inferApp ctx u v = do
   gtv ← checkType ctx v at
   let sf = piSort (typeSort at) (typeSort rt)
       gc = CRedL rtp CRefl
-      tytype = substTopType r v rt
+      tytype = substTop r v rt
   return (tytype , TyApp gtu gc gtv)
 {-# COMPILE AGDA2HS inferApp #-}
 
@@ -116,7 +116,7 @@ inferCase ctx d rixs u bs rt = do
     "can't typecheck a constrctor with a type that isn't a def application"
   Erased refl ← convNamesIn d d'
   df ⟨ deq ⟩ ← tcmGetDatatype d
-  let ds = substSort params (dataSort df)
+  let ds = subst params (dataSort df)
       gtu' = TyConv gtu (CRedL rp CRefl)
 
   grt ← checkType _ _ _
@@ -172,9 +172,9 @@ inferData : (Γ : Context α) (d : NameIn dataScope)
           → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TData d pars ixs ∶ ty)
 inferData ctx d pars ixs = do
   dt ⟨ deq ⟩ ← tcmGetDatatype d
-  typars ← checkSubst ctx (weakenTel subEmpty (dataParameterTel dt)) pars
+  typars ← checkSubst ctx (weaken subEmpty (dataParameterTel dt)) pars
   tyixs ← checkSubst ctx (substTelescope pars (dataIndexTel dt)) ixs
-  return (sortType (substSort pars (dataSort dt)) , TyData d dt deq typars tyixs)
+  return (sortType (subst pars (dataSort dt)) , TyData d dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
 checkBranch : ∀ {@0 con : Name} (Γ : Context α)
@@ -214,7 +214,7 @@ checkCon ctx c cargs (El s ty) = do
     "can't find a constructor with such a name"
   let con = snd (dataConstructors df (⟨ _ ⟩ cid))
       ctel = substTelescope params (conTelescope con)
-      ctype = constructorType d c con (substSort params (dataSort df)) params cargs
+      ctype = constructorType d c con (subst params (dataSort df)) params cargs
   tySubst ← checkSubst ctx ctel cargs
   checkCoerce ctx (TCon c cargs) (ctype , TyCon d df deq (⟨ _ ⟩ cid) tySubst) (El s ty)
 {-# COMPILE AGDA2HS checkCon #-}
@@ -244,7 +244,7 @@ checkLet : ∀ Γ (@0 x : Name)
            → TCM (Γ ⊢ TLet x u v ∶ ty)
 checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
-  dtv       ← checkType (ctx , x ∶ tu) v (weakenType (subWeaken subRefl) ty)
+  dtv       ← checkType (ctx , x ∶ tu) v (weaken (subWeaken subRefl) ty)
   return $ TyLet {r = rezzScope ctx} dtu dtv
 {-# COMPILE AGDA2HS checkLet #-}
 

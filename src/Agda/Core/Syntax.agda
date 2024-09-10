@@ -217,34 +217,34 @@ rezz~ = rezzCong revScope
 rezz<> : Rezz α → Rezz β → Rezz (α <> β)
 rezz<> = rezzCong2 _<>_
 
-weaken         : α ⊆ β → Term α → Term β
+weakenTerm     : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
 weakenType     : α ⊆ β → Type α → Type β
 weakenBranch   : α ⊆ β → Branch α c → Branch β c
 weakenBranches : α ⊆ β → Branches α cs → Branches β cs
 weakenSubst    : β ⊆ γ → Subst α β → Subst α γ
 
-weaken p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
-weaken p (TDef d)          = TDef d
-weaken p (TData d ps is)   = TData d (weakenSubst p ps) (weakenSubst p is)
-weaken p (TCon c vs)       = TCon c (weakenSubst p vs)
-weaken p (TLam x v)        = TLam x (weaken (subBindKeep p) v)
-weaken p (TApp u e)        = TApp (weaken p u) (weaken p e)
-weaken p (TProj u x)       = TProj (weaken p u) x
-weaken p (TCase d r u bs m) = TCase d r (weaken p u) (weakenBranches p bs) (weakenType (subBindKeep (subJoinKeep (rezz~ r) p)) m)
-weaken p (TPi x a b)       = TPi x (weakenType p a) (weakenType (subBindKeep p) b)
-weaken p (TSort α)         = TSort (weakenSort p α)
-weaken p (TLet x v t)      = TLet x (weaken p v) (weaken (subBindKeep p) t)
-weaken p (TAnn u t)        = TAnn (weaken p u) (weakenType p t)
-{-# COMPILE AGDA2HS weaken #-}
+weakenTerm p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
+weakenTerm p (TDef d)          = TDef d
+weakenTerm p (TData d ps is)   = TData d (weakenSubst p ps) (weakenSubst p is)
+weakenTerm p (TCon c vs)       = TCon c (weakenSubst p vs)
+weakenTerm p (TLam x v)        = TLam x (weakenTerm (subBindKeep p) v)
+weakenTerm p (TApp u e)        = TApp (weakenTerm p u) (weakenTerm p e)
+weakenTerm p (TProj u x)       = TProj (weakenTerm p u) x
+weakenTerm p (TCase d r u bs m) = TCase d r (weakenTerm p u) (weakenBranches p bs) (weakenType (subBindKeep (subJoinKeep (rezz~ r) p)) m)
+weakenTerm p (TPi x a b)       = TPi x (weakenType p a) (weakenType (subBindKeep p) b)
+weakenTerm p (TSort α)         = TSort (weakenSort p α)
+weakenTerm p (TLet x v t)      = TLet x (weakenTerm p v) (weakenTerm (subBindKeep p) t)
+weakenTerm p (TAnn u t)        = TAnn (weakenTerm p u) (weakenType p t)
+{-# COMPILE AGDA2HS weakenTerm #-}
 
 weakenSort p (STyp x) = STyp x
 {-# COMPILE AGDA2HS weakenSort #-}
 
-weakenType p (El st t) = El (weakenSort p st) (weaken p t)
+weakenType p (El st t) = El (weakenSort p st) (weakenTerm p t)
 {-# COMPILE AGDA2HS weakenType #-}
 
-weakenBranch p (BBranch c r x) = BBranch c r (weaken (subJoinKeep (rezz~ r) p) x)
+weakenBranch p (BBranch c r x) = BBranch c r (weakenTerm (subJoinKeep (rezz~ r) p) x)
 {-# COMPILE AGDA2HS weakenBranch #-}
 
 weakenBranches p BsNil         = BsNil
@@ -252,8 +252,35 @@ weakenBranches p (BsCons b bs) = BsCons (weakenBranch p b) (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenBranches #-}
 
 weakenSubst p SNil = SNil
-weakenSubst p (SCons u e) = SCons (weaken p u) (weakenSubst p e)
+weakenSubst p (SCons u e) = SCons (weakenTerm p u) (weakenSubst p e)
 {-# COMPILE AGDA2HS weakenSubst #-}
+
+record Weaken (t : @0 Scope Name → Set) : Set where
+  field
+    weaken : α ⊆ β → t α → t β
+open Weaken {{...}} public
+{-# COMPILE AGDA2HS Weaken class #-}
+
+instance
+  iWeakenTerm : Weaken Term
+  iWeakenTerm .weaken = weakenTerm
+  iWeakenSort : Weaken Sort
+  iWeakenSort .weaken = weakenSort
+  iWeakenType : Weaken Type
+  iWeakenType .weaken = weakenType
+  iWeakenBranch : Weaken (λ α → Branch α c)
+  iWeakenBranch .weaken = weakenBranch
+  iWeakenBranches : Weaken (λ α → Branches α cs)
+  iWeakenBranches .weaken = weakenBranches
+  iWeakenSubst : Weaken (Subst β)
+  iWeakenSubst .weaken = weakenSubst
+{-# COMPILE AGDA2HS iWeakenTerm #-}
+{-# COMPILE AGDA2HS iWeakenSort #-}
+{-# COMPILE AGDA2HS iWeakenType #-}
+{-# COMPILE AGDA2HS iWeakenBranch #-}
+{-# COMPILE AGDA2HS iWeakenBranches #-}
+{-# COMPILE AGDA2HS iWeakenSubst #-}
+
 
 dropSubst : {@0 α β : Scope Name} {@0 x : Name} → (x ◃ α) ⇒ β → α ⇒ β
 dropSubst f = caseSubstBind f (λ _ g → g)
@@ -328,45 +355,72 @@ revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubs
 {-# COMPILE AGDA2HS revIdSubst #-}
 
 raise : {@0 α β : Scope Name} → Rezz α → Term β → Term (α <> β)
-raise r = weaken (subJoinDrop r subRefl)
+raise r = weakenTerm (subJoinDrop r subRefl)
 {-# COMPILE AGDA2HS raise #-}
 
 raiseType : {@0 α β : Scope Name} → Rezz α → Type β → Type (α <> β)
 raiseType r = weakenType (subJoinDrop r subRefl)
 {-# COMPILE AGDA2HS raiseType #-}
 
-strengthen : α ⊆ β → Term β → Maybe (Term α)
+strengthenTerm : α ⊆ β → Term β → Maybe (Term α)
 strengthenSort : α ⊆ β → Sort β → Maybe (Sort α)
 strengthenType : α ⊆ β → Type β → Maybe (Type α)
 strengthenBranch : α ⊆ β → Branch β c → Maybe (Branch α c)
 strengthenBranches : α ⊆ β → Branches β cs → Maybe (Branches α cs)
 strengthenSubst : α ⊆ β → γ ⇒ β → Maybe (γ ⇒ α)
 
-strengthen p (TVar (⟨ x ⟩ q)) = diffCase p q (λ q → Just (TVar (⟨ x ⟩ q))) (λ _ → Nothing)
-strengthen p (TDef d) = Just (TDef d)
-strengthen p (TData d ps is) = TData d <$> strengthenSubst p ps <*> strengthenSubst p is
-strengthen p (TCon c vs) = TCon c <$> strengthenSubst p vs
-strengthen p (TLam x v) = TLam x <$> strengthen (subBindKeep p) v
-strengthen p (TApp v e) = TApp <$> strengthen p v <*> strengthen p e
-strengthen p (TProj u f) = (λ v → TProj v f) <$> strengthen p u
-strengthen p (TCase d r u bs m) =
-  TCase d r <$> strengthen p u
+strengthenTerm p (TVar (⟨ x ⟩ q)) = diffCase p q (λ q → Just (TVar (⟨ x ⟩ q))) (λ _ → Nothing)
+strengthenTerm p (TDef d) = Just (TDef d)
+strengthenTerm p (TData d ps is) = TData d <$> strengthenSubst p ps <*> strengthenSubst p is
+strengthenTerm p (TCon c vs) = TCon c <$> strengthenSubst p vs
+strengthenTerm p (TLam x v) = TLam x <$> strengthenTerm (subBindKeep p) v
+strengthenTerm p (TApp v e) = TApp <$> strengthenTerm p v <*> strengthenTerm p e
+strengthenTerm p (TProj u f) = (λ v → TProj v f) <$> strengthenTerm p u
+strengthenTerm p (TCase d r u bs m) =
+  TCase d r <$> strengthenTerm p u
             <*> strengthenBranches p bs
             <*> strengthenType (subBindKeep (subJoinKeep (rezz~ r) p)) m
-strengthen p (TPi x a b) =
+strengthenTerm p (TPi x a b) =
   TPi x <$> strengthenType p a <*> strengthenType (subBindKeep p) b
-strengthen p (TSort s) = TSort <$> strengthenSort p s
-strengthen p (TLet x u v) = TLet x <$> strengthen p u <*> strengthen (subBindKeep p) v
-strengthen p (TAnn u t) = TAnn <$> strengthen p u <*> strengthenType p t
+strengthenTerm p (TSort s) = TSort <$> strengthenSort p s
+strengthenTerm p (TLet x u v) = TLet x <$> strengthenTerm p u <*> strengthenTerm (subBindKeep p) v
+strengthenTerm p (TAnn u t) = TAnn <$> strengthenTerm p u <*> strengthenType p t
 
 strengthenSort p (STyp n) = Just (STyp n)
 
-strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthen p t
+strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthenTerm p t
 
-strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthen (subJoinKeep (rezz~ r) p) v
+strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthenTerm (subJoinKeep (rezz~ r) p) v
 
 strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs
 
 strengthenSubst p SNil = Just SNil
-strengthenSubst p (SCons v vs) = SCons <$> strengthen p v <*> strengthenSubst p vs
+strengthenSubst p (SCons v vs) = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
+
+record Strengthen (t : @0 Scope Name → Set) : Set where
+  field
+    strengthen : α ⊆ β → t β → Maybe (t α)
+open Strengthen {{...}} public
+{-# COMPILE AGDA2HS Strengthen class #-}
+
+instance
+  iStrengthenTerm : Strengthen Term
+  iStrengthenTerm .strengthen = strengthenTerm
+  iStrengthenType : Strengthen Type
+  iStrengthenType .strengthen = strengthenType
+  iStrengthenSort : Strengthen Sort
+  iStrengthenSort .strengthen = strengthenSort
+  iStrengthenBranch : Strengthen (λ α → Branch α c)
+  iStrengthenBranch .strengthen = strengthenBranch
+  iStrengthenBranches : Strengthen (λ α → Branches α cs)
+  iStrengthenBranches .strengthen = strengthenBranches
+  iStrengthenSubst : Strengthen (Subst α)
+  iStrengthenSubst .strengthen = strengthenSubst
+
+{-# COMPILE AGDA2HS iStrengthenTerm #-}
+{-# COMPILE AGDA2HS iStrengthenType #-}
+{-# COMPILE AGDA2HS iStrengthenSort #-}
+{-# COMPILE AGDA2HS iStrengthenBranch #-}
+{-# COMPILE AGDA2HS iStrengthenBranches #-}
+{-# COMPILE AGDA2HS iStrengthenSubst #-}
