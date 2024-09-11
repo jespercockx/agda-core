@@ -214,8 +214,12 @@ opaque
 rezz~ : Rezz α → Rezz (~ α)
 rezz~ = rezzCong revScope
 
+{-# COMPILE AGDA2HS rezz~ inline #-}
+
 rezz<> : Rezz α → Rezz β → Rezz (α <> β)
 rezz<> = rezzCong2 _<>_
+
+{-# COMPILE AGDA2HS rezz<> inline #-}
 
 weakenTerm     : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
@@ -397,6 +401,13 @@ strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengt
 
 strengthenSubst p SNil = Just SNil
 strengthenSubst p (SCons v vs) = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
+
+{-# COMPILE AGDA2HS strengthenTerm #-}
+{-# COMPILE AGDA2HS strengthenType #-}
+{-# COMPILE AGDA2HS strengthenSort #-}
+{-# COMPILE AGDA2HS strengthenBranch #-}
+{-# COMPILE AGDA2HS strengthenBranches #-}
+{-# COMPILE AGDA2HS strengthenSubst #-}
 
 record Strengthen (t : @0 Scope Name → Set) : Set where
   field
