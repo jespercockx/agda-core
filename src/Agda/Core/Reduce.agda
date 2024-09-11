@@ -136,18 +136,15 @@ rezzFromEnv SNil = rezz _
 rezzFromEnv (SCons v vs) = rezzCong2 (λ (Erased x) α → x ◃ α) rezzErase (rezzFromEnv vs)
 {-# COMPILE AGDA2HS rezzFromEnv #-}
 
--- TODO: make this into a where function once
--- https://github.com/agda/agda2hs/issues/264 is fixed.
-extendEnvironmentAux : Rezz β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
-extendEnvironmentAux r SNil e = subst0 (Environment _) (sym (leftIdentity _)) e
-extendEnvironmentAux r (SCons {α = α} {x = x} v vs) e =
-  let r' = rezzUnbind r
-  in  subst0 (Environment _) (associativity _ _ _)
-      (extendEnvironmentAux r' vs e , x ↦ raise r' v) --extendEnvironmentAux r' vs e , _ ↦ raise r' v
-{-# COMPILE AGDA2HS extendEnvironmentAux #-}
-
 extendEnvironment : β ⇒ γ → Environment α γ → Environment α (β <> γ)
-extendEnvironment vs e = extendEnvironmentAux (rezzFromEnv vs) vs e
+extendEnvironment vs e = aux (rezzFromEnv vs) vs e
+  where
+    aux : Rezz β → β ⇒ γ → Environment α γ → Environment α (β <> γ)
+    aux r SNil e = subst0 (Environment _) (sym (leftIdentity _)) e
+    aux r (SCons {α = α} {x = x} v vs) e =
+      let r' = rezzUnbind r
+      in  subst0 (Environment _) (associativity _ _ _)
+          (aux r' vs e , x ↦ raise r' v)
 {-# COMPILE AGDA2HS extendEnvironment #-}
 
 lookupEnvironment : Environment α β → x ∈ β → Either (x ∈ α) (Term β)
@@ -195,19 +192,15 @@ step rsig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annot
 
 {-# COMPILE AGDA2HS step #-}
 
--- TODO: make this into a `where` function once
--- https://github.com/agda/agda2hs/issues/264 is fixed
-reduceState : Rezz α
-            → (rsig : Rezz sig) (s : State α) → {{Fuel}} → Maybe (Term α)
-reduceState r rsig s {{None}}        = Nothing
-reduceState r rsig s {{More}} = case (step rsig s) of λ where
-      (Just s') → reduceState r rsig s'
-      Nothing   → Just (unState r s)
-{-# COMPILE AGDA2HS reduceState #-}
-
 reduce : Rezz α
        → (rsig : Rezz sig) (v : Term α) → {{Fuel}} → Maybe (Term α)
-reduce {α = α} r rsig v = reduceState r rsig (makeState v)
+reduce {α = α} r rsig v = go (makeState v)
+  where
+    go : (s : State α) → {{Fuel}} → Maybe (Term α)
+    go s {{None}}        = Nothing
+    go s {{More {{fl}}}} = case (step rsig s) of λ where
+          (Just s') → go s' {{fl}}
+          Nothing   → Just (unState r s)
 {-# COMPILE AGDA2HS reduce #-}
 
 reduceClosed : (rsig : Rezz sig) (v : Term mempty) → {{Fuel}} → Maybe (Term mempty)
