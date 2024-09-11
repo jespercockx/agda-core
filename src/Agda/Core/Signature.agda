@@ -124,6 +124,7 @@ weakenTel p (ExtendTel x ty t) = ExtendTel x (weaken p ty) (weakenTel (subBindKe
 instance
   iWeakenTel : Weaken (λ α → Telescope α β)
   iWeakenTel .weaken = weakenTel
+{-# COMPILE AGDA2HS iWeakenTel #-}
 
 rezzTel : Telescope α β → Rezz β
 rezzTel EmptyTel = rezz _

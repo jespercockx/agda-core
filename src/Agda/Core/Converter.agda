@@ -79,6 +79,7 @@ convNamesIn x y =
   ifEqualNamesIn x y
     (λ where {{refl}} → return (Erased refl))
     (tcError "names not equal")
+{-# COMPILE AGDA2HS convNamesIn #-}
 
 convVars : (x y : NameIn α)
          → TCM (Conv (TVar x) (TVar y))
