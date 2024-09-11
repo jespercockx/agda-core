@@ -30,7 +30,7 @@ import Agda.Utils.Lens ((^.))
 import Data.Map.Strict      qualified as Map
 import Agda.Syntax.Internal qualified as I
 
-import Agda.Core.Syntax (Term(..), Elim(..), Elims, Sort(..))
+import Agda.Core.Syntax (Term(..), Sort(..))
 import Agda.Core.Syntax qualified as Core
 
 import Scope.In (In)
@@ -46,7 +46,7 @@ type Cons = Map QName In
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
-tApp :: Term -> Elims -> Term
+tApp :: Term -> [Term] -> Term
 tApp t []     = t
 tApp t (e:es) = TApp t e `tApp` es
 
@@ -59,7 +59,7 @@ type ToCoreGlobal = (Defs, Cons)
 newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either Doc) a }
   deriving newtype (Functor, Applicative, Monad, MonadError Doc)
   deriving newtype (MonadReader ToCoreGlobal)
- 
+
 asksDef :: (Defs -> a) -> ToCoreM a
 asksDef = asks . (. fst)
 
@@ -108,7 +108,7 @@ instance ToCore I.Term where
   toCore (I.Def qn es) = tApp <$> (TDef <$> lookupDef qn) <*> toCore es
 
   toCore (I.Con ch ci es)
-    | Just args <- allApplyElims es 
+    | Just args <- allApplyElims es
     = do
         -- @l@ is the amount of arguments missing from the application.
         -- we need to eta-expand manually @l@ times to fully-apply the constructor.
@@ -124,10 +124,8 @@ instance ToCore I.Term where
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
   toCore (I.Pi dom codom) =
-    TPi <$> toCore (dom           ^. lensSort)
-        <*> toCore (absBody codom ^. lensSort)
-        <*> toCore dom
-        <*> toCore codom
+    TPi <$> (Core.El <$> toCore (dom           ^. lensSort) <*> toCore dom)
+        <*> (Core.El <$> toCore (absBody codom ^. lensSort) <*> toCore codom)
 
   toCore (I.Sort s) = TSort <$> toCore s
 
@@ -180,9 +178,9 @@ instance ToCore a => ToCore (I.Dom a) where
 
 
 instance ToCore I.Elim where
-  type CoreOf I.Elim = Elim
-  toCore (I.Apply x)   = EArg <$> toCore x
-  toCore (I.Proj _ qn) = EProj <$> lookupDef qn
+  type CoreOf I.Elim = Term
+  toCore (I.Apply x)   = toCore x
+  toCore (I.Proj _ qn) = TDef <$> lookupDef qn
   toCore I.IApply{}    = throwError "cubical endpoint application not supported"
 
 

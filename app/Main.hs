@@ -16,7 +16,14 @@ import Agda.Compiler.Backend
 import Agda.Syntax.Internal
 import Agda.Syntax.TopLevelModuleName (TopLevelModuleName)
 import Agda.Core.ToCore
+import Agda.Core.Context
+import Agda.Core.Signature qualified as Core
+import Agda.Core.Syntax qualified as Core
+import Agda.Core.TCM qualified as Core
+import Agda.Core.Utils qualified as Core
+import Agda.Core.Typechecker
 import Agda.Utils.Either (maybeRight)
+import Agda.Utils.Maybe
 
 import Agda.Syntax.Common.Pretty qualified as Pretty
 
@@ -82,11 +89,15 @@ checkModule IsMain tlm defs = do
 
     reportSDoc "agda-core.check" 5 $ text "Checking" <+> dn
 
-    case convert gdefs gcons (unEl defType) of
-      Left e   -> reportSDoc "agda-core.check" 5 $
+    mty <- case convert gdefs gcons (unEl defType) of
+      Left e   -> do
+        reportSDoc "agda-core.check" 5 $
                         text "Couldn't convert type of" <+> dn
                     <+> text "to core syntax:" <+> pure e
-      Right ty -> reportSDoc "agda-core.check" 5 $ text "Type:" <+> text (show ty)
+        return Nothing
+      Right ty -> do
+        reportSDoc "agda-core.check" 5 $ text "Type:" <+> text (show ty)
+        return $ Just $ Core.El (Core.STyp 0) ty
 
     case theDef def of
       -- NOTE(flupe): currently we only support definitions with no arguments (implying no pattern-matching)
@@ -98,7 +109,15 @@ checkModule IsMain tlm defs = do
         , Just body <- clauseBody cl
         -> case convert gdefs gcons body of
           Left e   -> reportSDoc "agda-core.check" 5 $ text "Failed to convert to core syntax:" <+> pure e
-          Right ct -> reportSDoc "agda-core.check" 5 $ text "Definition:" <+> text (show ct) -- liftIO $ print ct -- TODO(flupe): launch type-checker
+          Right ct -> do
+            reportSDoc "agda-core.check" 5 $ text "Definition:" <+> text (show ct)
+            whenJust mty $ \ty -> do
+              let sig = Core.Signature undefined undefined
+                  fl = Core.More fl
+                  env = Core.MkTCEnv sig fl
+              case Core.runTCM (checkType CtxEmpty ct ty) env of
+                Left err -> reportSDoc "agda-core.check" 5 $ text $ "Type checking error: " ++ err
+                Right ok -> reportSDoc "agda-core.check" 5 $ text $ "Type checking success"
 
       Datatype{}      -> reportSDoc "agda-core.check" 5 $ text "Datatypes not supported"
       Record{}        -> reportSDoc "agda-core.check" 5 $ text "Datatypes not supported"

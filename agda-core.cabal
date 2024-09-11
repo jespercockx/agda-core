@@ -21,17 +21,28 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  Scope.Core
-                    , Scope.In
-                    , Scope.Sub
-                    , Scope.Split
+    exposed-modules:  Agda.Core.Context
+                    , Agda.Core.Conversion
+                    , Agda.Core.Converter
+                    , Agda.Core.GlobalScope
                     , Agda.Core.Reduce
-                    , Agda.Core.Syntax
+                    , Agda.Core.Signature
                     , Agda.Core.Substitute
+                    , Agda.Core.Syntax
+                    , Agda.Core.TCM
+                    , Agda.Core.TCMInstances
+                    , Agda.Core.Typechecker
+                    , Agda.Core.Typing
                     , Agda.Core.Utils
+                    , Scope.All
+                    , Scope.Core
+                    , Scope.Diff
+                    , Scope.In
+                    , Scope.Reverse
+                    , Scope.Split
+                    , Scope.Sub
                     , Utils.Either
-                    -- , Agda.Core.Typechecker
-                    -- , Agda.Core.Typing
+                    , Utils.List
     build-depends:    base   >= 4.17    && < 4.20
     hs-source-dirs:   lib
     default-language: GHC2021
