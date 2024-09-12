@@ -89,7 +89,7 @@ checkModule IsMain tlm defs = do
 
     reportSDoc "agda-core.check" 5 $ text "Checking" <+> dn
 
-    mty <- case convert gdefs gcons (unEl defType) of
+    mty <- case convert gdefs gcons defType of
       Left e   -> do
         reportSDoc "agda-core.check" 5 $
                         text "Couldn't convert type of" <+> dn
@@ -97,7 +97,7 @@ checkModule IsMain tlm defs = do
         return Nothing
       Right ty -> do
         reportSDoc "agda-core.check" 5 $ text "Type:" <+> text (show ty)
-        return $ Just $ Core.El (Core.STyp 0) ty
+        return $ Just ty
 
     case theDef def of
       -- NOTE(flupe): currently we only support definitions with no arguments (implying no pattern-matching)

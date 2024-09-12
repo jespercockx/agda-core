@@ -123,9 +123,7 @@ instance ToCore I.Term where
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
-  toCore (I.Pi dom codom) =
-    TPi <$> (Core.El <$> toCore (dom           ^. lensSort) <*> toCore dom)
-        <*> (Core.El <$> toCore (absBody codom ^. lensSort) <*> toCore codom)
+  toCore (I.Pi dom codom) = TPi <$> toCore dom <*> toCore codom
 
   toCore (I.Sort s) = TSort <$> toCore s
 
@@ -157,8 +155,8 @@ instance ToCore I.Sort where
 
 
 instance ToCore I.Type where
-  type CoreOf I.Type = CoreOf I.Term
-  toCore = toCore . unEl
+  type CoreOf I.Type = Core.Type
+  toCore (I.El sort t) = Core.El <$> toCore sort <*> toCore t
 
 
 instance (Subst a, ToCore a) => ToCore (I.Abs a) where
