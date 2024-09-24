@@ -69,12 +69,11 @@ executable agda-core
       DerivingStrategies
     build-depends:
         base                 >= 4.17    && < 4.21,
-        Agda                 >= 2.6.4   && < 2.6.5,
+        Agda                 >= 2.7.0   && < 2.8.0,
         bytestring           >= 0.11.5  && < 0.13,
         containers           >= 0.6     && < 0.8,
         unordered-containers >= 0.2.19  && < 0.3,
         mtl                  >= 2.2.2   && < 2.4,
         directory            >= 1.2.6.2 && < 1.4,
         filepath             >= 1.4.1.0 && < 1.5,
-        agda-core,
-
+        agda-core
