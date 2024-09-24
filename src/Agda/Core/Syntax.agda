@@ -205,7 +205,7 @@ lookupSubst (SCons u f) x q = inBindCase q (λ _ → u) (lookupSubst f x)
 opaque
   unfolding Scope
 
-  caseSubstBind : (s : Subst (bind x α) β)
+  caseSubstBind : (s : Subst (x ◃ α) β)
                 → ((t : Term β) → (s' : Subst α β) → @0 {{s ≡ SCons t s'}} → d)
                 → d
   caseSubstBind (SCons x s) f = f x s
