@@ -1,16 +1,18 @@
 {
   description = "Agda core";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/eabe8d3eface69f5bb16c18f8662a702f50c20d5;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs;
   inputs.flake-utils.url = github:numtide/flake-utils;
   inputs.agda2hs = {
     url = "github:agda/agda2hs";
     inputs.nixpkgs.follows = "nixpkgs";
+    inputs.flake-utils.follows = "flake-utils";
   };
   inputs.scope = {
     url = "github:jespercockx/scope";
     inputs.nixpkgs.follows = "nixpkgs";
     inputs.agda2hs.follows = "agda2hs";
+    inputs.flake-utils.follows = "flake-utils";
    };
 
   outputs = {self, nixpkgs, flake-utils, agda2hs, scope}:
