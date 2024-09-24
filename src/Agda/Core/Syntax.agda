@@ -65,10 +65,11 @@ data Term α where
   TLam  : (@0 x : Name) (v : Term (x ◃ α)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
   TProj : (u : Term α) (x : NameIn defScope) → Term α
-  TCase : (d : NameIn dataScope)
-        → Rezz (dataIxScope d)
-        → (u : Term α) (bs : Branches α cs)
-        → (m : Type (x ◃ (~ dataIxScope d <> α)))
+  TCase : (d : NameIn dataScope)                   -- Datatype of the variable we are splitting on
+        → Rezz (dataIxScope d)                     -- Run-time representation of index scope
+        → (u : Term α)                             -- Term we are casing on
+        → (bs : Branches α cs)                     -- Branches (one for each constructor of d)
+        → (m : Type (x ◃ (~ dataIxScope d <> α)))  -- Return type
         → Term α
   TPi   : (@0 x : Name) (u : Type α) (v : Type (x ◃ α)) → Term α
   TSort : Sort α → Term α
