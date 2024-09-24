@@ -99,9 +99,9 @@ data TyTerm {α} Γ where
 
   TyLam
     : {@0 r : Rezz α}
-    → Γ , x ∶ a ⊢ u ∶ renameTopType r b
+    → Γ , x ∶ a ⊢ u ∶ b
     -------------------------------
-    → Γ ⊢ TLam x u ∶ El k (TPi y a b)
+    → Γ ⊢ TLam x u ∶ El k (TPi x a b)
 
   TyApp
     : {b : Type α} {@0 r : Rezz α}

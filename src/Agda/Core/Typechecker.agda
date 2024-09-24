@@ -223,18 +223,18 @@ checkLambda : ∀ Γ (@0 x : Name)
               (u : Term (x ◃ α))
               (ty : Type α)
               → TCM (Γ ⊢ TLam x u ∶ ty)
-checkLambda ctx x u (El sp (TPi y tu tv)) =
-  TyLam <$> checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
 checkLambda ctx x u (El s ty) = do
   let r = rezzScope ctx
 
   ⟨ y ⟩ (tu , tv) ⟨ rtp ⟩ ← reduceToPi r ty
     "couldn't reduce a term to a pi type"
-  let gc = CRedR rtp CRefl
+  let gc = CRedR rtp (CPi CRefl CRefl)
       sp = piSort (typeSort tu) (typeSort tv)
 
   d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
-  return $ TyConv (TyLam {k = sp} d) gc
+
+  return $ TyConv (TyLam {k = sp} {r = r} d) gc
+
 {-# COMPILE AGDA2HS checkLambda #-}
 
 checkLet : ∀ Γ (@0 x : Name)
