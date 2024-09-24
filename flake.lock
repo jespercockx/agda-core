@@ -8,11 +8,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1725711269,
-        "narHash": "sha256-o0YelZ+Byve04cOAsdgX+lDsJxVEj81PC1B37RkHFhc=",
+        "lastModified": 1727184087,
+        "narHash": "sha256-tFhF8TzmoXeO655ruVhI8DZC4e3r0NtRnZuKvwZ7eFI=",
         "owner": "agda",
         "repo": "agda2hs",
-        "rev": "03c9aae0e0b868f4cc1d978d6413d76a084f62e3",
+        "rev": "80734767d3c1f73037e3d6246d3d2879b65e6801",
         "type": "github"
       },
       "original": {
@@ -26,11 +26,11 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1710146030,
-        "narHash": "sha256-SZ5L6eA7HJ/nmkzGG7/ISclqe6oZdOZTNoesiInkXPQ=",
+        "lastModified": 1726560853,
+        "narHash": "sha256-X6rJYSESBVr3hBoH0WbKE5KvhPU5bloyZ2L4K60/fPQ=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "b1d9ab70662946ef0850d488da1c9019f3a9752a",
+        "rev": "c1dfcf08411b08f6b8615f7d8971a2bfa81d5e8a",
         "type": "github"
       },
       "original": {
@@ -44,11 +44,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1710146030,
-        "narHash": "sha256-SZ5L6eA7HJ/nmkzGG7/ISclqe6oZdOZTNoesiInkXPQ=",
+        "lastModified": 1726560853,
+        "narHash": "sha256-X6rJYSESBVr3hBoH0WbKE5KvhPU5bloyZ2L4K60/fPQ=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "b1d9ab70662946ef0850d488da1c9019f3a9752a",
+        "rev": "c1dfcf08411b08f6b8615f7d8971a2bfa81d5e8a",
         "type": "github"
       },
       "original": {
@@ -62,11 +62,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1710146030,
-        "narHash": "sha256-SZ5L6eA7HJ/nmkzGG7/ISclqe6oZdOZTNoesiInkXPQ=",
+        "lastModified": 1726560853,
+        "narHash": "sha256-X6rJYSESBVr3hBoH0WbKE5KvhPU5bloyZ2L4K60/fPQ=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "b1d9ab70662946ef0850d488da1c9019f3a9752a",
+        "rev": "c1dfcf08411b08f6b8615f7d8971a2bfa81d5e8a",
         "type": "github"
       },
       "original": {
@@ -110,11 +110,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1722104452,
-        "narHash": "sha256-AeD/60ZtC7WI/lGsOeptRu17Hp9bK8pljPDU+0viXUk=",
+        "lastModified": 1727185459,
+        "narHash": "sha256-qN5pBs5qNnnb6XbkmQepF3GgugjcyNti6he/9XZJZ9M=",
         "owner": "jespercockx",
         "repo": "scope",
-        "rev": "c0a1f412d4a00d4952eb3dc846716a7d0128a49b",
+        "rev": "c0542fae948ee3cbb98c2f880629ad70c225f79d",
         "type": "github"
       },
       "original": {
