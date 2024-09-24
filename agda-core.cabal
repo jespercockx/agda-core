@@ -43,7 +43,7 @@ library
                     , Scope.Sub
                     , Utils.Either
                     , Utils.List
-    build-depends:    base   >= 4.17    && < 4.20
+    build-depends:    base   >= 4.17    && < 4.21
     hs-source-dirs:   lib
     default-language: GHC2021
 
@@ -68,7 +68,7 @@ executable agda-core
       ViewPatterns
       DerivingStrategies
     build-depends:
-        base                 >= 4.17    && < 4.20,
+        base                 >= 4.17    && < 4.21,
         Agda                 >= 2.6.4   && < 2.6.5,
         bytestring           >= 0.11.5  && < 0.13,
         containers           >= 0.6     && < 0.8,
