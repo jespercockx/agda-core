@@ -19,16 +19,11 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {inherit system;};
+
         agda2hs-lib = agda2hs.packages.${system}.agda2hs-lib;
         scope-lib = scope.packages.${system}.scope-lib;
+        agda2hs-custom = (agda2hs.lib.${system}.withPackages) [agda2hs-lib scope-lib];
 
-        helper = agda2hs.lib.${system};
-        agda2hs-drv = pkgs.callPackage (helper.agda2hs-expr) {
-          inherit self;
-          agda2hs = pkgs.haskellPackages.callPackage (helper.agda2hs-pkg "") {};
-          inherit (pkgs.haskellPackages) ghcWithPackages;
-        };
-        agda2hs-custom = agda2hs-drv.withPackages [agda2hs-lib scope-lib];
         agda-core-pkg = import ./nix/agda-core.nix;
         agda-core = pkgs.haskellPackages.callPackage ./nix/agda-core.nix {agda2hs = agda2hs-custom;};
       in {
