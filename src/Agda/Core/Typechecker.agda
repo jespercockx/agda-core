@@ -101,10 +101,10 @@ inferApp ctx u v = do
   ⟨ x ⟩ (at , rt) ⟨ rtp ⟩ ← reduceToPi r (unType tu)
     "couldn't reduce term to a pi type"
   gtv ← checkType ctx v at
-  let sf = piSort (typeSort at) (typeSort rt)
+  let tytype = substTop r v rt
       gc = CRedL rtp CRefl
-      tytype = substTop r v rt
-  return (tytype , TyApp gtu gc gtv)
+      gtu' =  TyConv {b = El (typeSort tu) (TPi x at rt)} gtu gc
+  return (tytype , TyApp gtu' gtv)
 {-# COMPILE AGDA2HS inferApp #-}
 
 inferCase : ∀ {@0 cs} Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)

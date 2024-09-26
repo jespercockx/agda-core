@@ -105,8 +105,7 @@ data TyTerm {α} Γ where
 
   TyApp
     : {b : Type α} {@0 r : Rezz α}
-    → Γ ⊢ u ∶ a
-    → (unType a) ≅ TPi x b c
+    → Γ ⊢ u ∶ El k (TPi x b c)
     → Γ ⊢ v ∶ b
     ------------------------------------
     → Γ ⊢ TApp u v ∶ substTop r v c
