@@ -124,7 +124,7 @@ inferCase ctx d rixs u bs rt = do
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
 
-  return (_ , TyCase {k = ds} {r = r} d df deq rixs bs rt grt cb gtu')
+  return (_ , TyCase {k = ds} d {α_run = r} {i_run = rixs} df deq bs rt grt cb gtu')
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -188,7 +188,7 @@ checkBranch ctx (BBranch c r rhs) dt ps rt = do
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
   crhs ← checkType _ _ _
-  return (TyBBranch (⟨ _ ⟩ cid) {rα = ra} rhs crhs)
+  return (TyBBranch (⟨ _ ⟩ cid) {α_run = ra} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
 checkBranches ctx (rezz cons) bs dt ps rt =
@@ -233,7 +233,7 @@ checkLambda ctx x u (El s ty) = do
 
   d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
 
-  return $ TyConv (TyLam {k = sp} {r = r} d) gc
+  return $ TyConv (TyLam {k = sp} d) gc
 
 {-# COMPILE AGDA2HS checkLambda #-}
 
