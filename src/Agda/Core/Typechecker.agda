@@ -79,7 +79,7 @@ checkCoverage dt bs =
 {-# COMPILE AGDA2HS checkCoverage #-}
 
 inferVar : ∀ Γ (x : NameIn α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
-inferVar ctx x = return $ _ , TyTVar x
+inferVar ctx x = return $ _ , TyTVar
 {-# COMPILE AGDA2HS inferVar #-}
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
@@ -124,7 +124,7 @@ inferCase ctx d rixs u bs rt = do
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
 
-  return (_ , TyCase {k = ds} d {α_run = r} {i_run = rixs} df deq bs rt grt cb gtu')
+  return (_ , tyCase' {k = ds} df deq {α_run = r} {i_run = rixs} bs rt grt cb gtu')
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -148,7 +148,7 @@ inferDef : ∀ Γ (f : NameIn defScope)
          → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f ∶ ty)
 inferDef ctx f = do
   ty ⟨ eq ⟩ ← tcmGetType f
-  return $ _ , subst0 (λ ty → TyTerm ctx (TDef f) (weakenType subEmpty ty)) eq (TyDef f)
+  return $ _ , subst0 (λ ty → TyTerm ctx (TDef f) (weakenType subEmpty ty)) eq TyDef
 {-# COMPILE AGDA2HS inferDef #-}
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
@@ -174,7 +174,7 @@ inferData ctx d pars ixs = do
   dt ⟨ deq ⟩ ← tcmGetDatatype d
   typars ← checkSubst ctx (weaken subEmpty (dataParameterTel dt)) pars
   tyixs ← checkSubst ctx (substTelescope pars (dataIndexTel dt)) ixs
-  return (sortType (subst pars (dataSort dt)) , TyData d dt deq typars tyixs)
+  return (sortType (subst pars (dataSort dt)) , tyData' dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
 checkBranch : ∀ {@0 con : Name} (Γ : Context α)
@@ -209,14 +209,14 @@ checkCon ctx c cargs (El s ty) = do
   let r = rezzScope ctx
   d , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
     "can't typecheck a constrctor with a type that isn't a def application"
-  df ⟨ deq ⟩ ← tcmGetDatatype d
-  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c df)
+  dt ⟨ deq ⟩ ← tcmGetDatatype d
+  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
-  let con = snd (dataConstructors df (⟨ _ ⟩ cid))
+  let con = snd (dataConstructors dt (⟨ _ ⟩ cid))
       ctel = substTelescope params (conTelescope con)
-      ctype = constructorType d c con (subst params (dataSort df)) params cargs
+      ctype = constructorType d c con (subst params (dataSort dt)) params cargs
   tySubst ← checkSubst ctx ctel cargs
-  checkCoerce ctx (TCon c cargs) (ctype , TyCon d df deq (⟨ _ ⟩ cid) tySubst) (El s ty)
+  checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt deq (⟨ _ ⟩ cid) tySubst) (El s ty)
 {-# COMPILE AGDA2HS checkCon #-}
 
 checkLambda : ∀ Γ (@0 x : Name)
@@ -303,3 +303,4 @@ inferSort ctx t = do
   return $ s , TyConv dt cp
 
 {-# COMPILE AGDA2HS inferSort #-}
+ 
