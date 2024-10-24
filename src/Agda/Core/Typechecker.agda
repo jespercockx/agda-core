@@ -124,7 +124,7 @@ inferCase ctx d rixs u bs rt = do
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
 
-  return (_ , tyCase' {k = ds} df deq {α_run = r} {i_run = rixs} bs rt grt cb gtu')
+  return (_ , tyCase' {k = ds} df deq {α_run = r} {i_run = rixs} grt cb gtu')
 
 {-# COMPILE AGDA2HS inferCase #-}
 

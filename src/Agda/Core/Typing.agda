@@ -120,7 +120,8 @@ data TyTerm {α} Γ where
          α' = ~ i_scope <> α                                      -- general scope + indexes
          dt = sigData sig d)                                      -- the datatype called d
     {@0 α_run : Rezz α}                                           -- I don't know
-    {i_run : Rezz i_scope}                                        -- runtime index scope
+    {i_run : Rezz i_scope}
+    -- (let i_run = rezz i_scope)                                    -- runtime index scope
     {@0 p_subst : p_scope ⇒ α}                                    -- subst of parameters of d to α
     {@0 i_subst : i_scope ⇒ α}                                    -- subst of indexes of d to α
     (let i_subst' : i_scope ⇒ α'                                  -- subst of indexes of d to α'
@@ -128,12 +129,12 @@ data TyTerm {α} Γ where
 
          α'_subst : α' ⇒ α                                        -- subst of α' to α
          α'_subst = concatSubst (revSubst i_subst) (idSubst α_run))
-    (cases : Branches α (dataConstructorScope dt))                -- cases for constructors of dt
-    (return : Type (x ◃ α'))                                      -- return type 
+    {cases : Branches α (dataConstructorScope dt)}                -- cases for constructors of dt
+    {return : Type (x ◃ α')}                                      -- return type 
     (let α_In_α' : α ⊆ α'
          α_In_α' = subJoinDrop (rezz~ i_run) subRefl              -- proof that α is in α'
 
-         Γ' : Context α'
+         Γ' : Context α'                                          -- new context with α and the indexes
          Γ' = addContextTel (substTelescope p_subst (dataIndexTel dt)) Γ
 
          tx : Type α'
@@ -146,7 +147,7 @@ data TyTerm {α} Γ where
     → TyBranches Γ dt p_subst return cases                     -- if each case is well typed
     → Γ ⊢ u ∶ dataType d k p_subst i_subst                     -- if u is well typed
     --------------------------------------------------
-    → Γ ⊢ TCase d i_run u cases return ∶ return'               -- then the branching if well typed
+    → Γ ⊢ TCase d i_run u cases return ∶ return'               -- then the branching on u is well typed
 
   -- TODO: proj
 
@@ -279,8 +280,8 @@ tyCase' : {@0 Γ : Context α}
   {@0 i_subst : i_scope ⇒ α}
   (let i_subst' = weaken (subJoinHere (rezz~ i_run) subRefl) (revIdSubst i_run)
        α'_subst = concatSubst (revSubst i_subst) (idSubst α_run))
-  (cases : Branches α (dataConstructorScope dt))
-  (return : Type (x ◃ α'))
+  {cases : Branches α (dataConstructorScope dt)}
+  {return : Type (x ◃ α')}
   (let α_In_α' = subJoinDrop (rezz~ i_run) subRefl
        Γ' = addContextTel (substTelescope p_subst (dataIndexTel dt)) Γ
        tx = dataType d (weaken α_In_α' k) (weaken α_In_α' p_subst) i_subst'
@@ -290,5 +291,5 @@ tyCase' : {@0 Γ : Context α}
   → Γ ⊢ u ∶ dataType d k p_subst i_subst
   --------------------------------------------------
   → Γ ⊢ TCase d i_run u cases return ∶ return'
-tyCase' dt refl cases return wf_return ty_cases ty_u = TyCase cases return wf_return ty_cases ty_u
+tyCase' dt refl {i_run = i_scope ⟨ eqi ⟩} wf_return ty_cases ty_u = TyCase wf_return ty_cases ty_u
 {-# COMPILE AGDA2HS tyCase' #-} 
