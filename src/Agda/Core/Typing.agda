@@ -106,12 +106,12 @@ data TyTerm {α} Γ where
     -------------------------------
     → Γ ⊢ TLam x u ∶ El k (TPi x a b)
 
-  TyApp : {b : Type α} {@0 r : Rezz α}
-    
+  TyApp : {b : Type α}
+
     → Γ ⊢ u ∶ El k (TPi x b c)
     → Γ ⊢ v ∶ b
     ------------------------------------
-    → Γ ⊢ TApp u v ∶ substTop r v c
+    → Γ ⊢ TApp u v ∶ substTop (rezz α) v c
 
   TyCase :
     {d : NameIn dataScope}                                        -- the name of a datatype
@@ -265,6 +265,13 @@ tyCon' : {@0 Γ : Context α}
   → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (subst pars (dataSort dt)) pars us
 tyCon' dt refl c tySubst = TyCon tySubst
 {-# COMPILE AGDA2HS tyCon' #-}
+
+tyApp' : {@0 Γ : Context α} {b : Type α} {c : Type (x ◃ α)} {@0 r : Rezz α}
+  → Γ ⊢ u ∶ El k (TPi x b c)
+  → Γ ⊢ v ∶ b
+  ------------------------------------
+  → Γ ⊢ TApp u v ∶ substTop {t = λ (@0 v) → Type v} r v c
+tyApp' {r = rezz α} ty_u ty_v = TyApp ty_u ty_v
 
 tyCase' : {@0 Γ : Context α} 
   {d : NameIn dataScope}

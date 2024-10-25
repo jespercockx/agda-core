@@ -104,7 +104,7 @@ inferApp ctx u v = do
   let tytype = substTop r v rt
       gc = CRedL rtp CRefl
       gtu' =  TyConv {b = El (typeSort tu) (TPi x at rt)} gtu gc
-  return (tytype , TyApp gtu' gtv)
+  return (tytype , tyApp' gtu' gtv)
 {-# COMPILE AGDA2HS inferApp #-}
 
 inferCase : ∀ {@0 cs} Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
