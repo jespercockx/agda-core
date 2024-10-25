@@ -118,10 +118,9 @@ data TyTerm {α} Γ where
     (let p_scope = dataParScope d                                 -- parameters of d
          i_scope = dataIxScope d                                  -- indexes of d
          α' = ~ i_scope <> α                                      -- general scope + indexes
-         dt = sigData sig d)                                      -- the datatype called d
-    {@0 α_run : Rezz α}                                           -- I don't know
-    {i_run : Rezz i_scope}
-    -- (let i_run = rezz i_scope)                                    -- runtime index scope
+         dt = sigData sig d                                       -- the datatype called d
+         α_run = rezz α                                           -- runtime general scope
+         i_run = rezz i_scope)                                    -- runtime index scope
     {@0 p_subst : p_scope ⇒ α}                                    -- subst of parameters of d to α
     {@0 i_subst : i_scope ⇒ α}                                    -- subst of indexes of d to α
     (let i_subst' : i_scope ⇒ α'                                  -- subst of indexes of d to α'
@@ -162,9 +161,8 @@ data TyTerm {α} Γ where
     -------------------------------------------
     Γ ⊢ TSort k ∶ sortType (sucSort k)
 
-  TyLet : {@0 r : Rezz α}
-
-    → Γ ⊢ u ∶ a
+  TyLet : 
+    Γ ⊢ u ∶ a
     → Γ , x ∶ a ⊢ v ∶ weakenType (subWeaken subRefl) b
     ----------------------------------------------
     → Γ ⊢ TLet x u v ∶ b
@@ -275,7 +273,7 @@ tyCase' : {@0 Γ : Context α}
           i_scope = dataIxScope d
           α' = ~ i_scope <> α)
   → {@0 α_run : Rezz α}
-  {i_run : Rezz i_scope}
+  {@0 i_run : Rezz i_scope}
   {@0 p_subst : p_scope ⇒ α}
   {@0 i_subst : i_scope ⇒ α}
   (let i_subst' = weaken (subJoinHere (rezz~ i_run) subRefl) (revIdSubst i_run)
@@ -291,5 +289,6 @@ tyCase' : {@0 Γ : Context α}
   → Γ ⊢ u ∶ dataType d k p_subst i_subst
   --------------------------------------------------
   → Γ ⊢ TCase d i_run u cases return ∶ return'
-tyCase' dt refl {i_run = i_scope ⟨ eqi ⟩} wf_return ty_cases ty_u = TyCase wf_return ty_cases ty_u
+tyCase' dt refl {α_run = α ⟨ refl ⟩} {i_run = i_scope ⟨ refl ⟩} wf_return ty_cases ty_u = 
+  TyCase wf_return ty_cases ty_u
 {-# COMPILE AGDA2HS tyCase' #-} 

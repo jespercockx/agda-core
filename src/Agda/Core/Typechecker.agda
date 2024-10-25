@@ -245,7 +245,7 @@ checkLet : ∀ Γ (@0 x : Name)
 checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
   dtv       ← checkType (ctx , x ∶ tu) v (weaken (subWeaken subRefl) ty)
-  return $ TyLet {r = rezzScope ctx} dtu dtv
+  return $ TyLet dtu dtv
 {-# COMPILE AGDA2HS checkLet #-}
 
 
@@ -303,4 +303,4 @@ inferSort ctx t = do
   return $ s , TyConv dt cp
 
 {-# COMPILE AGDA2HS inferSort #-}
- 
+  
