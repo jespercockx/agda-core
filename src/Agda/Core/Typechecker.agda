@@ -124,7 +124,7 @@ inferCase ctx d rixs u bs rt = do
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
 
-  return (_ , tyCase' {k = ds} df deq {α_run = r} {i_run = rixs} grt cb gtu')
+  return (_ , tyCase' {k = ds} df deq {αRun = r} {iRun = rixs} grt cb gtu')
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -154,7 +154,7 @@ inferDef ctx f = do
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
 checkSubst ctx t SNil =
   caseTelEmpty t λ where ⦃ refl ⦄ → return TyNil
-checkSubst ctx t (SCons x s) =
+checkSubst ctx t ⌈ _ ↦ x ◃◃ s ⌉ =
   caseTelBind t λ where ty rest ⦃ refl ⦄ → do
     tyx ← checkType ctx x ty
     let
@@ -162,7 +162,7 @@ checkSubst ctx t (SCons x s) =
       sstel = subst0 (λ (@0 β) → Subst β β)
                 (IsLawfulMonoid.rightIdentity iLawfulMonoidScope _)
                 (concatSubst (subToSubst r (subJoinHere _ subRefl)) SNil)
-      stel = substTelescope (SCons x sstel) rest
+      stel = substTelescope ⌈ _ ↦ x ◃◃ sstel ⌉ rest
     tyrest ← checkSubst ctx stel s
     return (TyCons tyx tyrest)
 {-# COMPILE AGDA2HS checkSubst #-}
@@ -188,7 +188,7 @@ checkBranch ctx (BBranch c r rhs) dt ps rt = do
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
   crhs ← checkType _ _ _
-  return (TyBBranch (⟨ _ ⟩ cid) {α_run = ra} rhs crhs)
+  return (TyBBranch (⟨ _ ⟩ cid) {αRun = ra} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
 checkBranches ctx (rezz cons) bs dt ps rt =
@@ -303,4 +303,4 @@ inferSort ctx t = do
   return $ s , TyConv dt cp
 
 {-# COMPILE AGDA2HS inferSort #-}
-  
+   
