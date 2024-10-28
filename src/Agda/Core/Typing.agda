@@ -277,6 +277,7 @@ tyApp' : {@0 Γ : Context α} {b : Type α} {c : Type (x ◃ α)} {@0 r : Rezz �
   ------------------------------------
   → Γ ⊢ TApp u v ∶ substTop {t = λ (@0 v) → Type v} r v c
 tyApp' {r = rezz α} tyu tyv = TyApp tyu tyv
+{-# COMPILE AGDA2HS tyApp' #-}
 
 tyCase' : {@0 Γ : Context α} 
   {d : NameIn dataScope}
