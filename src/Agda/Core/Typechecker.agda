@@ -148,7 +148,7 @@ inferDef : ∀ Γ (f : NameIn defScope)
          → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f ∶ ty)
 inferDef ctx f = do
   ty ⟨ eq ⟩ ← tcmGetType f
-  return $ _ , subst0 (λ ty → TyTerm ctx (TDef f) (weakenType subEmpty ty)) eq TyDef
+  return $ _ , tyDef' ty eq
 {-# COMPILE AGDA2HS inferDef #-}
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
@@ -164,7 +164,7 @@ checkSubst ctx t ⌈ _ ↦ x ◃ s ⌉ =
                 (concatSubst (subToSubst r (subJoinHere _ subRefl)) SNil)
       stel = substTelescope ⌈ _ ↦ x ◃ sstel ⌉ rest
     tyrest ← checkSubst ctx stel s
-    return (TyCons tyx tyrest)
+    return (tyCons' tyx tyrest)
 {-# COMPILE AGDA2HS checkSubst #-}
 
 inferData : (Γ : Context α) (d : NameIn dataScope)

@@ -197,7 +197,7 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
               (let (c∈cons , con ) = dataConstructors dt c
                    fields = fieldScope (⟨ _ ⟩ c∈cons)
                    β = ~ fields <> α)
-              {@0 r : Rezz fields}
+              {@0 r : Rezz fields} {- TODO: remove Rezz via helper function -}
               {@0 αRun : Rezz α}
               (rhs : Term β)
               (let rr = rezz~ r
@@ -235,15 +235,23 @@ data TySubst {α} Γ where
   TyNil  :
     -----------------------------------------------------------
     Γ ⊢ˢ  ⌈⌉ ∶ EmptyTel
-  TyCons : {@0 r : Rezz α}
-    → Γ ⊢ u ∶ a
-    → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃ idSubst r ⌉ tel)
+  TyCons :
+    Γ ⊢ u ∶ a
+    → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃ idSubst (rezz α) ⌉ tel)
     -----------------------------------------------------------
     → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ (ExtendTel x a tel)
 
 {-# COMPILE AGDA2HS TySubst #-}
 
 {-  Helper functions to deal with erased signature in TypeChecker -}
+
+tyDef' : {@0 Γ : Context α}
+  {f : NameIn defScope}
+  (@0 ty : Type mempty) → @0 getType sig f ≡ ty
+  ----------------------------------------------
+  → Γ ⊢ TDef f ∶ weaken subEmpty ty
+tyDef' ty refl = TyDef
+{-# COMPILE AGDA2HS tyDef' #-}
 
 tyData' : {@0 Γ : Context α}
   {d : NameIn dataScope}
@@ -305,3 +313,11 @@ tyCase' : {@0 Γ : Context α}
 tyCase' dt refl {αRun = α ⟨ refl ⟩} {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
   TyCase wfReturn tyCases tyu
 {-# COMPILE AGDA2HS tyCase' #-}
+
+tyCons' : {@0 Γ : Context α} {@0 αRun : Rezz α}
+  → Γ ⊢ u ∶ a
+  → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃ idSubst αRun ⌉ tel)
+  -----------------------------------------------------------
+  → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ (ExtendTel x a tel)
+tyCons' {αRun = α ⟨ refl ⟩} tyu tyus = TyCons tyu tyus
+{-# COMPILE AGDA2HS tyCon' #-}
