@@ -84,7 +84,7 @@ data TyTerm {α} Γ where
       {@0 iSubst : dataIxScope d ⇒ α}
       (let dt : Datatype (dataParScope d) (dataIxScope d)
            dt = sigData sig d)
-    
+
     → Γ ⊢ˢ pSubst ∶ (weaken subEmpty (dataParameterTel dt))
     → Γ ⊢ˢ iSubst ∶ (substTelescope pSubst (dataIndexTel dt))
     ----------------------------------------------
@@ -98,7 +98,7 @@ data TyTerm {α} Γ where
       {c : NameIn (dataConstructorScope dt)}
       (let (cp , con) = dataConstructors dt c)
       {@0 us : fieldScope (⟨ _ ⟩ cp) ⇒ α}
-    
+
     → Γ ⊢ˢ us ∶ (substTelescope pars (conTelescope con))
     -----------------------------------------------------------
     → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (subst pars (dataSort dt)) pars us
@@ -131,7 +131,7 @@ data TyTerm {α} Γ where
          α'Subst : α' ⇒ α                                        -- subst of α' to α
          α'Subst = concatSubst (revSubst iSubst) (idSubst αRun))
     {cases : Branches α (dataConstructorScope dt)}                -- cases for constructors of dt
-    {return : Type (x ◃ α')}                                      -- return type 
+    {return : Type (x ◃ α')}                                      -- return type
     (let αInα' : α ⊆ α'
          αInα' = subJoinDrop (rezz~ iRun) subRefl              -- proof that α is in α'
 
@@ -163,7 +163,7 @@ data TyTerm {α} Γ where
     -------------------------------------------
     Γ ⊢ TSort k ∶ sortType (sucSort k)
 
-  TyLet : 
+  TyLet :
     Γ ⊢ u ∶ a
     → Γ , x ∶ a ⊢ v ∶ weakenType (subWeaken subRefl) b
     ----------------------------------------------
@@ -232,7 +232,7 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
 {-# COMPILE AGDA2HS TyBranch #-}
 
 data TySubst {α} Γ where
-  TyNil  : 
+  TyNil  :
     -----------------------------------------------------------
     Γ ⊢ˢ  ⌈⌉ ∶ EmptyTel
   TyCons : {@0 r : Rezz α}
@@ -245,8 +245,8 @@ data TySubst {α} Γ where
 
 {-  Helper functions to deal with erased signature in TypeChecker -}
 
-tyData' : {@0 Γ : Context α} 
-  {d : NameIn dataScope} 
+tyData' : {@0 Γ : Context α}
+  {d : NameIn dataScope}
   (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt
   → {@0 pars : dataParScope d ⇒ α}
   → {@0 ixs  : dataIxScope d  ⇒ α}
@@ -258,8 +258,8 @@ tyData' dt refl typars tyixs = TyData typars tyixs
 {-# COMPILE AGDA2HS tyData' #-}
 
 
-tyCon' : {@0 Γ : Context α} 
-  {d : NameIn dataScope} 
+tyCon' : {@0 Γ : Context α}
+  {d : NameIn dataScope}
   (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt
   → (c : NameIn (dataConstructorScope dt))
   → (let (cp , con) = dataConstructors dt c)
@@ -279,7 +279,7 @@ tyApp' : {@0 Γ : Context α} {b : Type α} {c : Type (x ◃ α)} {@0 r : Rezz �
 tyApp' {r = rezz α} tyu tyv = TyApp tyu tyv
 {-# COMPILE AGDA2HS tyApp' #-}
 
-tyCase' : {@0 Γ : Context α} 
+tyCase' : {@0 Γ : Context α}
   {d : NameIn dataScope}
   (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt
    → (let pScope = dataParScope d
@@ -302,6 +302,6 @@ tyCase' : {@0 Γ : Context α}
   → Γ ⊢ u ∶ dataType d k pSubst iSubst
   --------------------------------------------------
   → Γ ⊢ TCase d iRun u cases return ∶ return'
-tyCase' dt refl {αRun = α ⟨ refl ⟩} {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu = 
+tyCase' dt refl {αRun = α ⟨ refl ⟩} {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
   TyCase wfReturn tyCases tyu
-{-# COMPILE AGDA2HS tyCase' #-} 
+{-# COMPILE AGDA2HS tyCase' #-}

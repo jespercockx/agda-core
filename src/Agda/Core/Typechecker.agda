@@ -303,4 +303,3 @@ inferSort ctx t = do
   return $ s , TyConv dt cp
 
 {-# COMPILE AGDA2HS inferSort #-}
-   

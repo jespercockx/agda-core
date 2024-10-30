@@ -266,7 +266,7 @@ weakenBranches p (BsCons b bs) = BsCons (weakenBranch p b) (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenBranches #-}
 
 weakenSubst p ⌈⌉ = ⌈⌉
-weakenSubst p ⌈ _ ↦ u ◃ e ⌉ = ⌈ _ ↦ (weakenTerm p u) ◃ (weakenSubst p e) ⌉  
+weakenSubst p ⌈ _ ↦ u ◃ e ⌉ = ⌈ _ ↦ (weakenTerm p u) ◃ (weakenSubst p e) ⌉
 {-# COMPILE AGDA2HS weakenSubst #-}
 
 record Weaken (t : @0 Scope Name → Set) : Set where
@@ -325,8 +325,8 @@ opaque
   subToSubst : Rezz α → α ⊆ β → α ⇒ β
   subToSubst (rezz []) p = ⌈⌉
   subToSubst (rezz (Erased x ∷ α)) p =
-    ⌈ x ↦ (TVar (⟨ x ⟩ coerce p inHere)) ◃ (subToSubst (rezz α) (joinSubRight (rezz _) p)) ⌉ 
-          
+    ⌈ x ↦ (TVar (⟨ x ⟩ coerce p inHere)) ◃ (subToSubst (rezz α) (joinSubRight (rezz _) p)) ⌉
+
 
 {-# COMPILE AGDA2HS subToSubst #-}
 
@@ -353,7 +353,7 @@ idSubst r = subst0 (λ β → β ⇒ β) (rightIdentity _) (liftSubst r ⌈⌉)
 {-# COMPILE AGDA2HS idSubst #-}
 
 liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → (bind x α) ⇒ (bind y β)
-liftBindSubst {y = y} e = ⌈ _ ↦ (TVar (⟨ y ⟩ inHere)) ◃ (weakenSubst (subBindDrop subRefl) e) ⌉  
+liftBindSubst {y = y} e = ⌈ _ ↦ (TVar (⟨ y ⟩ inHere)) ◃ (weakenSubst (subBindDrop subRefl) e) ⌉
 {-# COMPILE AGDA2HS liftBindSubst #-}
 
 raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
@@ -409,7 +409,7 @@ strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthenTerm (subJoinKeep
 strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs
 
-strengthenSubst p ⌈⌉ = Just ⌈⌉ 
+strengthenSubst p ⌈⌉ = Just ⌈⌉
 strengthenSubst p ⌈ x ↦ v ◃ vs ⌉ = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
 
 {-# COMPILE AGDA2HS strengthenTerm #-}
@@ -445,4 +445,3 @@ instance
 {-# COMPILE AGDA2HS iStrengthenBranch #-}
 {-# COMPILE AGDA2HS iStrengthenBranches #-}
 {-# COMPILE AGDA2HS iStrengthenSubst #-}
- 
