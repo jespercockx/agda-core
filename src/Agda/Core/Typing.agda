@@ -142,7 +142,7 @@ data TyTerm {α} Γ where
          tx = dataType d (weaken αInα' k) (weaken αInα' pSubst) iSubst'
 
          return' : Type α
-         return' = subst ⌈ x ↦ u ◃◃ α'Subst ⌉ return)
+         return' = subst ⌈ x ↦ u ◃ α'Subst ⌉ return)
 
     → Γ' , x ∶ tx ⊢ unType return ∶ sortType (typeSort return) -- if return is well formed
     → TyBranches Γ dt pSubst return cases                     -- if each case is well typed
@@ -221,7 +221,7 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
                    idsubst = weaken (subJoinDrop rr subRefl) (idSubst αRun)
 
                    bsubst : (x ◃ (~ iScope <> α)) ⇒ β
-                   bsubst = ⌈ x ↦ TCon (⟨ _ ⟩ c∈cons) cargs ◃◃ concatSubst (revSubst ixsubst) idsubst ⌉
+                   bsubst = ⌈ x ↦ TCon (⟨ _ ⟩ c∈cons) cargs ◃ concatSubst (revSubst ixsubst) idsubst ⌉
 
                    return' : Type β
                    return' = subst bsubst return)
@@ -237,9 +237,9 @@ data TySubst {α} Γ where
     Γ ⊢ˢ  ⌈⌉ ∶ EmptyTel
   TyCons : {@0 r : Rezz α}
     → Γ ⊢ u ∶ a
-    → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃◃ idSubst r ⌉ tel)
+    → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃ idSubst r ⌉ tel)
     -----------------------------------------------------------
-    → Γ ⊢ˢ ⌈ x ↦ u ◃◃ us ⌉ ∶ (ExtendTel x a tel)
+    → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ (ExtendTel x a tel)
 
 {-# COMPILE AGDA2HS TySubst #-}
 
@@ -296,7 +296,7 @@ tyCase' : {@0 Γ : Context α}
   (let αInα' = subJoinDrop (rezz~ iRun) subRefl
        Γ' = addContextTel (substTelescope pSubst (dataIndexTel dt)) Γ
        tx = dataType d (weaken αInα' k) (weaken αInα' pSubst) iSubst'
-       return' = subst ⌈ x ↦ u ◃◃ α'Subst ⌉ return)
+       return' = subst ⌈ x ↦ u ◃ α'Subst ⌉ return)
   → Γ' , x ∶ tx ⊢ unType return ∶ sortType (typeSort return)
   → TyBranches Γ dt pSubst return cases
   → Γ ⊢ u ∶ dataType d k pSubst iSubst

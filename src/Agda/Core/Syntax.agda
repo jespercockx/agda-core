@@ -49,10 +49,10 @@ infix 5 Subst
 syntax Subst α β = α ⇒ β
 
 pattern ⌈⌉ = SNil
-infix 6 ⌈_↦_◃◃_⌉
-pattern ⌈_↦_◃◃_⌉ x u σ = SCons {x = x} u σ
-infix 4 ⌈_↦_⌉
-pattern ⌈_↦_⌉ x u = ⌈ x ↦ u ◃◃ ⌈⌉ ⌉
+infix 6 ⌈_↦_◃_⌉
+pattern ⌈_↦_◃_⌉ x u σ = SCons {x = x} u σ
+infix 4 ⌈_↦_◃⌉
+pattern ⌈_↦_◃⌉ x u = ⌈ x ↦ u ◃ ⌈⌉ ⌉
 
 
 
@@ -155,7 +155,7 @@ applys {γ = γ} v (u ∷ us) = applys (TApp v u) us
 
 applySubst : Term γ → (β ⇒ γ) → Term γ
 applySubst {γ = γ} v ⌈⌉ = v
-applySubst {γ = γ} v ⌈ _ ↦ u ◃◃ us ⌉ = applySubst (TApp v u) us
+applySubst {γ = γ} v ⌈ _ ↦ u ◃ us ⌉ = applySubst (TApp v u) us
 {-# COMPILE AGDA2HS applySubst #-}
 
 
@@ -207,7 +207,7 @@ lookupSubst : α ⇒ β
             → x ∈ α
             → Term β
 lookupSubst ⌈⌉ x q = inEmptyCase q
-lookupSubst ⌈ _ ↦ u ◃◃ f ⌉ x q = inBindCase q (λ _ → u) (lookupSubst f x)
+lookupSubst ⌈ _ ↦ u ◃ f ⌉ x q = inBindCase q (λ _ → u) (lookupSubst f x)
 
 {-# COMPILE AGDA2HS lookupSubst #-}
 
@@ -215,9 +215,9 @@ opaque
   unfolding Scope
 
   caseSubstBind : (s : (x ◃ α) ⇒ β)
-                → ((t : Term β) → (s' : α ⇒ β) → @0 {{s ≡ ⌈ x ↦ t ◃◃ s' ⌉}} → d)
+                → ((t : Term β) → (s' : α ⇒ β) → @0 {{s ≡ ⌈ x ↦ t ◃ s' ⌉}} → d)
                 → d
-  caseSubstBind ⌈ _ ↦ x ◃◃ s ⌉ f = f x s
+  caseSubstBind ⌈ _ ↦ x ◃ s ⌉ f = f x s
 
   {-# COMPILE AGDA2HS caseSubstBind #-}
 
@@ -266,7 +266,7 @@ weakenBranches p (BsCons b bs) = BsCons (weakenBranch p b) (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenBranches #-}
 
 weakenSubst p ⌈⌉ = ⌈⌉
-weakenSubst p ⌈ _ ↦ u ◃◃ e ⌉ = ⌈ _ ↦ (weakenTerm p u) ◃◃ (weakenSubst p e) ⌉  
+weakenSubst p ⌈ _ ↦ u ◃ e ⌉ = ⌈ _ ↦ (weakenTerm p u) ◃ (weakenSubst p e) ⌉  
 {-# COMPILE AGDA2HS weakenSubst #-}
 
 record Weaken (t : @0 Scope Name → Set) : Set where
@@ -314,8 +314,8 @@ listSubst (rezz β) (v ∷ vs) =
 concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
 concatSubst ⌈⌉ q =
   subst0 (λ α → α ⇒ _) (sym (leftIdentity _)) q
-concatSubst ⌈ _ ↦ v ◃◃ p ⌉ q =
-  subst0 (λ α → α ⇒ _) (associativity _ _ _) ⌈ _ ↦ v ◃◃ concatSubst p q ⌉
+concatSubst ⌈ _ ↦ v ◃ p ⌉ q =
+  subst0 (λ α → α ⇒ _) (associativity _ _ _) ⌈ _ ↦ v ◃ concatSubst p q ⌉
 
 {-# COMPILE AGDA2HS concatSubst #-}
 
@@ -325,7 +325,7 @@ opaque
   subToSubst : Rezz α → α ⊆ β → α ⇒ β
   subToSubst (rezz []) p = ⌈⌉
   subToSubst (rezz (Erased x ∷ α)) p =
-    ⌈ x ↦ (TVar (⟨ x ⟩ coerce p inHere)) ◃◃ (subToSubst (rezz α) (joinSubRight (rezz _) p)) ⌉ 
+    ⌈ x ↦ (TVar (⟨ x ⟩ coerce p inHere)) ◃ (subToSubst (rezz α) (joinSubRight (rezz _) p)) ⌉ 
           
 
 {-# COMPILE AGDA2HS subToSubst #-}
@@ -335,7 +335,7 @@ opaque
 
   revSubstAcc : {@0 α β γ : Scope Name} → α ⇒ γ → β ⇒ γ → (revScopeAcc α β) ⇒ γ
   revSubstAcc ⌈⌉ p = p
-  revSubstAcc ⌈ y ↦ x ◃◃ s ⌉ p = revSubstAcc s ⌈ y ↦ x ◃◃ p ⌉
+  revSubstAcc ⌈ y ↦ x ◃ s ⌉ p = revSubstAcc s ⌈ y ↦ x ◃ p ⌉
   {-# COMPILE AGDA2HS revSubstAcc #-}
 
   revSubst : {@0 α β : Scope Name} → α ⇒ β → ~ α ⇒ β
@@ -353,7 +353,7 @@ idSubst r = subst0 (λ β → β ⇒ β) (rightIdentity _) (liftSubst r ⌈⌉)
 {-# COMPILE AGDA2HS idSubst #-}
 
 liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → (bind x α) ⇒ (bind y β)
-liftBindSubst {y = y} e = ⌈ _ ↦ (TVar (⟨ y ⟩ inHere)) ◃◃ (weakenSubst (subBindDrop subRefl) e) ⌉  
+liftBindSubst {y = y} e = ⌈ _ ↦ (TVar (⟨ y ⟩ inHere)) ◃ (weakenSubst (subBindDrop subRefl) e) ⌉  
 {-# COMPILE AGDA2HS liftBindSubst #-}
 
 raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
@@ -361,7 +361,7 @@ raiseSubst {β = β} r ⌈⌉ = subst (λ α → α ⇒ β) (sym (leftIdentity �
 raiseSubst {β = β} r (SCons {α = α} u e) =
   subst (λ α → α ⇒ β)
     (associativity (singleton _) α β)
-    ⌈ _ ↦ u ◃◃ raiseSubst r e ⌉
+    ⌈ _ ↦ u ◃ raiseSubst r e ⌉
 {-# COMPILE AGDA2HS raiseSubst #-}
 
 revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
@@ -410,7 +410,7 @@ strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs
 
 strengthenSubst p ⌈⌉ = Just ⌈⌉ 
-strengthenSubst p ⌈ x ↦ v ◃◃ vs ⌉ = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
+strengthenSubst p ⌈ x ↦ v ◃ vs ⌉ = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
 
 {-# COMPILE AGDA2HS strengthenTerm #-}
 {-# COMPILE AGDA2HS strengthenType #-}
