@@ -79,7 +79,7 @@ checkCoverage dt bs =
 {-# COMPILE AGDA2HS checkCoverage #-}
 
 inferVar : ∀ Γ (x : NameIn α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
-inferVar ctx x = return $ _ , TyTVar x
+inferVar ctx x = return $ _ , TyTVar
 {-# COMPILE AGDA2HS inferVar #-}
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
@@ -104,7 +104,7 @@ inferApp ctx u v = do
   let tytype = substTop r v rt
       gc = CRedL rtp CRefl
       gtu' =  TyConv {b = El (typeSort tu) (TPi x at rt)} gtu gc
-  return (tytype , TyApp gtu' gtv)
+  return (tytype , tyApp' gtu' gtv)
 {-# COMPILE AGDA2HS inferApp #-}
 
 inferCase : ∀ {@0 cs} Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
@@ -124,7 +124,7 @@ inferCase ctx d rixs u bs rt = do
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
 
-  return (_ , TyCase {k = ds} {r = r} d df deq rixs bs rt grt cb gtu')
+  return (_ , tyCase' {k = ds} df deq {αRun = r} {iRun = rixs} grt cb gtu')
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -148,13 +148,13 @@ inferDef : ∀ Γ (f : NameIn defScope)
          → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TDef f ∶ ty)
 inferDef ctx f = do
   ty ⟨ eq ⟩ ← tcmGetType f
-  return $ _ , subst0 (λ ty → TyTerm ctx (TDef f) (weakenType subEmpty ty)) eq (TyDef f)
+  return $ _ , tyDef' ty eq
 {-# COMPILE AGDA2HS inferDef #-}
 
 checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
 checkSubst ctx t SNil =
   caseTelEmpty t λ where ⦃ refl ⦄ → return TyNil
-checkSubst ctx t (SCons x s) =
+checkSubst ctx t ⌈ _ ↦ x ◃ s ⌉ =
   caseTelBind t λ where ty rest ⦃ refl ⦄ → do
     tyx ← checkType ctx x ty
     let
@@ -162,9 +162,9 @@ checkSubst ctx t (SCons x s) =
       sstel = subst0 (λ (@0 β) → Subst β β)
                 (IsLawfulMonoid.rightIdentity iLawfulMonoidScope _)
                 (concatSubst (subToSubst r (subJoinHere _ subRefl)) SNil)
-      stel = substTelescope (SCons x sstel) rest
+      stel = substTelescope ⌈ _ ↦ x ◃ sstel ⌉ rest
     tyrest ← checkSubst ctx stel s
-    return (TyCons tyx tyrest)
+    return (tyCons' tyx tyrest)
 {-# COMPILE AGDA2HS checkSubst #-}
 
 inferData : (Γ : Context α) (d : NameIn dataScope)
@@ -174,7 +174,7 @@ inferData ctx d pars ixs = do
   dt ⟨ deq ⟩ ← tcmGetDatatype d
   typars ← checkSubst ctx (weaken subEmpty (dataParameterTel dt)) pars
   tyixs ← checkSubst ctx (substTelescope pars (dataIndexTel dt)) ixs
-  return (sortType (subst pars (dataSort dt)) , TyData d dt deq typars tyixs)
+  return (sortType (subst pars (dataSort dt)) , tyData' dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
 checkBranch : ∀ {@0 con : Name} (Γ : Context α)
@@ -188,7 +188,7 @@ checkBranch ctx (BBranch c r rhs) dt ps rt = do
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
   crhs ← checkType _ _ _
-  return (TyBBranch (⟨ _ ⟩ cid) {rα = ra} rhs crhs)
+  return (TyBBranch (⟨ _ ⟩ cid) {αRun = ra} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
 checkBranches ctx (rezz cons) bs dt ps rt =
@@ -209,14 +209,14 @@ checkCon ctx c cargs (El s ty) = do
   let r = rezzScope ctx
   d , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
     "can't typecheck a constrctor with a type that isn't a def application"
-  df ⟨ deq ⟩ ← tcmGetDatatype d
-  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c df)
+  dt ⟨ deq ⟩ ← tcmGetDatatype d
+  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
-  let con = snd (dataConstructors df (⟨ _ ⟩ cid))
+  let con = snd (dataConstructors dt (⟨ _ ⟩ cid))
       ctel = substTelescope params (conTelescope con)
-      ctype = constructorType d c con (subst params (dataSort df)) params cargs
+      ctype = constructorType d c con (subst params (dataSort dt)) params cargs
   tySubst ← checkSubst ctx ctel cargs
-  checkCoerce ctx (TCon c cargs) (ctype , TyCon d df deq (⟨ _ ⟩ cid) tySubst) (El s ty)
+  checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt deq (⟨ _ ⟩ cid) tySubst) (El s ty)
 {-# COMPILE AGDA2HS checkCon #-}
 
 checkLambda : ∀ Γ (@0 x : Name)
@@ -233,7 +233,7 @@ checkLambda ctx x u (El s ty) = do
 
   d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
 
-  return $ TyConv (TyLam {k = sp} {r = r} d) gc
+  return $ TyConv (TyLam {k = sp} d) gc
 
 {-# COMPILE AGDA2HS checkLambda #-}
 
@@ -245,7 +245,7 @@ checkLet : ∀ Γ (@0 x : Name)
 checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
   dtv       ← checkType (ctx , x ∶ tu) v (weaken (subWeaken subRefl) ty)
-  return $ TyLet {r = rezzScope ctx} dtu dtv
+  return $ TyLet dtu dtv
 {-# COMPILE AGDA2HS checkLet #-}
 
 

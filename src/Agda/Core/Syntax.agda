@@ -42,11 +42,20 @@ open Type public
 
 data Subst : (@0 α β : Scope Name) → Set where
   SNil  : Subst mempty β
-  SCons : Term β → Subst α β → Subst (x ◃ α) β
+  SCons :  Term β → Subst α β → Subst (x ◃ α) β
 {-# COMPILE AGDA2HS Subst deriving Show #-}
 
 infix 5 Subst
 syntax Subst α β = α ⇒ β
+
+pattern ⌈⌉ = SNil
+infix 6 ⌈_↦_◃_⌉
+pattern ⌈_↦_◃_⌉ x u σ = SCons {x = x} u σ
+infix 4 ⌈_↦_◃⌉
+pattern ⌈_↦_◃⌉ x u = ⌈ x ↦ u ◃ ⌈⌉ ⌉
+
+
+
 
 -- This should ideally be the following:
 --   Subst α β = All (λ _ → Term β) α
@@ -145,8 +154,8 @@ applys {γ = γ} v (u ∷ us) = applys (TApp v u) us
 {-# COMPILE AGDA2HS applys #-}
 
 applySubst : Term γ → (β ⇒ γ) → Term γ
-applySubst {γ = γ} v SNil = v
-applySubst {γ = γ} v (SCons u us) = applySubst (TApp v u) us
+applySubst {γ = γ} v ⌈⌉ = v
+applySubst {γ = γ} v ⌈ _ ↦ u ◃ us ⌉ = applySubst (TApp v u) us
 {-# COMPILE AGDA2HS applySubst #-}
 
 
@@ -197,18 +206,18 @@ lookupSubst : α ⇒ β
             → (@0 x : Name)
             → x ∈ α
             → Term β
-lookupSubst SNil x q = inEmptyCase q
-lookupSubst (SCons u f) x q = inBindCase q (λ _ → u) (lookupSubst f x)
+lookupSubst ⌈⌉ x q = inEmptyCase q
+lookupSubst ⌈ _ ↦ u ◃ f ⌉ x q = inBindCase q (λ _ → u) (lookupSubst f x)
 
 {-# COMPILE AGDA2HS lookupSubst #-}
 
 opaque
   unfolding Scope
 
-  caseSubstBind : (s : Subst (x ◃ α) β)
-                → ((t : Term β) → (s' : Subst α β) → @0 {{s ≡ SCons t s'}} → d)
+  caseSubstBind : (s : (x ◃ α) ⇒ β)
+                → ((t : Term β) → (s' : α ⇒ β) → @0 {{s ≡ ⌈ x ↦ t ◃ s' ⌉}} → d)
                 → d
-  caseSubstBind (SCons x s) f = f x s
+  caseSubstBind ⌈ _ ↦ x ◃ s ⌉ f = f x s
 
   {-# COMPILE AGDA2HS caseSubstBind #-}
 
@@ -227,7 +236,7 @@ weakenSort     : α ⊆ β → Sort α → Sort β
 weakenType     : α ⊆ β → Type α → Type β
 weakenBranch   : α ⊆ β → Branch α c → Branch β c
 weakenBranches : α ⊆ β → Branches α cs → Branches β cs
-weakenSubst    : β ⊆ γ → Subst α β → Subst α γ
+weakenSubst    : β ⊆ γ → α ⇒ β → α ⇒ γ
 
 weakenTerm p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
 weakenTerm p (TDef d)          = TDef d
@@ -256,8 +265,8 @@ weakenBranches p BsNil         = BsNil
 weakenBranches p (BsCons b bs) = BsCons (weakenBranch p b) (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenBranches #-}
 
-weakenSubst p SNil = SNil
-weakenSubst p (SCons u e) = SCons (weakenTerm p u) (weakenSubst p e)
+weakenSubst p ⌈⌉ = ⌈⌉
+weakenSubst p ⌈ _ ↦ u ◃ e ⌉ = ⌈ _ ↦ (weakenTerm p u) ◃ (weakenSubst p e) ⌉
 {-# COMPILE AGDA2HS weakenSubst #-}
 
 record Weaken (t : @0 Scope Name → Set) : Set where
@@ -303,10 +312,10 @@ listSubst (rezz β) (v ∷ vs) =
 {-# COMPILE AGDA2HS listSubst #-}
 
 concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
-concatSubst SNil q =
-  subst0 (λ α → Subst α _) (sym (leftIdentity _)) q
-concatSubst (SCons v p) q =
-  subst0 (λ α → Subst α _) (associativity _ _ _) (SCons v (concatSubst p q))
+concatSubst ⌈⌉ q =
+  subst0 (λ α → α ⇒ _) (sym (leftIdentity _)) q
+concatSubst ⌈ _ ↦ v ◃ p ⌉ q =
+  subst0 (λ α → α ⇒ _) (associativity _ _ _) ⌈ _ ↦ v ◃ concatSubst p q ⌉
 
 {-# COMPILE AGDA2HS concatSubst #-}
 
@@ -314,10 +323,10 @@ opaque
   unfolding Scope Sub
 
   subToSubst : Rezz α → α ⊆ β → α ⇒ β
-  subToSubst (rezz []) p = SNil
+  subToSubst (rezz []) p = ⌈⌉
   subToSubst (rezz (Erased x ∷ α)) p =
-    SCons (TVar (⟨ x ⟩ coerce p inHere))
-          (subToSubst (rezz α) (joinSubRight (rezz _) p))
+    ⌈ x ↦ (TVar (⟨ x ⟩ coerce p inHere)) ◃ (subToSubst (rezz α) (joinSubRight (rezz _) p)) ⌉
+
 
 {-# COMPILE AGDA2HS subToSubst #-}
 
@@ -325,12 +334,12 @@ opaque
   unfolding Scope revScope
 
   revSubstAcc : {@0 α β γ : Scope Name} → α ⇒ γ → β ⇒ γ → (revScopeAcc α β) ⇒ γ
-  revSubstAcc SNil p = p
-  revSubstAcc (SCons x s) p = revSubstAcc s (SCons x p)
+  revSubstAcc ⌈⌉ p = p
+  revSubstAcc ⌈ y ↦ x ◃ s ⌉ p = revSubstAcc s ⌈ y ↦ x ◃ p ⌉
   {-# COMPILE AGDA2HS revSubstAcc #-}
 
   revSubst : {@0 α β : Scope Name} → α ⇒ β → ~ α ⇒ β
-  revSubst = flip revSubstAcc SNil
+  revSubst = flip revSubstAcc ⌈⌉
   {-# COMPILE AGDA2HS revSubst #-}
 
 liftSubst : {@0 α β γ : Scope Name} → Rezz α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
@@ -340,19 +349,19 @@ liftSubst r f =
 {-# COMPILE AGDA2HS liftSubst #-}
 
 idSubst : {@0 β : Scope Name} → Rezz β → β ⇒ β
-idSubst r = subst0 (λ β → Subst β β) (rightIdentity _) (liftSubst r SNil)
+idSubst r = subst0 (λ β → β ⇒ β) (rightIdentity _) (liftSubst r ⌈⌉)
 {-# COMPILE AGDA2HS idSubst #-}
 
 liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → (bind x α) ⇒ (bind y β)
-liftBindSubst {y = y} e = SCons (TVar (⟨ y ⟩ inHere)) (weakenSubst (subBindDrop subRefl) e)
+liftBindSubst {y = y} e = ⌈ _ ↦ (TVar (⟨ y ⟩ inHere)) ◃ (weakenSubst (subBindDrop subRefl) e) ⌉
 {-# COMPILE AGDA2HS liftBindSubst #-}
 
 raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
-raiseSubst {β = β} r SNil = subst (λ α → α ⇒ β) (sym (leftIdentity β)) (idSubst r)
+raiseSubst {β = β} r ⌈⌉ = subst (λ α → α ⇒ β) (sym (leftIdentity β)) (idSubst r)
 raiseSubst {β = β} r (SCons {α = α} u e) =
   subst (λ α → α ⇒ β)
     (associativity (singleton _) α β)
-    (SCons u (raiseSubst r e))
+    ⌈ _ ↦ u ◃ raiseSubst r e ⌉
 {-# COMPILE AGDA2HS raiseSubst #-}
 
 revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
@@ -400,8 +409,8 @@ strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthenTerm (subJoinKeep
 strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs
 
-strengthenSubst p SNil = Just SNil
-strengthenSubst p (SCons v vs) = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
+strengthenSubst p ⌈⌉ = Just ⌈⌉
+strengthenSubst p ⌈ x ↦ v ◃ vs ⌉ = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
 
 {-# COMPILE AGDA2HS strengthenTerm #-}
 {-# COMPILE AGDA2HS strengthenType #-}
