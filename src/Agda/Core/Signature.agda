@@ -27,20 +27,24 @@ data Telescope (@0 α : Scope Name) : @0 Scope Name → Set where
   EmptyTel  : Telescope α mempty
   ExtendTel : (@0 x : Name) → Type α → Telescope (x ◃ α) β  → Telescope α (x ◃ β)
 
+pattern ⌈⌉ = EmptyTel
+infix 6 ⌈_∶_◃_⌉
+pattern ⌈_∶_◃_⌉ x t Δ = ExtendTel x t Δ
+
 {-# COMPILE AGDA2HS Telescope #-}
 
 opaque
   unfolding Scope
 
   caseTelEmpty : (tel : Telescope α mempty)
-               → (@0 {{tel ≡ EmptyTel}} → d)
+               → (@0 {{tel ≡ ⌈⌉}} → d)
                → d
-  caseTelEmpty EmptyTel f = f
+  caseTelEmpty ⌈⌉ f = f
 
   caseTelBind : (tel : Telescope α (x ◃ β))
               → ((a : Type α) (rest : Telescope (x ◃ α) β) → @0 {{tel ≡ ExtendTel x a rest}} → d)
               → d
-  caseTelBind (ExtendTel _ a tel) f = f a tel
+  caseTelBind ⌈ _ ∶ a ◃ tel ⌉ f = f a tel
 
 {-# COMPILE AGDA2HS caseTelEmpty #-}
 {-# COMPILE AGDA2HS caseTelBind #-}
@@ -116,8 +120,8 @@ getConstructor c d =
 {-# COMPILE AGDA2HS getConstructor #-}
 
 weakenTel : α ⊆ γ → Telescope α β → Telescope γ β
-weakenTel p EmptyTel = EmptyTel
-weakenTel p (ExtendTel x ty t) = ExtendTel x (weaken p ty) (weakenTel (subBindKeep p) t)
+weakenTel p ⌈⌉ = ⌈⌉
+weakenTel p ⌈ x ∶ ty ◃ t ⌉ = ⌈ x ∶ (weaken p ty) ◃ (weakenTel (subBindKeep p) t) ⌉
 
 {-# COMPILE AGDA2HS weakenTel #-}
 
@@ -127,8 +131,8 @@ instance
 {-# COMPILE AGDA2HS iWeakenTel #-}
 
 rezzTel : Telescope α β → Rezz β
-rezzTel EmptyTel = rezz _
-rezzTel (ExtendTel x ty t) = rezzCong (λ t → singleton x <> t) (rezzTel t)
+rezzTel ⌈⌉ = rezz _
+rezzTel ⌈ x ∶ ty ◃ t ⌉ = rezzCong (λ t → singleton x <> t) (rezzTel t)
 
 {-# COMPILE AGDA2HS rezzTel #-}
 

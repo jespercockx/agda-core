@@ -3,6 +3,7 @@ open import Scope
 open import Haskell.Prelude hiding (All; s; t)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
+open import Haskell.Law.Semigroup.Def
 
 open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
@@ -21,17 +22,21 @@ module Agda.Core.Unification
 
 private open module @0 G = Globals globals
 
-private variable
-  @0 x : Name
-  @0 α0 α α' β γ : Scope Name
+---------------------------------------------------------------------------------------------------
+                        {- PART ONE : Definition of telescopic equality -}
+---------------------------------------------------------------------------------------------------
 
 
-{- A module where :
+module TelescopeEq where
+  {- A module where :
     - auxiliary datatypes are defined for the two telescopic equality
     - equivalence between the auxiliary datatypes for telescopic equality is proved
    Read it if you want to understand the structure behind telescopic equality.
--}
-module TelescopeEq where
+  -}
+
+  private variable
+    @0 x : Name
+    @0 α0 α β : Scope Name
 
   {- Compact version of telescopic equality, where both parts of the equality are constructed step by step -}
   data Compact (@0 α0 : Scope Name) : (@0 α β : Scope Name) → Set where
@@ -56,14 +61,40 @@ module TelescopeEq where
     compactToExpanded EmptyEq = TelEq ⌈⌉ ⌈⌉ EmptyTel
     compactToExpanded (ExtendEq x u v A ΔEq) = do
       let TelEq δ₁ δ₂ Δ = compactToExpanded ΔEq
-      TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ (ExtendTel x A Δ)
+      TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ A ◃ Δ ⌉
 
     expandedToCompact : Expanded α0 α β → Compact α0 α β
     expandedToCompact (TelEq ⌈⌉ ⌈⌉ EmptyTel) = EmptyEq
-    expandedToCompact (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ (ExtendTel x A Δ)) = do
+    expandedToCompact (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ A ◃ Δ ⌉) = do
       let ΔEq = expandedToCompact (TelEq δ₁ δ₂ Δ)
       ExtendEq x u v A ΔEq
 
+  {-
+  {- it doesn't work : another version but without unfolding scope -}
+  compactToExpanded : Compact α0 α β → Expanded α0 α β
+  compactToExpanded EmptyEq = TelEq ⌈⌉ ⌈⌉ EmptyTel
+  compactToExpanded {α0} {α} (ExtendEq x u v A ΔEq) = do
+    let TelEq δ₁ δ₂ Δ = compactToExpanded ΔEq
+        Δ' = subst0 (λ γ → Telescope γ _)
+          (sym (IsLawfulSemigroup.associativity iLawfulSemigroupScope [ x ] α α0)) Δ
+    TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ (ExtendTel x A Δ')
+  opaque
+    unfolding Scope
+    caseConsBind : (σ : (x ◃ α) ⇒ β)
+               → ((a : Term β) (rest : α ⇒ β) → @0 {{σ ≡ ⌈ x ↦ a ◃ rest ⌉}} → d)
+                → d
+    caseConsBind ⌈ x ↦ u ◃ σ ⌉ f = f u σ
+
+  expandedToCompact : Expanded α0 α β → Compact α0 α β
+  expandedToCompact (TelEq ⌈⌉ _ _) = EmptyEq
+  expandedToCompact {α0} {α} (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ δ₂ Δ) = do
+    let telSubst = subst0 (λ γ → Telescope γ _)
+          (IsLawfulSemigroup.associativity iLawfulSemigroupScope [ x ] α α0)
+        res = λ δ₂' v A Δ₀ → ExtendEq x u v A (expandedToCompact (TelEq δ₁ δ₂' (telSubst Δ₀)))
+    caseConsBind δ₂
+      λ where v δ₂ ⦃ refl ⦄ →
+                caseTelBind Δ λ where A Δ₀ ⦃ refl ⦄ → res δ₂ v A Δ₀
+  -}
     {- The functions above form an equivalence -}
     equivLeft : (ΔEq : Compact α0 α β)
       → expandedToCompact (compactToExpanded ΔEq) ≡ ΔEq
@@ -74,30 +105,30 @@ module TelescopeEq where
 
     equivRight : (ΔEq' : Expanded α0 α β)
       → compactToExpanded (expandedToCompact ΔEq') ≡ ΔEq'
-    equivRight (TelEq ⌈⌉ ⌈⌉ EmptyTel) = refl
-    equivRight (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ (ExtendTel x A Δ)) = do
+    equivRight (TelEq ⌈⌉ ⌈⌉ ⌈⌉) = refl
+    equivRight (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ A ◃ Δ ⌉) = do
       let eH = equivRight (TelEq δ₁ δ₂ Δ)
-      cong (λ (TelEq δ₁ δ₂ Δ) → TelEq (SCons u δ₁) (SCons v δ₂) (ExtendTel x A Δ)) eH
+      cong (λ (TelEq δ₁ δ₂ Δ) → TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ A ◃ Δ ⌉) eH
+
+    equivalence : Equivalence (Compact α0 α β) (Expanded α0 α β)
+    equivalence = Equiv compactToExpanded expandedToCompact equivLeft equivRight
 
 {- End of module TelescopeEq -}
-
 
 telescopicEq : (@0 α β : Scope Name) → Set
 telescopicEq α β = TelescopeEq.Compact α mempty β
 
+pattern ⌈⌉ = TelescopeEq.EmptyEq
+infix 6 ⌈_≟_∶_◃_⌉
+pattern ⌈_≟_∶_◃_⌉ = TelescopeEq.ExtendEq
+
+
 telescopicEq' : (@0 α β : Scope Name) → Set
 telescopicEq' α β = TelescopeEq.Expanded α mempty β
 
-telEqCompactToExpanded : telescopicEq α β → telescopicEq' α β
-telEqCompactToExpanded ΔEqAux = TelescopeEq.compactToExpanded ΔEqAux
+equivalenceTelEq : {@0 α β : Scope Name} → Equivalence (telescopicEq α β) (telescopicEq' α β)
+equivalenceTelEq = TelescopeEq.equivalence
 
-telEqExpandedToCompact : telescopicEq' α β → telescopicEq α β
-telEqExpandedToCompact ΔEqAux' = TelescopeEq.expandedToCompact ΔEqAux'
-
-equivTelEqLeft : (ΔEq : telescopicEq α β)
-  → telEqExpandedToCompact (telEqCompactToExpanded ΔEq) ≡ ΔEq
-equivTelEqLeft ΔEq = TelescopeEq.equivLeft ΔEq
-
-equivTelEqRight : (ΔEq' : telescopicEq' α β)
-  → telEqCompactToExpanded (telEqExpandedToCompact ΔEq') ≡ ΔEq'
-equivTelEqRight ΔEq' = TelescopeEq.equivRight ΔEq'
+---------------------------------------------------------------------------------------------------
+                            {- PART TWO : Unification Step By Step -}
+---------------------------------------------------------------------------------------------------
