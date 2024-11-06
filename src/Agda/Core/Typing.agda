@@ -234,12 +234,12 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
 data TySubst {α} Γ where
   TyNil  :
     -----------------------------------------------------------
-    Γ ⊢ˢ  ⌈⌉ ∶ EmptyTel
+    Γ ⊢ˢ  ⌈⌉ ∶ ⌈⌉
   TyCons :
     Γ ⊢ u ∶ a
     → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃ idSubst (rezz α) ⌉ tel)
     -----------------------------------------------------------
-    → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ (ExtendTel x a tel)
+    → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ ⌈ x ∶ a ◃ tel ⌉
 
 {-# COMPILE AGDA2HS TySubst #-}
 
@@ -318,6 +318,6 @@ tyCons' : {@0 Γ : Context α} {@0 αRun : Rezz α}
   → Γ ⊢ u ∶ a
   → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃ idSubst αRun ⌉ tel)
   -----------------------------------------------------------
-  → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ (ExtendTel x a tel)
+  → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ ⌈ x ∶ a ◃ tel ⌉
 tyCons' {αRun = α ⟨ refl ⟩} tyu tyus = TyCons tyu tyus
 {-# COMPILE AGDA2HS tyCon' #-}
