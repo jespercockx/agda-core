@@ -14,7 +14,7 @@ symbols     input via agda          latex
 ⌈           cuL                     \lceil
 ⌉           cuR                     \rceil
 ↦           r-|                     \mapsto
-≟           ?=                      
+≟           ?=
 ↣           r->                     \rightarrowtail
 ᵤ           _u                      _u
 ---------------------------------------------------------------------------------------------------
@@ -36,7 +36,7 @@ For substitution and telescope :
 ⌈⌉                      SNil/EmptyTel/EmptyEq   empty substitution/telescope/telescopic equality
 ⌈ x ↦ u ◃ σ ⌉           SCons {x = x} u σ       extension of substitution σ where x is changed to u (a term)
 ⌈ x ∶ t ◃ Δ ⌉           ExtendTel x t Δ         extension of telescope Δ where x is of type t (a type)
-⌈ u ≟ v ∶ t ◃ ΔEq ⌉     ExtendEq u v t ΔEq      extension of telescopic equality ΔEq where u = v : t
+⌈ x ↦ u ≟ v ∶ t ◃ ΔEq ⌉ ExtendEq x u v t ΔEq    extension of telescopic equality ΔEq where x is u = v of type t
 
 For types :
 Γ ⊢ u ∶ t               TyTerm Γ u t            In context Γ, u (a term) is of type t (a type)
