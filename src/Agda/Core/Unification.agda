@@ -12,7 +12,6 @@ open import Agda.Core.Syntax
 open import Agda.Core.Signature
 open import Agda.Core.Substitute
 open import Agda.Core.Context
-open import Agda.Core.Typing
 
 
 module Agda.Core.Unification
@@ -30,45 +29,30 @@ private variable
                         {- PART ONE : Context manipulation -}
 ---------------------------------------------------------------------------------------------------
 
-data RigidSubst : (@0 α β : Scope Name) → Set where
-  RNil  : RigidSubst mempty mempty
-  RKeep : RigidSubst α β → RigidSubst (x ◃ α) (x ◃ β)
-  RCons : Term β → RigidSubst α β → RigidSubst (x ◃ α) β
-{-# COMPILE AGDA2HS RigidSubst deriving Show #-}
+data ShrinkSubst : (@0 α β : Scope Name) → Set where
+  RNil  : ShrinkSubst mempty mempty
+  RKeep : ShrinkSubst α β → ShrinkSubst (x ◃ α) (x ◃ β)
+  RCons : Term β → ShrinkSubst α β → ShrinkSubst (x ◃ α) β
+{-# COMPILE AGDA2HS ShrinkSubst deriving Show #-}
 
-{-
-idRigidSubst : RigidSubst α α
-idRigidSubst = {!   !}
--}
 
-rigidSubstToSubst : RigidSubst α β → α ⇒ β
-rigidSubstToSubst RNil = ⌈⌉
-rigidSubstToSubst (RKeep {x = x} σ) =
-  ⌈ x ↦ TVar (⟨ x ⟩ inHere) ◃ weaken (subBindDrop subRefl) (rigidSubstToSubst σ) ⌉
-rigidSubstToSubst (RCons {x = x} u σ) = ⌈ x ↦ u ◃ rigidSubstToSubst σ ⌉
+idShrinkSubst : ShrinkSubst α α
+idShrinkSubst = {!   !}
+
+
+ShrinkSubstToSubst : ShrinkSubst α β → α ⇒ β
+ShrinkSubstToSubst RNil = ⌈⌉
+ShrinkSubstToSubst (RKeep {x = x} σ) =
+  ⌈ x ↦ TVar (⟨ x ⟩ inHere) ◃ weaken (subBindDrop subRefl) (ShrinkSubstToSubst σ) ⌉
+ShrinkSubstToSubst (RCons {x = x} u σ) = ⌈ x ↦ u ◃ ShrinkSubstToSubst σ ⌉
 
 opaque
   unfolding Scope
-  contextRemove : Context α → RigidSubst α α' → Context α'
-  contextRemove CtxEmpty RNil = CtxEmpty
-  contextRemove (CtxExtend Γ x a) (RKeep σ) =
-    CtxExtend (contextRemove Γ σ) x (subst (rigidSubstToSubst σ) a)
-  contextRemove (CtxExtend Γ x a) (RCons u σ) = contextRemove Γ σ
-
-{-
-data Independant : (Γ : Context α) → (u : Term α) → (x∈α : NameIn α) → Set where
-  ConsInd : (Γ : Context α) (u : Term α) (a : Type α)
-    → Independant (CtxExtend Γ x a) (weakenTerm (subBindDrop subRefl) u) (⟨ x ⟩ inHere)
-  ExtendInd : {Γ : Context α} {u : Term α} {x∈α : x ∈ α} {a : Type α} {y : Name}
-    → Independant Γ u (⟨ x ⟩ x∈α)
-    → x ≠ y
-    → Independant (CtxExtend Γ y a) (weakenTerm (subBindDrop subRefl) u) (⟨ x ⟩ Scope.coerce (subWeaken subRefl) x∈α)
-
-independantToRigidSubst : {Γ : Context α} {u : Term α} {x∈α : NameIn α}
-  → Independant Γ u x∈α → RigidSubst α (diff (proj₂ x∈α))
-independantToRigidSubst (ConsInd Γ u a) = subst0 {!   !} {!   !} (RCons u idRigidSubst)
-independantToRigidSubst (ExtendInd inde ne) = subst0 {!   !} {!   !} (RKeep (independantToRigidSubst inde))
--}
+  shrinkContext : Context α → ShrinkSubst α α' → Context α'
+  shrinkContext CtxEmpty RNil = CtxEmpty
+  shrinkContext (CtxExtend Γ x a) (RKeep σ) =
+    CtxExtend (shrinkContext Γ σ) x (subst (ShrinkSubstToSubst σ) a)
+  shrinkContext (CtxExtend Γ x a) (RCons u σ) = shrinkContext Γ σ
 
 ---------------------------------------------------------------------------------------------------
                         {- PART TWO : Definition of telescopic equality -}
@@ -79,6 +63,7 @@ module TelescopeEq where
   {- A module where :
     - auxiliary datatypes are defined for the two telescopic equality
     - equivalence between the auxiliary datatypes for telescopic equality is proved
+    - some transport and substitution auxiliary functions for telescopic equality are implemented
    Read it if you want to understand the structure behind telescopic equality.
   -}
 
@@ -171,14 +156,14 @@ module TelescopeEq where
         ΔEq' = ReshapeComp α0Run x◃α'Run ΔEq ⌈ x ↦ u' ◃ σ' ⌉
     ExtendEq x u v A' ΔEq'
 
-  compactRemove : Rezz α → Compact α0 α β → RigidSubst α0 α' → Compact α' α β
-  compactRemove _ EmptyEq _ = EmptyEq
-  compactRemove αRun (ExtendEq x u v A ΔEq) rσ = do
-    let σ = rigidSubstToSubst rσ
+  shrinkCompact : Rezz α → Compact α0 α β → ShrinkSubst α0 α' → Compact α' α β
+  shrinkCompact _ EmptyEq _ = EmptyEq
+  shrinkCompact αRun (ExtendEq x u v A ΔEq) rσ = do
+    let σ = ShrinkSubstToSubst rσ
         u' = subst σ u
         v' = subst σ v
         A' = subst (liftSubst αRun σ) A
-    ExtendEq x u' v' A' (compactRemove (rezzCong (bind x) αRun) ΔEq rσ)
+    ExtendEq x u' v' A' (shrinkCompact (rezzCong (bind x) αRun) ΔEq rσ)
 
 {- End of module TelescopeEq -}
 
@@ -201,8 +186,8 @@ normalizeEq : {@0 α0 α β : Scope Name}
 normalizeEq α0Run ΔEq σ =
   TelescopeEq.ReshapeComp α0Run (rezz mempty) ΔEq (weaken (subJoinDrop (rezz mempty) subRefl) σ)
 
-telescopicEqRemove : telescopicEq α β → RigidSubst α α' → telescopicEq α' β
-telescopicEqRemove ΔEq rσ = TelescopeEq.compactRemove (rezz _) ΔEq rσ
+shrinkTelescopicEq : telescopicEq α β → ShrinkSubst α α' → telescopicEq α' β
+shrinkTelescopicEq ΔEq rσ = TelescopeEq.shrinkCompact (rezz _) ΔEq rσ
 
 ---------------------------------------------------------------------------------------------------
                           {- PART THREE : Unification Step By Step -}
@@ -216,20 +201,18 @@ data UnificationStep {α = α} Γ where
   SolutionL :
     {e₀ : Name}
     {(⟨ x ⟩ x∈α) : NameIn α}
-    (let α' = diff x∈α
-         eα' : [ x ] ⋈ α' ≡ α
-         eα' = splitDiff x∈α)
+    (let α' = diff x∈α)
     {u : Term α}
     {A : Type _}
     {ΔEq : TelescopeEq.Compact α  (e₀ ◃ mempty) β}
-    (rσ : RigidSubst _ _)
+    (rσ : ShrinkSubst _ _)
     (let  A' = A
           Γ' : Context α'
-          Γ' = contextRemove Γ  rσ
+          Γ' = shrinkContext Γ rσ
           ΔEqN : telescopicEq α β
           ΔEqN = normalizeEq (rezz α) ΔEq ⌈ e₀ ↦ u ◃⌉                   {- normalize the telescopic equality -}
           ΔEq' : telescopicEq α' β
-          ΔEq' = telescopicEqRemove ΔEqN rσ)                            {- replace e₀ by u -}
+          ΔEq' = shrinkTelescopicEq ΔEqN rσ)                            {- replace e₀ by u -}
     -------------------------------------------------------------------
     → Γ , ⌈ e₀ ↦ TVar (⟨ x ⟩ x∈α) ≟ u ∶ A' ◃ ΔEq ⌉ ↣ᵤ Γ' , ΔEq'
 

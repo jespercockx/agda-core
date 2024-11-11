@@ -60,12 +60,14 @@ record Instance (a : Set) : Set where
 
 {-# COMPILE AGDA2HS Instance unboxed #-}
 
-record Equivalence (A B : Set) : Set where
+record Equivalence (a b : Set) : Set where
   constructor Equiv
   field
-    σ : A → B
-    τ : B → A
-    left : (x : A) → τ (σ x) ≡ x
-    right : (y : B) → σ (τ y) ≡ y
+    σ : a → b
+    τ : b → a
+    @0 left : (x : a) → τ (σ x) ≡ x
+    @0 right : (y : b) → σ (τ y) ≡ y
+
+open Equivalence public
 
 {-# COMPILE AGDA2HS Equivalence #-}

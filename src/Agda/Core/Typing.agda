@@ -320,4 +320,4 @@ tyCons' : {@0 Γ : Context α} {@0 αRun : Rezz α}
   -----------------------------------------------------------
   → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ ⌈ x ∶ a ◃ tel ⌉
 tyCons' {αRun = α ⟨ refl ⟩} tyu tyus = TyCons tyu tyus
-{-# COMPILE AGDA2HS tyCon' #-}
+{-# COMPILE AGDA2HS tyCons' #-}
