@@ -3,7 +3,6 @@ open import Scope
 open import Haskell.Prelude hiding (All; s; t)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
-open import Haskell.Law.Semigroup.Def
 
 open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
@@ -12,49 +11,60 @@ open import Agda.Core.Syntax
 open import Agda.Core.Signature
 open import Agda.Core.Substitute
 open import Agda.Core.Context
+open import Agda.Core.ScopeUtils
 
 
 module Agda.Core.Unification
     {{@0 globals : Globals}}
-    {{@0 sig     : Signature}}
   where
-
-private open module @0 G = Globals globals
-
-private variable
-  @0 x : Name
-  @0 α α' β β' : Scope Name
 
 ---------------------------------------------------------------------------------------------------
                                    {- PART ONE : Shrinking -}
 ---------------------------------------------------------------------------------------------------
+module Shrinking where
+  {- A module where shrinking, an operation to remove some variables of a scope while
+    preserving dependancies is defined -}
 
-data ShrinkSubst : (@0 α β : Scope Name) → Set where
-  RNil  : ShrinkSubst mempty mempty
-  RKeep : ShrinkSubst α β → ShrinkSubst (x ◃ α) (x ◃ β)
-  RCons : Term β → ShrinkSubst α β → ShrinkSubst (x ◃ α) β
-{-# COMPILE AGDA2HS ShrinkSubst deriving Show #-}
+  private variable
+    @0 x : Name
+    @0 α α' β β' : Scope Name
 
-opaque
-  unfolding Scope
-  idShrinkSubst : Rezz α → ShrinkSubst α α
-  idShrinkSubst (rezz []) = RNil
-  idShrinkSubst (rezz (Erased x ∷ α)) = RKeep (idShrinkSubst (rezz α))
+  data ShrinkSubst : (@0 α β : Scope Name) → Set where
+    RNil  : ShrinkSubst mempty mempty
+    RKeep : ShrinkSubst α β → ShrinkSubst (x ◃ α) (x ◃ β)
+    RCons : Term β → ShrinkSubst α β → ShrinkSubst (x ◃ α) β
+  {-# COMPILE AGDA2HS ShrinkSubst deriving Show #-}
+
+  opaque
+    unfolding Scope
+    idShrinkSubst : Rezz α → ShrinkSubst α α
+    idShrinkSubst (rezz []) = RNil
+    idShrinkSubst (rezz (Erased x ∷ α)) = RKeep (idShrinkSubst (rezz α))
 
 
-ShrinkSubstToSubst : ShrinkSubst α β → α ⇒ β
-ShrinkSubstToSubst RNil = ⌈⌉
-ShrinkSubstToSubst (RKeep {x = x} σ) =
-  ⌈ x ↦ TVar (⟨ x ⟩ inHere) ◃ weaken (subBindDrop subRefl) (ShrinkSubstToSubst σ) ⌉
-ShrinkSubstToSubst (RCons {x = x} u σ) = ⌈ x ↦ u ◃ ShrinkSubstToSubst σ ⌉
+  ShrinkSubstToSubst : ShrinkSubst α β → α ⇒ β
+  ShrinkSubstToSubst RNil = ⌈⌉
+  ShrinkSubstToSubst (RKeep {x = x} σ) =
+    ⌈ x ↦ TVar (⟨ x ⟩ inHere) ◃ weaken (subBindDrop subRefl) (ShrinkSubstToSubst σ) ⌉
+  ShrinkSubstToSubst (RCons {x = x} u σ) = ⌈ x ↦ u ◃ ShrinkSubstToSubst σ ⌉
 
-opaque
-  unfolding Scope
-  shrinkContext : Context α → ShrinkSubst α α' → Context α'
-  shrinkContext CtxEmpty RNil = CtxEmpty
-  shrinkContext (CtxExtend Γ x a) (RKeep σ) =
-    CtxExtend (shrinkContext Γ σ) x (subst (ShrinkSubstToSubst σ) a)
-  shrinkContext (CtxExtend Γ x a) (RCons u σ) = shrinkContext Γ σ
+  opaque
+    unfolding Scope
+    shrinkContext : Context α → ShrinkSubst α α' → Context α'
+    shrinkContext CtxEmpty RNil = CtxEmpty
+    shrinkContext (CtxExtend Γ x a) (RKeep σ) =
+      CtxExtend (shrinkContext Γ σ) x (subst (ShrinkSubstToSubst σ) a)
+    shrinkContext (CtxExtend Γ x a) (RCons u σ) = shrinkContext Γ σ
+
+  opaque
+    unfolding Sub Split cut
+    shrinkFromCut : Rezz α → (x : NameIn α) → Term (cutDrop x) → ShrinkSubst α (cutTake x <> cutDrop x)
+    shrinkFromCut _ (⟨ x ⟩ ⟨ _ ⟩ EmptyR) u = RCons u RNil
+    shrinkFromCut (rezz (Erased .x ∷  α')) (⟨ x ⟩ ⟨ _ ⟩ ConsL .x p) u = RCons u (idShrinkSubst (rezz α'))
+    shrinkFromCut (rezz (_ ∷ α')) (⟨ x ⟩ ⟨ _ ⟩ ConsR y p) u = RKeep (shrinkFromCut (rezz α') (⟨ x ⟩ ⟨ _ ⟩ p) u)
+
+{- End of module Shrinking -}
+open Shrinking
 
 ---------------------------------------------------------------------------------------------------
                         {- PART TWO : Definition of telescopic equality -}
@@ -70,7 +80,8 @@ module TelescopeEq where
   -}
 
   private variable
-    @0 α0 : Scope Name
+    @0 x : Name
+    @0 α α0  α' β β' : Scope Name
 
   {- Compact version of telescopic equality, where both parts of the equality are constructed step by step -}
   data Compact (@0 α0 : Scope Name) : (@0 α β : Scope Name) → Set where
@@ -180,7 +191,7 @@ pattern ⌈_↦_≟_∶_◃_⌉ x u v t ΔEq = TelescopeEq.ExtendEq x u v t ΔEq
 telescopicEq' : (@0 α β : Scope Name) → Set
 telescopicEq' α β = TelescopeEq.Expanded α mempty β
 
-equivalenceTelEq : Equivalence (telescopicEq α β) (telescopicEq' α β)
+equivalenceTelEq : {α β : Scope Name} → Equivalence (telescopicEq α β) (telescopicEq' α β)
 equivalenceTelEq = TelescopeEq.equivalence
 
 normalizeEq : {@0 α₀ α β : Scope Name}
@@ -188,64 +199,16 @@ normalizeEq : {@0 α₀ α β : Scope Name}
 normalizeEq α₀Run ΔEq σ =
   TelescopeEq.ReshapeComp α₀Run (rezz mempty) ΔEq (weaken (subJoinDrop (rezz mempty) subRefl) σ)
 
-shrinkTelescopicEq : telescopicEq α β → ShrinkSubst α α' → telescopicEq α' β
+shrinkTelescopicEq : {α α' β : Scope Name} → telescopicEq α β → ShrinkSubst α α' → telescopicEq α' β
 shrinkTelescopicEq ΔEq rσ = TelescopeEq.shrinkCompact (rezz _) ΔEq rσ
 
 ---------------------------------------------------------------------------------------------------
                           {- PART THREE : Unification Step By Step -}
 ---------------------------------------------------------------------------------------------------
-{-
-opaque
-  unfolding Scope
-  @0 cut₀ :  NameIn α → Scope Name
-  cut₀ {α = []} (⟨ _ ⟩ p) = inEmptyCase p
-  cut₀ {α = Erased y ∷ α'} (⟨ x ⟩ x∈α) =
-    inBindCase x∈α (λ _ → α') (λ x∈α' → cut₀ (⟨ x ⟩ x∈α'))
 
-  @0 cut₁ :  NameIn α → Scope Name
-  cut₁ {α = []} (⟨ _ ⟩ p) = inEmptyCase p
-  cut₁ {α = Erased y ∷ α'} (⟨ x ⟩ x∈α) =
-    inBindCase x∈α (λ _ → mempty) (λ x∈α' → Erased y ∷  cut₁ (⟨ x ⟩ x∈α'))
--}
-opaque
-  unfolding Sub Split
-  @0 cut₀ :  NameIn α → Scope Name
-  cut₀ (⟨ _ ⟩ ⟨ _ ⟩ EmptyR) = mempty
-  cut₀ {α = _ ∷ α'} (⟨ x ⟩ ⟨ _ ⟩ ConsL .x _) = α'
-  cut₀ {α = Erased y ∷ _} (⟨ x ⟩ ⟨ _ ⟩ ConsR .y p) = cut₀ (⟨ x ⟩ ⟨ _ ⟩ p)
-
-  @0 cut₁ :  NameIn α → Scope Name
-  cut₁ (⟨ _ ⟩ ⟨ _ ⟩ EmptyR) = mempty
-  cut₁ (⟨ x ⟩ ⟨ _ ⟩ ConsL .x _) = mempty
-  cut₁ {α = Erased y ∷ _} (⟨ x ⟩ ⟨ _ ⟩ ConsR .y p) = Erased y ∷  cut₁ (⟨ x ⟩ ⟨ _ ⟩ p)
-
-opaque
-  unfolding Sub Split cut₀
-  @0 cutₑ : (x : NameIn α) → cut₁ x <> (proj₁ x ◃ cut₀ x) ≡ α
-  cutₑ (⟨ _ ⟩ ⟨ _ ⟩ EmptyR) = refl
-  cutₑ (⟨ x ⟩ ⟨ _ ⟩ ConsL .x _) = refl
-  cutₑ {α = Erased y ∷ α'} (⟨ x ⟩ ⟨ _ ⟩ ConsR .y p) = cong (λ α → Erased y ∷ α ) (cutₑ (⟨ x ⟩ ⟨ _ ⟩ p))
-
-  cutSplit : (x : NameIn α) → cut₁ x ⋈ (proj₁ x ◃ cut₀ x) ≡ α
-  cutSplit (⟨ _ ⟩ ⟨ _ ⟩ EmptyR) = EmptyL
-  cutSplit (⟨ x ⟩ ⟨ _ ⟩ ConsL .x p) = EmptyL
-  cutSplit {α = Erased y ∷ α'} (⟨ x ⟩ ⟨ _ ⟩ ConsR .y p) = ConsL y (cutSplit (⟨ x ⟩ ⟨ _ ⟩ p))
-
-subCut :  {x : NameIn α} → (cut₁ x <> (proj₁ x ◃ cut₀ x)) ⊆ α
-subCut {α} {x} = subst0 (λ α' → α' ⊆ α) (sym (cutₑ x)) subRefl
-
-subCut₀ :  {x : NameIn α} →  cut₀ x ⊆ α
-subCut₀ {x = x} = subTrans (subBindDrop subRefl) (subRight (cutSplit x))
-
-subCut₁ :  {x : NameIn α} →  cut₁ x ⊆ α
-subCut₁ {x = x} = subLeft (cutSplit x)
-
-opaque
-  unfolding Sub Split cut₀
-  shrinkFromCut : Rezz α → (x : NameIn α) → Term (cut₀ x) → ShrinkSubst α (cut₁ x <> cut₀ x)
-  shrinkFromCut _ (⟨ x ⟩ ⟨ _ ⟩ EmptyR) u = RCons u RNil
-  shrinkFromCut (rezz (Erased .x ∷  α')) (⟨ x ⟩ ⟨ _ ⟩ ConsL .x p) u = RCons u (idShrinkSubst (rezz α'))
-  shrinkFromCut (rezz (_ ∷ α')) (⟨ x ⟩ ⟨ _ ⟩ ConsR y p) u = RKeep (shrinkFromCut (rezz α') (⟨ x ⟩ ⟨ _ ⟩ p) u)
+private variable
+  @0 e₀ : Name
+  @0 α α' β β' : Scope Name
 
 data UnificationStep (Γ : Context α) : telescopicEq α β → Context α' → telescopicEq α' β' → Set
 
@@ -253,18 +216,15 @@ syntax UnificationStep Γ ΔEq Γ' ΔEq' = Γ , ΔEq ↣ᵤ Γ' , ΔEq'
 
 data UnificationStep {α = α} Γ where
   SolutionL :
-    {e₀ : Name}
     {x : NameIn α}
-    (let α₀ = cut₀ x
-         α₁ = cut₁ x
+    (let α₀ , α₁ = cut x
          α' = α₁ <> α₀)
     (u₀ : Term α₀)
-    {A₀ : Type α}
+    {A : Type _}
     {ΔEq : TelescopeEq.Compact α  (e₀ ◃ mempty) β}
     (let rσ = shrinkFromCut (rezz α) x u₀
          u : Term α
-         u  = weaken subCut₀ u₀
-         A = weaken (subJoinDrop (rezz mempty) subRefl) A₀
+         u  = weaken subCutDrop u₀
          Γ' : Context α'
          Γ' = shrinkContext Γ rσ
          ΔEqN : telescopicEq α β
