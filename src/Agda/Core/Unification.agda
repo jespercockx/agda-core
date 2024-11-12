@@ -240,6 +240,13 @@ subCut₀ {x = x} = subTrans (subBindDrop subRefl) (subRight (cutSplit x))
 subCut₁ :  {x : NameIn α} →  cut₁ x ⊆ α
 subCut₁ {x = x} = subLeft (cutSplit x)
 
+opaque
+  unfolding Sub Split cut₀
+  shrinkFromCut : Rezz α → (x : NameIn α) → Term (cut₀ x) → ShrinkSubst α (cut₁ x <> cut₀ x)
+  shrinkFromCut _ (⟨ x ⟩ ⟨ _ ⟩ EmptyR) u = RCons u RNil
+  shrinkFromCut (rezz (Erased .x ∷  α')) (⟨ x ⟩ ⟨ _ ⟩ ConsL .x p) u = RCons u (idShrinkSubst (rezz α'))
+  shrinkFromCut (rezz (_ ∷ α')) (⟨ x ⟩ ⟨ _ ⟩ ConsR y p) u = RKeep (shrinkFromCut (rezz α') (⟨ x ⟩ ⟨ _ ⟩ p) u)
+
 data UnificationStep (Γ : Context α) : telescopicEq α β → Context α' → telescopicEq α' β' → Set
 
 syntax UnificationStep Γ ΔEq Γ' ΔEq' = Γ , ΔEq ↣ᵤ Γ' , ΔEq'
@@ -250,22 +257,22 @@ data UnificationStep {α = α} Γ where
     {x : NameIn α}
     (let α₀ = cut₀ x
          α₁ = cut₁ x
-         α' = (cut₁ x) <> (cut₀ x))
-    {u₀ : Term α₀}
-    {A : Type α}
+         α' = α₁ <> α₀)
+    (u₀ : Term α₀)
+    {A₀ : Type α}
     {ΔEq : TelescopeEq.Compact α  (e₀ ◃ mempty) β}
-    (rσ : ShrinkSubst α α')
-    (let  u : Term α
-          u  = weaken subCut₀ u₀
-          A' = weaken (subJoinDrop (rezz mempty) subRefl) A
-          Γ' : Context α'
-          Γ' = shrinkContext Γ rσ
-          ΔEqN : telescopicEq α β
-          ΔEqN = normalizeEq (rezz α) ΔEq ⌈ e₀ ↦ u ◃⌉                   {- normalize the telescopic equality -}
-          ΔEq' : telescopicEq α' β
-          ΔEq' = shrinkTelescopicEq ΔEqN rσ)                            {- replace e₀ by u -}
+    (let rσ = shrinkFromCut (rezz α) x u₀
+         u : Term α
+         u  = weaken subCut₀ u₀
+         A = weaken (subJoinDrop (rezz mempty) subRefl) A₀
+         Γ' : Context α'
+         Γ' = shrinkContext Γ rσ
+         ΔEqN : telescopicEq α β
+         ΔEqN = normalizeEq (rezz α) ΔEq ⌈ e₀ ↦ u ◃⌉                   {- normalize the telescopic equality -}
+         ΔEq' : telescopicEq α' β
+         ΔEq' = shrinkTelescopicEq ΔEqN rσ)                            {- replace e₀ by u -}
     -------------------------------------------------------------------
-    → Γ , ⌈ e₀ ↦ TVar x ≟ u ∶ A' ◃ ΔEq ⌉ ↣ᵤ Γ' , ΔEq'
+    → Γ , ⌈ e₀ ↦ TVar x ≟ u ∶ A ◃ ΔEq ⌉ ↣ᵤ Γ' , ΔEq'
 
 
 {-
