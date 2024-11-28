@@ -1,4 +1,4 @@
-Notations used in Agda Core (updated on 24/11/06)
+Notations used in Agda Core (updated on 24/11/2025)
 
 ---------------------------------------------------------------------------------------------------
 symbols     input via agda          latex
@@ -33,10 +33,10 @@ For context
 
 For substitution and telescope :
 α ⇒ β                   Subst α β               substitution from α to β
-⌈⌉                      SNil/EmptyTel/EmptyEq   empty substitution/telescope/telescopic equality
+⌈⌉                      SNil/EmptyTel           empty substitution/telescope
 ⌈ x ↦ u ◃ σ ⌉           SCons {x = x} u σ       extension of substitution σ where x is changed to u (a term)
 ⌈ x ∶ t ◃ Δ ⌉           ExtendTel x t Δ         extension of telescope Δ where x is of type t (a type)
-⌈ x ↦ u ≟ v ∶ t ◃ ΔEq ⌉ ExtendEq x u v t ΔEq    extension of telescopic equality ΔEq where x is u = v of type t
+δ₁ ≟ δ₂ ∶ Δ             TelEq δ₁ δ₂ Δ           telescopic equality between the scopes δ₁ = δ₂ of type Δ
 
 For types :
 Γ ⊢ u ∶ t               TyTerm Γ u t            In context Γ, u (a term) is of type t (a type)
