@@ -16,7 +16,10 @@ open Cut
 
 module Agda.Core.Unification
     {{@0 globals : Globals}}
+    {{@0 sig     : Signature}}
   where
+
+private open module @0 G = Globals globals
 
 ---------------------------------------------------------------------------------------------------
                                    {- PART ONE : Shrinking -}
@@ -96,6 +99,9 @@ module TelescopeEq where
       right : β ⇒ α
       telescope : Telescope α β
 
+  infixr 6 _≟_∶_
+  pattern _≟_∶_ δ₁ δ₂ Δ = TelEq δ₁ δ₂ Δ
+
   ---------------------------------------------------------------------------------------------------
   {- Compact version of telescopic equality, where both parts of the equality are constructed step by step -}
   data Compact (@0 α₀ : Scope Name) : (@0 α β : Scope Name) → Set where
@@ -104,10 +110,6 @@ module TelescopeEq where
       (u v : Term α₀) (A : Type (α <> α₀))
       → Compact α₀ (x ◃ α) β
       → Compact α₀ α (x ◃ β)
-
-  pattern ⌈⌉ = EmptyEq
-  infix 6 ⌈_↦_≟_∶_◃_⌉
-  pattern ⌈_↦_≟_∶_◃_⌉ x u v t ΔEq = ExtendEq x u v t ΔEq
 
   telescopicEq' : (@0 α β : Scope Name) → Set
   telescopicEq' α β = Compact α mempty β
@@ -195,9 +197,12 @@ module TelescopeEq where
 
   opaque
     unfolding Scope
+    telescopeDrop : Rezz α → Telescope α (x ◃ β) → Term α → Telescope α β
+    telescopeDrop αRun ⌈ x ∶ a ◃ Δ ⌉ w =
+      subst (concatSubst ⌈ x ↦ w ◃⌉ (idSubst αRun)) Δ
+
     telescopicEqDrop : Rezz α → TelescopicEq α (x ◃ β) → Term α → TelescopicEq α β
-    telescopicEqDrop αRun (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ a ◃ Δ ⌉) w =
-      TelEq δ₁ δ₂ (subst (concatSubst ⌈ x ↦ w ◃⌉ (idSubst αRun)) Δ )
+    telescopicEqDrop αRun (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ Δ) w = TelEq δ₁ δ₂ (telescopeDrop αRun Δ w)
 
 {- End of module TelescopeEq -}
 open TelescopeEq
@@ -210,50 +215,78 @@ private variable
   @0 α α' β β' : Scope Name
 
 data UnificationStep (Γ : Context α) : TelescopicEq α β → Context α' → TelescopicEq α' β' → Set
-
-syntax UnificationStep Γ ΔEq Γ' ΔEq' = Γ , ΔEq ↣ᵤ Γ' , ΔEq'
+infix 3 _,_↣ᵤ_,_
+_,_↣ᵤ_,_ = UnificationStep
 
 data UnificationStep {α = α} Γ where
+  Deletion :
+    {t : Term α}
+    {δ₁ δ₂ : β ⇒ α}
+    {Ξ : Telescope α (e₀ ◃ β)}
+    (let Δ : Telescope α β
+         Δ = telescopeDrop (rezz α) Ξ t)                                       -- reduce the telescope
+    ------------------------------------------------------------
+    → Γ , ⌈ e₀ ↦ t ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ t ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ , δ₁ ≟ δ₂ ∶ Δ
+
   SolutionL :
     {x : NameIn α}
     (let α₀ , α₁ = cut x
-         α' = α₁ <> α₀)
+         α' = α₁ <> α₀)                                                        -- new scope without x
     (u₀ : Term α₀)
+    {δ₁ δ₂ : β ⇒ α}
     {a : Type α}
-    {Δ : Telescope (e₀ ◃ α) β}
-    {δ₁ δ₂ : _ ⇒ α}
+    {Ξ : Telescope α (e₀ ◃ β)}
     (let rσ = shrinkFromCut (rezz α) x u₀
          u : Term α
          u  = weaken subCutDrop u₀
-         ΔEq = TelEq ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ⌈ e₀ ∶ a ◃ Δ ⌉
          Γ' : Context α'
-         Γ' = shrinkContext Γ rσ
-         ΔEqN : TelescopicEq α β
-         ΔEqN = telescopicEqDrop (rezz α) ΔEq u                      {- normalize the telescopic equality -}
+         Γ' = shrinkContext Γ rσ                                               -- new context where x is removed
+         ΔEq : TelescopicEq α β
+         ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (rezz α) Ξ u                            -- reduce the telescopic equality
          ΔEq' : TelescopicEq α' β
-         ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEqN)      {- replace e₀ by u -}
-    ------------------------------------------------------------
-    → Γ , TelEq ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ⌈ e₀ ∶ a ◃ Δ ⌉ ↣ᵤ Γ' , ΔEq'
-  {- opaque
-      unfolding Scope
-      extendTelEqSubst : α' ⇒ α₀ → α' ⇒ α₀ → Compact α₀ α β → Compact α₀ α (α' <> β)
-      extendTelEqSubst ⌈⌉ ⌈⌉ ΔEq = ΔEq
-      extendTelEqSubst ⌈ x ↦ u ◃ σ₁ ⌉ ⌈ x ↦ v ◃ σ₂ ⌉ ΔEq = ExtendEq x u v {!   !} {!   !}
-    InjectivityCon :
-    {c : NameIn conScope}
-    {σ₁ σ₂ : fieldScope c ⇒ α}
-    {A : Type _}
-    {ΔEq : TelescopeEq.Compact α  (e₀ ◃ mempty) β}
-    (let ΔEqN = normalizeEq (rezz α) ΔEq ⌈ e₀ ↦ TCon c σ₁ ◃⌉
-         ΔEq' : telescopicEq α _
-         ΔEq' = TelescopeEq.extendTelEqSubst σ₁ σ₂ ΔEqN)
+         ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)                 -- replace e₀ by u
+    ------------------------------------------------------------               -- this is NOT a rewrite rule
+    → Γ , ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
+
+  Injectivity :
+    {δ₁ δ₂ : β ⇒ α}
+    {d : NameIn dataScope}
+    {ds : Sort α}
+    (let dt = sigData sig d
+         pars = dataParScope d
+         ixs = dataIxScope d)
+    {pSubst : pars ⇒ α}
+    {iSubst : ixs ⇒ α}
+    {a : Type α}
+    {Δ : Telescope (e₀ ◃ α) β}
+    { (⟨ c₀ ⟩ cFromd) : NameIn (dataConstructorScope dt)}
+    (let cFromCon , con = dataConstructors dt (⟨ c₀ ⟩ cFromd)
+         c = (⟨ c₀ ⟩ cFromCon)
+         γ : Scope Name
+         γ = fieldScope c)
+    {σ₁ σ₂ : γ ⇒ α}
+    (let Σ : Telescope α γ
+         Σ = subst pSubst (conTelescope con)
+         s : α ⊆ (~ γ <> α)
+         s = subJoinDrop (rezz (~ γ)) subRefl
+         Ξ : Telescope α (e₀ ◃ β)
+         Ξ = ⌈ e₀ ∶ El ds (TData d pSubst iSubst) ◃ Δ ⌉
+         Ξw : Telescope (~ γ <> α) (e₀ ◃ β)
+         Ξw = weakenTel s Ξ
+         s' : (~ γ) ⊆ (~ γ <> α)
+         s' = subJoinHere (rezz (~ γ)) subRefl
+         σe : γ ⇒ (~ γ <> α)
+         σe = weaken s' (revIdSubst (rezz γ))
+         Δw : Telescope (~ γ <> α) β
+         Δw = telescopeDrop (rezz _) Ξw (TCon c σe)
+         ω₁ : (γ <> β) ⇒ α
+         ω₁ = concatSubst σ₁ δ₁
+         ω₂ : (γ <> β) ⇒ α
+         ω₂ = concatSubst σ₂ δ₂
+         Ω : Telescope α (γ <> β)
+         Ω = addTel Σ Δw
+         ΩEq : TelescopicEq α (γ <> β)
+         ΩEq = ω₁ ≟ ω₂ ∶ Ω)
     -------------------------------------------------------------------
-    → Γ , ⌈ e₀ ↦ TCon c σ₁ ≟ TCon c σ₂ ∶ A ◃ ΔEq ⌉ ↣ᵤ Γ , ΔEq'
- -}
-{-
-Unification : (Γ : Context α) → telescopicEq α β → (Σ[ α' ∈ Scope Name ] Context α')
-Unification Γ EmptyEq = do
-  let αbis ⟨ eα ⟩ = rezzScope Γ
-  (αbis , subst0 (λ α → Context α) eα Γ)
-Unification Γ (TelescopeEq.ExtendEq x u v A ΔEqAux) = {!   !}
--}
+    → Γ , ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ TCon c σ₂ ◃ δ₂ ⌉ ∶ ⌈ e₀ ∶ El ds (TData d pSubst iSubst) ◃ Δ ⌉
+      ↣ᵤ Γ , ΩEq
