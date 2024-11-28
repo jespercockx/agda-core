@@ -4,7 +4,9 @@ open import Haskell.Prelude hiding (All; s; t)
 open import Haskell.Extra.Dec using (ifDec)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality
-open import Haskell.Law.Monoid
+open import Haskell.Law.Semigroup.Def
+open import Haskell.Law.Monoid.Def
+
 open import Utils.Tactics using (auto)
 
 open import Agda.Core.Name
@@ -136,14 +138,46 @@ rezzTel ⌈ x ∶ ty ◃ t ⌉ = rezzCong (λ t → singleton x <> t) (rezzTel t
 
 {-# COMPILE AGDA2HS rezzTel #-}
 
+
+addTel : Telescope α β → Telescope ((~ β) <> α) γ → Telescope α (β <> γ)
+addTel {α = α} {γ = γ} ⌈⌉ Δ₀ = do
+  let Δ₁ : Telescope (mempty <> α) γ
+      Δ₁ = subst0 (λ ∅ → Telescope (∅ <> α) γ) revsIdentity Δ₀
+      Δ₂ : Telescope α γ
+      Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (leftIdentity α) Δ₁
+  subst0 (λ γ₀ → Telescope α γ₀) (sym (leftIdentity γ)) Δ₂
+addTel {α = α} {γ = γ} ⌈ x ∶  ty ◃ s ⌉ Δ = do
+  let Δ₁ : Telescope ((~ _ ▹ x) <> α) γ
+      Δ₁ = subst0 (λ  β₀ → Telescope (β₀ <> α) γ) (revsBindComp _ x) Δ
+      Δ₂ : Telescope (~ _ <> (x ◃ α)) γ
+      Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (sym (associativity (~ _) [ x ] α)) Δ₁
+      Ξ : Telescope (x ◃ α) (_ <> γ)
+      Ξ = addTel s Δ₂
+      Ξ' : Telescope α (x ◃ (_ <> γ))
+      Ξ' = ⌈ x ∶ ty ◃ Ξ ⌉
+      @0 e : x ◃ (_ <> γ) ≡ (x ◃ _) <> γ
+      e = associativity [ x ] _ γ
+  subst0 (λ γ₀ → Telescope α γ₀) e Ξ'
+
+{-# COMPILE AGDA2HS addTel #-}
+
+addTelrev : Telescope α (~ β) → Telescope (β <> α) γ → Telescope α ((~ β) <> γ)
+addTelrev {α = α} {β = β} {γ = γ} Σ Δ = do
+  let Δ₁ : Telescope (~ ~ β <> α) γ
+      Δ₁ = subst0 (λ β₀ → Telescope (β₀ <> α) γ) (sym (revsInvolution β)) Δ
+  addTel Σ Δ₁
+
+{-# COMPILE AGDA2HS addTelrev #-}
+
 {-
-addTel : Telescope α β → Telescope ((revScope β) <> α) γ → Telescope α (β <> γ)
-addTel EmptyTel t =
-  subst0 (Telescope _)
-         (sym (leftIdentity _))
-         (subst0 (λ s → Telescope s _)
-                 (trans (cong (λ t → t <> _)
-                         revScopeMempty)
-                 (leftIdentity _))
-                 t)
-addTel (ExtendTel x ty s) t = {!!} -}
+opaque
+  unfolding revScope
+  addTel : Telescope α β → Telescope ((~ β) <> α) γ → Telescope α (β <> γ)
+  addTel ⌈⌉ Δ = Δ
+  addTel {α = α} {β = _ ∷ β} {γ = γ} ⌈ x ∶  ty ◃ Σ ⌉ Δ = do
+    let Δ₁ : Telescope ((~ β ▹ x) <> α) γ
+        Δ₁ = subst0 (λ  β₀ → Telescope (β₀ <> α) γ) (revsBindComp β x) Δ
+        Δ₂ : Telescope (~ β <> (x ◃ α)) γ
+        Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (sym (associativity (~ β) [ x ] α)) Δ₁
+    ⌈ x ∶ ty ◃ addTel Σ Δ₂ ⌉
+-}
