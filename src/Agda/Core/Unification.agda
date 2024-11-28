@@ -3,6 +3,7 @@ open import Scope
 open import Haskell.Prelude hiding (All; s; t)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
+open import Haskell.Law.Monoid.Def
 
 open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
@@ -213,80 +214,66 @@ open TelescopeEq
 private variable
   @0 e₀ : Name
   @0 α α' β β' : Scope Name
+  δ₁ δ₂ : α ⇒ β
+  ds : Sort α
 
 data UnificationStep (Γ : Context α) : TelescopicEq α β → Context α' → TelescopicEq α' β' → Set
 infix 3 _,_↣ᵤ_,_
 _,_↣ᵤ_,_ = UnificationStep
 
 data UnificationStep {α = α} Γ where
+
+  {- remove equalities of the form t = t -}
   Deletion :
     {t : Term α}
-    {δ₁ δ₂ : β ⇒ α}
     {Ξ : Telescope α (e₀ ◃ β)}
     (let Δ : Telescope α β
-         Δ = telescopeDrop (rezz α) Ξ t)                                       -- reduce the telescope
+         Δ = telescopeDrop (rezz α) Ξ t)                             -- replace e₀ by t in the telescope
     ------------------------------------------------------------
     → Γ , ⌈ e₀ ↦ t ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ t ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ , δ₁ ≟ δ₂ ∶ Δ
 
+  {- solve equalities of the form x = u when x is a variable -}
   SolutionL :
     {x : NameIn α}
     (let α₀ , α₁ = cut x
-         α' = α₁ <> α₀)                                                        -- new scope without x
-    (u₀ : Term α₀)
-    {δ₁ δ₂ : β ⇒ α}
-    {a : Type α}
+         α' = α₁ <> α₀)                                              -- new scope without x
+    (u₀ : Term α₀)                                                   -- u₀ is independant from x as x ∉ α
     {Ξ : Telescope α (e₀ ◃ β)}
-    (let rσ = shrinkFromCut (rezz α) x u₀
+    (let rσ = shrinkFromCut (rezz α) x u₀                            -- an order preserving substitution to remove x
          u : Term α
-         u  = weaken subCutDrop u₀
+         u  = weaken subCutDrop u₀                                   -- a u independant from x
          Γ' : Context α'
-         Γ' = shrinkContext Γ rσ                                               -- new context where x is removed
+         Γ' = shrinkContext Γ rσ                                     -- new context where x is removed
          ΔEq : TelescopicEq α β
-         ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (rezz α) Ξ u                            -- reduce the telescopic equality
+         ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (rezz α) Ξ u                  -- replace e₀ by u in the telescopic equality
          ΔEq' : TelescopicEq α' β
-         ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)                 -- replace e₀ by u
-    ------------------------------------------------------------               -- this is NOT a rewrite rule
+         ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)       -- replace x by u
+    ------------------------------------------------------------ ⚠ NOT a rewrite rule ⚠ (u = weaken subCutDrop u₀)
     → Γ , ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
 
+  {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
   Injectivity :
-    {δ₁ δ₂ : β ⇒ α}
-    {d : NameIn dataScope}
-    {ds : Sort α}
-    (let dt = sigData sig d
-         pars = dataParScope d
-         ixs = dataIxScope d)
-    {pSubst : pars ⇒ α}
-    {iSubst : ixs ⇒ α}
-    {a : Type α}
-    {Δ : Telescope (e₀ ◃ α) β}
-    { (⟨ c₀ ⟩ cFromd) : NameIn (dataConstructorScope dt)}
+    {d : NameIn dataScope}                                                     -- the datatype
+    (let dt = sigData sig d)                                                   -- representation of the datatype d
+    {pSubst : dataParScope d ⇒ α}                                              -- value of the parameters of d
+    {iSubst : dataIxScope d ⇒ α}                                               -- value of the indices of d
+    {Δe₀ : Telescope (e₀ ◃ α) β}
+    { (⟨ c₀ ⟩ cFromd) : NameIn (dataConstructorScope dt)}                      -- c is a constructor of dt
     (let cFromCon , con = dataConstructors dt (⟨ c₀ ⟩ cFromd)
-         c = (⟨ c₀ ⟩ cFromCon)
+         c = (⟨ c₀ ⟩ cFromCon)                                                 -- c is a constructor of a datatype
          γ : Scope Name
-         γ = fieldScope c)
+         γ = fieldScope c)                                                     -- name of the arguments of c
     {σ₁ σ₂ : γ ⇒ α}
     (let Σ : Telescope α γ
-         Σ = subst pSubst (conTelescope con)
-         s : α ⊆ (~ γ <> α)
-         s = subJoinDrop (rezz (~ γ)) subRefl
-         Ξ : Telescope α (e₀ ◃ β)
-         Ξ = ⌈ e₀ ∶ El ds (TData d pSubst iSubst) ◃ Δ ⌉
-         Ξw : Telescope (~ γ <> α) (e₀ ◃ β)
-         Ξw = weakenTel s Ξ
-         s' : (~ γ) ⊆ (~ γ <> α)
-         s' = subJoinHere (rezz (~ γ)) subRefl
+         Σ = subst pSubst (conTelescope con)                                   -- type of the arguments of c
          σe : γ ⇒ (~ γ <> α)
-         σe = weaken s' (revIdSubst (rezz γ))
-         Δw : Telescope (~ γ <> α) β
-         Δw = telescopeDrop (rezz _) Ξw (TCon c σe)
-         ω₁ : (γ <> β) ⇒ α
-         ω₁ = concatSubst σ₁ δ₁
-         ω₂ : (γ <> β) ⇒ α
-         ω₂ = concatSubst σ₂ δ₂
-         Ω : Telescope α (γ <> β)
-         Ω = addTel Σ Δw
-         ΩEq : TelescopicEq α (γ <> β)
-         ΩEq = ω₁ ≟ ω₂ ∶ Ω)
-    -------------------------------------------------------------------
-    → Γ , ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ TCon c σ₂ ◃ δ₂ ⌉ ∶ ⌈ e₀ ∶ El ds (TData d pSubst iSubst) ◃ Δ ⌉
-      ↣ᵤ Γ , ΩEq
+         σe = weaken (subJoinHere (rezz _) subRefl) (revIdSubst (rezz γ))      -- names of the new equalities to replace e₀
+         τ₀ : [ e₀ ] ⇒ (~ γ <> α)
+         τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (~ γ <> α)) (rightIdentity _) ⌈ e₀ ↦ TCon c σe ◃ ⌈⌉ ⌉
+         τ : (e₀ ◃ α) ⇒ (~ γ <> α)
+         τ = concatSubst τ₀ (weaken (subJoinDrop (rezz _) subRefl) (idSubst (rezz α)))
+         Δγ : Telescope (~ γ <> α) β                                           -- telescope using ~ γ instead of e₀
+         Δγ = subst τ Δe₀)
+    ------------------------------------------------------------------- ⚠ NOT a rewrite rule ⚠ (c = (⟨ c₀ ⟩ cFromCon))
+    → Γ , ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ TCon c σ₂ ◃ δ₂ ⌉ ∶ ⌈ e₀ ∶ El ds (TData d pSubst iSubst) ◃ Δe₀ ⌉
+      ↣ᵤ Γ , concatSubst σ₁ δ₁ ≟ concatSubst σ₂ δ₂ ∶ addTel Σ Δγ
