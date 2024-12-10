@@ -212,9 +212,9 @@ open TelescopeEq
                           {- PART THREE : Unification Step By Step -}
 ---------------------------------------------------------------------------------------------------
 private variable
-  @0 e₀ : Name
+  @0 e₀ e₁ : Name
   @0 α α' β β' : Scope Name
-  δ₁ δ₂ : α ⇒ β
+  δ₁ δ₂ : β ⇒ α
   ds : Sort α
 
 data UnificationStep (Γ : Context α) : TelescopicEq α β → Context α' → TelescopicEq α' β' → Set
@@ -258,7 +258,7 @@ data UnificationStep {α = α} Γ where
     {pSubst : dataParScope d ⇒ α}                                              -- value of the parameters of d
     {iSubst : dataIxScope d ⇒ α}                                               -- value of the indices of d
     {Δe₀ : Telescope (e₀ ◃ α) β}
-    { (⟨ c₀ ⟩ cFromd) : NameIn (dataConstructorScope dt)}                      -- c is a constructor of dt
+    ( (⟨ c₀ ⟩ cFromd) : NameIn (dataConstructorScope dt))                      -- c is a constructor of dt
     (let cFromCon , con = dataConstructors dt (⟨ c₀ ⟩ cFromd)
          c = (⟨ c₀ ⟩ cFromCon)                                                 -- c is a constructor of a datatype
          γ : Scope Name
@@ -277,3 +277,52 @@ data UnificationStep {α = α} Γ where
     ------------------------------------------------------------------- ⚠ NOT a rewrite rule ⚠ (c = (⟨ c₀ ⟩ cFromCon))
     → Γ , ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ TCon c σ₂ ◃ δ₂ ⌉ ∶ ⌈ e₀ ∶ El ds (TData d pSubst iSubst) ◃ Δe₀ ⌉
       ↣ᵤ Γ , concatSubst σ₁ δ₁ ≟ concatSubst σ₂ δ₂ ∶ addTel Σ Δγ
+
+ {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
+  InjectivityDep :
+    {- from β = ixs <> (e₀ ◃ β₀) to β' = γ <> β₀ -}
+    {β₀ : Scope Name}
+    {δ₁ δ₂ : β₀ ⇒ α}
+    {d : NameIn dataScope}                                                     -- the datatype
+    (let dt = sigData sig d
+         pars = dataParScope d
+         ixs = dataIxScope d)
+    {ds : Sort (~ ixs <> α)}
+    {pSubst : pars ⇒ α}                                                        -- value of the parameters of d
+    {iSubst₁ iSubst₂ : ixs ⇒ α}                                                -- value of the indices of d
+    {Δe₀ixs : Telescope (e₀ ◃ (~ ixs <>  α)) β₀}
+    { (⟨ c₀ ⟩ cFromd) : NameIn (dataConstructorScope dt)}                      -- c is a constructor of dt
+    (let cFromCon , con = dataConstructors dt (⟨ c₀ ⟩ cFromd)
+         c = (⟨ c₀ ⟩ cFromCon)                                                 -- c is a constructor of a datatype
+         γ : Scope Name
+         γ = fieldScope c)                                                     -- name of the arguments of c
+    {σ₁ σ₂ : γ ⇒ α}
+    (let Σ : Telescope α γ
+         Σ = subst pSubst (conTelescope con)                                   -- type of the arguments of c
+
+         iTel : Telescope α ixs
+         iTel = subst pSubst (dataIndexTel dt)
+
+         iSubste : ixs ⇒ (~ ixs <> α)
+         iSubste = weakenSubst (subJoinHere (rezz _) subRefl) (revIdSubst (rezz ixs))
+         weakenα : α ⇒ (~ ixs <> α)
+         weakenα = weaken (subJoinDrop (rezz _) subRefl) (idSubst (rezz α))
+
+         σe : γ ⇒ (~ γ <> α)
+         σe = weaken (subJoinHere (rezz _) subRefl) (revIdSubst (rezz γ))
+         τ₀ : [ e₀ ] ⇒ (~ γ <> α)
+         τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (~ γ <> α)) (rightIdentity _) ⌈ e₀ ↦ TCon c σe ◃ ⌈⌉ ⌉
+         τ₁ : ~ ixs ⇒ (~ γ <> α)
+         τ₁ = subst (subst (liftSubst (rezz _) pSubst) (conIndices con)) (revIdSubst' (rezz _))
+         τ₂ : α ⇒ (~ γ <> α)
+         τ₂ = weaken (subJoinDrop (rezz _) subRefl) (idSubst (rezz α))
+         τ : (e₀ ◃ (~ ixs <>  α)) ⇒ (~ γ <> α)
+         τ = concatSubst τ₀ (concatSubst τ₁ τ₂)
+         Δγ : Telescope (~ γ <> α) β₀
+         Δγ = substTelescope τ Δe₀ixs)
+    ------------------------------------------------------------------- ⚠ NOT a rewrite rule ⚠
+    → Γ , concatSubst iSubst₁ ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ concatSubst iSubst₂ ⌈ e₀ ↦ TCon c σ₂ ◃ δ₂ ⌉
+          ∶ addTel iTel ⌈ e₀ ∶ El ds (TData d (subst weakenα pSubst) iSubste) ◃ Δe₀ixs ⌉
+      ↣ᵤ Γ , concatSubst σ₁ δ₁ ≟ concatSubst σ₂ δ₂ ∶ addTel Σ Δγ
+{- End of module UnificationStep -}
+
