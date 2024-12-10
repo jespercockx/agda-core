@@ -368,6 +368,10 @@ revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
 revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezz~ r)))
 {-# COMPILE AGDA2HS revIdSubst #-}
 
+revIdSubst' : {@0 α : Scope Name} → Rezz α → ~ α ⇒ α
+revIdSubst' {α} r = subst0 (λ s →  (~ α) ⇒ s) (revsInvolution α) (revIdSubst (rezz~ r))
+{-# COMPILE AGDA2HS revIdSubst' #-}
+
 raise : {@0 α β : Scope Name} → Rezz α → Term β → Term (α <> β)
 raise r = weakenTerm (subJoinDrop r subRefl)
 {-# COMPILE AGDA2HS raise #-}
