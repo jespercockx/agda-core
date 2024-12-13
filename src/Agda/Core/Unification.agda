@@ -218,8 +218,11 @@ private variable
   ds : Sort α
 
 data UnificationStep (Γ : Context α) : TelescopicEq α β → Context α' → TelescopicEq α' β' → Set
+data UnificationStop (Γ : Context α) : TelescopicEq α β → Set
 infix 3 _,_↣ᵤ_,_
+infix 3 _,_↣ᵤ⊥
 _,_↣ᵤ_,_ = UnificationStep
+_,_↣ᵤ⊥ = UnificationStop
 
 data UnificationStep {α = α} Γ where
 
@@ -252,6 +255,7 @@ data UnificationStep {α = α} Γ where
     → Γ , ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
 
   {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
+  {- this only work with K -}
   Injectivity :
     {d : NameIn dataScope}                                                     -- the datatype
     (let dt = sigData sig d)                                                   -- representation of the datatype d
@@ -269,7 +273,7 @@ data UnificationStep {α = α} Γ where
          σe : γ ⇒ (~ γ <> α)
          σe = weaken (subJoinHere (rezz _) subRefl) (revIdSubst (rezz γ))      -- names of the new equalities to replace e₀
          τ₀ : [ e₀ ] ⇒ (~ γ <> α)
-         τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (~ γ <> α)) (rightIdentity _) ⌈ e₀ ↦ TCon c σe ◃ ⌈⌉ ⌉
+         τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (~ γ <> α)) (rightIdentity _) ⌈ e₀ ↦ TCon c σe ◃⌉
          τ : (e₀ ◃ α) ⇒ (~ γ <> α)
          τ = concatSubst τ₀ (weaken (subJoinDrop (rezz _) subRefl) (idSubst (rezz α)))
          Δγ : Telescope (~ γ <> α) β                                           -- telescope using ~ γ instead of e₀
@@ -311,7 +315,7 @@ data UnificationStep {α = α} Γ where
          σe : γ ⇒ (~ γ <> α)
          σe = weaken (subJoinHere (rezz _) subRefl) (revIdSubst (rezz γ))
          τ₀ : [ e₀ ] ⇒ (~ γ <> α)
-         τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (~ γ <> α)) (rightIdentity _) ⌈ e₀ ↦ TCon c σe ◃ ⌈⌉ ⌉
+         τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (~ γ <> α)) (rightIdentity _) ⌈ e₀ ↦ TCon c σe ◃⌉
          τ₁ : ~ ixs ⇒ (~ γ <> α)
          τ₁ = subst (subst (liftSubst (rezz _) pSubst) (conIndices con)) (revIdSubst' (rezz _))
          τ₂ : α ⇒ (~ γ <> α)
@@ -319,10 +323,27 @@ data UnificationStep {α = α} Γ where
          τ : (e₀ ◃ (~ ixs <>  α)) ⇒ (~ γ <> α)
          τ = concatSubst τ₀ (concatSubst τ₁ τ₂)
          Δγ : Telescope (~ γ <> α) β₀
-         Δγ = substTelescope τ Δe₀ixs)
+         Δγ = subst τ Δe₀ixs)
     ------------------------------------------------------------------- ⚠ NOT a rewrite rule ⚠
     → Γ , concatSubst iSubst₁ ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ concatSubst iSubst₂ ⌈ e₀ ↦ TCon c σ₂ ◃ δ₂ ⌉
           ∶ addTel iTel ⌈ e₀ ∶ El ds (TData d (subst weakenα pSubst) iSubste) ◃ Δe₀ixs ⌉
       ↣ᵤ Γ , concatSubst σ₁ δ₁ ≟ concatSubst σ₂ δ₂ ∶ addTel Σ Δγ
-{- End of module UnificationStep -}
+  {- TODO: replace Injectivity and InjectivityDep by better rule from article proof relevant Unification (2018) J. Cockx & D. Devriese -}
+  {- if possible change definition of constructors and datatypes to make Injectivity a rewrite rule -}
+{- End of UnificationStep -}
 
+data UnificationStop {α = α} Γ where
+  Conflict :
+    {nameC nameC' : Name}
+    {proofC : nameC ∈ conScope}
+    {proofC' : nameC' ∈ conScope}
+    (let c = ⟨ nameC ⟩ proofC
+         c' = ⟨ nameC' ⟩ proofC')
+    {σ₁ : fieldScope c ⇒ α}
+    {σ₂ : fieldScope c' ⇒ α}
+    {Ξ : Telescope α (e₀ ◃ β)}
+    → nameC ≠ nameC'
+    ------------------------------------------------------------
+    → Γ , ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ TCon c' σ₂ ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ⊥
+  {- TODO: cycle -}
+{- End of UnificationStop -}
