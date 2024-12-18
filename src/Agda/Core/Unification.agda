@@ -1,6 +1,6 @@
 open import Scope
 
-open import Haskell.Prelude hiding (All; s; t)
+open import Haskell.Prelude hiding (All; s; t; a)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
 open import Haskell.Law.Monoid.Def
@@ -13,7 +13,6 @@ open import Agda.Core.Signature
 open import Agda.Core.Substitute
 open import Agda.Core.Context
 open import Agda.Core.ScopeUtils
-open Cut
 
 module Agda.Core.Unification
     {{@0 globals : Globals}}
@@ -66,11 +65,10 @@ module Shrinking where
     shrinkContext (CtxExtend Γ x a) (RCons u σ) = shrinkContext Γ σ
 
   opaque
-    unfolding Sub Split cut
-    shrinkFromCut : Rezz α → (x : NameIn α) → Term (cutDrop x) → ShrinkSubst α (cutTake x <> cutDrop x)
-    shrinkFromCut _ (⟨ x ⟩ ⟨ _ ⟩ EmptyR) u = RCons u RNil
-    shrinkFromCut (rezz (Erased .x ∷  α')) (⟨ x ⟩ ⟨ _ ⟩ ConsL .x p) u = RCons u (idShrinkSubst (rezz α'))
-    shrinkFromCut (rezz (_ ∷ α')) (⟨ x ⟩ ⟨ _ ⟩ ConsR y p) u = RKeep (shrinkFromCut (rezz α') (⟨ x ⟩ ⟨ _ ⟩ p) u)
+    unfolding cut
+    shrinkFromCut : Rezz α → (xp : x ∈ α) → Term (cutDrop xp) → ShrinkSubst α (cutTake xp <> cutDrop xp)
+    shrinkFromCut (rezz (_ ∷  α')) (Zero ⟨ IsZero refl ⟩) u = RCons u (idShrinkSubst (rezz α'))
+    shrinkFromCut (rezz (_ ∷ α')) (Suc n ⟨ IsSuc p ⟩) u = RKeep (shrinkFromCut (rezz α') (n ⟨ p ⟩) u)
 
 {- End of module Shrinking -}
 open Shrinking
@@ -212,7 +210,7 @@ open TelescopeEq
                           {- PART THREE : Unification Step By Step -}
 ---------------------------------------------------------------------------------------------------
 private variable
-  @0 e₀ e₁ : Name
+  @0 e₀ x : Name
   @0 α α' β β' : Scope Name
   δ₁ δ₂ : β ⇒ α
   ds : Sort α
@@ -237,14 +235,14 @@ data UnificationStep {α = α} Γ where
 
   {- solve equalities of the form x = u when x is a variable -}
   SolutionL :
-    {x : NameIn α}
-    (let α₀ , α₁ = cut x
+    {xp : x ∈ α}
+    (let α₀ , α₁ = cut xp
          α' = α₁ <> α₀)                                              -- new scope without x
     (u₀ : Term α₀)                                                   -- u₀ is independant from x as x ∉ α
     {Ξ : Telescope α (e₀ ◃ β)}
-    (let rσ = shrinkFromCut (rezz α) x u₀                            -- an order preserving substitution to remove x
+    (let rσ = shrinkFromCut (rezz α) xp u₀                            -- an order preserving substitution to remove x
          u : Term α
-         u  = weaken subCutDrop u₀                                   -- a u independant from x
+         u  = weakenTerm subCutDrop u₀                                   -- a u independant from x
          Γ' : Context α'
          Γ' = shrinkContext Γ rσ                                     -- new context where x is removed
          ΔEq : TelescopicEq α β
@@ -252,7 +250,7 @@ data UnificationStep {α = α} Γ where
          ΔEq' : TelescopicEq α' β
          ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)       -- replace x by u
     ------------------------------------------------------------ ⚠ NOT a rewrite rule ⚠ (u = weaken subCutDrop u₀)
-    → Γ , ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
+    → Γ , ⌈ e₀ ↦ TVar (⟨ x ⟩ xp) ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
 
   {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
   {- this only work with K -}
@@ -347,3 +345,115 @@ data UnificationStop {α = α} Γ where
     → Γ , ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ TCon c' σ₂ ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ⊥
   {- TODO: cycle -}
 {- End of UnificationStop -}
+
+---------------------------------------------------------------------------------------------------
+{-
+module NotIn where
+  record NotIn (t : @0 Scope Name → Set) : Set where
+    field
+      notIn : NameIn α → t α → Bool
+  open NotIn {{...}} public
+  {-# COMPILE AGDA2HS NotIn class #-}
+
+  opaque
+    unfolding Sub Split
+    pointsTo : NameIn α → NameIn α → Bool
+    pointsTo z .z = True
+    pointsTo _ _ = False
+
+  notInType : Nat → Type α → Bool
+  notInTerm : Nat → Term α → Bool
+  notInSubst : Nat → β ⇒ α → Bool
+  notInBranches : Nat → Branches α α' → Bool
+
+  notInType {α = α} n (El ds t) = notInTerm n t
+
+  notInTerm n (TVar < p >) = not (eqBoolNameIn n p)
+  notInTerm _ (TDef d) = True
+  notInTerm n (TData d σpars σixs) = notInSubst n σpars && notInSubst n σixs
+  notInTerm n (TCon c σ) = notInSubst n σ
+  notInTerm n (TLam x t) = notInTerm (suc n) t
+  notInTerm n (TApp t₁ t₂) = notInTerm n t₁ && notInTerm n t₂
+  notInTerm n (TProj t x) = notInTerm n t {- CHECK IT -}
+  notInTerm n (TCase d x t bs m) = notInTerm n t && notInBranches n bs && notInType {!   !} m
+  notInTerm n (TPi x u v) = notInType n u && notInType (suc n) v
+  notInTerm _ (TSort x) = True
+  notInTerm n (TLet x t₁ t₂) = notInTerm n t₁ && notInTerm (suc n) t₂
+  notInTerm n (TAnn t t₁) = notInTerm n t
+
+  notInSubst _ ⌈⌉ = True
+  notInSubst n ⌈ _ ↦ x ◃ σ ⌉ =  notInTerm n x && notInSubst n σ
+
+  notInBranches _ BsNil = True
+  notInBranches n (BsCons (BBranch c r t) bs) = notInTerm {!   !} t && notInBranches n bs
+
+  instance
+    iNotInType : NotIn Type
+    iNotInType .notIn = notInType
+    iNotInTerm : NotIn Term
+    iNotInTerm .notIn = notInTerm
+    iNotInSubst : NotIn (Subst β)
+    iNotInSubst .notIn = notInSubst
+    iNotInBranches : NotIn (λ α → Branches α α')
+    iNotInBranches .notIn = notInBranches
+{- End of module NotIn -}
+open NotIn
+
+
+dummyType : Type α
+dummyType = El (STyp 0) (TLam "x" (TVar < inHere >))
+
+data Swapable : α ⇒ α' → Context α → Context α' → Set where
+  CSwap :
+    {x y : Name}
+    {Γ : Context α}
+    {ay : Type α}
+    {ax : Type (y ◃ α)}
+    → (e : notIn zero ax ≡ True) {- strengthenType (subBindDrop subRefl) ax ≡ Just ax' -}
+    → (let ax' : Type α
+           ax' = maybe dummyType (λ x → x) (strengthenType (subBindDrop subRefl) ax)
+           ay' : Type (x ◃ α)
+           ay' = weakenType (subBindDrop subRefl) ay
+           σα : α ⇒ (y ◃ x ◃ α)
+           σα = weakenSubst (subBindDrop (subBindDrop subRefl)) (idSubst (rezz α))
+           σ : (x ◃ y ◃ α) ⇒ (y ◃ x ◃ α)
+           σ = ⌈ x ↦ TVar < inThere inHere > ◃ ⌈ y ↦ TVar < inHere > ◃ σα ⌉ ⌉ )
+    → Swapable σ ((Γ , y ∶ ay) , x ∶ ax) ((Γ , x ∶ ax') , y ∶ ay')
+
+  ESwap :
+      {x : Name}
+      {Γ : Context α}
+      {Γ' : Context α'}
+      {ax : Type  α}
+      {σ : α ⇒ α'}
+      (let σ' = weakenSubst (subBindDrop subRefl) σ)
+      → Swapable σ Γ Γ'
+      → Swapable ⌈ x ↦ TVar < inHere > ◃ σ' ⌉ (Γ , x ∶ ax) (Γ' , x ∶ subst σ ax)
+
+
+swaphighest :
+  (Γ : Context α)
+  (y : Name)
+  (ay : Type α)
+  (x : NameIn α)
+  → notIn zero {-x-} ay ≡ True
+  → Σ0 _ (λ α' →  Context α')
+swaphighest CtxEmpty _ _ < xp > _ = inEmptyCase xp
+swaphighest (CtxExtend Γ z az) y ay (⟨ x ⟩ xp) p = inBindCase xp
+  (λ _ → do let ay' = maybe dummyType (λ x → x) (strengthenType (subBindDrop subRefl) ay)
+            < (Γ , y ∶ ay') , z ∶ weaken (subBindDrop subRefl) az >)
+  {!   !}
+
+
+swap :
+  (Γ : Context α)
+  (x y : NameIn α)
+  (σ : α ⇒ α')
+  (let ax = lookupVar Γ x
+       ay = lookupVar Γ y)
+  -- → Γ ⊢ x ≺ y
+  → notIn zero {-x-} ay ≡ True
+  → Σ0 _ (λ α' → Context α')
+swap CtxEmpty < xp >  _ _ _ = inEmptyCase xp                    -- impossible case
+swap (CtxExtend Γ z az) x y σ p = {!   !}
+-}
