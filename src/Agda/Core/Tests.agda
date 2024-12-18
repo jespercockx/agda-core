@@ -27,7 +27,7 @@ private variable
   α : Scope Name
 
 instance
-  top : In x (x ◃ α)
+  top : x ∈ (x ◃ α)
   top = inHere
 
   pop : {{x ∈ α}} → x ∈ (y ◃ α)
