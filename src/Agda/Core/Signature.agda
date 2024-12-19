@@ -140,15 +140,15 @@ rezzTel ⌈ x ∶ ty ◃ t ⌉ = rezzCong (λ t → singleton x <> t) (rezzTel t
 
 
 addTel : Telescope α β → Telescope ((~ β) <> α) γ → Telescope α (β <> γ)
-addTel {α = α} {γ = γ} ⌈⌉ Δ₀ = do
+addTel {α = α} {γ = γ} ⌈⌉ tel0 = do
   let Δ₁ : Telescope (mempty <> α) γ
-      Δ₁ = subst0 (λ ∅ → Telescope (∅ <> α) γ) revsIdentity Δ₀
+      Δ₁ = subst0 (λ ∅ → Telescope (∅ <> α) γ) revsIdentity tel0
       Δ₂ : Telescope α γ
       Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (leftIdentity α) Δ₁
   subst0 (λ γ₀ → Telescope α γ₀) (sym (leftIdentity γ)) Δ₂
-addTel {α = α} {γ = γ} ⌈ x ∶  ty ◃ s ⌉ Δ = do
+addTel {α = α} {γ = γ} ⌈ x ∶  ty ◃ s ⌉ tel0 = do
   let Δ₁ : Telescope ((~ _ ▹ x) <> α) γ
-      Δ₁ = subst0 (λ  β₀ → Telescope (β₀ <> α) γ) (revsBindComp _ x) Δ
+      Δ₁ = subst0 (λ  β₀ → Telescope (β₀ <> α) γ) (revsBindComp _ x) tel0
       Δ₂ : Telescope (~ _ <> (x ◃ α)) γ
       Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (sym (associativity (~ _) [ x ] α)) Δ₁
       Ξ : Telescope (x ◃ α) (_ <> γ)
@@ -162,10 +162,10 @@ addTel {α = α} {γ = γ} ⌈ x ∶  ty ◃ s ⌉ Δ = do
 {-# COMPILE AGDA2HS addTel #-}
 
 addTelrev : Telescope α (~ β) → Telescope (β <> α) γ → Telescope α ((~ β) <> γ)
-addTelrev {α = α} {β = β} {γ = γ} Σ Δ = do
+addTelrev {α = α} {β = β} {γ = γ} sigma delta = do
   let Δ₁ : Telescope (~ ~ β <> α) γ
-      Δ₁ = subst0 (λ β₀ → Telescope (β₀ <> α) γ) (sym (revsInvolution β)) Δ
-  addTel Σ Δ₁
+      Δ₁ = subst0 (λ β₀ → Telescope (β₀ <> α) γ) (sym (revsInvolution β)) delta
+  addTel sigma Δ₁
 
 {-# COMPILE AGDA2HS addTelrev #-}
 
