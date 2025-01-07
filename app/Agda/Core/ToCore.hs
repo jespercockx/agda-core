@@ -33,15 +33,15 @@ import Agda.Syntax.Internal qualified as I
 import Agda.Core.Syntax (Term(..), Sort(..))
 import Agda.Core.Syntax qualified as Core
 
-import Scope.In (In)
+import Scope.In (Index)
 import Scope.In qualified as Scope
 
 -- | Global definitions are represented as a mapping from @QName@s
 --   to proofs of global def scope membership.
-type Defs = Map QName In
+type Defs = Map QName Index
 
 -- | Same for constructors, for the global scope of all constructors.
-type Cons = Map QName In
+type Cons = Map QName Index
 
 
 -- TODO(flupe): move this to Agda.Core.Syntax
@@ -68,13 +68,13 @@ asksCons = asks . (. snd)
 
 -- | Lookup a definition name in the current module.
 --   Fails if the definition cannot be found.
-lookupDef :: QName -> ToCoreM In
+lookupDef :: QName -> ToCoreM Index
 lookupDef qn = fromMaybeM complain $ asksDef (Map.!? qn)
   where complain = throwError $ "Trying to access a definition from another module: " <+> pretty qn
         --
 -- | Lookup a constructor name in the current module.
 --   Fails if the constructor cannot be found.
-lookupCons :: QName -> ToCoreM In
+lookupCons :: QName -> ToCoreM Index
 lookupCons qn = fromMaybeM complain $ asksCons (Map.!? qn)
   where complain = throwError $ "Trying to access a constructor from another module: " <+> pretty qn
 
@@ -96,7 +96,7 @@ instance ToCore I.Term where
   type CoreOf I.Term = Term
 
   toCore (I.Var k es) = (TVar (var k) `tApp`) <$> toCore es
-    where var :: Int -> In
+    where var :: Int -> Index
           var !n | n <= 0 = Scope.inHere
           var !n          = Scope.inThere (var (n - 1))
 
