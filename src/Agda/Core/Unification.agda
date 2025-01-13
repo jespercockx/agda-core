@@ -347,113 +347,62 @@ data UnificationStop {α = α} Γ where
 {- End of UnificationStop -}
 
 ---------------------------------------------------------------------------------------------------
-{-
-module NotIn where
-  record NotIn (t : @0 Scope Name → Set) : Set where
-    field
-      notIn : NameIn α → t α → Bool
-  open NotIn {{...}} public
-  {-# COMPILE AGDA2HS NotIn class #-}
-
-  opaque
-    unfolding Sub Split
-    pointsTo : NameIn α → NameIn α → Bool
-    pointsTo z .z = True
-    pointsTo _ _ = False
-
-  notInType : Nat → Type α → Bool
-  notInTerm : Nat → Term α → Bool
-  notInSubst : Nat → β ⇒ α → Bool
-  notInBranches : Nat → Branches α α' → Bool
-
-  notInType {α = α} n (El ds t) = notInTerm n t
-
-  notInTerm n (TVar < p >) = not (eqBoolNameIn n p)
-  notInTerm _ (TDef d) = True
-  notInTerm n (TData d σpars σixs) = notInSubst n σpars && notInSubst n σixs
-  notInTerm n (TCon c σ) = notInSubst n σ
-  notInTerm n (TLam x t) = notInTerm (suc n) t
-  notInTerm n (TApp t₁ t₂) = notInTerm n t₁ && notInTerm n t₂
-  notInTerm n (TProj t x) = notInTerm n t {- CHECK IT -}
-  notInTerm n (TCase d x t bs m) = notInTerm n t && notInBranches n bs && notInType {!   !} m
-  notInTerm n (TPi x u v) = notInType n u && notInType (suc n) v
-  notInTerm _ (TSort x) = True
-  notInTerm n (TLet x t₁ t₂) = notInTerm n t₁ && notInTerm (suc n) t₂
-  notInTerm n (TAnn t t₁) = notInTerm n t
-
-  notInSubst _ ⌈⌉ = True
-  notInSubst n ⌈ _ ↦ x ◃ σ ⌉ =  notInTerm n x && notInSubst n σ
-
-  notInBranches _ BsNil = True
-  notInBranches n (BsCons (BBranch c r t) bs) = notInTerm {!   !} t && notInBranches n bs
-
-  instance
-    iNotInType : NotIn Type
-    iNotInType .notIn = notInType
-    iNotInTerm : NotIn Term
-    iNotInTerm .notIn = notInTerm
-    iNotInSubst : NotIn (Subst β)
-    iNotInSubst .notIn = notInSubst
-    iNotInBranches : NotIn (λ α → Branches α α')
-    iNotInBranches .notIn = notInBranches
-{- End of module NotIn -}
-open NotIn
-
+private variable
+  @0 y z : Name
 
 dummyType : Type α
 dummyType = El (STyp 0) (TLam "x" (TVar < inHere >))
 
-data Swapable : α ⇒ α' → Context α → Context α' → Set where
-  CSwap :
-    {x y : Name}
-    {Γ : Context α}
-    {ay : Type α}
-    {ax : Type (y ◃ α)}
-    → (e : notIn zero ax ≡ True) {- strengthenType (subBindDrop subRefl) ax ≡ Just ax' -}
-    → (let ax' : Type α
-           ax' = maybe dummyType (λ x → x) (strengthenType (subBindDrop subRefl) ax)
-           ay' : Type (x ◃ α)
-           ay' = weakenType (subBindDrop subRefl) ay
-           σα : α ⇒ (y ◃ x ◃ α)
-           σα = weakenSubst (subBindDrop (subBindDrop subRefl)) (idSubst (rezz α))
-           σ : (x ◃ y ◃ α) ⇒ (y ◃ x ◃ α)
-           σ = ⌈ x ↦ TVar < inThere inHere > ◃ ⌈ y ↦ TVar < inHere > ◃ σα ⌉ ⌉ )
-    → Swapable σ ((Γ , y ∶ ay) , x ∶ ax) ((Γ , x ∶ ax') , y ∶ ay')
+opaque
+  unfolding Scope
+  swapTwoLast : Context (x ◃ y ◃ α) → Maybe (Context (y ◃ x ◃ α))
+  swapTwoLast (CtxExtend (CtxExtend Γ y ay) x ax) = do
+    ax' ← strengthen (subBindDrop subRefl) ax
+    let ay' = weaken (subBindDrop subRefl) ay
+    return ((Γ , x ∶ ax' ) , y ∶ ay')
 
-  ESwap :
-      {x : Name}
-      {Γ : Context α}
-      {Γ' : Context α'}
-      {ax : Type  α}
-      {σ : α ⇒ α'}
-      (let σ' = weakenSubst (subBindDrop subRefl) σ)
-      → Swapable σ Γ Γ'
-      → Swapable ⌈ x ↦ TVar < inHere > ◃ σ' ⌉ (Γ , x ∶ ax) (Γ' , x ∶ subst σ ax)
+  swapHighest : Context (x ◃ α) → ((⟨ y ⟩ yp) : NameIn α)
+    → Maybe (Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ α) ⇒ α')
+  swapHighest {x = x} {α = Erased y ∷ α} Γ (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
+    Γ' ← swapTwoLast Γ
+    let τ : α ⇒ (y ◃ x ◃ α)
+        τ = weaken (subBindDrop (subBindDrop subRefl)) (idSubst {β = α} (rezz _))
+        σ : (x ◃ y ◃ α) ⇒ (y ◃ x ◃ α)
+        σ = ⌈ x ↦ TVar (⟨ y ⟩ inHere) ◃ ⌈ y ↦ TVar (⟨ x ⟩ (inThere inHere)) ◃ τ ⌉ ⌉
+    return < Γ' , Zero ⟨ IsZero refl ⟩ , σ >
+  swapHighest {x = x} {α = Erased z ∷ α} Γ (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
+    let res1 = do
+      (CtxExtend (CtxExtend Γ0 z az) x ax) ← Just Γ
 
+      (CtxExtend Γ₁ .z az') ← swapTwoLast Γ
+      ⟨ α1Aux ⟩ (Γ1Aux , yp , ⌈ x ↦ t ◃ σ ⌉) ← swapHighest Γ₁ (⟨ y ⟩ (value ⟨ proof ⟩))
+      let σ1 : (x ◃ z ◃ α) ⇒ (z ◃ α1Aux)
+          σ1 = ⌈ x ↦ weakenTerm (subBindDrop subRefl) t ◃ ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ ⌉
+          res1 : Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ z ◃ α) ⇒ α'
+          res1 = < CtxExtend Γ1Aux z (subst ⌈ _ ↦ t ◃ σ ⌉ az') , inThere yp , σ1 >
+      return res1 in
+    let res2 = do
+      (CtxExtend (CtxExtend Γ0 z az) x ax) ← Just Γ
 
-swaphighest :
-  (Γ : Context α)
-  (y : Name)
-  (ay : Type α)
-  (x : NameIn α)
-  → notIn zero {-x-} ay ≡ True
-  → Σ0 _ (λ α' →  Context α')
-swaphighest CtxEmpty _ _ < xp > _ = inEmptyCase xp
-swaphighest (CtxExtend Γ z az) y ay (⟨ x ⟩ xp) p = inBindCase xp
-  (λ _ → do let ay' = maybe dummyType (λ x → x) (strengthenType (subBindDrop subRefl) ay)
-            < (Γ , y ∶ ay') , z ∶ weaken (subBindDrop subRefl) az >)
-  {!   !}
+      ⟨ α2Aux ⟩ (Γ2Aux , yp , σ) ← swapHighest (CtxExtend Γ0 z az) (⟨ y ⟩ (value ⟨ proof ⟩)) {- depth y -1 -}
+      ⟨ α2Aux ⟩ (Γ2Aux' , yp' , σ') ← swapHighest (CtxExtend Γ2Aux x (subst σ ax)) < yp >
+      let res2 : Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ z ◃ α) ⇒ α'
+          res2 = < Γ2Aux' , yp' , subst σ'  ⌈ x ↦ TVar (⟨ x ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
+      return res2 in
+    maybe res2 (λ x → Just x) res1
 
+  swapAux : Context α → (x y : NameIn α) → Maybe (Σ0 _ λ α' → Context α' × α ⇒ α')
+  swapAux _ (⟨ x ⟩ (Zero ⟨ _ ⟩)) (⟨ y ⟩ (Zero ⟨ _ ⟩)) = Nothing
+  swapAux Γ (⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) = do
+    ⟨ _ ⟩ (Γ' , _ , σ) ← swapHighest Γ (⟨ y ⟩ (value ⟨ proof ⟩))
+    return < Γ' , σ >
+  swapAux _ (⟨ x ⟩ (Suc vx ⟨ px ⟩)) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = Nothing
+  swapAux _ (⟨ x ⟩ (Suc vx ⟨ px ⟩)) (⟨ y ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)) = Nothing
+  swapAux (CtxExtend Γ z az) (⟨ x ⟩ (Suc vx ⟨ IsSuc px ⟩)) (⟨ y ⟩ (Suc (Suc vy) ⟨ IsSuc (IsSuc py) ⟩)) = do
+    ⟨ _ ⟩ (Γ0' , σ) ← swapAux Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
+    return < CtxExtend Γ0' z (subst σ az), ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
 
-swap :
-  (Γ : Context α)
-  (x y : NameIn α)
-  (σ : α ⇒ α')
-  (let ax = lookupVar Γ x
-       ay = lookupVar Γ y)
-  -- → Γ ⊢ x ≺ y
-  → notIn zero {-x-} ay ≡ True
-  → Σ0 _ (λ α' → Context α')
-swap CtxEmpty < xp >  _ _ _ = inEmptyCase xp                    -- impossible case
-swap (CtxExtend Γ z az) x y σ p = {!   !}
--}
+  swap : Context α → (x y : NameIn α) → Maybe (Σ0 _ λ α' → Context α')
+  swap Γ x y = do
+    ⟨ _ ⟩ (Γ' , _) ← swapAux Γ x y
+    return < Γ' >
