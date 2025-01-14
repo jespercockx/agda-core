@@ -13,6 +13,8 @@ open import Agda.Core.Signature
 open import Agda.Core.Substitute
 open import Agda.Core.Context
 open import Agda.Core.ScopeUtils
+open import Agda.Core.TCM
+open import Agda.Core.TCMInstances
 
 module Agda.Core.Unification
     {{@0 globals : Globals}}
@@ -347,6 +349,8 @@ data UnificationStop {α = α} Γ where
 {- End of UnificationStop -}
 
 ---------------------------------------------------------------------------------------------------
+                            {- PART FOUR : Context reordering -}
+---------------------------------------------------------------------------------------------------
 private variable
   @0 y z : Name
 
@@ -361,48 +365,65 @@ opaque
     let ay' = weaken (subBindDrop subRefl) ay
     return ((Γ , x ∶ ax' ) , y ∶ ay')
 
-  swapHighest : Context (x ◃ α) → ((⟨ y ⟩ yp) : NameIn α)
-    → Maybe (Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ α) ⇒ α')
-  swapHighest {x = x} {α = Erased y ∷ α} Γ (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
-    Γ' ← swapTwoLast Γ
+
+  {- Idea of swapHighest (x, z, Γ) y:
+      - terminaison condition : you swap x and y or fail
+      - case 1: if you can swap the two first vars of (x, z, Γ) then
+        do it and let Γ1Aux be the result of a recursive call on (x, Γ)
+        return (z, Γ1Aux)
+      - case 2: if case 1 fails then let Γ' be the result of the
+        recursive call on (z, Γ) and return swapHighest (x, Γ') y
+    (recursion terminates because y the depth of y in the contexts
+    used in recursive calls is decreasing.) -}
+
+
+  swapHighest : {{fl : Fuel}} → Context (x ◃ α) → ((⟨ y ⟩ yp) : NameIn α)
+    → TCM (Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ α) ⇒ α')
+  swapHighest {x = x} {α = Erased y ∷ α} (CtxExtend (CtxExtend Γ0 y ay) x ax) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
+    Γ' ← liftMaybe (swapTwoLast (CtxExtend (CtxExtend Γ0 y ay) x ax)) "Not swapable"
     let τ : α ⇒ (y ◃ x ◃ α)
-        τ = weaken (subBindDrop (subBindDrop subRefl)) (idSubst {β = α} (rezz _))
+        τ = weaken (subBindDrop (subBindDrop subRefl)) (idSubst (rezzScope Γ0))
         σ : (x ◃ y ◃ α) ⇒ (y ◃ x ◃ α)
         σ = ⌈ x ↦ TVar (⟨ y ⟩ inHere) ◃ ⌈ y ↦ TVar (⟨ x ⟩ (inThere inHere)) ◃ τ ⌉ ⌉
     return < Γ' , Zero ⟨ IsZero refl ⟩ , σ >
-  swapHighest {x = x} {α = Erased z ∷ α} Γ (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
+  swapHighest  {x = x} {α = Erased z ∷ α} {{More {{fl}}}} (CtxExtend (CtxExtend Γ0 z az) x ax) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
+    let Γ = (CtxExtend (CtxExtend Γ0 z az) x ax) in
     let res1 = do
-      (CtxExtend (CtxExtend Γ0 z az) x ax) ← Just Γ
-
-      (CtxExtend Γ₁ .z az') ← swapTwoLast Γ
-      ⟨ α1Aux ⟩ (Γ1Aux , yp , ⌈ x ↦ t ◃ σ ⌉) ← swapHighest Γ₁ (⟨ y ⟩ (value ⟨ proof ⟩))
+      (CtxExtend Γ₁ .z az') ← liftMaybe (swapTwoLast Γ) "Not swapable"
+      ⟨ α1Aux ⟩ (Γ1Aux , yp , ⌈ x ↦ t ◃ σ ⌉) ← swapHighest {{fl}} Γ₁ (⟨ y ⟩ (value ⟨ proof ⟩))
       let σ1 : (x ◃ z ◃ α) ⇒ (z ◃ α1Aux)
           σ1 = ⌈ x ↦ weakenTerm (subBindDrop subRefl) t ◃ ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ ⌉
           res1 : Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ z ◃ α) ⇒ α'
           res1 = < CtxExtend Γ1Aux z (subst ⌈ _ ↦ t ◃ σ ⌉ az') , inThere yp , σ1 >
       return res1 in
     let res2 = do
-      (CtxExtend (CtxExtend Γ0 z az) x ax) ← Just Γ
-
-      ⟨ α2Aux ⟩ (Γ2Aux , yp , σ) ← swapHighest (CtxExtend Γ0 z az) (⟨ y ⟩ (value ⟨ proof ⟩)) {- depth y -1 -}
-      ⟨ α2Aux ⟩ (Γ2Aux' , yp' , σ') ← swapHighest (CtxExtend Γ2Aux x (subst σ ax)) < yp >
+      ⟨ α2Aux ⟩ (Γ2Aux , yp , σ) ← swapHighest {{More {{fl}}}} (CtxExtend Γ0 z az) (⟨ y ⟩ (value ⟨ proof ⟩)) {- depth y -1 -}
+      ⟨ α2Aux ⟩ (Γ2Aux' , yp' , σ') ← swapHighest {{fl}} (CtxExtend Γ2Aux x (subst σ ax)) < yp >
       let res2 : Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ z ◃ α) ⇒ α'
           res2 = < Γ2Aux' , yp' , subst σ'  ⌈ x ↦ TVar (⟨ x ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
       return res2 in
-    maybe res2 (λ x → Just x) res1
+    caseTCM res2 (λ x → x) res1
+  swapHighest {{None}} _ _ = tcError "not enough fuel to swap a variables in a context"
 
-  swapAux : Context α → (x y : NameIn α) → Maybe (Σ0 _ λ α' → Context α' × α ⇒ α')
-  swapAux _ (⟨ x ⟩ (Zero ⟨ _ ⟩)) (⟨ y ⟩ (Zero ⟨ _ ⟩)) = Nothing
+
+  swapAux : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α' × α ⇒ α')
+  swapAux _ (⟨ x ⟩ (Zero ⟨ _ ⟩)) (⟨ y ⟩ (Zero ⟨ _ ⟩)) =
+    tcError "cannot swap a variable with itself"
   swapAux Γ (⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) = do
-    ⟨ _ ⟩ (Γ' , _ , σ) ← swapHighest Γ (⟨ y ⟩ (value ⟨ proof ⟩))
+    (I {{fl}}) ← tcmFuel
+    ⟨ _ ⟩ (Γ' , _ , σ) ← swapHighest {{fl}} Γ (⟨ y ⟩ (value ⟨ proof ⟩))
     return < Γ' , σ >
-  swapAux _ (⟨ x ⟩ (Suc vx ⟨ px ⟩)) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = Nothing
-  swapAux _ (⟨ x ⟩ (Suc vx ⟨ px ⟩)) (⟨ y ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)) = Nothing
+  swapAux _ (⟨ x ⟩ (Suc vx ⟨ px ⟩)) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) =
+    tcError "variable in the wrong order (already swaped)"
+  swapAux _ (⟨ x ⟩ (Suc Zero ⟨ _ ⟩)) (⟨ y ⟩ (Suc Zero ⟨ _ ⟩)) =
+    tcError "cannot swap a variable with itself"
+  swapAux _ (⟨ x ⟩ (Suc (Suc _) ⟨ _ ⟩)) (⟨ y ⟩ (Suc Zero ⟨ _ ⟩)) =
+    tcError "variable in the wrong order (already swaped)"
   swapAux (CtxExtend Γ z az) (⟨ x ⟩ (Suc vx ⟨ IsSuc px ⟩)) (⟨ y ⟩ (Suc (Suc vy) ⟨ IsSuc (IsSuc py) ⟩)) = do
     ⟨ _ ⟩ (Γ0' , σ) ← swapAux Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
     return < CtxExtend Γ0' z (subst σ az), ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
 
-  swap : Context α → (x y : NameIn α) → Maybe (Σ0 _ λ α' → Context α')
-  swap Γ x y = do
-    ⟨ _ ⟩ (Γ' , _) ← swapAux Γ x y
-    return < Γ' >
+swap : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α')
+swap Γ x y = do
+  ⟨ _ ⟩ (Γ' , _) ← swapAux Γ x y
+  return < Γ' >
