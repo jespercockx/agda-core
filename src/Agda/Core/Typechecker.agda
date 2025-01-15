@@ -244,7 +244,7 @@ checkLet : ∀ Γ (@0 x : Name)
            → TCM (Γ ⊢ TLet x u v ∶ ty)
 checkLet ctx x u v ty = do
   tu , dtu  ← inferType ctx u
-  dtv       ← checkType (ctx , x ∶ tu) v (weaken (subWeaken subRefl) ty)
+  dtv       ← checkType (ctx , x ∶ tu) v (weaken (subBindDrop subRefl) ty)
   return $ TyLet dtu dtv
 {-# COMPILE AGDA2HS checkLet #-}
 
