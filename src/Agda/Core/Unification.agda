@@ -432,34 +432,54 @@ module Swap where
       (recursion terminates because the depth of y in the contexts
       used in recursive calls is decreasing.) -}
     swapHighest : {{fl : Fuel}} → Context (x ◃ α) → ((⟨ y ⟩ yp) : NameIn α)
-      → TCM (Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ α) ⇒ α')
-    swapHighest {x = x} {α = Erased y ∷ α} (CtxExtend (CtxExtend Γ0 y ay) x ax) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
+      → TCM (Σ0 _ λ α' → Context α' × Renaming (x ◃ α) α')
+    swapHighest (CtxExtend (CtxExtend Γ0 y ay) x ax) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
       Γ' ← liftMaybe (swapTwoLast (CtxExtend (CtxExtend Γ0 y ay) x ax)) "Not swapable"
-      let τ : α ⇒ (y ◃ x ◃ α)
-          τ = weaken (subBindDrop (subBindDrop subRefl)) (idSubst (rezzScope Γ0))
-          σ : (x ◃ y ◃ α) ⇒ (y ◃ x ◃ α)
-          σ = ⌈ x ↦ TVar (⟨ y ⟩ inHere) ◃ ⌈ y ↦ TVar (⟨ x ⟩ (inThere inHere)) ◃ τ ⌉ ⌉
-      return < Γ' , Zero ⟨ IsZero refl ⟩ , σ >
+      let σ : Renaming (x ◃ y ◃ α) (y ◃ x ◃ α)
+          σ = (λ zInx◃y◃α → inBindCase zInx◃y◃α
+                            (λ where refl → inThere inHere)
+                            (λ zIny◃α → inBindCase zIny◃α
+                                        (λ where refl → inHere)
+                                        (λ zInα → inThere (inThere zInα))))
+      return < Γ' , σ >
     swapHighest  {x = x} {α = Erased z ∷ α} {{More {{fl}}}} (CtxExtend (CtxExtend Γ0 z az) x ax) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
-      let Γ = (CtxExtend (CtxExtend Γ0 z az) x ax) in
-      let res1 = do
+      let Γ : Context (x ◃ z ◃ α)
+          Γ = (CtxExtend (CtxExtend Γ0 z az) x ax)
+          yInα : y ∈ α
+          yInα = value ⟨ proof ⟩ in
+      let areTheTwoLastVarsSwapable = do
         (CtxExtend Γ₁ .z az') ← liftMaybe (swapTwoLast Γ) "Not swapable"
-        ⟨ α1Aux ⟩ (Γ1Aux , yp , ⌈ x ↦ t ◃ σ ⌉) ← swapHighest {{fl}} Γ₁ (⟨ y ⟩ (value ⟨ proof ⟩))
-        let σ1 : (x ◃ z ◃ α) ⇒ (z ◃ α1Aux)
-            σ1 = ⌈ x ↦ weakenTerm (subBindDrop subRefl) t ◃ ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ ⌉
-            res1 : Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ z ◃ α) ⇒ α'
-            res1 = < CtxExtend Γ1Aux z (subst ⌈ x ↦ t ◃ σ ⌉ az') , inThere yp , σ1 >
+        ⟨ α₀' ⟩ (Γ₀' , σ₀ ) ← swapHighest {{fl}} Γ₁  < yInα >
+        -- σ₀ : Renaming (x ◃ α) α₀'
+        let σ : Renaming (x ◃ z ◃ α) (z ◃ α₀')
+            σ = (λ wInx◃z◃α → inBindCase wInx◃z◃α
+                            (λ where refl → inThere (σ₀ inHere))
+                            (λ wInz◃α → inBindCase wInz◃α
+                                        (λ where refl → inHere)
+                                        (λ zInα → inThere (σ₀ (inThere zInα)))))
+            az' : Type α₀'
+            az' = subst (renamingToSubst (rezzScope Γ₁) σ₀) (weaken (subBindDrop subRefl) az)
+            res1 : Σ0 _ λ α' → Context α' × Renaming (x ◃ z ◃ α) α'
+            res1 = < CtxExtend Γ₀' z az' , σ >
         return res1 in
-      let res2 = do
-        ⟨ α2Aux ⟩ (Γ2Aux , yp , σ) ← swapHighest {{More {{fl}}}} (CtxExtend Γ0 z az) (⟨ y ⟩ (value ⟨ proof ⟩))
-        ⟨ α2Aux ⟩ (Γ2Aux' , yp' , σ') ← swapHighest {{fl}} (CtxExtend Γ2Aux x (subst σ ax)) < yp >
-        let res2 : Σ0 _ λ α' → Context α' × y ∈ α' × (x ◃ z ◃ α) ⇒ α'
-            res2 = < Γ2Aux' , yp' , subst σ'  ⌈ x ↦ TVar (⟨ x ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
+      let otherCase = do
+        ⟨ γ₀ ⟩ (Δ₀ , τ₀) ← swapHighest {{More {{fl}}}} (CtxExtend Γ0 z az) < yInα >
+        -- τ₀ : Renaming (z ◃ α) γ₀
+        let ax' : Type γ₀
+            ax' = subst (renamingToSubst (rezzScope (CtxExtend Γ0 z az)) τ₀) ax
+            σ₁ : Renaming (x ◃ z ◃ α) (x ◃ γ₀)
+            σ₁ = (λ wInx◃z◃α → inBindCase wInx◃z◃α
+                              (λ where refl → inHere)
+                              (λ wInz◃α → inThere (τ₀ wInz◃α)))
+        ⟨ α' ⟩ (Γ' , σ₂) ← swapHighest {{fl}} (CtxExtend Δ₀ x ax') < τ₀ (inThere yInα) >
+        -- σ₂ : Renaming (x ◃ α₀') α'
+        let res2 : Σ0 _ λ α' → Context α' × Renaming (x ◃ z ◃ α) α'
+            res2 = < Γ' , σ₂ ∘ σ₁ >
         return res2 in
-      caseTCM res2 (λ x → x) res1
+      caseTCM otherCase (λ x → x) areTheTwoLastVarsSwapable
     swapHighest {{None}} _ _ = tcError "not enough fuel to swap a variables in a context"
 
-
+ {-
     swap : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α' × α ⇒ α')
     swap _ (⟨ x ⟩ (Zero ⟨ _ ⟩)) (⟨ y ⟩ (Zero ⟨ _ ⟩)) =
       tcError "cannot swap a variable with itself"
@@ -494,6 +514,8 @@ module Swap where
       ⟨ _ ⟩ (Γ0' , σ) ← swapUnsafe Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
       return < CtxExtend Γ0' z (subst σ az), ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
 
+
+-}
   -- swapVarList : Context α → (x : NameIn α) → List (NameIn α) → TCM (Σ0 _ λ α' → Context α' × α ⇒ α')
   -- swapVarList Γ (⟨ x ⟩ xp) ((⟨ y ⟩ yp) ∷ l) = do
   --   ⟨ _ ⟩ (Γ0' , σ0) ← swapUnsafe Γ (⟨ x ⟩ xp) (⟨ y ⟩ yp)
@@ -508,3 +530,4 @@ module Swap where
   -- swapVarTerm Γ (⟨ x ⟩ xp) u = {!   !}
 {- End of module Swap -}
 open Swap
+   
