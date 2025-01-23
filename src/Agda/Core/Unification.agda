@@ -12,7 +12,6 @@ open import Agda.Core.Syntax
 open import Agda.Core.Signature
 open import Agda.Core.Substitute
 open import Agda.Core.Context
-open import Agda.Core.ScopeUtils
 open import Agda.Core.TCM
 open import Agda.Core.TCMInstances
 
@@ -22,6 +21,18 @@ module Agda.Core.Unification
   where
 
 private open module @0 G = Globals globals
+
+renamingExtend : ∀ {@0 α β : Scope Name} {@0 x : Name} → Renaming α β → x ∈ β → Renaming (x ◃ α) β
+renamingExtend σ xInβ = λ zInx◃α → inBindCase zInx◃α (λ where refl → xInβ) σ
+
+opaque
+  unfolding Scope
+  renamingWeaken : ∀ {@0 α β γ : Scope Name} → Rezz γ → Renaming α β → Renaming α (γ <> β)
+  renamingWeaken (rezz []) σ = σ
+  renamingWeaken (rezz (_ ∷ α)) σ = inThere ∘ (renamingWeaken (rezz α) σ)
+
+renamingWeakenVar : ∀ {@0 α β : Scope Name} {@0 x : Name} → Renaming α β → Renaming α (x ◃ β)
+renamingWeakenVar σ = inThere ∘ σ
 
 opaque
   unfolding Scope
@@ -413,7 +424,7 @@ module Swap where
     @0 x y : Name
     @0 α : Scope Name
 
-  private opaque
+  opaque
     unfolding Scope
     swapTwoLast : Context (x ◃ y ◃ α) → Maybe (Context (y ◃ x ◃ α))
     swapTwoLast (CtxExtend (CtxExtend Γ y ay) x ax) = do
@@ -436,11 +447,7 @@ module Swap where
     swapHighest (CtxExtend (CtxExtend Γ0 y ay) x ax) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
       Γ' ← liftMaybe (swapTwoLast (CtxExtend (CtxExtend Γ0 y ay) x ax)) "Not swapable"
       let σ : Renaming (x ◃ y ◃ α) (y ◃ x ◃ α)
-          σ = (λ zInx◃y◃α → inBindCase zInx◃y◃α
-                            (λ where refl → inThere inHere)
-                            (λ zIny◃α → inBindCase zIny◃α
-                                        (λ where refl → inHere)
-                                        (λ zInα → inThere (inThere zInα))))
+          σ = renamingExtend (renamingExtend (renamingWeaken (rezz (_ ∷ _ ∷ [])) id) inHere) (inThere inHere)
       return < Γ' , σ >
     swapHighest  {x = x} {α = Erased z ∷ α} {{More {{fl}}}} (CtxExtend (CtxExtend Γ0 z az) x ax) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
       let Γ : Context (x ◃ z ◃ α)
@@ -452,11 +459,7 @@ module Swap where
         ⟨ α₀' ⟩ (Γ₀' , σ₀ ) ← swapHighest {{fl}} Γ₁  < yInα >
         -- σ₀ : Renaming (x ◃ α) α₀'
         let σ : Renaming (x ◃ z ◃ α) (z ◃ α₀')
-            σ = (λ wInx◃z◃α → inBindCase wInx◃z◃α
-                            (λ where refl → inThere (σ₀ inHere))
-                            (λ wInz◃α → inBindCase wInz◃α
-                                        (λ where refl → inHere)
-                                        (λ zInα → inThere (σ₀ (inThere zInα)))))
+            σ = renamingExtend (renamingExtend ((renamingWeakenVar σ₀) ∘ inThere) inHere) (inThere (σ₀ inHere))
             az' : Type α₀'
             az' = subst (renamingToSubst (rezzScope Γ₁) σ₀) (weaken (subBindDrop subRefl) az)
             res1 : Σ0 _ λ α' → Context α' × Renaming (x ◃ z ◃ α) α'
@@ -468,9 +471,7 @@ module Swap where
         let ax' : Type γ₀
             ax' = subst (renamingToSubst (rezzScope (CtxExtend Γ0 z az)) τ₀) ax
             σ₁ : Renaming (x ◃ z ◃ α) (x ◃ γ₀)
-            σ₁ = (λ wInx◃z◃α → inBindCase wInx◃z◃α
-                              (λ where refl → inHere)
-                              (λ wInz◃α → inThere (τ₀ wInz◃α)))
+            σ₁ = renamingExtend (renamingWeakenVar τ₀) inHere
         ⟨ α' ⟩ (Γ' , σ₂) ← swapHighest {{fl}} (CtxExtend Δ₀ x ax') < τ₀ (inThere yInα) >
         -- σ₂ : Renaming (x ◃ α₀') α'
         let res2 : Σ0 _ λ α' → Context α' × Renaming (x ◃ z ◃ α) α'
@@ -479,14 +480,13 @@ module Swap where
       caseTCM otherCase (λ x → x) areTheTwoLastVarsSwapable
     swapHighest {{None}} _ _ = tcError "not enough fuel to swap a variables in a context"
 
- {-
-    swap : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α' × α ⇒ α')
+
+    swap : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α' × Renaming α α')
     swap _ (⟨ x ⟩ (Zero ⟨ _ ⟩)) (⟨ y ⟩ (Zero ⟨ _ ⟩)) =
       tcError "cannot swap a variable with itself"
     swap Γ (⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) = do
       (I {{fl}}) ← tcmFuel
-      ⟨ _ ⟩ (Γ' , _ , σ) ← swapHighest {{fl}} Γ (⟨ y ⟩ (value ⟨ proof ⟩))
-      return < Γ' , σ >
+      swapHighest {{fl}} Γ (⟨ y ⟩ (value ⟨ proof ⟩))
     swap _ (⟨ x ⟩ (Suc vx ⟨ px ⟩)) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) =
       tcError "variable in the wrong order (already swaped)"
     swap _ (⟨ x ⟩ (Suc Zero ⟨ _ ⟩)) (⟨ y ⟩ (Suc Zero ⟨ _ ⟩)) =
@@ -494,9 +494,14 @@ module Swap where
     swap _ (⟨ x ⟩ (Suc (Suc _) ⟨ _ ⟩)) (⟨ y ⟩ (Suc Zero ⟨ _ ⟩)) =
       tcError "variable in the wrong order (already swaped)"
     swap (CtxExtend Γ z az) (⟨ x ⟩ (Suc vx ⟨ IsSuc px ⟩)) (⟨ y ⟩ (Suc (Suc vy) ⟨ IsSuc (IsSuc py) ⟩)) = do
-      ⟨ _ ⟩ (Γ0' , σ) ← swap Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
-      return < CtxExtend Γ0' z (subst σ az), ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
+      ⟨ α₀' ⟩ (Γ0' , σ₀) ← swap Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
+      -- σ₀ : Renaming _ α₀'
+      let τ₀ = renamingToSubst (rezzScope Γ) σ₀
+          σ : Renaming (z ◃ _) (z ◃ α₀')
+          σ = renamingExtend (renamingWeakenVar σ₀) inHere
+      return < CtxExtend Γ0' z (subst τ₀ az), σ >
 
+  {- swapUnsafe
     swapUnsafe : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α' × α ⇒ α')
     swapUnsafe _ (⟨ x ⟩ (Zero ⟨ _ ⟩)) (⟨ y ⟩ (Zero ⟨ _ ⟩)) =
       tcError "cannot swap a variable with itself"
@@ -513,9 +518,8 @@ module Swap where
     swapUnsafe (CtxExtend Γ z az) (⟨ x ⟩ (Suc vx ⟨ IsSuc px ⟩)) (⟨ y ⟩ (Suc (Suc vy) ⟨ IsSuc (IsSuc py) ⟩)) = do
       ⟨ _ ⟩ (Γ0' , σ) ← swapUnsafe Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
       return < CtxExtend Γ0' z (subst σ az), ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
+  -}
 
-
--}
   -- swapVarList : Context α → (x : NameIn α) → List (NameIn α) → TCM (Σ0 _ λ α' → Context α' × α ⇒ α')
   -- swapVarList Γ (⟨ x ⟩ xp) ((⟨ y ⟩ yp) ∷ l) = do
   --   ⟨ _ ⟩ (Γ0' , σ0) ← swapUnsafe Γ (⟨ x ⟩ xp) (⟨ y ⟩ yp)
@@ -530,4 +534,3 @@ module Swap where
   -- swapVarTerm Γ (⟨ x ⟩ xp) u = {!   !}
 {- End of module Swap -}
 open Swap
-   
