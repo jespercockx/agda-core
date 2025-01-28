@@ -449,3 +449,50 @@ instance
 {-# COMPILE AGDA2HS iStrengthenBranch #-}
 {-# COMPILE AGDA2HS iStrengthenBranches #-}
 {-# COMPILE AGDA2HS iStrengthenSubst #-}
+
+opaque
+  unfolding Scope
+  liftBindListNameIn : List (NameIn (x ◃ α)) → List (NameIn α)
+  liftBindListNameIn [] = []
+  liftBindListNameIn ((⟨ x ⟩ (Zero ⟨ p ⟩)) ∷ l) = liftBindListNameIn l
+  liftBindListNameIn ((⟨ x ⟩ (Suc n ⟨ IsSuc p ⟩)) ∷ l) = < n ⟨ p ⟩ > ∷ (liftBindListNameIn l)
+
+  liftListNameIn : Rezz γ → List (NameIn (γ <> α)) → List (NameIn α)
+  liftListNameIn _ [] = []
+  liftListNameIn γRun ((⟨ x ⟩ xInγα) ∷ l) =
+    inJoinCase γRun xInγα
+      (λ _ → liftListNameIn γRun l)
+      (λ xInα → < xInα > ∷ (liftListNameIn γRun l))
+
+{- TODO: create merge function for sorted lists of var as replacing <> by it would **greatly** decrease complexity -}
+varInTerm : Term α → List (NameIn α)
+varInSubst : Subst α β → List (NameIn β)
+varInType : Type α → List (NameIn α)
+varInBranches : Branches α cs → List (NameIn α)
+varInBranch : Branch α c → List (NameIn α)
+
+varInTerm (TVar x) = x ∷ []
+varInTerm (TDef d) = []
+varInTerm (TData d ps is) = varInSubst is <> (varInSubst ps)
+varInTerm (TCon c vs) = varInSubst vs
+varInTerm (TLam x v) = liftBindListNameIn (varInTerm v)
+varInTerm (TApp t₀ t₁) = varInTerm t₀ <> (varInTerm t₁)
+varInTerm (TProj t x) = varInTerm t
+varInTerm (TCase d r u bs m) =
+  varInTerm u <>
+  (varInBranches bs) <>
+  (liftListNameIn (rezz~ r) (liftBindListNameIn (varInType m)))
+varInTerm (TPi x a b) = varInType a <> (liftBindListNameIn (varInType b))
+varInTerm (TSort x) = []
+varInTerm (TLet x t t₁) = varInTerm t <> (liftBindListNameIn (varInTerm t₁))
+varInTerm (TAnn u t) = varInTerm u <> varInType t
+
+varInSubst ⌈⌉ = []
+varInSubst ⌈ x ↦ u ◃ σ ⌉ = (varInTerm u) <> (varInSubst σ)
+
+varInType (El _ u) = varInTerm u
+
+varInBranches BsNil = []
+varInBranches (BsCons b bs) = varInBranch b <> (varInBranches bs)
+
+varInBranch (BBranch c r v) = liftListNameIn (rezz~ r) (varInTerm v)
