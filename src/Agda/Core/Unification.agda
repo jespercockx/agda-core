@@ -43,6 +43,8 @@ opaque
         r' = λ xp → r (coerce (subBindDrop subRefl) xp) in
     ⌈ x ↦  TVar < r (Zero ⟨ IsZero refl ⟩) > ◃ renamingToSubst (rezz α) r' ⌉
 
+
+
 ---------------------------------------------------------------------------------------------------
                                    {- PART ONE : Shrinking -}
 ---------------------------------------------------------------------------------------------------
@@ -535,10 +537,13 @@ module Swap where
   swapVarListFuel (suc _) _ _ [] = tcError "It should be impossible : check the code of swapVarList in Unification"
 
   swapVarList : Context α → (x : NameIn α) → List (NameIn α) → TCM (Σ0 _ λ α' → Context α' × Renaming α α')
-  swapVarList Γ xp l = swapVarListFuel (unsafeIntToNat (length l)) Γ xp l
+  swapVarList Γ x l = swapVarListFuel (unsafeIntToNat (length l)) Γ x l
 
-  -- swapVarTerm : (Γ : Context α) → ((⟨ x ⟩ xp) : NameIn α) → (u : Term α)
-  --     → TCM (Σ0 _ λ α' → Context α' × (Σ[ σ ∈ Renaming α α' ] (Σ[ u₀ ∈ Term (cutDrop (σ xp)) ] Strengthened u u₀)))
-  -- swapVarTerm Γ (⟨ x ⟩ xp) u = {!   !}
+  swapVarTerm : (Γ : Context α) → ((⟨ x ⟩ xp) : NameIn α) → (u : Term α)
+    → TCM (Σ0 _ λ α' → Context α' × Renaming α α')
+  swapVarTerm Γ x u = swapVarList Γ x (varInTerm u)
+
+
+    -- (Σ[ σ ∈ Renaming α α' ] (Σ[ u₀ ∈ Term (cutDrop (σ xp)) ] Strengthened u u₀)))
 {- End of module Swap -}
 open Swap
