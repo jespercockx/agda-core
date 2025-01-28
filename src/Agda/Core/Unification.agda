@@ -245,6 +245,9 @@ module UnificationStepAndStop where
   _,_↣ᵤ_,_ = UnificationStep
   _,_↣ᵤ⊥ = UnificationStop
 
+  @0 Strengthened : ∀ {@0 α β : Scope Name} → Term β → Term α → Set
+  Strengthened {α = α} {β = β} u u₀ = (Σ[ p ∈ α ⊆ β ] Just u₀ ≡ strengthen p u)
+
   data UnificationStep {α = α} Γ where
 
     {- remove equalities of the form t = t -}
@@ -271,7 +274,7 @@ module UnificationStepAndStop where
            ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (rezz α) Ξ u                  -- replace e₀ by u in the telescopic equality
            ΔEq' : TelescopicEq α' β
            ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)       -- replace x by u
-      → Just u₀ ≡ strengthen subCutDrop u
+      → Strengthened u u₀
       ------------------------------------------------------------
       → Γ , ⌈ e₀ ↦ TVar (⟨ x ⟩ xp) ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
 
@@ -478,7 +481,8 @@ module Swap where
             res2 = < Γ' , σ₂ ∘ σ₁ >
         return res2 in
       caseTCM otherCase (λ x → x) areTheTwoLastVarsSwapable
-    swapHighest {{None}} _ _ = tcError "not enough fuel to swap a variables in a context"
+    swapHighest {{None}} (CtxExtend (CtxExtend _ _ _) _ _) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩))  =
+      tcError "not enough fuel to swap a variables in a context"
 
 
     swap : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α' × Renaming α α')
@@ -501,36 +505,40 @@ module Swap where
           σ = renamingExtend (renamingWeakenVar σ₀) inHere
       return < CtxExtend Γ0' z (subst τ₀ az), σ >
 
-  {- swapUnsafe
-    swapUnsafe : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α' × α ⇒ α')
+    swapUnsafe : Context α → (x y : NameIn α) → TCM (Σ0 _ λ α' → Context α' × Renaming α α')
     swapUnsafe _ (⟨ x ⟩ (Zero ⟨ _ ⟩)) (⟨ y ⟩ (Zero ⟨ _ ⟩)) =
       tcError "cannot swap a variable with itself"
     swapUnsafe Γ (⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) = do
       (I {{fl}}) ← tcmFuel
-      ⟨ _ ⟩ (Γ' , _ , σ) ← swapHighest {{fl}} Γ (⟨ y ⟩ (value ⟨ proof ⟩))
-      return < Γ' , σ >
+      swapHighest {{fl}} Γ (⟨ y ⟩ (value ⟨ proof ⟩))
     swapUnsafe Γ (⟨ x ⟩ (Suc vx ⟨ px ⟩)) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
-      return < Γ , idSubst (rezzScope Γ) >
+      return < Γ , id >
     swapUnsafe _ (⟨ x ⟩ (Suc Zero ⟨ _ ⟩)) (⟨ y ⟩ (Suc Zero ⟨ _ ⟩)) =
       tcError "cannot swap a variable with itself"
     swapUnsafe Γ (⟨ x ⟩ (Suc (Suc _) ⟨ _ ⟩)) (⟨ y ⟩ (Suc Zero ⟨ _ ⟩)) = do
-      return < Γ  , idSubst (rezzScope Γ) >
+      return < Γ  , id >
     swapUnsafe (CtxExtend Γ z az) (⟨ x ⟩ (Suc vx ⟨ IsSuc px ⟩)) (⟨ y ⟩ (Suc (Suc vy) ⟨ IsSuc (IsSuc py) ⟩)) = do
-      ⟨ _ ⟩ (Γ0' , σ) ← swapUnsafe Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
-      return < CtxExtend Γ0' z (subst σ az), ⌈ z ↦ TVar (⟨ z ⟩ inHere) ◃ weaken (subBindDrop subRefl) σ ⌉ >
-  -}
+      ⟨ α₀' ⟩ (Γ0' , σ₀) ← swap Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
+      -- σ₀ : Renaming _ α₀'
+      let τ₀ = renamingToSubst (rezzScope Γ) σ₀
+          σ : Renaming (z ◃ _) (z ◃ α₀')
+          σ = renamingExtend (renamingWeakenVar σ₀) inHere
+      return < CtxExtend Γ0' z (subst τ₀ az), σ >
 
-  -- swapVarList : Context α → (x : NameIn α) → List (NameIn α) → TCM (Σ0 _ λ α' → Context α' × α ⇒ α')
-  -- swapVarList Γ (⟨ x ⟩ xp) ((⟨ y ⟩ yp) ∷ l) = do
-  --   ⟨ _ ⟩ (Γ0' , σ0) ← swapUnsafe Γ (⟨ x ⟩ xp) (⟨ y ⟩ yp)
-  --   ⟨ _ ⟩ (Γ' , σ) ← swapVarList Γ0' (⟨ x ⟩ {!   !}) {!   !} -- have to apply σ0 on xp and l
-  --   return < Γ' , (subst σ σ0) >
-  -- swapVarList Γ x [] = MkTCM (λ _ → Right < Γ , idSubst (rezzScope Γ) >)
+  swapVarListFuel : (fl : Nat) → Context α → (x : NameIn α) → List (NameIn α) → TCM (Σ0 _ λ α' → Context α' × Renaming α α')
+  swapVarListFuel (suc fl) Γ (⟨ x ⟩ xp) ((⟨ y ⟩ yp) ∷ l) = do
+    ⟨ _ ⟩ (Γ0' , σ₀) ← swap Γ (⟨ x ⟩ xp) (⟨ y ⟩ yp)
+    ⟨ _ ⟩ (Γ' , σ) ← swapVarListFuel fl Γ0' (⟨ x ⟩ σ₀ xp) (map (λ z → < σ₀ (proj₂ z) >) l)
+    return < Γ' , σ ∘ σ₀ >
+  swapVarListFuel zero Γ x [] = MkTCM (λ _ → Right < Γ , id >)
+  swapVarListFuel zero _ _ (_ ∷ _) = tcError "It should be impossible : check the code of swapVarList in Unification"
+  swapVarListFuel (suc _) _ _ [] = tcError "It should be impossible : check the code of swapVarList in Unification"
 
-  -- swapVarTerm : Context α → ((⟨ x ⟩ xp) : NameIn α) → (u : Term α)
-  --     → TCM (Σ0 _ λ α' → Context α' ×
-  --       (Σ[ xp ∈ (x ∈ α')] (Σ[ σ ∈ α ⇒ α' ] (Σ[ u₀ ∈ Term (cutDrop xp) ]
-  --         Just u₀ ≡ strengthen subCutDrop (subst σ u)))))
+  swapVarList : Context α → (x : NameIn α) → List (NameIn α) → TCM (Σ0 _ λ α' → Context α' × Renaming α α')
+  swapVarList Γ xp l = swapVarListFuel (unsafeIntToNat (length l)) Γ xp l
+
+  -- swapVarTerm : (Γ : Context α) → ((⟨ x ⟩ xp) : NameIn α) → (u : Term α)
+  --     → TCM (Σ0 _ λ α' → Context α' × (Σ[ σ ∈ Renaming α α' ] (Σ[ u₀ ∈ Term (cutDrop (σ xp)) ] Strengthened u u₀)))
   -- swapVarTerm Γ (⟨ x ⟩ xp) u = {!   !}
 {- End of module Swap -}
 open Swap
