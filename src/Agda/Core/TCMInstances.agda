@@ -63,3 +63,10 @@ caseTCM {b = b} (MkTCM runTCMb) j (MkTCM runTCMa) = MkTCM caseAux
         caseAux env with runTCMa env
         ... | Left _ = runTCMb env
         ... | Right x = Right (j x)
+
+caseTCMTCM :  ∀ {@0 a b : Set} → TCM b → (a → TCM b) → TCM a → TCM b
+caseTCMTCM {b = b} (MkTCM runTCMb) j (MkTCM runTCMa) = MkTCM caseAux
+  where caseAux : TCEnv → Either TCError b
+        caseAux env with runTCMa env
+        ... | Left _ = runTCMb env
+        ... | Right x = let MkTCM runTCMj = j x in runTCMj env
