@@ -543,7 +543,24 @@ module Swap where
     → TCM (Σ0 _ λ α' → Context α' × Renaming α α')
   swapVarTerm Γ x u = swapVarList Γ x (varInTerm u)
 
+  maybe≡ : ∀ {@0 ℓ₁ ℓ₂} {@0 a : Set ℓ₁} {@0 b : Set ℓ₂} → (mb : Maybe a) → ((x : a) → Just x ≡ mb → b) → b → b
+  maybe≡ Nothing j n  = n
+  maybe≡ (Just x) j n = j x refl
 
-    -- (Σ[ σ ∈ Renaming α α' ] (Σ[ u₀ ∈ Term (cutDrop (σ xp)) ] Strengthened u u₀)))
+  opaque
+    unfolding
+    swapVarTermStrengthened : (Γ : Context α) → ((⟨ x ⟩ xp) : NameIn α) → (u : Term α)
+      → TCM (Σ0 _ λ α' → Context α' × (Σ[ σ ∈ Renaming α α' ]
+        (Σ[ u₀ ∈ Term (cutDrop (σ xp)) ] Strengthened (subst (renamingToSubst (rezzScope Γ) σ) u) u₀)))
+    swapVarTermStrengthened Γ (⟨ x ⟩ xp) u =
+      caseTCMTCM (MkTCM (λ _ → Left "term cannot be swapped with var"))
+        (λ (⟨ α' ⟩ (Γ' , σ)) →
+          let u' : Term α'
+              u' = subst (renamingToSubst (rezzScope Γ) σ) u in
+          maybe≡ (strengthen subCutDrop u')
+            (λ u₀ e → MkTCM (λ _ → Right (⟨ α' ⟩ (Γ' , (σ , (u₀ , (subCutDrop , e)))))))
+            (MkTCM (λ _ → Left "impossible : check swapVarTermStrengthened code")))
+        (swapVarTerm Γ (⟨ x ⟩ xp) u)
+
 {- End of module Swap -}
 open Swap
