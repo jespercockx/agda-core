@@ -49,24 +49,3 @@ instance
   iMonadTCM .return = pureTCM
   iMonadTCM ._>>_   = λ x y → bindTCM x (λ z → y {{z}})
   {-# COMPILE AGDA2HS iMonadTCM #-}
-
-maybeTCM :  ∀ {@0 a b : Set} → b → (a → b) → TCM a → TCM b
-maybeTCM {b = b} v j (MkTCM runTCM₁) = MkTCM maybeAux
-  where maybeAux : TCEnv → Either TCError b
-        maybeAux env with runTCM₁ env
-        ... | Left _ = Right v
-        ... | Right x = Right (j x)
-
-caseTCM :  ∀ {@0 a b : Set} → TCM b → (a → b) → TCM a → TCM b
-caseTCM {b = b} (MkTCM runTCMb) j (MkTCM runTCMa) = MkTCM caseAux
-  where caseAux : TCEnv → Either TCError b
-        caseAux env with runTCMa env
-        ... | Left _ = runTCMb env
-        ... | Right x = Right (j x)
-
-caseTCMTCM :  ∀ {@0 a b : Set} → TCM b → (a → TCM b) → TCM a → TCM b
-caseTCMTCM {b = b} (MkTCM runTCMb) j (MkTCM runTCMa) = MkTCM caseAux
-  where caseAux : TCEnv → Either TCError b
-        caseAux env with runTCMa env
-        ... | Left _ = runTCMb env
-        ... | Right x = let MkTCM runTCMj = j x in runTCMj env
