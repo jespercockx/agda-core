@@ -13,7 +13,6 @@ open import Agda.Core.Syntax
 open import Agda.Core.Signature
 open import Agda.Core.Substitute
 open import Agda.Core.Context
-open import Agda.Core.ScopeUtils
 open import Agda.Core.TCM
 open import Agda.Core.TCMInstances
 open import Agda.Core.Unification
@@ -58,14 +57,14 @@ module Swap where
           recursive call on (z, Γ) and return swapHighest (x, Γ') y
       (recursion terminates because the depth of y in the contexts
       used in recursive calls is decreasing.) -}
-    swapHighest : {{fl : Fuel}} → Context (x ◃ α) → ((⟨ y ⟩ yp) : NameIn α)
+    swapHighest : {{fl : Index}} → Context (x ◃ α) → ((⟨ y ⟩ yp) : NameIn α)
       → Maybe (Σ0 _ λ α' → Context α' × Renaming (x ◃ α) α')
     swapHighest (CtxExtend (CtxExtend Γ0 y ay) x ax) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
       Γ' ← swapTwoLast (CtxExtend (CtxExtend Γ0 y ay) x ax)
       let σ : Renaming (x ◃ y ◃ α) (y ◃ x ◃ α)
           σ = renamingExtend (renamingExtend (renamingWeaken (rezz (_ ∷ _ ∷ [])) id) inHere) (inThere inHere)
       return < Γ' , σ >
-    swapHighest  {x = x} {α = Erased z ∷ α} {{More {{fl}}}} (CtxExtend (CtxExtend Γ0 z az) x ax) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
+    swapHighest  {x = x} {α = Erased z ∷ α} {{Suc fl}} (CtxExtend (CtxExtend Γ0 z az) x ax) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
       let Γ : Context (x ◃ z ◃ α)
           Γ = (CtxExtend (CtxExtend Γ0 z az) x ax)
           yInα : y ∈ α
@@ -82,7 +81,7 @@ module Swap where
             res1 = < CtxExtend Γ₀' z az' , σ >
         return res1 in
       let otherCase = do
-        ⟨ γ₀ ⟩ (Δ₀ , τ₀) ← swapHighest {{More {{fl}}}} (CtxExtend Γ0 z az) < yInα >
+        ⟨ γ₀ ⟩ (Δ₀ , τ₀) ← swapHighest {{fl}} (CtxExtend Γ0 z az) < yInα >
         -- τ₀ : Renaming (z ◃ α) γ₀
         let ax' : Type γ₀
             ax' = subst (renamingToSubst (rezzScope (CtxExtend Γ0 z az)) τ₀) ax
@@ -94,14 +93,14 @@ module Swap where
             res2 = < Γ' , σ₂ ∘ σ₁ >
         return res2 in
       caseMaybe areTheTwoLastVarsSwapable (λ x → Just x) otherCase
-    swapHighest {{None}} (CtxExtend (CtxExtend _ _ _) _ _) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩))  = Nothing
+    swapHighest {{Zero}} (CtxExtend (CtxExtend _ _ _) _ _) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩))  = Nothing -- this shouldn't happens as at all times fl ≥ position of y in the scope
 
 
     swap : Context α → (x y : NameIn α) → Either SwapError (Maybe (Σ0 _ λ α' → Context α' × Renaming α α'))
     swap _ (⟨ x ⟩ (Zero ⟨ _ ⟩)) (⟨ y ⟩ (Zero ⟨ _ ⟩)) =
       Left CantSwapVarWithItSelf
     swap Γ (⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) = do
-      Right (swapHighest {{None}} Γ (⟨ y ⟩ (value ⟨ proof ⟩)))
+      Right (swapHighest {{value}} Γ (⟨ y ⟩ (value ⟨ proof ⟩)))
     swap _ (⟨ x ⟩ (Suc vx ⟨ px ⟩)) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) =
        Left VarInWrongOrder
     swap _ (⟨ x ⟩ (Suc Zero ⟨ _ ⟩)) (⟨ y ⟩ (Suc Zero ⟨ _ ⟩)) =
@@ -167,4 +166,7 @@ module Swap where
 
 {- End of module Swap -}
 open Swap
-    
+
+---------------------------------------------------------------------------------------------------
+                           {- PART TWO : Unification algorithm -}
+---------------------------------------------------------------------------------------------------
