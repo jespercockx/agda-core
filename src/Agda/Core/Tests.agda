@@ -21,6 +21,8 @@ open import Agda.Core.Context
 open import Agda.Core.TCM
 open import Agda.Core.Typing
 open import Agda.Core.Typechecker
+open import Agda.Core.Unification
+open import Agda.Core.Unifier
 
 private variable
   x y : Name
@@ -133,5 +135,42 @@ module TestTypechecker (@0 x y z : Name) where
     testProp₁ = testTC₁ ≡ Right _
     test₁ = refl
 
+module TestUnifierSwap where
+  open Swap
+  opaque private
+    basicTerm : Term α
+    basicTerm = TLam "x" (TVar < inHere >)
+    ℕ : Type α
+    ℕ = El (STyp zero) basicTerm
+    A : Type α
+    A = El (STyp zero) basicTerm
+    vec : Type α → Term α → Type α
+    vec A _ = A
 
--- -}
+  -- (n₀ : ℕ) (v : vec A n) (m₀ : ℕ) (v' : vec A n₀) (w : vec A m₀) (w' : vec A m₀)
+  Scope-n₀ = "n₀" ◃ mempty
+  Scope-v = "v" ◃ Scope-n₀
+  Scope-m₀ = "m₀" ◃ Scope-v
+  Scope-v' = "v'" ◃ Scope-m₀
+  Scope-w = "w" ◃ Scope-v'
+  Scope-w' = "w'" ◃ Scope-w
+
+  Context-n₀ = CtxEmpty , "n₀" ∶ ℕ
+  Context-v : Context Scope-v
+  Context-v = Context-n₀ , "v" ∶ vec A (TVar (⟨ "n₀" ⟩ inHere))
+  Context-m₀ : Context Scope-m₀
+  Context-m₀ = Context-v , "m₀" ∶ ℕ
+  Context-v' : Context Scope-v'
+  Context-v' = Context-m₀ , "v'" ∶ vec A (TVar (⟨ "n₀" ⟩ inThere (inThere inHere)))
+  Context-w : Context Scope-w
+  Context-w = Context-v' , "w" ∶ vec A (TVar (⟨ "m₀" ⟩ inThere inHere))
+  Context-w' : Context Scope-w'
+  Context-w' = Context-w , "w'" ∶  vec A (TVar (⟨ "m₀" ⟩ inThere (inThere (inHere))))
+
+  w : NameIn Scope-w
+  w = ⟨ "w" ⟩ inHere
+
+  -- opaque
+  --   unfolding swapHighest inHere
+  --   testSwapHighestBaseCase : (swapHighest {{fl = Zero}} Context-w' w ≡ Just _)
+  --   testSwapHighestBaseCase = {!   !}
