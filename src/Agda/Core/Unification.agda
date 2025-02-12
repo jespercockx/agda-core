@@ -236,7 +236,7 @@ open TelescopeEq
 module UnificationStepAndStop where
   private variable
     @0 e₀ x : Name
-    @0 α α' β β' : Scope Name
+    @0 α α' α'' β β' β'' : Scope Name
     δ₁ δ₂ : β ⇒ α
     ds : Sort α
 
@@ -279,6 +279,23 @@ module UnificationStepAndStop where
       → Strengthened u u₀
       ------------------------------------------------------------
       → Γ , ⌈ e₀ ↦ TVar (⟨ x ⟩ xp) ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
+    SolutionR :
+      {xp : x ∈ α}
+      (let α₀ , α₁ = cut xp
+           α' = α₁ <> α₀)                                              -- new scope without x
+      {u : Term α}
+      {u₀ : Term α₀}                                                   -- u₀ is independant from x as x ∉ α₀
+      {Ξ : Telescope α (e₀ ◃ β)}
+      (let rσ = shrinkFromCut (rezz α) xp u₀                            -- an order preserving substitution to remove x
+           Γ' : Context α'
+           Γ' = shrinkContext Γ rσ                                     -- new context where x is removed
+           ΔEq : TelescopicEq α β
+           ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (rezz α) Ξ u                  -- replace e₀ by u in the telescopic equality
+           ΔEq' : TelescopicEq α' β
+           ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)       -- replace x by u
+      → Strengthened u u₀
+      ------------------------------------------------------------
+      → Γ , ⌈ e₀ ↦ u ◃ δ₂ ⌉ ≟ ⌈ e₀ ↦ TVar (⟨ x ⟩ xp) ◃ δ₁ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
 
     {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
     {- this only work with K -}
@@ -418,5 +435,25 @@ module UnificationStepAndStop where
       → Γ , ⌈ e₀ ↦ u ◃ δ₂ ⌉ ≟ ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ∶ Ξ ↣ᵤ⊥
   {- End of UnificationStop -}
 
+
+  data UnificationSteps : Context α → TelescopicEq α β → Context α' → TelescopicEq α' β' → Set where
+    StepCons :
+      (Γ : Context α) (Γ' : Context α') (Γ'' : Context α'')
+      → (Ξ : TelescopicEq α β) (Ξ' : TelescopicEq α' β') (Ξ'' : TelescopicEq α'' β'')
+      → UnificationStep Γ Ξ Γ' Ξ' → UnificationSteps Γ' Ξ' Γ'' Ξ''
+      → UnificationSteps Γ Ξ Γ'' Ξ''
+    StepId : (Γ : Context α) (Ξ : TelescopicEq α β) → UnificationSteps Γ Ξ Γ Ξ
+
+  data UnificationStops : Context α → TelescopicEq α β → Set where
+    StopCons :
+      (Γ : Context α) (Γ' : Context α')
+      → (Ξ : TelescopicEq α β) (Ξ' : TelescopicEq α' β')
+      → UnificationSteps Γ Ξ Γ' Ξ' → UnificationStop Γ' Ξ'
+      → UnificationStops Γ Ξ
+
+  infix 3 _,_↣ᵤ⋆_,_
+  infix 3 _,_↣ᵤ⋆⊥
+  _,_↣ᵤ⋆_,_ = UnificationSteps
+  _,_↣ᵤ⋆⊥ = UnificationStops
 {- End of module UnificationStepAndStop -}
 open UnificationStepAndStop
