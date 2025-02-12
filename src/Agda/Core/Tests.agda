@@ -170,7 +170,30 @@ module TestUnifierSwap where
   w : NameIn Scope-w
   w = ⟨ "w" ⟩ inHere
 
-  -- opaque
-  --   unfolding swapHighest inHere
-  --   testSwapHighestBaseCase : (swapHighest {{fl = Zero}} Context-w' w ≡ Just _)
-  --   testSwapHighestBaseCase = {!   !}
+  v' : NameIn Scope-w
+  v' = ⟨ "v'" ⟩ (inThere inHere)
+
+  m₀ : NameIn Scope-w
+  m₀ = ⟨ "m₀" ⟩ (inThere (inThere inHere))
+
+  givenfuel = Suc (Suc (Suc (Suc Zero)))
+  opaque
+    unfolding ScopeThings swapHighest vec
+
+    @0 testSwapHighestBaseCaseProp : Set
+    testSwapHighestBaseCase : testSwapHighestBaseCaseProp
+
+    testSwapHighestBaseCaseProp = (swapHighest {{fl = Zero}} Context-w' w ≡ Just _ )
+    testSwapHighestBaseCase = refl
+
+    @0 testSwapHighest1Prop : Set
+    testSwapHighest1 : testSwapHighest1Prop
+
+    testSwapHighest1Prop = (swapHighest {{fl = Suc Zero}} Context-w' v' ≡ Just _ )
+    testSwapHighest1 = refl
+
+    @0 testSwapHighest2Prop : Set
+    testSwapHighest2 : testSwapHighest1Prop
+
+    testSwapHighest2Prop = (swapHighest {{fl = Suc (Suc (Suc (Suc Zero)))}} Context-w' m₀ ≡ Nothing )
+    testSwapHighest2 = refl
