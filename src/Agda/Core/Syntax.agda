@@ -45,6 +45,11 @@ data Subst : (@0 α β : Scope Name) → Set where
   SCons :  Term β → Subst α β → Subst (x ◃ α) β
 {-# COMPILE AGDA2HS Subst deriving Show #-}
 
+data TypeS : (@0 α β : Scope Name) → Set where
+  YNil  : TypeS mempty β
+  YCons :  Type β → TypeS α β → TypeS (x ◃ α) β
+{-# COMPILE AGDA2HS TypeS deriving Show #-}
+
 infix 5 Subst
 syntax Subst α β = α ⇒ β
 
