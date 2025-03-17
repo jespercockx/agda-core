@@ -2,8 +2,6 @@
 open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Signature
 open import Scope
-open import Agda.Core.Syntax as Syntax
-open import Agda.Core.Reduce
 
 open import Haskell.Prelude hiding (All; m)
 open import Haskell.Extra.Erase using (Rezz; rezz; ⟨_⟩_)
