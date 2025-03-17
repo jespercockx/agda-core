@@ -11,7 +11,6 @@ open import Haskell.Prelude hiding (All; s; t)
 open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Syntax
-open import Agda.Core.Reduce
 open import Agda.Core.Signature
 
 module Agda.Core.Context

@@ -13,8 +13,6 @@ open import Agda.Core.Signature
 open import Agda.Core.Syntax
 open import Agda.Core.Substitute
 open import Agda.Core.Reduce
-open import Agda.Core.Context
-open import Agda.Core.Utils
 
 module Agda.Core.Conversion
   {{@0 globals : Globals}}
@@ -29,7 +27,6 @@ private variable
   @0 s s' t t' u u' v v' w w' : Term α
   @0 k l n sa sb    : Sort α
   @0 a a' b b' c c' : Type α
-  @0 tel            : Telescope α β
   @0 us vs          : α ⇒ β
 
 data Conv       {@0 α} : @0 Term α → @0 Term α → Set

@@ -88,7 +88,7 @@ data TyTerm {α} Γ where
     → Γ ⊢ˢ pSubst ∶ (weaken subEmpty (dataParameterTel dt))
     → Γ ⊢ˢ iSubst ∶ (substTelescope pSubst (dataIndexTel dt))
     ----------------------------------------------
-    → Γ ⊢ dataTypeTerm d pSubst iSubst ∶ sortType (subst pSubst (dataSort dt))
+    → Γ ⊢ TData d pSubst iSubst ∶ sortType (subst pSubst (dataSort dt))
 
   TyCon :
       {d : NameIn dataScope}
