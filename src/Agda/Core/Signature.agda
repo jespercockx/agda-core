@@ -53,8 +53,8 @@ opaque
 
 record Constructor (@0 pars : Scope Name) (@0 ixs : Scope Name) (@0 c : NameIn conScope) : Set where
   field
-    conTelescope : Telescope pars (fieldScope c)
-    conIndices   : ixs ⇒ (revScope (fieldScope c) <> pars)
+    conIndTypeS : TypeS (fieldScope c) pars                          -- the TypeS of the indexes of c
+    conIx   : ixs ⇒ (fieldScope c) <> pars                          -- how the indexes are constructred given parameters and c indices
 open Constructor public
 
 {-# COMPILE AGDA2HS Constructor #-}
@@ -63,8 +63,8 @@ record Datatype (@0 pars : Scope Name) (@0 ixs : Scope Name) : Set where
   field
     dataConstructorScope : Scope Name
     dataSort             : Sort pars
-    dataParameterTel     : Telescope mempty pars
-    dataIndexTel         : Telescope pars ixs
+    dataParTypeS         : TypeS pars mempty
+    dataIxTypeS         : TypeS ixs pars
     dataConstructors     : ((⟨ c ⟩ cp) : NameIn  dataConstructorScope)
                          → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ c ⟩ p))
 open Datatype public

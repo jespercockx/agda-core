@@ -27,6 +27,7 @@ substType     : α ⇒ β → Type α → Type β
 substBranch   : α ⇒ β → Branch α c → Branch β c
 substBranches : α ⇒ β → Branches α cs → Branches β cs
 substSubst    : α ⇒ β → γ ⇒ α → γ ⇒ β
+substTypeS   : α ⇒ β → γ ⇛ α → γ ⇛ β
 
 substSort f (STyp x) = STyp x
 {-# COMPILE AGDA2HS substSort #-}
@@ -45,14 +46,14 @@ substTerm f (TCase {x = x} d r u bs m) =
   TCase {x = x} d r
     (substTerm f u)
     (substBranches f bs)
-    (substType (liftBindSubst (liftSubst (rezz~ r) f)) m)
+    (substType (liftBindSubst (liftSubst r f)) m)
 substTerm f (TPi x a b)       = TPi x (substType f a) (substType (liftBindSubst f) b)
 substTerm f (TSort s)         = TSort (substSort f s)
 substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)
 substTerm f (TAnn u t)        = TAnn (substTerm f u) (substType f t)
 {-# COMPILE AGDA2HS substTerm #-}
 
-substBranch f (BBranch c r u) = BBranch c r (substTerm (liftSubst (rezz~ r) f) u)
+substBranch f (BBranch c r u) = BBranch c r (substTerm (liftSubst r f) u)
 {-# COMPILE AGDA2HS substBranch #-}
 
 substBranches f BsNil = BsNil
@@ -62,6 +63,10 @@ substBranches f (BsCons b bs) = BsCons (substBranch f b) (substBranches f bs)
 substSubst f SNil = SNil
 substSubst f (SCons x e) = SCons (substTerm f x) (substSubst f e)
 {-# COMPILE AGDA2HS substSubst #-}
+
+substTypeS f ⌈⌉ = ⌈⌉
+substTypeS f ⌈ e ◃ _ ∶ x ⌉ = YCons (substType f x) (substTypeS f e)
+{-# COMPILE AGDA2HS substTypeS #-}
 
 record Substitute (t : @0 Scope Name → Set) : Set where
   field subst : (α ⇒ β) → t α → t β
@@ -81,12 +86,15 @@ instance
   iSubstBranches .subst = substBranches
   iSubstSubst : Substitute (Subst α)
   iSubstSubst .subst = substSubst
+  iSubstTypeS : Substitute (TypeS α)
+  iSubstTypeS .subst = substTypeS
 {-# COMPILE AGDA2HS iSubstTerm #-}
 {-# COMPILE AGDA2HS iSubstType #-}
 {-# COMPILE AGDA2HS iSubstSort #-}
 {-# COMPILE AGDA2HS iSubstBranch #-}
 {-# COMPILE AGDA2HS iSubstBranches #-}
 {-# COMPILE AGDA2HS iSubstSubst #-}
+{-# COMPILE AGDA2HS iSubstTypeS #-}
 
 substTop : {{Substitute t}} → Rezz α → Term α → t (x ◃ α) → t α
 substTop r u = subst (SCons u (idSubst r))

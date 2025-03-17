@@ -33,7 +33,7 @@ private variable
   @0 a b c   : Type α
   @0 k l m   : Sort α
   @0 n       : Nat
-  @0 tel     : Telescope α β
+  @0 Δ     : TypeS β α
   @0 us vs   : α ⇒ β
 
 constructorType : (d : NameIn dataScope)
@@ -44,22 +44,22 @@ constructorType : (d : NameIn dataScope)
                 → fieldScope c ⇒ α
                 → Type α
 constructorType d c con ds pars us =
-  dataType d ds pars (subst (concatSubst (revSubst us) pars) (conIndices con))
+  dataType d ds pars (subst (concatSubst us pars) (conIx con))
 {-# COMPILE AGDA2HS constructorType #-}
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
 
-data TySubst (@0 Γ : Context α) : @0 (β ⇒ α) → @0 Telescope α β → Set
+data TySubst (@0 Γ : Context α) : @0 (β ⇒ α) → @0 TypeS β α → Set
 
 data TyBranches (@0 Γ : Context α)
                 {@0 pars ixs} (@0 dt : Datatype pars ixs)
                 (@0 ps : pars ⇒ α)
-                (@0 rt : Type (x ◃ (~ ixs <> α))) : @0 Branches α cons → Set
+                (@0 rt : Type (x ◃ (ixs <> α))) : @0 Branches α cons → Set
 
 data TyBranch (@0 Γ : Context α)
               {@0 pars ixs} (@0 dt : Datatype pars ixs)
               (@0 ps : pars ⇒ α)
-              (@0 rt : Type (x ◃ (~ ixs <> α))) : @0 Branch α con → Set
+              (@0 rt : Type (x ◃ (ixs <> α))) : @0 Branch α con → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -85,8 +85,8 @@ data TyTerm {α} Γ where
       (let dt : Datatype (dataParScope d) (dataIxScope d)
            dt = sigData sig d)
 
-    → Γ ⊢ˢ pSubst ∶ (weaken subEmpty (dataParameterTel dt))
-    → Γ ⊢ˢ iSubst ∶ (substTelescope pSubst (dataIndexTel dt))
+    → Γ ⊢ˢ pSubst ∶ (weaken subEmpty (dataParTypeS dt))
+    → Γ ⊢ˢ iSubst ∶ (subst pSubst (dataIxTypeS dt))
     ----------------------------------------------
     → Γ ⊢ TData d pSubst iSubst ∶ sortType (subst pSubst (dataSort dt))
 
@@ -99,7 +99,7 @@ data TyTerm {α} Γ where
       (let (cp , con) = dataConstructors dt c)
       {@0 us : fieldScope (⟨ _ ⟩ cp) ⇒ α}
 
-    → Γ ⊢ˢ us ∶ (substTelescope pars (conTelescope con))
+    → Γ ⊢ˢ us ∶ (subst pars (conIndTypeS con))
     -----------------------------------------------------------
     → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (subst pars (dataSort dt)) pars us
 
@@ -119,30 +119,30 @@ data TyTerm {α} Γ where
     {d : NameIn dataScope}                                        -- the name of a datatype
     (let pScope = dataParScope d                                 -- parameters of d
          iScope = dataIxScope d                                  -- indexes of d
-         α' = ~ iScope <> α                                      -- general scope + indexes
+         α' = iScope <> α                                      -- general scope + indexes
          dt = sigData sig d                                       -- the datatype called d
          αRun = rezz α                                           -- runtime general scope
          iRun = rezz iScope)                                    -- runtime index scope
     {@0 pSubst : pScope ⇒ α}                                    -- subst of parameters of d to α
     {@0 iSubst : iScope ⇒ α}                                    -- subst of indexes of d to α
     (let iSubst' : iScope ⇒ α'                                  -- subst of indexes of d to α'
-         iSubst' = weaken (subJoinHere (rezz~ iRun) subRefl) (revIdSubst iRun)
+         iSubst' = weaken (subJoinHere iRun subRefl) (idSubst iRun)
 
          α'Subst : α' ⇒ α                                        -- subst of α' to α
-         α'Subst = concatSubst (revSubst iSubst) (idSubst αRun))
+         α'Subst = concatSubst iSubst (idSubst αRun))
     {cases : Branches α (dataConstructorScope dt)}                -- cases for constructors of dt
     {return : Type (x ◃ α')}                                      -- return type
     (let αInα' : α ⊆ α'
-         αInα' = subJoinDrop (rezz~ iRun) subRefl              -- proof that α is in α'
+         αInα' = subJoinDrop iRun subRefl              -- proof that α is in α'
 
          Γ' : Context α'                                          -- new context with α and the indexes
-         Γ' = addContextTel (substTelescope pSubst (dataIndexTel dt)) Γ
+         Γ' = addContextTypeS Γ (subst pSubst (dataIxTypeS dt))
 
          tx : Type α'
          tx = dataType d (weaken αInα' k) (weaken αInα' pSubst) iSubst'
 
          return' : Type α
-         return' = subst ⌈ x ↦ u ◃ α'Subst ⌉ return)
+         return' = subst ⌈ α'Subst ◃ x ↦ u ⌉ return)
 
     → Γ' , x ∶ tx ⊢ unType return ∶ sortType (typeSort return) -- if return is well formed
     → TyBranches Γ dt pSubst return cases                     -- if each case is well typed
@@ -196,32 +196,30 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
   TyBBranch : (c : NameIn (dataConstructorScope dt))
               (let (c∈cons , con ) = dataConstructors dt c
                    fields = fieldScope (⟨ _ ⟩ c∈cons)
-                   β = ~ fields <> α)
+                   β = fields <> α)
               {@0 r : Rezz fields} {- TODO: remove Rezz via helper function -}
               {@0 αRun : Rezz α}
               (rhs : Term β)
-              (let rr = rezz~ r
-
-                   Γ' : Context β
-                   Γ' = addContextTel (substTelescope pSubst (conTelescope con)) Γ
+              (let Γ' : Context β
+                   Γ' = addContextTypeS Γ (subst pSubst (conIndTypeS con))
 
                    cargs : fields ⇒ β
-                   cargs = weaken (subJoinHere rr subRefl) (revIdSubst r)
+                   cargs = weaken (subJoinHere r subRefl) (idSubst r)
 
                    parssubst : pScope ⇒ β
-                   parssubst = weaken (subJoinDrop rr subRefl) pSubst
+                   parssubst = weaken (subJoinDrop r subRefl) pSubst
 
-                   parsAndArgsSubst : (~ fields <> pScope) ⇒ β
-                   parsAndArgsSubst = concatSubst (revSubst cargs) parssubst
+                   parsAndArgsSubst : (fields <> pScope) ⇒ β
+                   parsAndArgsSubst = concatSubst cargs parssubst
 
                    ixsubst : iScope ⇒ β
-                   ixsubst = subst parsAndArgsSubst (conIndices con)
+                   ixsubst = subst parsAndArgsSubst (conIx con)
 
                    idsubst : α ⇒ β
-                   idsubst = weaken (subJoinDrop rr subRefl) (idSubst αRun)
+                   idsubst = weaken (subJoinDrop r subRefl) (idSubst αRun)
 
-                   bsubst : (x ◃ (~ iScope <> α)) ⇒ β
-                   bsubst = ⌈ x ↦ TCon (⟨ _ ⟩ c∈cons) cargs ◃ concatSubst (revSubst ixsubst) idsubst ⌉
+                   bsubst : (x ◃ (iScope <> α)) ⇒ β
+                   bsubst = ⌈ concatSubst ixsubst idsubst ◃ x ↦ TCon (⟨ _ ⟩ c∈cons) cargs ⌉
 
                    return' : Type β
                    return' = subst bsubst return)
@@ -237,9 +235,9 @@ data TySubst {α} Γ where
     Γ ⊢ˢ  ⌈⌉ ∶ ⌈⌉
   TyCons :
     Γ ⊢ u ∶ a
-    → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃ idSubst (rezz α) ⌉ tel)
+    → Γ ⊢ˢ us ∶ Δ
     -----------------------------------------------------------
-    → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ ⌈ x ∶ a ◃ tel ⌉
+    → Γ ⊢ˢ ⌈ us ◃ x ↦ u ⌉ ∶ ⌈ Δ ◃ x ∶ a ⌉
 
 {-# COMPILE AGDA2HS TySubst #-}
 
@@ -258,8 +256,8 @@ tyData' : {@0 Γ : Context α}
   (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt
   → {@0 pars : dataParScope d ⇒ α}
   → {@0 ixs  : dataIxScope d  ⇒ α}
-  → Γ ⊢ˢ pars ∶ weaken subEmpty (dataParameterTel dt)
-  → Γ ⊢ˢ ixs ∶ substTelescope pars (dataIndexTel dt)
+  → Γ ⊢ˢ pars ∶ weaken subEmpty (dataParTypeS dt)
+  → Γ ⊢ˢ ixs ∶ subst pars (dataIxTypeS dt)
   ----------------------------------------------
   → Γ ⊢ dataTypeTerm d pars ixs ∶ sortType (subst pars (dataSort dt))
 tyData' dt refl typars tyixs = TyData typars tyixs
@@ -273,7 +271,7 @@ tyCon' : {@0 Γ : Context α}
   → (let (cp , con) = dataConstructors dt c)
   → {@0 pars : dataParScope d ⇒ α}
   → {@0 us : fieldScope (⟨ _ ⟩ cp) ⇒ α}
-  → Γ ⊢ˢ us ∶ substTelescope pars (conTelescope con)
+  → Γ ⊢ˢ us ∶ subst pars (conIndTypeS con)
   ----------------------------------------------
   → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (subst pars (dataSort dt)) pars us
 tyCon' dt refl c tySubst = TyCon tySubst
@@ -292,19 +290,19 @@ tyCase' : {@0 Γ : Context α}
   (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt
    → (let pScope = dataParScope d
           iScope = dataIxScope d
-          α' = ~ iScope <> α)
+          α' = iScope <> α)
   → {@0 αRun : Rezz α}
   {@0 iRun : Rezz iScope}
   {@0 pSubst : pScope ⇒ α}
   {@0 iSubst : iScope ⇒ α}
-  (let iSubst' = weaken (subJoinHere (rezz~ iRun) subRefl) (revIdSubst iRun)
-       α'Subst = concatSubst (revSubst iSubst) (idSubst αRun))
+  (let iSubst' = weaken (subJoinHere iRun subRefl) (idSubst iRun)
+       α'Subst = concatSubst iSubst (idSubst αRun))
   {cases : Branches α (dataConstructorScope dt)}
   {return : Type (x ◃ α')}
-  (let αInα' = subJoinDrop (rezz~ iRun) subRefl
-       Γ' = addContextTel (substTelescope pSubst (dataIndexTel dt)) Γ
+  (let αInα' = subJoinDrop iRun subRefl
+       Γ' =  addContextTypeS Γ (subst pSubst (dataIxTypeS dt))
        tx = dataType d (weaken αInα' k) (weaken αInα' pSubst) iSubst'
-       return' = subst ⌈ x ↦ u ◃ α'Subst ⌉ return)
+       return' = subst ⌈ α'Subst ◃ x ↦ u ⌉ return)
   → Γ' , x ∶ tx ⊢ unType return ∶ sortType (typeSort return)
   → TyBranches Γ dt pSubst return cases
   → Γ ⊢ u ∶ dataType d k pSubst iSubst
@@ -316,8 +314,8 @@ tyCase' dt refl {αRun = α ⟨ refl ⟩} {iRun = iScope ⟨ refl ⟩} wfReturn 
 
 tyCons' : {@0 Γ : Context α} {@0 αRun : Rezz α}
   → Γ ⊢ u ∶ a
-  → Γ ⊢ˢ us ∶ (substTelescope ⌈ x ↦ u ◃ idSubst αRun ⌉ tel)
+  → Γ ⊢ˢ us ∶ Δ
   -----------------------------------------------------------
-  → Γ ⊢ˢ ⌈ x ↦ u ◃ us ⌉ ∶ ⌈ x ∶ a ◃ tel ⌉
+  → Γ ⊢ˢ ⌈ us ◃ x ↦ u ⌉ ∶ ⌈ Δ ◃ x ∶ a ⌉
 tyCons' {αRun = α ⟨ refl ⟩} tyu tyus = TyCons tyu tyus
 {-# COMPILE AGDA2HS tyCons' #-}
