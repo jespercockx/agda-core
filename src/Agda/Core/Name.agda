@@ -98,13 +98,3 @@ pattern V2suc n p = ⟨ _ ⟩ (Suc (Suc n) ⟨ IsSuc (IsSuc p) ⟩)
 pattern Vzero = ⟨ _ ⟩ Zero ⟨ IsZero refl ⟩
 pattern Vone = ⟨ _ ⟩ (Suc Zero) ⟨ IsSuc (IsZero refl) ⟩
 -------------------------------------------------------------------------------
-{-
-data CaseComparaison : NameIn α → NameIn α → Set where
-  GT : {x y : NameIn α} → @0 {{x ≡ Vzero }} → CaseComparaison x y
-  EQ : {x y : NameIn α} → compare x y ≡ EQ → CaseComparaison x y
-  LT : {x y : NameIn α} → compare x y ≡ LT → CaseComparaison x y
-
-
-caseCompare : (x y : NameIn α) → CaseComparaison x y
-caseCompare = ?
--- -}
