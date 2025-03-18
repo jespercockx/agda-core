@@ -37,16 +37,4 @@ module Shrink where
     SubToShrink βRun (⟨ γ ⟩ EmptyR) = idShrink βRun
     SubToShrink βRun (⟨ γ ⟩ ConsL x p) = ShKeep x (SubToShrink (rezzUnbind βRun) < p >)
     SubToShrink βRun (⟨ γ ⟩ ConsR y p) = ShCons y (SubToShrink (rezzUnbind βRun) < p >)
-  {-
-  opaque
-    unfolding Sub Split SubToShrink splitEmptyLeft
-    ShrinkEquivLeft : (βRun : Rezz β) (s : Shrink α β) → SubToShrink βRun (ShrinkToSub s) ≡ s
-    ShrinkEquivLeft βRun ShNil = refl
-    ShrinkEquivLeft βRun (ShKeep x s) = do
-      let e = ShrinkEquivLeft (rezzUnbind βRun) s
-      subst (λ z → SubToShrink βRun (ShrinkToSub (ShKeep x s)) ≡ ShKeep x z ) e {!   !}
-    ShrinkEquivLeft βRun (ShCons x s) = do
-      let e = ShrinkEquivLeft (rezzUnbind βRun) s
-      subst (λ z → SubToShrink βRun (ShrinkToSub (ShCons x s)) ≡ ShCons x z ) e {!   !}
-  -}
 {- End of module Shrink -}
