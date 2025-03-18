@@ -234,8 +234,18 @@ opaque
                 → ((t : Term β) → (s' : α ⇒ β) → @0 {{s ≡ ⌈ s' ◃ x ↦ t ⌉}} → d)
                 → d
   caseSubstBind ⌈ s ◃ _ ↦ x ⌉ f = f x s
-
   {-# COMPILE AGDA2HS caseSubstBind #-}
+
+  caseTypeSEmpty : (s : mempty ⇛ β) → (@0 {{s ≡ ⌈⌉}} → d) → d
+  caseTypeSEmpty ⌈⌉ f = f
+  {-# COMPILE AGDA2HS caseTypeSEmpty #-}
+
+  caseTypeSBind : (s : (x ◃ α) ⇛ β)
+                → ((ty : Type β) → (s' : α ⇛ β) → @0 {{s ≡ ⌈ s' ◃ x ∶ ty ⌉}} → d)
+                → d
+  caseTypeSBind ⌈ s ◃ x ∶ ty ⌉ f = f ty s
+  {-# COMPILE AGDA2HS caseTypeSBind #-}
+
 
 rezz~ : Rezz α → Rezz (~ α)
 rezz~ = rezzCong revScope

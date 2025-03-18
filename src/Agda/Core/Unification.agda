@@ -41,7 +41,7 @@ opaque
   renamingToSubst (rezz (Erased x ∷ α)) r =
     let r' : Renaming α _
         r' = λ xp → r (coerce (subBindDrop subRefl) xp) in
-    ⌈ x ↦  TVar < r (Zero ⟨ IsZero refl ⟩) > ◃ renamingToSubst (rezz α) r' ⌉
+    ⌈ renamingToSubst (rezz α) r' ◃ x ↦  TVar < r (Zero ⟨ IsZero refl ⟩) > ⌉
 
 
 
@@ -72,9 +72,8 @@ module Shrinking where
   ShrinkSubstToSubst : ShrinkSubst α β → α ⇒ β
   ShrinkSubstToSubst RNil = ⌈⌉
   ShrinkSubstToSubst (RKeep {x = x} σ) =
-    ⌈ x ↦ TVar (⟨ x ⟩ inHere) ◃ weaken (subBindDrop subRefl) (ShrinkSubstToSubst σ) ⌉
-  ShrinkSubstToSubst (RCons {x = x} u σ) = ⌈ x ↦ u ◃ ShrinkSubstToSubst σ ⌉
-
+    ⌈ weaken (subBindDrop subRefl) (ShrinkSubstToSubst σ) ◃ x ↦ TVar (⟨ x ⟩ inHere) ⌉
+  ShrinkSubstToSubst (RCons {x = x} u σ) = ⌈ ShrinkSubstToSubst σ ◃ x ↦ u ⌉
   ShrinkSubstToSub : ShrinkSubst α β → β ⊆ α
   ShrinkSubstToSub RNil = subEmpty
   ShrinkSubstToSub (RKeep {x = x} σ) = subBindKeep (ShrinkSubstToSub σ)
@@ -157,11 +156,11 @@ module TelescopeEq where
     compactToExpanded EmptyEq = TelExp ⌈⌉ ⌈⌉ EmptyTel
     compactToExpanded (ExtendEq x u v a ΔEq) = do
       let TelExp δ₁ δ₂ Δ = compactToExpanded ΔEq
-      TelExp ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ a ◃ Δ ⌉
+      TelExp ⌈ δ₁ ◃ x ↦ u ⌉ ⌈ δ₂ ◃ x ↦ v ⌉ ⌈ Δ ◃ x ∶ a ⌉
 
     expandedToCompact : Expanded α₀ α β → Compact α₀ α β
     expandedToCompact (TelExp ⌈⌉ ⌈⌉ EmptyTel) = EmptyEq
-    expandedToCompact (TelExp ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ a ◃ Δ ⌉) = do
+    expandedToCompact (TelExp ⌈ δ₁ ◃ x ↦ u ⌉ ⌈ δ₂ ◃ x ↦ v ⌉ ⌈ Δ ◃ x ∶ a ⌉) = do
       let ΔEq = expandedToCompact (TelExp δ₁ δ₂ Δ)
       ExtendEq x u v a ΔEq
 
@@ -176,9 +175,9 @@ module TelescopeEq where
     equivRight : (ΔEq' : Expanded α₀ α β)
       → compactToExpanded (expandedToCompact ΔEq') ≡ ΔEq'
     equivRight (TelExp ⌈⌉ ⌈⌉ ⌈⌉) = refl
-    equivRight (TelExp ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ a ◃ Δ ⌉) = do
+    equivRight (TelExp ⌈ δ₁ ◃ x ↦ u ⌉ ⌈ δ₂ ◃ x ↦ v ⌉ ⌈ Δ ◃ x ∶ a ⌉) = do
       let eH = equivRight (TelExp δ₁ δ₂ Δ)
-      cong (λ (TelExp δ₁ δ₂ Δ) → TelExp ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ a ◃ Δ ⌉) eH
+      cong (λ (TelExp δ₁ δ₂ Δ) → TelExp ⌈ δ₁ ◃ x ↦ u ⌉ ⌈ δ₂ ◃ x ↦ v ⌉ ⌈ Δ ◃ x ∶ a ⌉) eH
 
     equivalenceAux : Equivalence (Compact α₀ α β) (Expanded α₀ α β)
     equivalenceAux = Equiv compactToExpanded expandedToCompact equivLeft equivRight
@@ -199,9 +198,9 @@ module TelescopeEq where
 
     equivRightTelEq : (ΔEq : TelescopicEq α β) → telescopicEq'ToEq (telescopicEqToEq' ΔEq) ≡ ΔEq
     equivRightTelEq (TelEq ⌈⌉ ⌈⌉ ⌈⌉) = refl
-    equivRightTelEq (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ a ◃ Δ ⌉) = do
+    equivRightTelEq (TelEq ⌈ δ₁ ◃ x ↦ u ⌉ ⌈ δ₂ ◃ x ↦ v ⌉ ⌈ Δ ◃ x ∶ a ⌉) = do
       let eH = equivRight (TelExp δ₁ δ₂ Δ)
-      cong (λ (TelExp δ₁ δ₂ Δ) → TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ ⌈ x ∶ a ◃ Δ ⌉) eH
+      cong (λ (TelExp δ₁ δ₂ Δ) → TelEq ⌈ δ₁ ◃ x ↦ u ⌉ ⌈ δ₂ ◃ x ↦ v ⌉ ⌈ Δ ◃ x ∶ a ⌉) eH
 
   equivalenceTelEq : {α β : Scope Name} → Equivalence (telescopicEq' α β) (TelescopicEq α β)
   equivalenceTelEq = Equiv telescopicEq'ToEq telescopicEqToEq' equivLeftTelEq equivRightTelEq
@@ -221,11 +220,11 @@ module TelescopeEq where
   opaque
     unfolding Scope
     telescopeDrop : Rezz α → Telescope α (x ◃ β) → Term α → Telescope α β
-    telescopeDrop αRun ⌈ x ∶ a ◃ Δ ⌉ w =
-      subst (concatSubst ⌈ x ↦ w ◃⌉ (idSubst αRun)) Δ
+    telescopeDrop αRun ⌈ Δ ◃ x ∶ a ⌉ w =
+      subst (concatSubst ⌈◃ x ↦ w ⌉ (idSubst αRun)) Δ
 
     telescopicEqDrop : Rezz α → TelescopicEq α (x ◃ β) → Term α → TelescopicEq α β
-    telescopicEqDrop αRun (TelEq ⌈ x ↦ u ◃ δ₁ ⌉ ⌈ x ↦ v ◃ δ₂ ⌉ Δ) w = TelEq δ₁ δ₂ (telescopeDrop αRun Δ w)
+    telescopicEqDrop αRun (TelEq ⌈ δ₁ ◃ x ↦ u ⌉ ⌈ δ₂ ◃ x ↦ v ⌉ Δ) w = TelEq δ₁ δ₂ (telescopeDrop αRun Δ w)
 
 {- End of module TelescopeEq -}
 open TelescopeEq
@@ -259,7 +258,7 @@ module UnificationStepAndStop where
       (let Δ : Telescope α β
            Δ = telescopeDrop (rezz α) Ξ t)                             -- replace e₀ by t in the telescope
       ------------------------------------------------------------
-      → Γ , ⌈ e₀ ↦ t ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ t ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ , δ₁ ≟ δ₂ ∶ Δ
+      → Γ , ⌈ δ₁ ◃ e₀ ↦ t ⌉ ≟ ⌈ δ₂ ◃ e₀ ↦ t ⌉ ∶ Ξ ↣ᵤ Γ , δ₁ ≟ δ₂ ∶ Δ
 
     {- solve equalities of the form x = u when x is a variable -}
     SolutionL :
@@ -278,7 +277,7 @@ module UnificationStepAndStop where
            ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)       -- replace x by u
       → Strengthened u u₀
       ------------------------------------------------------------
-      → Γ , ⌈ e₀ ↦ TVar (⟨ x ⟩ xp) ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
+      → Γ , ⌈ δ₁ ◃ e₀ ↦ TVar (⟨ x ⟩ xp) ⌉ ≟ ⌈ δ₂ ◃ e₀ ↦ u ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
     SolutionR :
       {xp : x ∈ α}
       (let α₀ , α₁ = cut xp
@@ -295,7 +294,7 @@ module UnificationStepAndStop where
            ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)       -- replace x by u
       → Strengthened u u₀
       ------------------------------------------------------------
-      → Γ , ⌈ e₀ ↦ u ◃ δ₂ ⌉ ≟ ⌈ e₀ ↦ TVar (⟨ x ⟩ xp) ◃ δ₁ ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
+      → Γ , ⌈ δ₁ ◃ e₀ ↦ u ⌉ ≟ ⌈ δ₂ ◃ e₀ ↦ TVar (⟨ x ⟩ xp) ⌉ ∶ Ξ ↣ᵤ Γ' , ΔEq'
 
     {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
     {- this only work with K -}
@@ -312,17 +311,17 @@ module UnificationStepAndStop where
            γ = fieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : γ ⇒ α}
       (let Σ : Telescope α γ
-           Σ = subst pSubst (conTelescope con)                                   -- type of the arguments of c
-           σe : γ ⇒ (~ γ <> α)
+           Σ = subst pSubst (conIndTypeS con)                                    -- type of the arguments of c
+           σe : γ ⇒ (γ <> α)
            σe = weaken (subJoinHere (rezz _) subRefl) (revIdSubst (rezz γ))      -- names of the new equalities to replace e₀
-           τ₀ : [ e₀ ] ⇒ (~ γ <> α)
-           τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (~ γ <> α)) (rightIdentity _) ⌈ e₀ ↦ TCon c σe ◃⌉
-           τ : (e₀ ◃ α) ⇒ (~ γ <> α)
+           τ₀ : [ e₀ ] ⇒ (γ <> α)
+           τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (γ <> α)) (rightIdentity _) ⌈◃ e₀ ↦ TCon c σe ⌉
+           τ : (e₀ ◃ α) ⇒ (γ <> α)
            τ = concatSubst τ₀ (weaken (subJoinDrop (rezz _) subRefl) (idSubst (rezz α)))
-           Δγ : Telescope (~ γ <> α) β                                           -- telescope using ~ γ instead of e₀
+           Δγ : Telescope (γ <> α) β                                           -- telescope using ~ γ instead of e₀
            Δγ = subst τ Δe₀)
       ------------------------------------------------------------------- ⚠ NOT a rewrite rule ⚠ (c = (⟨ c₀ ⟩ cFromCon))
-     → Γ , ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ TCon c σ₂ ◃ δ₂ ⌉ ∶ ⌈ e₀ ∶ El ds (TData d pSubst iSubst) ◃ Δe₀ ⌉
+     → Γ , ⌈  δ₁ ◃ e₀ ↦ TCon c σ₁ ⌉ ≟ ⌈ δ₂ ◃ e₀ ↦ TCon c σ₂ ⌉ ∶ ⌈ Δe₀ ◃ e₀ ∶ El ds (TData d pSubst iSubst) ⌉
         ↣ᵤ Γ , concatSubst σ₁ δ₁ ≟ concatSubst σ₂ δ₂ ∶ addTel Σ Δγ
 
     {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
@@ -345,30 +344,30 @@ module UnificationStepAndStop where
            γ = fieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : γ ⇒ α}
       (let Σ : Telescope α γ
-           Σ = subst pSubst (conTelescope con)                                   -- type of the arguments of c
+           Σ = subst pSubst (conIndTypeS con)                                    -- type of the arguments of c
 
            iTel : Telescope α ixs
-           iTel = subst pSubst (dataIndexTel dt)
+           iTel = subst pSubst (dataIxTypeS dt)
 
-           iSubste : ixs ⇒ (~ ixs <> α)
+           iSubste : ixs ⇒ (ixs <> α)
            iSubste = weakenSubst (subJoinHere (rezz _) subRefl) (revIdSubst (rezz ixs))
-           weakenα : α ⇒ (~ ixs <> α)
+           weakenα : α ⇒ (ixs <> α)
            weakenα = weaken (subJoinDrop (rezz _) subRefl) (idSubst (rezz α))
 
-           σe : γ ⇒ (~ γ <> α)
-           σe = weaken (subJoinHere (rezz _) subRefl) (revIdSubst (rezz γ))
-           τ₀ : [ e₀ ] ⇒ (~ γ <> α)
-           τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (~ γ <> α)) (rightIdentity _) ⌈ e₀ ↦ TCon c σe ◃⌉
-           τ₁ : ~ ixs ⇒ (~ γ <> α)
-           τ₁ = subst (subst (liftSubst (rezz _) pSubst) (conIndices con)) (revIdSubst' (rezz _))
-           τ₂ : α ⇒ (~ γ <> α)
+           σe : γ ⇒ (γ <> α)
+           σe = weaken (subJoinHere (rezz _) subRefl) (rezz γ)
+           τ₀ : [ e₀ ] ⇒ (γ <> α)
+           τ₀ = subst0 (λ ξ₀ → ξ₀ ⇒ (γ <> α)) (rightIdentity _) ⌈◃ e₀ ↦ TCon c σe ⌉
+           τ₁ : ixs ⇒ (γ <> α)
+           τ₁ = subst (subst (liftSubst (rezz _) pSubst) (conIx con)) (rezz _)
+           τ₂ : α ⇒ (γ <> α)
            τ₂ = weaken (subJoinDrop (rezz _) subRefl) (idSubst (rezz α))
-           τ : (e₀ ◃ (~ ixs <>  α)) ⇒ (~ γ <> α)
+           τ : (e₀ ◃ (ixs <>  α)) ⇒ (γ <> α)
            τ = concatSubst τ₀ (concatSubst τ₁ τ₂)
-           Δγ : Telescope (~ γ <> α) β₀
+           Δγ : Telescope (γ <> α) β₀
            Δγ = subst τ Δe₀ixs)
      ------------------------------------------------------------------- ⚠ NOT a rewrite rule ⚠
-     → Γ , concatSubst iSubst₁ ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ concatSubst iSubst₂ ⌈ e₀ ↦ TCon c σ₂ ◃ δ₂ ⌉
+     → Γ , concatSubst iSubst₁ ⌈ δ₁ ◃ e₀ ↦ TCon c σ₁ ⌉ ≟ concatSubst iSubst₂ ⌈ δ₂ ◃ e₀ ↦ TCon c σ₂ ⌉
            ∶ addTel iTel ⌈ e₀ ∶ El ds (TData d (subst weakenα pSubst) iSubste) ◃ Δe₀ixs ⌉
        ↣ᵤ Γ , concatSubst σ₁ δ₁ ≟ concatSubst σ₂ δ₂ ∶ addTel Σ Δγ
     {- TODO: replace Injectivity and InjectivityDep by better rule from article proof relevant Unification (2018) J. Cockx & D. Devriese -}
@@ -379,12 +378,12 @@ module UnificationStepAndStop where
   data InSubst {β = β} t where
     DirectInSubst :
       {σ : α ⇒ β}
-      → InSubst t ⌈ x ↦ t ◃ σ ⌉
+      → InSubst t ⌈ σ ◃ x ↦ t ⌉
     RecInSubst :
       {σ : α ⇒ β}
       {u : Term β}
       → InSubst t σ
-      → InSubst t ⌈ x ↦ u ◃ σ ⌉
+      → InSubst t ⌈ σ ◃ x ↦ u ⌉
 
   data CycleProof (x : NameIn α) : Term α → Set
   data CycleProof {α = α} x where
@@ -413,7 +412,7 @@ module UnificationStepAndStop where
       {Ξ : Telescope α (e₀ ◃ β)}
       → nameC ≠ nameC'
       ------------------------------------------------------------
-      → Γ , ⌈ e₀ ↦ TCon c σ₁ ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ TCon c' σ₂ ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ⊥
+      → Γ , ⌈ δ₁ ◃ e₀ ↦ TCon c σ₁ ⌉ ≟ ⌈ δ₂ ◃ e₀ ↦ TCon c' σ₂ ⌉ ∶ Ξ ↣ᵤ⊥
     {- cycle right now isn't as strict as it should be to correspond to the
        proof where pattern matching is reduced to eliminator in Jesper Cockx thesis
        it would be nice to rewrite it
@@ -425,14 +424,14 @@ module UnificationStepAndStop where
       {Ξ : Telescope α (e₀ ◃ β)}
       → CycleProof x u
       ------------------------------------------------------------
-      → Γ , ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ≟ ⌈ e₀ ↦ u ◃ δ₂ ⌉ ∶ Ξ ↣ᵤ⊥
+      → Γ , ⌈ δ₁ ◃ e₀ ↦ TVar x ⌉ ≟ ⌈ δ₂ ◃ e₀ ↦ u ⌉ ∶ Ξ ↣ᵤ⊥
     CycleR :
       {x : NameIn α}
       (u : Term α)
       {Ξ : Telescope α (e₀ ◃ β)}
       → CycleProof x u
       ------------------------------------------------------------
-      → Γ , ⌈ e₀ ↦ u ◃ δ₂ ⌉ ≟ ⌈ e₀ ↦ TVar x ◃ δ₁ ⌉ ∶ Ξ ↣ᵤ⊥
+      → Γ , ⌈ δ₂ ◃ e₀ ↦ u ⌉ ≟ ⌈ δ₁ ◃ e₀ ↦ TVar x ⌉ ∶ Ξ ↣ᵤ⊥
   {- End of UnificationStop -}
 
 
@@ -457,3 +456,4 @@ module UnificationStepAndStop where
   _,_↣ᵤ⋆⊥ = UnificationStops
 {- End of module UnificationStepAndStop -}
 open UnificationStepAndStop
+ 

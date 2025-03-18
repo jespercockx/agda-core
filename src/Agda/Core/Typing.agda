@@ -311,11 +311,3 @@ tyCase' : {@0 Γ : Context α}
 tyCase' dt refl {αRun = α ⟨ refl ⟩} {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
   TyCase wfReturn tyCases tyu
 {-# COMPILE AGDA2HS tyCase' #-}
-
-tyCons' : {@0 Γ : Context α} {@0 αRun : Rezz α}
-  → Γ ⊢ u ∶ a
-  → Γ ⊢ˢ us ∶ Δ
-  -----------------------------------------------------------
-  → Γ ⊢ˢ ⌈ us ◃ x ↦ u ⌉ ∶ ⌈ Δ ◃ x ∶ a ⌉
-tyCons' {αRun = α ⟨ refl ⟩} tyu tyus = TyCons tyu tyus
-{-# COMPILE AGDA2HS tyCons' #-}

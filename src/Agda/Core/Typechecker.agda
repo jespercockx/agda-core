@@ -91,7 +91,7 @@ checkBranches : ∀ {@0 pars ixs cons : Scope Name}
                   (bs : Branches α cons)
                   (dt : Datatype pars ixs)
                   (ps : pars ⇒ α)
-                  (rt : Type (x ◃ (~ ixs <> α)))
+                  (rt : Type (x ◃ (ixs <> α)))
                 → TCM (TyBranches Γ dt ps rt bs)
 
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
@@ -151,20 +151,14 @@ inferDef ctx f = do
   return $ _ , tyDef' ty eq
 {-# COMPILE AGDA2HS inferDef #-}
 
-checkSubst : ∀ {@0 α β} Γ (t : Telescope α β) (s : β ⇒ α) → TCM (TySubst Γ s t)
+checkSubst : ∀ {@0 α β} Γ (t : TypeS β α) (s : β ⇒ α) → TCM (TySubst Γ s t)
 checkSubst ctx t SNil =
-  caseTelEmpty t λ where ⦃ refl ⦄ → return TyNil
-checkSubst ctx t ⌈ _ ↦ x ◃ s ⌉ =
-  caseTelBind t λ where ty rest ⦃ refl ⦄ → do
+  caseTypeSEmpty t λ where ⦃ refl ⦄ → return TyNil
+checkSubst ctx t ⌈ s ◃ _ ↦ x ⌉ =
+  caseTypeSBind t λ where ty rest ⦃ refl ⦄ → do
     tyx ← checkType ctx x ty
-    let
-      r = rezzScope ctx
-      sstel = subst0 (λ (@0 β) → Subst β β)
-                (IsLawfulMonoid.rightIdentity iLawfulMonoidScope _)
-                (concatSubst (subToSubst r (subJoinHere _ subRefl)) SNil)
-      stel = substTelescope ⌈ _ ↦ x ◃ sstel ⌉ rest
-    tyrest ← checkSubst ctx stel s
-    return (tyCons' tyx tyrest)
+    tyrest ← checkSubst ctx rest s
+    return (TyCons tyx tyrest)
 {-# COMPILE AGDA2HS checkSubst #-}
 
 inferData : (Γ : Context α) (d : NameIn dataScope)
@@ -172,8 +166,8 @@ inferData : (Γ : Context α) (d : NameIn dataScope)
           → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TData d pars ixs ∶ ty)
 inferData ctx d pars ixs = do
   dt ⟨ deq ⟩ ← tcmGetDatatype d
-  typars ← checkSubst ctx (weaken subEmpty (dataParameterTel dt)) pars
-  tyixs ← checkSubst ctx (substTelescope pars (dataIndexTel dt)) ixs
+  typars ← checkSubst ctx (weaken subEmpty (dataParTypeS dt)) pars
+  tyixs ← checkSubst ctx (subst pars (dataIxTypeS dt)) ixs
   return (sortType (subst pars (dataSort dt)) , tyData' dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
@@ -181,7 +175,7 @@ checkBranch : ∀ {@0 con : Name} (Γ : Context α)
                 (bs : Branch α con)
                 {@0 pars ixs} (dt : Datatype pars ixs)
                 (ps : pars ⇒ α)
-                (rt : Type (x ◃ ~ ixs <> _))
+                (rt : Type (x ◃ ixs <> _))
             → TCM (TyBranch Γ dt ps rt bs)
 checkBranch ctx (BBranch c r rhs) dt ps rt = do
   let ra = rezzScope ctx
@@ -213,7 +207,7 @@ checkCon ctx c cargs (El s ty) = do
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
   let con = snd (dataConstructors dt (⟨ _ ⟩ cid))
-      ctel = substTelescope params (conTelescope con)
+      ctel = subst params (conIndTypeS con)
       ctype = constructorType d c con (subst params (dataSort dt)) params cargs
   tySubst ← checkSubst ctx ctel cargs
   checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt deq (⟨ _ ⟩ cid) tySubst) (El s ty)
