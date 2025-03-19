@@ -456,4 +456,3 @@ module UnificationStepAndStop where
   _,_↣ᵤ⋆⊥ = UnificationStops
 {- End of module UnificationStepAndStop -}
 open UnificationStepAndStop
- 
