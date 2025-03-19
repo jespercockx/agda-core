@@ -45,16 +45,28 @@ data Subst : (@0 α β : Scope Name) → Set where
   SCons :  Term β → Subst α β → Subst (x ◃ α) β
 {-# COMPILE AGDA2HS Subst deriving Show #-}
 
+data TypeS : (@0 α β : Scope Name) → Set where
+  YNil  : TypeS mempty β
+  YCons :  Type β → TypeS α β → TypeS (x ◃ α) β
+{-# COMPILE AGDA2HS TypeS deriving Show #-}
+
 infix 5 Subst
 syntax Subst α β = α ⇒ β
 
 pattern ⌈⌉ = SNil
-infix 6 ⌈_↦_◃_⌉
-pattern ⌈_↦_◃_⌉ x u σ = SCons {x = x} u σ
-infix 4 ⌈_↦_◃⌉
-pattern ⌈_↦_◃⌉ x u = ⌈ x ↦ u ◃ ⌈⌉ ⌉
+infix 6 ⌈_◃_↦_⌉
+pattern ⌈_◃_↦_⌉ σ x u = SCons {x = x} u σ
+infix 4 ⌈◃_↦_⌉
+pattern ⌈◃_↦_⌉ x u = ⌈ ⌈⌉ ◃ x ↦ u ⌉
 
+infix 5 TypeS
+syntax TypeS α β = α ⇛ β
 
+pattern ⌈⌉ = YNil
+infix 6 ⌈_◃_∶_⌉
+pattern ⌈_◃_∶_⌉ Δ x u = YCons {x = x} u Δ
+infix 4 ⌈_◃_∶⌉
+pattern ⌈_◃_∶⌉ x u = ⌈ x ◃ u ∶ ⌈⌉ ⌉
 
 
 -- This should ideally be the following:
@@ -78,7 +90,7 @@ data Term α where
         → Rezz (dataIxScope d)                     -- Run-time representation of index scope
         → (u : Term α)                             -- Term we are casing on
         → (bs : Branches α cs)                     -- Branches (one for each constructor of d)
-        → (m : Type (x ◃ (~ dataIxScope d <> α)))  -- Return type
+        → (m : Type (x ◃ (dataIxScope d <> α)))  -- Return type
         → Term α
   TPi   : (@0 x : Name) (u : Type α) (v : Type (x ◃ α)) → Term α
   TSort : Sort α → Term α
@@ -111,7 +123,7 @@ sortType s = El (sucSort s) (TSort s)
 data Branch α where
   BBranch : (c : NameIn conScope)
           → Rezz (fieldScope c)
-          → Term (~ fieldScope c <> α) → Branch α (proj₁ c)
+          → Term (fieldScope c <> α) → Branch α (proj₁ c)
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
 data Branches α where
@@ -139,6 +151,10 @@ rezzBranches BsNil = rezz mempty
 rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◃ cs) (rezzBranches bt)
 {-# COMPILE AGDA2HS rezzBranches #-}
 
+rezzTypeS : TypeS α β → Rezz α
+rezzTypeS ⌈⌉ = rezz _
+rezzTypeS ⌈ t ◃ x ∶ ty ⌉ = rezzCong (λ t → singleton x <> t) (rezzTypeS t)
+
 allBranches : Branches α β → All (λ c → c ∈ conScope) β
 allBranches BsNil = allEmpty
 allBranches (BsCons (BBranch (⟨ _ ⟩ ci) _ _) bs) = allJoin (allSingl ci) (allBranches bs)
@@ -155,7 +171,7 @@ applys {γ = γ} v (u ∷ us) = applys (TApp v u) us
 
 applySubst : Term γ → (β ⇒ γ) → Term γ
 applySubst {γ = γ} v ⌈⌉ = v
-applySubst {γ = γ} v ⌈ _ ↦ u ◃ us ⌉ = applySubst (TApp v u) us
+applySubst {γ = γ} v ⌈ us ◃ _ ↦ u ⌉ = applySubst (TApp v u) us
 {-# COMPILE AGDA2HS applySubst #-}
 
 
@@ -207,7 +223,7 @@ lookupSubst : α ⇒ β
             → x ∈ α
             → Term β
 lookupSubst ⌈⌉ x q = inEmptyCase q
-lookupSubst ⌈ _ ↦ u ◃ f ⌉ x q = inBindCase q (λ _ → u) (lookupSubst f x)
+lookupSubst ⌈ f ◃ _ ↦ u ⌉ x q = inBindCase q (λ _ → u) (lookupSubst f x)
 
 {-# COMPILE AGDA2HS lookupSubst #-}
 
@@ -215,11 +231,21 @@ opaque
   unfolding Scope
 
   caseSubstBind : (s : (x ◃ α) ⇒ β)
-                → ((t : Term β) → (s' : α ⇒ β) → @0 {{s ≡ ⌈ x ↦ t ◃ s' ⌉}} → d)
+                → ((t : Term β) → (s' : α ⇒ β) → @0 {{s ≡ ⌈ s' ◃ x ↦ t ⌉}} → d)
                 → d
-  caseSubstBind ⌈ _ ↦ x ◃ s ⌉ f = f x s
-
+  caseSubstBind ⌈ s ◃ _ ↦ x ⌉ f = f x s
   {-# COMPILE AGDA2HS caseSubstBind #-}
+
+  caseTypeSEmpty : (s : mempty ⇛ β) → (@0 {{s ≡ ⌈⌉}} → d) → d
+  caseTypeSEmpty ⌈⌉ f = f
+  {-# COMPILE AGDA2HS caseTypeSEmpty #-}
+
+  caseTypeSBind : (s : (x ◃ α) ⇛ β)
+                → ((ty : Type β) → (s' : α ⇛ β) → @0 {{s ≡ ⌈ s' ◃ x ∶ ty ⌉}} → d)
+                → d
+  caseTypeSBind ⌈ s ◃ x ∶ ty ⌉ f = f ty s
+  {-# COMPILE AGDA2HS caseTypeSBind #-}
+
 
 rezz~ : Rezz α → Rezz (~ α)
 rezz~ = rezzCong revScope
@@ -237,6 +263,7 @@ weakenType     : α ⊆ β → Type α → Type β
 weakenBranch   : α ⊆ β → Branch α c → Branch β c
 weakenBranches : α ⊆ β → Branches α cs → Branches β cs
 weakenSubst    : β ⊆ γ → α ⇒ β → α ⇒ γ
+weakenTypeS    : β ⊆ γ → α ⇛ β → α ⇛ γ
 
 weakenTerm p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
 weakenTerm p (TDef d)          = TDef d
@@ -245,7 +272,7 @@ weakenTerm p (TCon c vs)       = TCon c (weakenSubst p vs)
 weakenTerm p (TLam x v)        = TLam x (weakenTerm (subBindKeep p) v)
 weakenTerm p (TApp u e)        = TApp (weakenTerm p u) (weakenTerm p e)
 weakenTerm p (TProj u x)       = TProj (weakenTerm p u) x
-weakenTerm p (TCase d r u bs m) = TCase d r (weakenTerm p u) (weakenBranches p bs) (weakenType (subBindKeep (subJoinKeep (rezz~ r) p)) m)
+weakenTerm p (TCase d r u bs m) = TCase d r (weakenTerm p u) (weakenBranches p bs) (weakenType (subBindKeep (subJoinKeep r p)) m)
 weakenTerm p (TPi x a b)       = TPi x (weakenType p a) (weakenType (subBindKeep p) b)
 weakenTerm p (TSort α)         = TSort (weakenSort p α)
 weakenTerm p (TLet x v t)      = TLet x (weakenTerm p v) (weakenTerm (subBindKeep p) t)
@@ -258,7 +285,7 @@ weakenSort p (STyp x) = STyp x
 weakenType p (El st t) = El (weakenSort p st) (weakenTerm p t)
 {-# COMPILE AGDA2HS weakenType #-}
 
-weakenBranch p (BBranch c r x) = BBranch c r (weakenTerm (subJoinKeep (rezz~ r) p) x)
+weakenBranch p (BBranch c r x) = BBranch c r (weakenTerm (subJoinKeep r p) x)
 {-# COMPILE AGDA2HS weakenBranch #-}
 
 weakenBranches p BsNil         = BsNil
@@ -266,8 +293,12 @@ weakenBranches p (BsCons b bs) = BsCons (weakenBranch p b) (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenBranches #-}
 
 weakenSubst p ⌈⌉ = ⌈⌉
-weakenSubst p ⌈ _ ↦ u ◃ e ⌉ = ⌈ _ ↦ (weakenTerm p u) ◃ (weakenSubst p e) ⌉
+weakenSubst p ⌈ e ◃ _ ↦ u ⌉ = ⌈ (weakenSubst p e) ◃ _ ↦ (weakenTerm p u) ⌉
 {-# COMPILE AGDA2HS weakenSubst #-}
+
+weakenTypeS p ⌈⌉ = ⌈⌉
+weakenTypeS p ⌈ e ◃ _ ∶ u ⌉ = ⌈ (weakenTypeS p e) ◃ _ ∶ (weakenType p u) ⌉
+{-# COMPILE AGDA2HS weakenTypeS #-}
 
 record Weaken (t : @0 Scope Name → Set) : Set where
   field
@@ -288,12 +319,15 @@ instance
   iWeakenBranches .weaken = weakenBranches
   iWeakenSubst : Weaken (Subst β)
   iWeakenSubst .weaken = weakenSubst
+  iWeakenTypeS : Weaken (TypeS β)
+  iWeakenTypeS .weaken = weakenTypeS
 {-# COMPILE AGDA2HS iWeakenTerm #-}
 {-# COMPILE AGDA2HS iWeakenSort #-}
 {-# COMPILE AGDA2HS iWeakenType #-}
 {-# COMPILE AGDA2HS iWeakenBranch #-}
 {-# COMPILE AGDA2HS iWeakenBranches #-}
 {-# COMPILE AGDA2HS iWeakenSubst #-}
+{-# COMPILE AGDA2HS iWeakenTypeS #-}
 
 
 dropSubst : {@0 α β : Scope Name} {@0 x : Name} → (x ◃ α) ⇒ β → α ⇒ β
@@ -314,8 +348,8 @@ listSubst (rezz β) (v ∷ vs) =
 concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
 concatSubst ⌈⌉ q =
   subst0 (λ α → α ⇒ _) (sym (leftIdentity _)) q
-concatSubst ⌈ _ ↦ v ◃ p ⌉ q =
-  subst0 (λ α → α ⇒ _) (associativity _ _ _) ⌈ _ ↦ v ◃ concatSubst p q ⌉
+concatSubst ⌈ p ◃ _ ↦ v ⌉ q =
+  subst0 (λ α → α ⇒ _) (associativity _ _ _) ⌈ concatSubst p q ◃ _ ↦ v ⌉
 
 {-# COMPILE AGDA2HS concatSubst #-}
 
@@ -325,7 +359,7 @@ opaque
   subToSubst : Rezz α → α ⊆ β → α ⇒ β
   subToSubst (rezz []) p = ⌈⌉
   subToSubst (rezz (Erased x ∷ α)) p =
-    ⌈ x ↦ (TVar (⟨ x ⟩ coerce p inHere)) ◃ (subToSubst (rezz α) (joinSubRight (rezz _) p)) ⌉
+    ⌈ (subToSubst (rezz α) (joinSubRight (rezz _) p)) ◃ x ↦ (TVar (⟨ x ⟩ coerce p inHere)) ⌉
 
 
 {-# COMPILE AGDA2HS subToSubst #-}
@@ -335,7 +369,7 @@ opaque
 
   revSubstAcc : {@0 α β γ : Scope Name} → α ⇒ γ → β ⇒ γ → (revScopeAcc α β) ⇒ γ
   revSubstAcc ⌈⌉ p = p
-  revSubstAcc ⌈ y ↦ x ◃ s ⌉ p = revSubstAcc s ⌈ y ↦ x ◃ p ⌉
+  revSubstAcc ⌈ s ◃ y ↦ x ⌉ p = revSubstAcc s ⌈ p ◃ y ↦ x ⌉
   {-# COMPILE AGDA2HS revSubstAcc #-}
 
   revSubst : {@0 α β : Scope Name} → α ⇒ β → ~ α ⇒ β
@@ -353,7 +387,7 @@ idSubst r = subst0 (λ β → β ⇒ β) (rightIdentity _) (liftSubst r ⌈⌉)
 {-# COMPILE AGDA2HS idSubst #-}
 
 liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → (bind x α) ⇒ (bind y β)
-liftBindSubst {y = y} e = ⌈ _ ↦ (TVar (⟨ y ⟩ inHere)) ◃ (weakenSubst (subBindDrop subRefl) e) ⌉
+liftBindSubst {y = y} e = ⌈ (weakenSubst (subBindDrop subRefl) e) ◃ _ ↦ (TVar (⟨ y ⟩ inHere)) ⌉
 {-# COMPILE AGDA2HS liftBindSubst #-}
 
 raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
@@ -361,7 +395,7 @@ raiseSubst {β = β} r ⌈⌉ = subst (λ α → α ⇒ β) (sym (leftIdentity �
 raiseSubst {β = β} r (SCons {α = α} u e) =
   subst (λ α → α ⇒ β)
     (associativity (singleton _) α β)
-    ⌈ _ ↦ u ◃ raiseSubst r e ⌉
+    ⌈ raiseSubst r e ◃ _ ↦ u ⌉
 {-# COMPILE AGDA2HS raiseSubst #-}
 
 revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
@@ -397,7 +431,7 @@ strengthenTerm p (TProj u f) = (λ v → TProj v f) <$> strengthenTerm p u
 strengthenTerm p (TCase d r u bs m) =
   TCase d r <$> strengthenTerm p u
             <*> strengthenBranches p bs
-            <*> strengthenType (subBindKeep (subJoinKeep (rezz~ r) p)) m
+            <*> strengthenType (subBindKeep (subJoinKeep r p)) m
 strengthenTerm p (TPi x a b) =
   TPi x <$> strengthenType p a <*> strengthenType (subBindKeep p) b
 strengthenTerm p (TSort s) = TSort <$> strengthenSort p s
@@ -408,13 +442,13 @@ strengthenSort p (STyp n) = Just (STyp n)
 
 strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthenTerm p t
 
-strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthenTerm (subJoinKeep (rezz~ r) p) v
+strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthenTerm (subJoinKeep r p) v
 
 strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs
 
 strengthenSubst p ⌈⌉ = Just ⌈⌉
-strengthenSubst p ⌈ x ↦ v ◃ vs ⌉ = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
+strengthenSubst p ⌈ vs ◃ x ↦ v ⌉ = SCons <$> strengthenTerm p v <*> strengthenSubst p vs
 
 {-# COMPILE AGDA2HS strengthenTerm #-}
 {-# COMPILE AGDA2HS strengthenType #-}
@@ -481,18 +515,18 @@ varInTerm (TProj t x) = varInTerm t
 varInTerm (TCase d r u bs m) =
   varInTerm u <>
   (varInBranches bs) <>
-  (liftListNameIn (rezz~ r) (liftBindListNameIn (varInType m)))
+  (liftListNameIn r (liftBindListNameIn (varInType m)))
 varInTerm (TPi x a b) = varInType a <> (liftBindListNameIn (varInType b))
 varInTerm (TSort x) = []
 varInTerm (TLet x t t₁) = varInTerm t <> (liftBindListNameIn (varInTerm t₁))
 varInTerm (TAnn u t) = varInTerm u <> varInType t
 
 varInSubst ⌈⌉ = []
-varInSubst ⌈ x ↦ u ◃ σ ⌉ = (varInTerm u) <> (varInSubst σ)
+varInSubst ⌈ σ ◃ x ↦ u ⌉ = (varInTerm u) <> (varInSubst σ)
 
 varInType (El _ u) = varInTerm u
 
 varInBranches BsNil = []
 varInBranches (BsCons b bs) = varInBranch b <> (varInBranches bs)
 
-varInBranch (BBranch c r v) = liftListNameIn (rezz~ r) (varInTerm v)
+varInBranch (BBranch c r v) = liftListNameIn r (varInTerm v)

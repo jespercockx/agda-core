@@ -77,8 +77,8 @@ data Conv {α} where
            (bs bp : Branches α cs)
            (ms : Type _) (mp : Type _)
          → u ≅ u'
-         →   renameTop {y = z} (rezz<> (rezz~ r1) r) (unType ms)
-           ≅ renameTop {y = z} (rezz<> (rezz~ r2) r) (unType mp)
+         →   renameTop {y = z} (rezz<> r1 r) (unType ms)
+           ≅ renameTop {y = z} (rezz<> r2 r) (unType mp)
          → ConvBranches bs bp
          → TCase {x = x} d r1 u bs ms ≅ TCase {x = y} d r2 u' bp mp
   -- TODO: CProj : {!   !}
@@ -101,7 +101,7 @@ data Conv {α} where
 
 data ConvBranch {α} where
   CBBranch : (c : NameIn conScope) (r1 r2 : _)
-             (t1 t2 : Term (~ fieldScope c <> α))
+             (t1 t2 : Term (fieldScope c <> α))
            → t1 ≅ t2
            → ConvBranch (BBranch c r1 t1) (BBranch c r2 t2)
 

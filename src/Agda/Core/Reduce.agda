@@ -60,7 +60,7 @@ data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
   FProj : (x : NameIn defScope) → Frame α
   FCase : (d : NameIn dataScope) (r : Rezz (dataIxScope d))
-          (bs : Branches α cs) (m : Type (x ◃ (~ dataIxScope d <> α))) → Frame α
+          (bs : Branches α cs) (m : Type (x ◃ (dataIxScope d <> α))) → Frame α
 
 {-# COMPILE AGDA2HS Frame #-}
 
@@ -77,7 +77,7 @@ weakenFrame s (FProj f) = FProj f
 weakenFrame s (FCase d r bs m) =
   FCase d r
     (weaken s bs)
-    (weaken (subBindKeep (subJoinKeep (rezz~ r) s)) m)
+    (weaken (subBindKeep (subJoinKeep r s)) m)
 
 {-# COMPILE AGDA2HS weakenFrame #-}
 
@@ -122,7 +122,7 @@ unState r (MkState e v s) = subst (envToSubst r e) (unStack s v)
 
 lookupBranch : Branches α cs → (c : NameIn conScope)
              → Maybe ( Rezz (fieldScope c)
-                     × Term (~ fieldScope c <> α))
+                     × Term (fieldScope c <> α))
 lookupBranch BsNil c = Nothing
 lookupBranch (BsCons (BBranch c' aty u) bs) c =
   case decNamesIn c' c of λ where
@@ -178,9 +178,9 @@ step (rezz sig) (MkState e (TDef d) s) =
 step rsig (MkState e (TCon c vs) (FCase d r bs _ ∷ s)) =
   case lookupBranch bs c of λ where
     (Just (r , v)) → Just (MkState
-      (extendEnvironment (revSubst vs) e)
+      (extendEnvironment vs e)
       v
-      (weakenStack (subJoinDrop (rezz~ r) subRefl) s))
+      (weakenStack (subJoinDrop r subRefl) s))
     Nothing  → Nothing
 step rsig (MkState e (TData d ps is) s) = Nothing
 step rsig (MkState e (TCon c vs) (FProj f ∷ s)) = Nothing -- TODO
