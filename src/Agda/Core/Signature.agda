@@ -51,20 +51,20 @@ opaque
 {-# COMPILE AGDA2HS caseTelEmpty #-}
 {-# COMPILE AGDA2HS caseTelBind #-}
 
-record Constructor (@0 pars : Scope Name) (@0 ixs : Scope Name) (@0 c : NameIn conScope) : Set where
+record Constructor (@0 pars : RScope Name) (@0 ixs : RScope Name) (@0 c : NameIn conScope) : Set where
   field
-    conIndTypeS : TypeS (fieldScope c) pars                          -- the TypeS of the indexes of c
-    conIx   : ixs ⇒ (fieldScope c) <> pars                          -- how the indexes are constructred given parameters and c indices
+    conIndTypeS : TypeS (extScope mempty pars) (fieldScope c)             -- the TypeS of the indexes of c
+    conIx   : TermS (extScope mempty ixs) (concatRScope pars (fieldScope c))                -- how the indexes are constructred given parameters and c indices
 open Constructor public
 
 {-# COMPILE AGDA2HS Constructor #-}
 
-record Datatype (@0 pars : Scope Name) (@0 ixs : Scope Name) : Set where
+record Datatype (@0 pars : RScope Name) (@0 ixs : RScope Name) : Set where
   field
     dataConstructorScope : Scope Name
-    dataSort             : Sort pars
-    dataParTypeS         : TypeS pars mempty
-    dataIxTypeS         : TypeS ixs pars
+    dataSort             : Sort (extScope mempty pars)
+    dataParTypeS         : TypeS mempty pars
+    dataIxTypeS         : TypeS (extScope mempty pars) ixs
     dataConstructors     : ((⟨ c ⟩ cp) : NameIn  dataConstructorScope)
                          → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ c ⟩ p))
 open Datatype public
@@ -181,3 +181,4 @@ opaque
         Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (sym (associativity (~ β) [ x ] α)) Δ₁
     ⌈ x ∶ ty ◃ addTel Σ Δ₂ ⌉
 -}
+ 

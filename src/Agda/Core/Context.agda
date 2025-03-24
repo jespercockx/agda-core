@@ -20,6 +20,7 @@ module Agda.Core.Context
 private variable
   @0 x y : Name
   @0 α β : Scope Name
+  @0 rβ : RScope Name
   @0 s t u v : Term α
 
 data Context : @0 Scope Name → Set where
@@ -64,16 +65,11 @@ addContextTel {α} (ExtendTel {β = β} x ty telt) c =
          (trans (associativity (~ β) [ x ] α)
                 (cong (λ t → t <> α) (sym $ revsBindComp β x)))
          (addContextTel telt (c , x ∶ ty))
-
 {-# COMPILE AGDA2HS addContextTel #-}
 
-addContextTypeS : Context α → TypeS β α → Context (β <> α)
-addContextTypeS {α} Γ ⌈⌉ =
-  subst0 Context
-         (sym $ trans (cong (λ x → x <> α) refl)
-                      (leftIdentity α))
-          Γ
-addContextTypeS {α = α} Γ (YCons {α = β} {x = x} ty Δ) =
-  let Γ' : Context (x ◃ (β <> α))
-      Γ' = addContextTypeS Γ Δ , x ∶ weaken (subJoinDrop (rezzTypeS Δ) subRefl) ty in
-  subst0 Context (associativity [ x ] β α) Γ'
+addContextTypeS : Context α → TypeS α rβ → Context (extScope α rβ)
+addContextTypeS Γ ⌈⌉ = Γ
+addContextTypeS {α = α} Γ (YCons {rβ = rβ₀} {x = x} ty Δ) =
+  let Γ' : Context (extScope (x ◃ α) rβ₀)
+      Γ' = addContextTypeS (Γ , x ∶ weaken {!   !} ty) {! Δ !}
+      in {!   !}
