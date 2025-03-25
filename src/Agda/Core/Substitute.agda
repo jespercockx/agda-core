@@ -12,7 +12,6 @@ open import Utils.Either
 open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Syntax
-open import Agda.Core.Signature
 
 module Agda.Core.Substitute
   {{@0 globals : Globals}}
@@ -78,6 +77,18 @@ opaque
 
 {-# COMPILE AGDA2HS subToSubst #-}
 
+-- termSToSubst : TermS α rγ → (extScope mempty rγ) ⇒ α
+-- termSToSubst t = aux t ⌈⌉
+--   where aux : TermS α rγ → β ⇒ α → (extScope β rγ) ⇒ α
+--         aux ⌈⌉ σ = σ
+--         aux {rγ = x ◂ rγ} (x ↦ u ◂ t) σ =
+--           aux t ⌈ σ ◃ x ↦ u ⌉
+-- {-# COMPILE AGDA2HS termSToSubst #-}
+
+extSubst : β ⇒ α → TermS α rγ → (extScope β rγ) ⇒ α
+extSubst s ⌈⌉ = s
+extSubst s (x ↦ u ◂ t) = extSubst ⌈ s ◃ x ↦ u ⌉ t
+{-# COMPILE AGDA2HS extSubst #-}
 
 opaque
   unfolding Scope revScope
@@ -114,13 +125,13 @@ raiseSubst {β = β} r (SCons {α = α} u e) =
     ⌈ raiseSubst r e ◃ _ ↦ u ⌉
 {-# COMPILE AGDA2HS raiseSubst #-}
 
-revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
-revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezz~ r)))
-{-# COMPILE AGDA2HS revIdSubst #-}
+-- revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
+-- revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezz~ r)))
+-- {-# COMPILE AGDA2HS revIdSubst #-}
 
-revIdSubst' : {@0 α : Scope Name} → Rezz α → ~ α ⇒ α
-revIdSubst' {α} r = subst0 (λ s →  (~ α) ⇒ s) (revsInvolution α) (revIdSubst (rezz~ r))
-{-# COMPILE AGDA2HS revIdSubst' #-}
+-- revIdSubst' : {@0 α : Scope Name} → Rezz α → ~ α ⇒ α
+-- revIdSubst' {α} r = subst0 (λ s →  (~ α) ⇒ s) (revsInvolution α) (revIdSubst (rezz~ r))
+-- {-# COMPILE AGDA2HS revIdSubst' #-}
 
 substExtScope : α ⇒ β → (Rezz rγ) → (extScope α rγ) ⇒ (extScope β rγ)
 substExtScope p (rezz Nil) = p
@@ -132,7 +143,6 @@ substType     : α ⇒ β → Type α → Type β
 substBranch   : α ⇒ β → Branch α c → Branch β c
 substBranches : α ⇒ β → Branches α cs → Branches β cs
 substTermS   : α ⇒ β → TermS α rγ → TermS β rγ
-substTypeS   : α ⇒ β → TypeS α rγ → TypeS β rγ
 
 substSort f (STyp x) = STyp x
 {-# COMPILE AGDA2HS substSort #-}
@@ -169,10 +179,6 @@ substTermS f ⌈⌉ = ⌈⌉
 substTermS f (_ ↦ x ◂ e) = TSCons (substTerm f x) (substTermS f e)
 {-# COMPILE AGDA2HS substTermS #-}
 
-substTypeS f ⌈⌉ = ⌈⌉
-substTypeS {rγ = x ◂ rγ} f (_ ∶ u ◂ e) = YCons (substType (substExtScope {rγ = rγ} f (rezzTypeS e)) u) (substTypeS f e)
-{-# COMPILE AGDA2HS substTypeS #-}
-
 record Substitute (t : @0 Scope Name → Set) : Set where
   field subst : (α ⇒ β) → t α → t β
 open Substitute {{...}} public
@@ -191,26 +197,28 @@ instance
   iSubstBranches .subst = substBranches
   iSubstTermS : Substitute (λ α → TermS α rγ)
   iSubstTermS .subst = substTermS
-  iSubstTypeS : Substitute (λ α → TypeS α rγ)
-  iSubstTypeS .subst = substTypeS
 {-# COMPILE AGDA2HS iSubstTerm #-}
 {-# COMPILE AGDA2HS iSubstType #-}
 {-# COMPILE AGDA2HS iSubstSort #-}
 {-# COMPILE AGDA2HS iSubstBranch #-}
 {-# COMPILE AGDA2HS iSubstBranches #-}
 {-# COMPILE AGDA2HS iSubstTermS #-}
-{-# COMPILE AGDA2HS iSubstTypeS #-}
 
 substTop : {{Substitute t}} → Rezz α → Term α → t (x ◃ α) → t α
 substTop r u = subst (SCons u (idSubst r))
 {-# COMPILE AGDA2HS substTop #-}
 
-substTelescope : (α ⇒ β) → Telescope α γ → Telescope β γ
+substTelescope : (α ⇒ β) → Telescope α rγ → Telescope β rγ
 substTelescope f EmptyTel = EmptyTel
 substTelescope f (ExtendTel x a tel) = ExtendTel x (substType f a) (substTelescope (liftBindSubst f) tel)
 {-# COMPILE AGDA2HS substTelescope #-}
 
 instance
-  iSubstTelescope : Substitute (λ α → Telescope α β)
+  iSubstTelescope : Substitute (λ α → Telescope α rγ)
   iSubstTelescope .subst = substTelescope
 {-# COMPILE AGDA2HS iSubstTelescope #-}
+
+composeSubst : α ⇒ β → β ⇒ γ → α ⇒ γ
+composeSubst ⌈⌉ _ = ⌈⌉
+composeSubst ⌈ s1 ◃ x ↦ u ⌉ s2 = ⌈ composeSubst s1 s2 ◃ x ↦ subst s2 u ⌉
+{-# COMPILE AGDA2HS composeSubst #-}

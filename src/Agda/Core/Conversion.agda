@@ -24,14 +24,15 @@ private open module @0 G = Globals globals
 private variable
   @0 x y z cn       : Name
   @0 α β γ cs       : Scope Name
+  @0 rβ : RScope Name
   @0 s s' t t' u u' v v' w w' : Term α
   @0 k l n sa sb    : Sort α
   @0 a a' b b' c c' : Type α
-  @0 us vs          : α ⇒ β
+  @0 us vs          : TermS α rβ
 
 data Conv       {@0 α} : @0 Term α → @0 Term α → Set
 data ConvBranch {@0 α} : @0 Branch α cn → @0 Branch α cn → Set
-data ConvSubst  {@0 α} : @0 β ⇒ α → @0 β ⇒ α → Set
+data ConvTermS  {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
 
 data ConvBranches {@0 α} : @0 Branches α cs → @0 Branches α cs → Set where
   CBranchesNil : {bs bp : Branches α mempty} → ConvBranches bs bp
@@ -42,7 +43,7 @@ data ConvBranches {@0 α} : @0 Branches α cs → @0 Branches α cs → Set wher
 
 infix 3 Conv
 syntax Conv x y        = x ≅ y
-syntax ConvSubst us vs = us ⇔ vs
+syntax ConvTermS us vs = us ⇔ vs
 
 renameTop : Rezz α → Term (x ◃ α) → Term (y ◃ α)
 renameTop = subst ∘ liftBindSubst ∘ idSubst
@@ -77,19 +78,19 @@ data Conv {α} where
            (bs bp : Branches α cs)
            (ms : Type _) (mp : Type _)
          → u ≅ u'
-         →   renameTop {y = z} (rezz<> r1 r) (unType ms)
-           ≅ renameTop {y = z} (rezz<> r2 r) (unType mp)
+         →   renameTop {y = z} (rezzExtScope r r1) (unType ms)
+           ≅ renameTop {y = z} (rezzExtScope r r2) (unType mp)
          → ConvBranches bs bp
          → TCase {x = x} d r1 u bs ms ≅ TCase {x = y} d r2 u' bp mp
   -- TODO: CProj : {!   !}
   CData  : (@0 d : NameIn dataScope)
-           {@0 ps qs : dataParScope d ⇒ α}
-           {@0 is ks : dataIxScope d ⇒ α}
+           {@0 ps qs : TermS α (dataParScope d)}
+           {@0 is ks : TermS α (dataIxScope d)}
          → ps ⇔ qs
          → is ⇔ ks
          → TData d ps is ≅ TData d qs ks
   CCon   : (c : NameIn conScope)
-           {@0 us vs : fieldScope c ⇒ α}
+           {@0 us vs : TermS α (fieldScope c)}
          → us ⇔ vs
          → TCon c us ≅ TCon c vs
   CRedL  : @0 ReducesTo u u'
@@ -101,20 +102,20 @@ data Conv {α} where
 
 data ConvBranch {α} where
   CBBranch : (c : NameIn conScope) (r1 r2 : _)
-             (t1 t2 : Term (fieldScope c <> α))
+             (t1 t2 : Term (extScope α (fieldScope c)))
            → t1 ≅ t2
            → ConvBranch (BBranch c r1 t1) (BBranch c r2 t2)
 
 
-data ConvSubst {α} where
-  CSNil : ConvSubst {β = mempty} us vs
+data ConvTermS {α} where
+  CSNil : ConvTermS {rβ = Nil} us vs
   CSCons : {@0 x : Name}
          → u ≅ v
          → us ⇔ vs
-         → (SCons {x = x} u us) ⇔ (SCons {x = x} v vs)
+         → (TSCons {x = x} u us) ⇔ (TSCons {x = x} v vs)
 
 -- These have to be here, see https://github.com/agda/agda2hs/issues/346
 {-# COMPILE AGDA2HS Conv     #-}
 {-# COMPILE AGDA2HS ConvBranch #-}
 {-# COMPILE AGDA2HS ConvBranches #-}
-{-# COMPILE AGDA2HS ConvSubst #-}
+{-# COMPILE AGDA2HS ConvTermS #-}

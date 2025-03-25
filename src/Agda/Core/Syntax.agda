@@ -46,16 +46,21 @@ data TermS : (@0 α : Scope Name) (@0 rβ : RScope Name) → Set where
   TSCons :  Term α → TermS α rβ → TermS α (Cons x rβ)
 {-# COMPILE AGDA2HS TermS deriving Show #-}
 
-data TypeS : (@0 α : Scope Name) (@0 rβ : RScope Name) → Set where
-  YNil  : TypeS α Nil
-  YCons :  Type (extScope α rβ) → TypeS α rβ → TypeS α (Cons x rβ)
-{-# COMPILE AGDA2HS TypeS deriving Show #-}
-
 pattern ⌈⌉ = TSNil
 pattern _↦_◂_ x t s = TSCons {x = x} t s
-pattern ⌈⌉ = YNil
-pattern  _∶_◂_ x t s = YCons {x = x} t s
 
+{- Telescopes are like contexts, mapping variables to types.
+   Unlike contexts, they aren't closed.
+   Telescope α β is like an extension of Context α with β.-}
+data Telescope (@0 α : Scope Name) : @0 RScope Name → Set where
+  EmptyTel  : Telescope α Nil
+  ExtendTel : (@0 x : Name) → Type α → Telescope (x ◃ α) rβ  → Telescope α (x ◂ rβ)
+
+pattern ⌈⌉ = EmptyTel
+infix 6 _∶_◂_
+pattern _∶_◂_ x t Δ = ExtendTel x t Δ
+
+{-# COMPILE AGDA2HS Telescope #-}
 -- This should ideally be the following:
 --   TermS α β = All (λ _ → Term β) α
 -- but All being opaque prevents the positivity checker to do its job
@@ -143,11 +148,6 @@ rezzTermS ⌈⌉ = rezz _
 rezzTermS (x ↦ u ◂ t) = rezzCong (λ t → x ◂ t) (rezzTermS t)
 {-# COMPILE AGDA2HS rezzTermS #-}
 
-rezzTypeS : TypeS α rβ → Rezz rβ
-rezzTypeS ⌈⌉ = rezz _
-rezzTypeS (x ∶ ty ◂ t) = rezzCong (λ t → x ◂ t) (rezzTypeS t)
-{-# COMPILE AGDA2HS rezzTypeS #-}
-
 allBranches : Branches α β → All (λ c → c ∈ conScope) β
 allBranches BsNil = allEmpty
 allBranches (BsCons (BBranch (⟨ _ ⟩ ci) _ _) bs) = allJoin (allSingl ci) (allBranches bs)
@@ -194,35 +194,27 @@ unAppsView (TSort _) = refl
 unAppsView (TLet _ _ _) = refl
 unAppsView (TAnn _ _) = refl
 
-opaque
-  unfolding Scope
+-- opaque
+--   unfolding Scope
 
-  caseTermSBind : (s : TermS α (x ◂ rβ))
-                → ((t : Term α) → (s' : TermS α rβ) → @0 {{s ≡ x ↦ t ◂ s'}} → d)
-                → d
-  caseTermSBind (_ ↦ x ◂ s) f = f x s
-  {-# COMPILE AGDA2HS caseTermSBind #-}
+--   caseTermSBind : (s : TermS α (x ◂ rβ))
+--                 → ((t : Term α) → (s' : TermS α rβ) → @0 {{s ≡ x ↦ t ◂ s'}} → d)
+--                 → d
+--   caseTermSBind (_ ↦ x ◂ s) f = f x s
+--   {-# COMPILE AGDA2HS caseTermSBind #-}
 
-  -- caseTypeSEmpty : (s : mempty ⇛ β) → (@0 {{s ≡ ⌈⌉}} → d) → d
-  -- caseTypeSEmpty ⌈⌉ f = f
-  -- {-# COMPILE AGDA2HS caseTypeSEmpty #-}
+-- rezz~ : Rezz α → Rezz (~ α)
+-- rezz~ = rezzCong revScope
 
-  -- caseTypeSBind : (s : (x ◃ α) ⇛ β)
-  --               → ((ty : Type β) → (s' : α ⇛ β) → @0 {{s ≡ ⌈ s' ◃ x ∶ ty ⌉}} → d)
-  --               → d
-  -- caseTypeSBind ⌈ s ◃ x ∶ ty ⌉ f = f ty s
-  -- {-# COMPILE AGDA2HS caseTypeSBind #-}
+-- {-# COMPILE AGDA2HS rezz~ inline #-}
 
+-- rezz<> : Rezz α → Rezz β → Rezz (α <> β)
+-- rezz<> = rezzCong2 _<>_
+-- {-# COMPILE AGDA2HS rezz<> inline #-}
 
-rezz~ : Rezz α → Rezz (~ α)
-rezz~ = rezzCong revScope
-
-{-# COMPILE AGDA2HS rezz~ inline #-}
-
-rezz<> : Rezz α → Rezz β → Rezz (α <> β)
-rezz<> = rezzCong2 _<>_
-
-{-# COMPILE AGDA2HS rezz<> inline #-}
+TermSrepeat : Rezz rβ → TermS (extScope α rβ) rβ
+TermSrepeat (rezz Nil) = ⌈⌉
+TermSrepeat (rezz (x ◂ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (rezz rβ) inHere) ◂ TermSrepeat (rezz rβ)
 
 weakenTerm     : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
@@ -230,7 +222,6 @@ weakenType     : α ⊆ β → Type α → Type β
 weakenBranch   : α ⊆ β → Branch α c → Branch β c
 weakenBranches : α ⊆ β → Branches α cs → Branches β cs
 weakenTermS    : α ⊆ β → TermS α rγ → TermS β rγ
-weakenTypeS    : α ⊆ β → TypeS α rγ → TypeS β rγ
 
 weakenTerm p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
 weakenTerm p (TDef d)          = TDef d
@@ -263,10 +254,6 @@ weakenTermS p ⌈⌉ = ⌈⌉
 weakenTermS p (_ ↦ u ◂ e) = TSCons (weakenTerm p u) (weakenTermS p e)
 {-# COMPILE AGDA2HS weakenTermS #-}
 
-weakenTypeS p ⌈⌉ = ⌈⌉
-weakenTypeS p (_ ∶ u ◂ e) = YCons (weakenType (subExtScopeKeep (rezzTypeS e) p) u) (weakenTypeS p e)
-{-# COMPILE AGDA2HS weakenTypeS #-}
-
 record Weaken (t : @0 Scope Name → Set) : Set where
   field
     weaken : α ⊆ β → t α → t β
@@ -286,15 +273,12 @@ instance
   iWeakenBranches .weaken = weakenBranches
   iWeakenTermS : Weaken (λ α → TermS α rβ)
   iWeakenTermS .weaken = weakenTermS
-  iWeakenTypeS : Weaken (λ α → TypeS α rβ)
-  iWeakenTypeS .weaken = weakenTypeS
 {-# COMPILE AGDA2HS iWeakenTerm #-}
 {-# COMPILE AGDA2HS iWeakenSort #-}
 {-# COMPILE AGDA2HS iWeakenType #-}
 {-# COMPILE AGDA2HS iWeakenBranch #-}
 {-# COMPILE AGDA2HS iWeakenBranches #-}
 {-# COMPILE AGDA2HS iWeakenTermS #-}
-{-# COMPILE AGDA2HS iWeakenTypeS #-}
 
 
 -- dropSubst : {@0 α β : Scope Name} {@0 x : Name} → (x ◃ α) ⇒ β → α ⇒ β
