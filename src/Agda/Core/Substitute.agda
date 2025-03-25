@@ -133,9 +133,13 @@ raiseSubst {β = β} r (SCons {α = α} u e) =
 -- revIdSubst' {α} r = subst0 (λ s →  (~ α) ⇒ s) (revsInvolution α) (revIdSubst (rezz~ r))
 -- {-# COMPILE AGDA2HS revIdSubst' #-}
 
-substExtScope : α ⇒ β → (Rezz rγ) → (extScope α rγ) ⇒ (extScope β rγ)
-substExtScope p (rezz Nil) = p
-substExtScope p (rezz (x ◂ rγ)) = substExtScope (liftBindSubst p) (rezz rγ)
+substExtScope : (Rezz rγ) → α ⇒ β → α ⇒ (extScope β rγ)
+substExtScope (rezz Nil) s = s
+substExtScope (rezz (x ◂ rγ)) s = substExtScope (rezz rγ) (weaken (subBindDrop subRefl) s)
+
+substExtScopeKeep : (Rezz rγ) → α ⇒ β → (extScope α rγ) ⇒ (extScope β rγ)
+substExtScopeKeep (rezz Nil) p = p
+substExtScopeKeep (rezz (x ◂ rγ)) p = substExtScopeKeep (rezz rγ) (liftBindSubst p)
 
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β
@@ -161,14 +165,14 @@ substTerm f (TCase {x = x} d r u bs m) =
   TCase {x = x} d r
     (substTerm f u)
     (substBranches f bs)
-    (substType (liftBindSubst (substExtScope f r)) m)
+    (substType (liftBindSubst (substExtScopeKeep r f)) m)
 substTerm f (TPi x a b)       = TPi x (substType f a) (substType (liftBindSubst f) b)
 substTerm f (TSort s)         = TSort (substSort f s)
 substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst f) v)
 substTerm f (TAnn u t)        = TAnn (substTerm f u) (substType f t)
 {-# COMPILE AGDA2HS substTerm #-}
 
-substBranch f (BBranch c r u) = BBranch c r (substTerm (substExtScope f r) u)
+substBranch f (BBranch c r u) = BBranch c r (substTerm (substExtScopeKeep r f) u)
 {-# COMPILE AGDA2HS substBranch #-}
 
 substBranches f BsNil = BsNil

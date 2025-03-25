@@ -212,6 +212,10 @@ unAppsView (TAnn _ _) = refl
 -- rezz<> = rezzCong2 _<>_
 -- {-# COMPILE AGDA2HS rezz<> inline #-}
 
+concatTermS : TermS α rβ → TermS α rγ → TermS α (concatRScope rβ rγ)
+concatTermS ⌈⌉ t = t
+concatTermS (x ↦ u ◂ t1) t = x ↦ u ◂ concatTermS t1 t
+
 TermSrepeat : Rezz rβ → TermS (extScope α rβ) rβ
 TermSrepeat (rezz Nil) = ⌈⌉
 TermSrepeat (rezz (x ◂ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (rezz rβ) inHere) ◂ TermSrepeat (rezz rβ)
