@@ -170,8 +170,8 @@ inferData : (Γ : Context α) (d : NameIn dataScope)
           → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TData d pars ixs ∶ ty)
 inferData ctx d pars ixs = do
   dt ⟨ deq ⟩ ← tcmGetDatatype d
-  typars ← checkTermS ctx (dataParTypeS dt) pars
-  tyixs ← checkTermS ctx (dataIxTypeS dt pars) ixs
+  typars ← checkTermS ctx (dataParTel dt) pars
+  tyixs ← checkTermS ctx (dataIxTel dt pars) ixs
   return (sortType (dataSort dt pars) , tyData' dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
@@ -211,7 +211,7 @@ checkCon ctx c cargs (El s ty) = do
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
   let con = snd (dataConstructors dt (⟨ _ ⟩ cid))
-      ctel = conIndTypeS con params
+      ctel = conIndTel con params
       ctype = constructorType d c con (dataSort dt params) params cargs
   tySubst ← checkTermS ctx ctel cargs
   checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt deq (⟨ _ ⟩ cid) tySubst) (El s ty)

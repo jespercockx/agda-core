@@ -313,7 +313,7 @@ module UnificationStepAndStop where
            rγ = fieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : TermS α rγ}
       (let Σ : Telescope α rγ
-           Σ = conIndTypeS con pSubst                                   -- type of the arguments of c
+           Σ = conIndTel con pSubst                                   -- type of the arguments of c
            σe : TermS (extScope α rγ) (e₀ ◂ Nil)
            σe = (e₀ ↦ TCon c (TermSrepeat (rezz rγ)) ◂ ⌈⌉)           -- names of the new equalities to replace e₀
            τ : (extScope α (e₀ ◂ Nil)) ⇒ (extScope α rγ)
@@ -344,10 +344,10 @@ module UnificationStepAndStop where
            ind = fieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : TermS α ind}
       (let Σ : Telescope α ind
-           Σ = conIndTypeS con pSubst                                    -- type of the arguments of c
+           Σ = conIndTel con pSubst                                    -- type of the arguments of c
 
            iTel : Telescope α ixs
-           iTel = dataIxTypeS dt pSubst
+           iTel = dataIxTel dt pSubst
 
            iSubste : TermS (extScope α ixs) ixs
            iSubste = TermSrepeat (rezz ixs)
