@@ -22,29 +22,6 @@ module Agda.Core.Unification
 
 private open module @0 G = Globals globals
 
-renamingExtend : ∀ {@0 α β : Scope Name} {@0 x : Name} → Renaming α β → x ∈ β → Renaming (x ◃ α) β
-renamingExtend σ xInβ = λ zInx◃α → inBindCase zInx◃α (λ where refl → xInβ) σ
-
-opaque
-  unfolding Scope
-  renamingWeaken : ∀ {@0 α β γ : Scope Name} → Rezz γ → Renaming α β → Renaming α (γ <> β)
-  renamingWeaken (rezz []) σ = σ
-  renamingWeaken (rezz (_ ∷ α)) σ = inThere ∘ (renamingWeaken (rezz α) σ)
-
-renamingWeakenVar : ∀ {@0 α β : Scope Name} {@0 x : Name} → Renaming α β → Renaming α (x ◃ β)
-renamingWeakenVar σ = inThere ∘ σ
-
-opaque
-  unfolding Scope
-  renamingToSubst : ∀ {@0 α β : Scope Name} → Rezz α → Renaming α β → α ⇒ β
-  renamingToSubst (rezz []) _ = ⌈⌉
-  renamingToSubst (rezz (Erased x ∷ α)) r =
-    let r' : Renaming α _
-        r' = λ xp → r (coerce (subBindDrop subRefl) xp) in
-    ⌈ renamingToSubst (rezz α) r' ◃ x ↦  TVar < r (Zero ⟨ IsZero refl ⟩) > ⌉
-
-
-
 ---------------------------------------------------------------------------------------------------
                                    {- PART ONE : Shrinking -}
 ---------------------------------------------------------------------------------------------------
@@ -228,7 +205,7 @@ module TelescopeEq where
     telescopicEqDrop αRun (TelEq (x ↦ u ◂ δ₁) (x ↦ v ◂ δ₂) Δ) w = TelEq δ₁ δ₂ (telescopeDrop αRun Δ w)
 
 {- End of module TelescopeEq -}
-open TelescopeEq
+open TelescopeEq public
 
 ---------------------------------------------------------------------------------------------------
                           {- PART THREE : Unification Step By Step -}
@@ -455,5 +432,5 @@ module UnificationStepAndStop where
   _,_↣ᵤ⋆_,_ = UnificationSteps
   _,_↣ᵤ⋆⊥ = UnificationStops
 {- End of module UnificationStepAndStop -}
-open UnificationStepAndStop
+open UnificationStepAndStop public
 

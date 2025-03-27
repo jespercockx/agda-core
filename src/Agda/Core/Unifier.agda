@@ -1,6 +1,6 @@
 open import Scope
 
-open import Haskell.Prelude hiding (All; s; t; a)
+open import Haskell.Prelude hiding (All; s; t; a; coerce)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
 open import Haskell.Law.Monoid.Def
@@ -25,6 +25,28 @@ module Agda.Core.Unifier
   where
 
 private open module @0 G = Globals globals
+
+renamingExtend : ∀ {@0 α β : Scope Name} {@0 x : Name} → Renaming α β → x ∈ β → Renaming (x ◃ α) β
+renamingExtend σ xInβ = λ zInx◃α → inBindCase zInx◃α (λ where refl → xInβ) σ
+
+opaque
+  unfolding Scope
+  renamingWeaken : ∀ {@0 α β γ : Scope Name} → Rezz γ → Renaming α β → Renaming α (γ <> β)
+  renamingWeaken (rezz []) σ = σ
+  renamingWeaken (rezz (_ ∷ α)) σ = inThere ∘ (renamingWeaken (rezz α) σ)
+
+renamingWeakenVar : ∀ {@0 α β : Scope Name} {@0 x : Name} → Renaming α β → Renaming α (x ◃ β)
+renamingWeakenVar σ = inThere ∘ σ
+
+opaque
+  unfolding Scope
+  renamingToSubst : ∀ {@0 α β : Scope Name} → Rezz α → Renaming α β → α ⇒ β
+  renamingToSubst (rezz []) _ = ⌈⌉
+  renamingToSubst (rezz (Erased x ∷ α)) r =
+    let r' : Renaming α _
+        r' = λ xp → r (coerce (subBindDrop subRefl) xp) in
+    ⌈ renamingToSubst (rezz α) r' ◃ x ↦  TVar < r (Zero ⟨ IsZero refl ⟩) > ⌉
+
 
 
 ---------------------------------------------------------------------------------------------------
