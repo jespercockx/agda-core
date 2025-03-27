@@ -25,25 +25,25 @@ private variable
 
 data Subst : (@0 α β : Scope Name) → Set where
   SNil  : Subst mempty β
-  SCons :  Term β → Subst α β → Subst (x ◃ α) β
+  SCons :  Term β → Subst α β → Subst (α ▸ x) β
 
 {-# COMPILE AGDA2HS Subst deriving Show #-}
-infix 5 Subst
+infix 4 Subst
 syntax Subst α β = α ⇒ β
 
 pattern ⌈⌉ = SNil
-infix 6 ⌈_◃_↦_⌉
-pattern ⌈_◃_↦_⌉ σ x u = SCons {x = x} u σ
-infix 4 ⌈◃_↦_⌉
-pattern ⌈◃_↦_⌉ x u = ⌈ ⌈⌉ ◃ x ↦ u ⌉
+infix 6 _▹_↦_
+pattern _▹_↦_ σ x u = SCons {x = x} u σ
+infix 4 ▹_↦_
+pattern ▹_↦_ x u = SCons {x = x} u SNil
 
 rezzSubst : α ⇒ β → Rezz α
 rezzSubst ⌈⌉ = rezz mempty
-rezzSubst ⌈ σ ◃ x ↦ u ⌉ = rezzBind (rezzSubst σ)
+rezzSubst (σ ▹ x ↦ u) = rezzBind (rezzSubst σ)
 
 weakenSubst : α ⊆ β → γ ⇒ α → γ ⇒ β
 weakenSubst p ⌈⌉ = ⌈⌉
-weakenSubst p ⌈ s ◃ x ↦ t ⌉ = ⌈ weakenSubst p s ◃ x ↦ weaken p t ⌉
+weakenSubst p (s ▹ x ↦ t) = weakenSubst p s ▹ x ↦ weaken p t
 
 instance
   iWeakenSubst : Weaken (Subst γ)
@@ -55,15 +55,15 @@ lookupSubst : α ⇒ β
             → x ∈ α
             → Term β
 lookupSubst ⌈⌉ x q = inEmptyCase q
-lookupSubst ⌈ f ◃ _ ↦ u ⌉ x q = inBindCase q (λ _ → u) (lookupSubst f x)
+lookupSubst (f ▹ _ ↦ u) x q = inBindCase q (lookupSubst f x) (λ _ → u)
 
 {-# COMPILE AGDA2HS lookupSubst #-}
 
 concatSubst : α ⇒ γ → β ⇒ γ → (α <> β) ⇒ γ
-concatSubst ⌈⌉ q =
-  subst0 (λ α → α ⇒ _) (sym (leftIdentity _)) q
-concatSubst ⌈ p ◃ _ ↦ v ⌉ q =
-  subst0 (λ α → α ⇒ _) (associativity _ _ _) ⌈ concatSubst p q ◃ _ ↦ v ⌉
+concatSubst p ⌈⌉ =
+  subst0 (λ α → α ⇒ _) (sym (rightIdentity _)) p
+concatSubst p (q ▹ _ ↦ v) =
+  subst0 (λ α → α ⇒ _) (sym (associativity _ _ _)) (concatSubst p q ▹ _ ↦ v)
 
 {-# COMPILE AGDA2HS concatSubst #-}
 
@@ -73,7 +73,7 @@ opaque
   subToSubst : Rezz α → α ⊆ β → α ⇒ β
   subToSubst (rezz []) p = ⌈⌉
   subToSubst (rezz (Erased x ∷ α)) p =
-    ⌈ (subToSubst (rezz α) (joinSubRight (rezz _) p)) ◃ x ↦ (TVar (⟨ x ⟩ coerce p inHere)) ⌉
+    (subToSubst (rezz α) (joinSubLeft (rezz _) p)) ▹ x ↦ (TVar (⟨ x ⟩ coerce p inHere))
 
 {-# COMPILE AGDA2HS subToSubst #-}
 
@@ -86,60 +86,50 @@ opaque
 -- {-# COMPILE AGDA2HS termSToSubst #-}
 
 extSubst : β ⇒ α → TermS α rγ → (extScope β rγ) ⇒ α
-extSubst s ⌈⌉ = s
-extSubst s (x ↦ u ◂ t) = extSubst ⌈ s ◃ x ↦ u ⌉ t
+extSubst {α = α} s ⌈⌉ = subst0 (λ γ → γ ⇒ α) (sym extScopeEmpty) s
+extSubst {α = α} s (x ↦ u ◂ t) = subst0 (λ γ → γ ⇒ α) (sym extScopeBind) (extSubst (s ▹ x ↦ u) t)
 {-# COMPILE AGDA2HS extSubst #-}
 
-opaque
-  unfolding Scope revScope
-
-  revSubstAcc : {@0 α β γ : Scope Name} → α ⇒ γ → β ⇒ γ → (revScopeAcc α β) ⇒ γ
-  revSubstAcc ⌈⌉ p = p
-  revSubstAcc ⌈ s ◃ y ↦ x ⌉ p = revSubstAcc s ⌈ p ◃ y ↦ x ⌉
-  {-# COMPILE AGDA2HS revSubstAcc #-}
-
-  revSubst : {@0 α β : Scope Name} → α ⇒ β → ~ α ⇒ β
-  revSubst = flip revSubstAcc ⌈⌉
-  {-# COMPILE AGDA2HS revSubst #-}
-
-liftSubst : {@0 α β γ : Scope Name} → Rezz α → β ⇒ γ → (α <> β) ⇒ (α <> γ)
+liftSubst : {@0 α β γ : Scope Name} → Rezz γ → α ⇒ β → (α <> γ) ⇒ (β <> γ)
 liftSubst r f =
-  concatSubst (subToSubst r (subJoinHere r subRefl))
-              (weaken (subJoinDrop r subRefl) f)
+  concatSubst (weaken (subJoinDrop r subRefl) f)
+              (subToSubst r (subJoinHere r subRefl))
 {-# COMPILE AGDA2HS liftSubst #-}
 
-{-# COMPILE AGDA2HS liftSubst #-}
 idSubst : {@0 β : Scope Name} → Rezz β → β ⇒ β
-idSubst r = subst0 (λ β → β ⇒ β) (rightIdentity _) (liftSubst r ⌈⌉)
+idSubst r = subst0 (λ β → β ⇒ β) (leftIdentity _) (liftSubst r ⌈⌉)
 {-# COMPILE AGDA2HS idSubst #-}
 
-liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → (bind x α) ⇒ (bind y β)
-liftBindSubst {y = y} e = ⌈ (weaken (subBindDrop subRefl) e) ◃ _ ↦ (TVar (⟨ y ⟩ inHere)) ⌉
+liftBindSubst : {@0 α β : Scope Name} {@0 x y : Name} → α ⇒ β → α ▸ x ⇒ β ▸ y
+liftBindSubst {y = y} e = (weaken (subBindDrop subRefl) e) ▹ _ ↦ (TVar (⟨ y ⟩ inHere))
 {-# COMPILE AGDA2HS liftBindSubst #-}
 
-raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
-raiseSubst {β = β} r ⌈⌉ = subst0 (λ α → α ⇒ β) (sym (leftIdentity β)) (idSubst r)
-raiseSubst {β = β} r (SCons {α = α} u e) =
-  subst0 (λ α → α ⇒ β)
-    (associativity (singleton _) α β)
-    ⌈ raiseSubst r e ◃ _ ↦ u ⌉
-{-# COMPILE AGDA2HS raiseSubst #-}
+-- raiseSubst : {@0 α β : Scope Name} → Rezz β → α ⇒ β → (α <> β) ⇒ β
+-- raiseSubst {β = β} r ⌈⌉ = subst0 (λ α → α ⇒ β) (sym (leftIdentity β)) (idSubst r)
+-- raiseSubst {β = β} r (SCons {α = α} u e) =
+--   subst0 (λ α → α ⇒ β)
+--     (associativity (singleton _) α β)
+--     (raiseSubst r e ▹ _ ↦ u)
+-- {-# COMPILE AGDA2HS raiseSubst #-}
 
--- revIdSubst : {@0 α : Scope Name} → Rezz α → α ⇒ ~ α
--- revIdSubst {α} r = subst0 (λ s →  s ⇒ (~ α)) (revsInvolution α) (revSubst (idSubst (rezz~ r)))
--- {-# COMPILE AGDA2HS revIdSubst #-}
 
--- revIdSubst' : {@0 α : Scope Name} → Rezz α → ~ α ⇒ α
--- revIdSubst' {α} r = subst0 (λ s →  (~ α) ⇒ s) (revsInvolution α) (revIdSubst (rezz~ r))
--- {-# COMPILE AGDA2HS revIdSubst' #-}
-
+{-
 substExtScope : (Rezz rγ) → α ⇒ β → α ⇒ (extScope β rγ)
-substExtScope (rezz Nil) s = s
-substExtScope (rezz (x ◂ rγ)) s = substExtScope (rezz rγ) (weaken (subBindDrop subRefl) s)
+substExtScope (rezz rγ) s =
+  caseRScope rγ
+    (λ where ⦃ refl ⦄ → subst0 (Subst _) (sym extScopeEmpty) s)
+    (λ where x rβ ⦃ refl ⦄ → subst0 (Subst _) (sym extScopeBind)
+                              (substExtScope (rezz rβ) (weaken (subBindDrop {y = x} subRefl) s)))
+-}
+opaque
+  unfolding extScope
+  substExtScope : (Rezz rγ) → α ⇒ β → α ⇒ (extScope β rγ)
+  substExtScope (rezz []) s = s
+  substExtScope (rezz (x ∷ rγ)) s = substExtScope (rezz rγ) (weaken (subBindDrop subRefl) s)
 
-substExtScopeKeep : (Rezz rγ) → α ⇒ β → (extScope α rγ) ⇒ (extScope β rγ)
-substExtScopeKeep (rezz Nil) p = p
-substExtScopeKeep (rezz (x ◂ rγ)) p = substExtScopeKeep (rezz rγ) (liftBindSubst p)
+  substExtScopeKeep : (Rezz rγ) → α ⇒ β → (extScope α rγ) ⇒ (extScope β rγ)
+  substExtScopeKeep (rezz []) p = p
+  substExtScopeKeep (rezz (x ∷ rγ)) p = substExtScopeKeep (rezz rγ) (liftBindSubst p)
 
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β
@@ -208,7 +198,7 @@ instance
 {-# COMPILE AGDA2HS iSubstBranches #-}
 {-# COMPILE AGDA2HS iSubstTermS #-}
 
-substTop : {{Substitute t}} → Rezz α → Term α → t (x ◃ α) → t α
+substTop : {{Substitute t}} → Rezz α → Term α → t (α ▸ x) → t α
 substTop r u = subst (SCons u (idSubst r))
 {-# COMPILE AGDA2HS substTop #-}
 
@@ -224,5 +214,5 @@ instance
 
 composeSubst : α ⇒ β → β ⇒ γ → α ⇒ γ
 composeSubst ⌈⌉ _ = ⌈⌉
-composeSubst ⌈ s1 ◃ x ↦ u ⌉ s2 = ⌈ composeSubst s1 s2 ◃ x ↦ subst s2 u ⌉
+composeSubst (s1 ▹ x ↦ u) s2 = composeSubst s1 s2 ▹ x ↦ subst s2 u
 {-# COMPILE AGDA2HS composeSubst #-}

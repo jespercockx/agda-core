@@ -16,8 +16,8 @@ module Shrink where
 
   data Shrink : (@0 α β : Scope Name) → Set where
     ShNil  : Shrink mempty β
-    ShKeep : (@0 x : Name) → Shrink α β → Shrink (x ◃ α) (x ◃ β)
-    ShCons : (@0 x : Name) → Shrink α β → Shrink α (x ◃ β)
+    ShKeep : (@0 x : Name) → Shrink α β → Shrink (α ▸ x) (β ▸ x)
+    ShCons : (@0 x : Name) → Shrink α β → Shrink α (β ▸ x)
 
   opaque
     unfolding Scope

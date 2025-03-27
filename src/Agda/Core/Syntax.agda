@@ -42,8 +42,8 @@ open Type public
 {-# COMPILE AGDA2HS Type deriving Show #-}
 
 data TermS : (@0 α : Scope Name) (@0 rβ : RScope Name) → Set where
-  TSNil  : TermS α Nil
-  TSCons :  Term α → TermS α rβ → TermS α (Cons x rβ)
+  TSNil  : TermS α mempty
+  TSCons :  Term α → TermS α rβ → TermS α (x ◂ rβ)
 {-# COMPILE AGDA2HS TermS deriving Show #-}
 
 pattern ⌈⌉ = TSNil
@@ -53,8 +53,8 @@ pattern _↦_◂_ x t s = TSCons {x = x} t s
    Unlike contexts, they aren't closed.
    Telescope α β is like an extension of Context α with β.-}
 data Telescope (@0 α : Scope Name) : @0 RScope Name → Set where
-  EmptyTel  : Telescope α Nil
-  ExtendTel : (@0 x : Name) → Type α → Telescope (x ◃ α) rβ  → Telescope α (x ◂ rβ)
+  EmptyTel  : Telescope α mempty
+  ExtendTel : (@0 x : Name) → Type α → Telescope (α ▸ x) rβ  → Telescope α (x ◂ rβ)
 
 pattern ⌈⌉ = EmptyTel
 infix 6 _∶_◂_
@@ -75,18 +75,18 @@ data Term α where
         → Term α
   TCon  : (c : NameIn conScope)
         → (TermS α (fieldScope c)) → Term α
-  TLam  : (@0 x : Name) (v : Term (x ◃ α)) → Term α
+  TLam  : (@0 x : Name) (v : Term (α ▸ x)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
   TProj : (u : Term α) (x : NameIn defScope) → Term α
   TCase : (d : NameIn dataScope)                   -- Datatype of the variable we are splitting on
         → Rezz (dataIxScope d)                     -- Run-time representation of index scope
         → (u : Term α)                             -- Term we are casing on
         → (bs : Branches α cs)                     -- Branches (one for each constructor of d)
-        → (m : Type (x ◃ (extScope α (dataIxScope d))))  -- Return type
+        → (m : Type ((extScope α (dataIxScope d)) ▸ x))  -- Return type
         → Term α
-  TPi   : (@0 x : Name) (u : Type α) (v : Type (x ◃ α)) → Term α
+  TPi   : (@0 x : Name) (u : Type α) (v : Type (α ▸ x)) → Term α
   TSort : Sort α → Term α
-  TLet  : (@0 x : Name) (u : Term α) (v : Term (x ◃ α)) → Term α
+  TLet  : (@0 x : Name) (u : Term α) (v : Term (α ▸ x)) → Term α
   TAnn  : (u : Term α) (t : Type α) → Term α
   -- TODO: literals
 {-# COMPILE AGDA2HS Term deriving Show #-}
@@ -96,7 +96,7 @@ data Sort α where
   -- TODO: universe polymorphism
 {-# COMPILE AGDA2HS Sort deriving Show #-}
 
-piSort : Sort α → Sort (x ◃ α) → Sort α
+piSort : Sort α → Sort (α ▸ x) → Sort α
 piSort (STyp a) (STyp b) = STyp (max a b)
 {-# COMPILE AGDA2HS piSort #-}
 
@@ -120,7 +120,7 @@ data Branch α where
 
 data Branches α where
   BsNil : Branches α mempty
-  BsCons : Branch α c → Branches α cs → Branches α (c ◃ cs)
+  BsCons : Branch α c → Branches α cs → Branches α (cs ▸ c)
 {-# COMPILE AGDA2HS Branches deriving Show #-}
 
 opaque
@@ -132,7 +132,7 @@ opaque
   caseBsNil BsNil f = f
   {-# COMPILE AGDA2HS caseBsNil #-}
 
-  caseBsCons : (bs : Branches α (c ◃ cs))
+  caseBsCons : (bs : Branches α (cs ▸ c))
              → ((bh : Branch α c) (bt : Branches α cs) → @0 {{bs ≡ BsCons bh bt}} → d)
              → d
   caseBsCons (BsCons bh bt) f = f bh bt
@@ -140,7 +140,7 @@ opaque
 
 rezzBranches : Branches α β → Rezz β
 rezzBranches BsNil = rezz mempty
-rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◃ cs) (rezzBranches bt)
+rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → cs ▸ c) (rezzBranches bt)
 {-# COMPILE AGDA2HS rezzBranches #-}
 
 rezzTermS : TermS α rβ → Rezz rβ
@@ -150,7 +150,7 @@ rezzTermS (x ↦ u ◂ t) = rezzCong (λ t → x ◂ t) (rezzTermS t)
 
 allBranches : Branches α β → All (λ c → c ∈ conScope) β
 allBranches BsNil = allEmpty
-allBranches (BsCons (BBranch (⟨ _ ⟩ ci) _ _) bs) = allJoin (allSingl ci) (allBranches bs)
+allBranches (BsCons (BBranch (⟨ _ ⟩ ci) _ _) bs) = allJoin (allBranches bs) (allSingl ci)
 {-# COMPILE AGDA2HS allBranches #-}
 
 applys : Term γ → List (Term γ) → Term γ
@@ -194,31 +194,17 @@ unAppsView (TSort _) = refl
 unAppsView (TLet _ _ _) = refl
 unAppsView (TAnn _ _) = refl
 
--- opaque
---   unfolding Scope
+concatTermS : TermS α rβ → TermS α rγ → TermS α (rβ <> rγ)
+concatTermS {α = α} {rγ = rγ} ⌈⌉ t =
+  subst0 (TermS α) (sym (leftIdentity rγ)) t
+concatTermS {α = α} {rγ = rγ} (x ↦ u ◂ t1) t =
+  subst0 (TermS α) (associativity [ x ◂] _ rγ) (x ↦ u ◂ concatTermS t1 t)
 
---   caseTermSBind : (s : TermS α (x ◂ rβ))
---                 → ((t : Term α) → (s' : TermS α rβ) → @0 {{s ≡ x ↦ t ◂ s'}} → d)
---                 → d
---   caseTermSBind (_ ↦ x ◂ s) f = f x s
---   {-# COMPILE AGDA2HS caseTermSBind #-}
-
--- rezz~ : Rezz α → Rezz (~ α)
--- rezz~ = rezzCong revScope
-
--- {-# COMPILE AGDA2HS rezz~ inline #-}
-
--- rezz<> : Rezz α → Rezz β → Rezz (α <> β)
--- rezz<> = rezzCong2 _<>_
--- {-# COMPILE AGDA2HS rezz<> inline #-}
-
-concatTermS : TermS α rβ → TermS α rγ → TermS α (concatRScope rβ rγ)
-concatTermS ⌈⌉ t = t
-concatTermS (x ↦ u ◂ t1) t = x ↦ u ◂ concatTermS t1 t
-
-TermSrepeat : Rezz rβ → TermS (extScope α rβ) rβ
-TermSrepeat (rezz Nil) = ⌈⌉
-TermSrepeat (rezz (x ◂ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (rezz rβ) inHere) ◂ TermSrepeat (rezz rβ)
+opaque
+  unfolding extScope
+  TermSrepeat : Rezz rβ → TermS (extScope α rβ) rβ
+  TermSrepeat (rezz []) = ⌈⌉
+  TermSrepeat (rezz (Erased x ∷ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (rezz rβ) inHere) ◂ TermSrepeat (rezz rβ)
 
 weakenTerm     : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
@@ -284,27 +270,11 @@ instance
 {-# COMPILE AGDA2HS iWeakenBranches #-}
 {-# COMPILE AGDA2HS iWeakenTermS #-}
 
-
--- dropSubst : {@0 α β : Scope Name} {@0 x : Name} → (x ◃ α) ⇒ β → α ⇒ β
--- dropSubst f = caseSubstBind f (λ _ g → g)
--- {-# COMPILE AGDA2HS dropSubst #-}
-
--- listSubst : {@0 β : Scope Name} → Rezz β → List (Term α) → Maybe ((β ⇒ α) × (List (Term α)))
--- listSubst (rezz β) [] =
---   caseScope β
---     (λ where {{refl}} → Just (SNil , []))
---     (λ _ _ → Nothing)
--- listSubst (rezz β) (v ∷ vs) =
---   caseScope β
---     (λ where {{refl}} → Just (SNil , v ∷ vs))
---     (λ where x γ {{refl}} → first (SCons v) <$> listSubst (rezzUnbind (rezz β)) vs)
--- {-# COMPILE AGDA2HS listSubst #-}
-
 raise : Rezz rγ → Term α → Term (extScope α rγ)
 raise r = weakenTerm (subExtScope r subRefl)
 {-# COMPILE AGDA2HS raise #-}
 
-raiseType : {@0 α β : Scope Name} → Rezz β → Type α → Type (β <> α)
+raiseType : {@0 α β : Scope Name} → Rezz β → Type α → Type (α <> β)
 raiseType r = weakenType (subJoinDrop r subRefl)
 {-# COMPILE AGDA2HS raiseType #-}
 
@@ -380,7 +350,7 @@ instance
 
 opaque
   unfolding Scope
-  liftBindListNameIn : List (NameIn (x ◃ α)) → List (NameIn α)
+  liftBindListNameIn : List (NameIn (α ▸ x)) → List (NameIn α)
   liftBindListNameIn [] = []
   liftBindListNameIn ((⟨ x ⟩ (Zero ⟨ p ⟩)) ∷ l) = liftBindListNameIn l
   liftBindListNameIn ((⟨ x ⟩ (Suc n ⟨ IsSuc p ⟩)) ∷ l) = < n ⟨ p ⟩ > ∷ (liftBindListNameIn l)
@@ -389,14 +359,14 @@ opaque
   liftListNameIn _ [] = []
   liftListNameIn {rγ = rγ} rγRun ((⟨ x ⟩ xInγα) ∷ l) =
     let @0 γ : Scope Name
-        γ = extScope mempty rγ
-        @0 e : (extScope α rγ) ≡ γ <> α
+        γ = extScope [] rγ
+        @0 e : (extScope α rγ) ≡ γ ++ α
         e = extScopeConcatEmpty _ rγ
         γRun : Rezz γ
-        γRun = rezzExtScope (rezz mempty) rγRun in
+        γRun = rezzExtScope (rezz []) rγRun in
           (inJoinCase γRun (subst0 (λ β → _ ∈ β) e xInγα)
-              (λ _ → liftListNameIn rγRun l)
-              (λ xInα → < xInα > ∷ (liftListNameIn rγRun l)))
+              (λ xInα → < xInα > ∷ (liftListNameIn rγRun l))
+              (λ _ → liftListNameIn rγRun l))
 
 {- TODO: create merge function for sorted lists of var as replacing <> by it would **greatly** decrease complexity -}
 varInTerm : Term α → List (NameIn α)
