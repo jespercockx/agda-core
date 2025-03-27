@@ -29,7 +29,7 @@ nameInEmptyCase : NameIn mempty → a
 nameInEmptyCase x = inEmptyCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInEmptyCase inline #-}
 
-nameInBindCase : ∀ {@0 y α} (x : NameIn (y ◃ α)) → (@0 proj₁ x ≡ y → a) → (proj₁ x ∈ α → a) → a
+nameInBindCase : ∀ {@0 y α} (x : NameIn (α ▸ y)) → (proj₁ x ∈ α → a) → (@0 proj₁ x ≡ y → a) → a
 nameInBindCase x = inBindCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInBindCase inline #-}
 

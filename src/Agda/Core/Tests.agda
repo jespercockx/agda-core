@@ -44,30 +44,30 @@ instance
   globals = record
     { defScope = mempty
     ; dataScope = datas
-    ; dataParScope = λ _ → mempty
-    ; dataIxScope = λ _ → mempty
+    ; dataParScope = λ _ → Nil
+    ; dataIxScope = λ _ → Nil
     ; conScope = cons
-    ; fieldScope = λ _ → mempty
+    ; fieldScope = λ _ → Nil
     }
 
 boolcons : ((⟨ c ⟩ cp) : NameIn cons)
-         → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))
+         → Σ (c ∈ cons) (λ cp → Constructor Nil Nil (⟨ c ⟩ cp))
 boolcons (⟨ c ⟩ cp) = lookupAll
-  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
+  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor Nil Nil (⟨ c ⟩ cp))}
   (allJoin (allSingl (inHere
-                     , record { conTelescope = EmptyTel
-                              ; conIndices = SNil } )) $
+                     , record { conIndTel = λ _ → EmptyTel
+                              ; conIx = λ _ _ → TSNil } )) $
    allJoin (allSingl (inThere inHere
-                     , record { conTelescope = EmptyTel
-                              ; conIndices = SNil })) $
+                     , record { conIndTel = λ _ → EmptyTel
+                              ; conIx = λ _ _ → TSNil })) $
    allEmpty)
   cp
 
-bool : Datatype mempty mempty
+bool : Datatype Nil Nil
 bool .dataConstructorScope = cons
-bool .dataSort = STyp 0
-bool .dataParameterTel = EmptyTel
-bool .dataIndexTel = EmptyTel
+bool .dataSort = λ _ → STyp 0
+bool .dataParTel = EmptyTel
+bool .dataIxTel = λ _ → EmptyTel
 bool .dataConstructors = boolcons
 
 instance
@@ -84,9 +84,9 @@ opaque
   unfolding ScopeThings
 
   `true : Term α
-  `true = TCon (⟨ "true" ⟩ inHere) SNil
+  `true = TCon (⟨ "true" ⟩ inHere) TSNil
   `false : Term α
-  `false = TCon (⟨ "false" ⟩ inThere inHere) SNil
+  `false = TCon (⟨ "false" ⟩ inThere inHere) TSNil
 
 module TestReduce (@0 x y z : Name) where
 
@@ -94,7 +94,7 @@ module TestReduce (@0 x y z : Name) where
     unfolding ScopeThings `true `false
 
     testTerm₁ : Term α
-    testTerm₁ = apply (TLam x (TVar (⟨ x ⟩ inHere))) (TSort (STyp 0))
+    testTerm₁ = TApp (TLam x (TVar (⟨ x ⟩ inHere))) (TSort (STyp 0))
 
     @0 testProp₁ : Set
     testProp₁ = reduceClosed (rezz sig) testTerm₁ ≡ Just (TSort (STyp 0))
@@ -107,7 +107,7 @@ module TestReduce (@0 x y z : Name) where
                                   (BsCons (BBranch (⟨ "true" ⟩ inHere) (rezz _) `false)
                                   (BsCons (BBranch (⟨ "false" ⟩ inThere inHere) (rezz _) `true)
                                    BsNil))
-                                  (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil))
+                                  (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil))
 
     @0 testProp₂ : Set
     testProp₂ = reduceClosed (rezz sig) testTerm₂ ≡ Just `false
@@ -124,7 +124,7 @@ module TestTypechecker (@0 x y z : Name) where
     testTerm₁ = TLam x (TVar (⟨ x ⟩ inHere))
 
     testType₁ : Type α
-    testType₁ = El (STyp 0) (TPi y (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil)) (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil)))
+    testType₁ = El (STyp 0) (TPi y (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil)) (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil)))
 
     testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
     testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (rezz _) fuel)
@@ -197,3 +197,4 @@ module TestUnifierSwap where
 
     testSwapHighest2Prop = (swapHighest {{fl = Suc (Suc (Suc (Suc Zero)))}} Context-w' m₀ ≡ Nothing )
     testSwapHighest2 = refl
+ 

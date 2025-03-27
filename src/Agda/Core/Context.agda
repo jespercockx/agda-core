@@ -20,6 +20,7 @@ module Agda.Core.Context
 private variable
   @0 x y : Name
   @0 α β : Scope Name
+  @0 rβ : RScope Name
   @0 s t u v : Term α
 
 data Context : @0 Scope Name → Set where
@@ -53,15 +54,7 @@ rezzScope (CtxExtend g x _) =
 
 {-# COMPILE AGDA2HS rezzScope #-}
 
-addContextTel : Telescope α β → Context α → Context (~ β <> α)
-addContextTel {α} EmptyTel c =
-  subst0 Context
-         (sym $ trans (cong (λ x → x <> α) revsIdentity)
-                      (leftIdentity α))
-         c
-addContextTel {α} (ExtendTel {β = β} x ty telt) c =
-  subst0 Context
-         (trans (associativity (~ β) [ x ] α)
-                (cong (λ t → t <> α) (sym $ revsBindComp β x)))
-         (addContextTel telt (c , x ∶ ty))
+addContextTel : Context α → Telescope α rβ  → Context (extScope α rβ)
+addContextTel {α} c ⌈⌉ = c
+addContextTel {α} c (ExtendTel {rβ = rβ} x ty telt) = addContextTel (c , x ∶ ty) telt
 {-# COMPILE AGDA2HS addContextTel #-}
