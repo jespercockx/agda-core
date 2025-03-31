@@ -127,16 +127,30 @@ opaque
   unfolding Scope
 
   caseBsNil : (bs : Branches α mempty)
-            → (@0 {{bs ≡ BsNil}} → d)
+            → (@0 ⦃ bs ≡ BsNil ⦄ → d)
             → d
   caseBsNil BsNil f = f
   {-# COMPILE AGDA2HS caseBsNil #-}
 
   caseBsCons : (bs : Branches α (cs ▸ c))
-             → ((bh : Branch α c) (bt : Branches α cs) → @0 {{bs ≡ BsCons bh bt}} → d)
+             → ((bh : Branch α c) (bt : Branches α cs) → @0 ⦃ bs ≡ BsCons bh bt ⦄ → d)
              → d
   caseBsCons (BsCons bh bt) f = f bh bt
   {-# COMPILE AGDA2HS caseBsCons #-}
+
+opaque
+  unfolding RScope
+  caseTermSNil : (ts : TermS α mempty)
+               → (@0 ⦃ ts ≡ ⌈⌉ ⦄ → d)
+               → d
+  caseTermSNil ⌈⌉ f = f
+  {-# COMPILE AGDA2HS caseTermSNil #-}
+
+  caseTermSCons : (ts : TermS α (x ◂ rβ))
+            → ((t : Term α) (ts0 : TermS α rβ) → @0 ⦃ ts ≡ x ↦ t ◂ ts0 ⦄ → d)
+            → d
+  caseTermSCons (x ↦ t ◂ ts0) f = f t ts0
+  {-# COMPILE AGDA2HS caseTermSCons #-}
 
 rezzBranches : Branches α β → Rezz β
 rezzBranches BsNil = rezz mempty
@@ -198,7 +212,7 @@ concatTermS : TermS α rβ → TermS α rγ → TermS α (rβ <> rγ)
 concatTermS {α = α} {rγ = rγ} ⌈⌉ t =
   subst0 (TermS α) (sym (leftIdentity rγ)) t
 concatTermS {α = α} {rγ = rγ} (x ↦ u ◂ t1) t =
-  subst0 (TermS α) (associativity [ x ◂] _ rγ) (x ↦ u ◂ concatTermS t1 t)
+  subst0 (TermS α) (associativity (x ◂) _ rγ) (x ↦ u ◂ concatTermS t1 t)
 
 opaque
   unfolding extScope

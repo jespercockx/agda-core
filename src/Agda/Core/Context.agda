@@ -25,11 +25,11 @@ private variable
 
 data Context : @0 Scope Name → Set where
   CtxEmpty  : Context mempty
-  CtxExtend : Context α → (@0 x : Name) → Type α → Context (x ◃ α)
+  CtxExtend : Context α → (@0 x : Name) → Type α → Context  (α ▸ x)
 
 {-# COMPILE AGDA2HS Context #-}
 
-_,_∶_ : Context α → (@0 x : Name) → Type α → Context (x ◃ α)
+_,_∶_ : Context α → (@0 x : Name) → Type α → Context  (α ▸ x)
 _,_∶_ = CtxExtend
 
 infix 4 _,_∶_
@@ -42,19 +42,21 @@ private variable
 lookupVar : (Γ : Context α) (x : NameIn α) → Type α
 lookupVar CtxEmpty x = nameInEmptyCase x
 lookupVar (CtxExtend g y s) x = raiseType (rezz _) (nameInBindCase x
-  (λ _ → s)
-  (λ q → lookupVar g (⟨ _ ⟩ q)))
+  (λ q → lookupVar g (⟨ _ ⟩ q))
+  (λ _ → s))
 
 {-# COMPILE AGDA2HS lookupVar #-}
 
 rezzScope : (Γ : Context α) → Rezz α
 rezzScope CtxEmpty = rezz _
 rezzScope (CtxExtend g x _) =
-  rezzCong (λ t → (singleton x) <> t) (rezzScope g)
+  rezzCong (λ t → t <> (singleton x)) (rezzScope g)
 
 {-# COMPILE AGDA2HS rezzScope #-}
 
 addContextTel : Context α → Telescope α rβ  → Context (extScope α rβ)
-addContextTel {α} c ⌈⌉ = c
-addContextTel {α} c (ExtendTel {rβ = rβ} x ty telt) = addContextTel (c , x ∶ ty) telt
+addContextTel {α} c ⌈⌉ =
+  subst0 Context (sym extScopeEmpty) c
+addContextTel {α} c (ExtendTel {rβ = rβ} x ty telt) =
+  subst0 Context (sym extScopeBind) (addContextTel (c , x ∶ ty) telt)
 {-# COMPILE AGDA2HS addContextTel #-}

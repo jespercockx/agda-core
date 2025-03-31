@@ -45,17 +45,17 @@ infix 3 Conv
 syntax Conv x y        = x ≅ y
 syntax ConvTermS us vs = us ⇔ vs
 
-renameTop : Rezz α → Term (x ◃ α) → Term (y ◃ α)
+renameTop : Rezz α → Term  (α ▸ x) → Term  (α ▸ y)
 renameTop = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTop #-}
 
-renameTopSort : Rezz α → Sort (x ◃ α) → Sort (y ◃ α)
+renameTopSort : Rezz α → Sort  (α ▸ x) → Sort  (α ▸ y)
 renameTopSort = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopSort #-}
 
-renameTopType : Rezz α → Type (x ◃ α) → Type (y ◃ α)
+renameTopType : Rezz α → Type  (α ▸ x) → Type  (α ▸ y)
 renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
@@ -108,7 +108,7 @@ data ConvBranch {α} where
 
 
 data ConvTermS {α} where
-  CSNil : ConvTermS {rβ = Nil} us vs
+  CSNil : ConvTermS {rβ = mempty} us vs
   CSCons : {@0 x : Name}
          → u ≅ v
          → us ⇔ vs

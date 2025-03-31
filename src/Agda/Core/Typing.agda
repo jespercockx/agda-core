@@ -55,12 +55,12 @@ data TyTermS (@0 Γ : Context α) : @0 (TermS α rβ) → @0 Telescope α rβ �
 data TyBranches (@0 Γ : Context α)
                 {@0 pars ixs} (@0 dt : Datatype pars ixs)
                 (@0 ps : TermS α pars)
-                (@0 rt : Type (x ◃ (extScope α ixs))) : @0 Branches α cons → Set
+                (@0 rt : Type ((extScope α ixs) ▸ x)) : @0 Branches α cons → Set
 
 data TyBranch (@0 Γ : Context α)
               {@0 pars ixs} (@0 dt : Datatype pars ixs)
               (@0 ps : TermS α pars)
-              (@0 rt : Type (x ◃ (extScope α ixs))) : @0 Branch α con → Set
+              (@0 rt : Type ((extScope α ixs) ▸ x)) : @0 Branch α con → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -132,7 +132,7 @@ data TyTerm {α} Γ where
          α'Subst : α' ⇒ α                                        -- subst of α' to α
          α'Subst = extSubst (idSubst αRun) iSubst)
     {cases : Branches α (dataConstructorScope dt)}                -- cases for constructors of dt
-    {return : Type (x ◃ α')}                                      -- return type
+    {return : Type (α' ▸ x)}                                      -- return type
     (let αInα' : α ⊆ α'
          αInα' = subExtScope iRun subRefl              -- proof that α is in α'
 
@@ -143,7 +143,7 @@ data TyTerm {α} Γ where
          tx = dataType d (weaken αInα' k) (weaken αInα' pSubst) iSubst'
 
          return' : Type α
-         return' = subst ⌈ α'Subst ◃ x ↦ u ⌉ return)
+         return' = subst (α'Subst ▹ x ↦ u) return)
 
     → Γ' , x ∶ tx ⊢ unType return ∶ sortType (typeSort return) -- if return is well formed
     → TyBranches Γ dt pSubst return cases                     -- if each case is well typed
@@ -216,8 +216,8 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
                    idsubst : α ⇒ β
                    idsubst = weaken (subExtScope r subRefl) (idSubst αRun)
 
-                   bsubst : (x ◃ (extScope α iScope)) ⇒ β
-                   bsubst = ⌈ extSubst idsubst ixsubst ◃ x ↦ TCon (⟨ _ ⟩ c∈cons) cargs ⌉
+                   bsubst : extScope α iScope ▸ x ⇒ β
+                   bsubst = (extSubst idsubst ixsubst ▹ x ↦ TCon (⟨ _ ⟩ c∈cons) cargs)
 
                    return' : Type β
                    return' = subst bsubst return)
@@ -233,7 +233,7 @@ data TyTermS {α} Γ where
     Γ ⊢ˢ  ⌈⌉ ∶ ⌈⌉
   TyCons :
     Γ ⊢ u ∶ a
-    → Γ ⊢ˢ us ∶ substTelescope ⌈ idSubst (rezz α) ◃ x ↦ u ⌉ Δ
+    → Γ ⊢ˢ us ∶ substTelescope (idSubst (rezz α) ▹ x ↦ u) Δ
     -----------------------------------------------------------
     → Γ ⊢ˢ (x ↦ u ◂ us) ∶ (x ∶ a ◂ Δ)
 
@@ -275,7 +275,7 @@ tyCon' : {@0 Γ : Context α}
 tyCon' dt refl c tySubst = TyCon tySubst
 {-# COMPILE AGDA2HS tyCon' #-}
 
-tyApp' : {@0 Γ : Context α} {b : Type α} {c : Type (x ◃ α)} {@0 r : Rezz α}
+tyApp' : {@0 Γ : Context α} {b : Type α} {c : Type  (α ▸ x)} {@0 r : Rezz α}
   → Γ ⊢ u ∶ El k (TPi x b c)
   → Γ ⊢ v ∶ b
   ------------------------------------
@@ -296,11 +296,11 @@ tyCase' : {@0 Γ : Context α}
   (let iSubst' = weakenTermS (subExtScope iRun subRefl) iSubst
        α'Subst = extSubst (idSubst αRun) iSubst)
   {cases : Branches α (dataConstructorScope dt)}
-  {return : Type (x ◃ α')}
+  {return : Type (α' ▸ x)}
   (let αInα' = subExtScope iRun subRefl
        Γ' =  addContextTel Γ (dataIxTel dt pSubst)
        tx = dataType d (weaken αInα' k) (weaken αInα' pSubst) iSubst'
-       return' = subst ⌈ α'Subst ◃ x ↦ u ⌉ return)
+       return' = subst (α'Subst ▹ x ↦ u) return)
   → Γ' , x ∶ tx ⊢ unType return ∶ sortType (typeSort return)
   → TyBranches Γ dt pSubst return cases
   → Γ ⊢ u ∶ dataType d k pSubst iSubst
@@ -312,7 +312,7 @@ tyCase' dt refl {αRun = α ⟨ refl ⟩} {iRun = iScope ⟨ refl ⟩} wfReturn 
 
 tyCons' : {@0 Γ : Context α} {@0 αRun : Rezz α}
   → Γ ⊢ u ∶ a
-  → Γ ⊢ˢ us ∶ (substTelescope ⌈ idSubst αRun ◃ x ↦ u ⌉ Δ)
+  → Γ ⊢ˢ us ∶ (substTelescope (idSubst αRun ▹ x ↦ u) Δ)
   -----------------------------------------------------------
   → Γ ⊢ˢ (x ↦ u ◂ us) ∶ (x ∶ a ◂ Δ)
 tyCons' {αRun = α ⟨ refl ⟩} tyu tyus = TyCons tyu tyus

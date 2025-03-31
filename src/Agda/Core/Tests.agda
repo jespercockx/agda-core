@@ -29,41 +29,41 @@ private variable
   α : Scope Name
 
 instance
-  top : x ∈ (x ◃ α)
+  top : x ∈  (α ▸ x)
   top = inHere
 
-  pop : {{x ∈ α}} → x ∈ (y ◃ α)
+  pop : {{x ∈ α}} → x ∈  (α ▸ y)
   pop {{p}} = inThere p
 
 datas = singleton "Bool"
 
-cons = bind "true" $ bind "false" mempty
+cons = mempty ▸ "false" ▸ "true"
 
 instance
   globals : Globals
   globals = record
     { defScope = mempty
     ; dataScope = datas
-    ; dataParScope = λ _ → Nil
-    ; dataIxScope = λ _ → Nil
+    ; dataParScope = λ _ → mempty
+    ; dataIxScope = λ _ → mempty
     ; conScope = cons
-    ; fieldScope = λ _ → Nil
+    ; fieldScope = λ _ → mempty
     }
 
 boolcons : ((⟨ c ⟩ cp) : NameIn cons)
-         → Σ (c ∈ cons) (λ cp → Constructor Nil Nil (⟨ c ⟩ cp))
+         → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))
 boolcons (⟨ c ⟩ cp) = lookupAll
-  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor Nil Nil (⟨ c ⟩ cp))}
-  (allJoin (allSingl (inHere
+  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
+  (let x = allJoin allEmpty (allSingl (inThere inHere
                      , record { conIndTel = λ _ → EmptyTel
-                              ; conIx = λ _ _ → TSNil } )) $
-   allJoin (allSingl (inThere inHere
+                              ; conIx = λ _ _ → TSNil })) in
+    allJoin x (allSingl (inHere
                      , record { conIndTel = λ _ → EmptyTel
-                              ; conIx = λ _ _ → TSNil })) $
-   allEmpty)
+                              ; conIx = λ _ _ → TSNil } ))
+   )
   cp
 
-bool : Datatype Nil Nil
+bool : Datatype mempty mempty
 bool .dataConstructorScope = cons
 bool .dataSort = λ _ → STyp 0
 bool .dataParTel = EmptyTel
@@ -148,12 +148,12 @@ module TestUnifierSwap where
     vec A _ = A
 
   -- (n₀ : ℕ) (v : vec A n) (m₀ : ℕ) (v' : vec A n₀) (w : vec A m₀) (w' : vec A m₀)
-  Scope-n₀ = "n₀" ◃ mempty
-  Scope-v = "v" ◃ Scope-n₀
-  Scope-m₀ = "m₀" ◃ Scope-v
-  Scope-v' = "v'" ◃ Scope-m₀
-  Scope-w = "w" ◃ Scope-v'
-  Scope-w' = "w'" ◃ Scope-w
+  Scope-n₀ = mempty ▸ "n₀"
+  Scope-v = Scope-n₀ ▸ "v"
+  Scope-m₀ =  Scope-v ▸ "m₀"
+  Scope-v' =  Scope-m₀ ▸ "v'"
+  Scope-w = Scope-v' ▸ "w"
+  Scope-w' = Scope-w ▸ "w'"
 
   Context-n₀ = CtxEmpty , "n₀" ∶ ℕ
   Context-v : Context Scope-v
@@ -197,4 +197,4 @@ module TestUnifierSwap where
 
     testSwapHighest2Prop = (swapHighest {{fl = Suc (Suc (Suc (Suc Zero)))}} Context-w' m₀ ≡ Nothing )
     testSwapHighest2 = refl
- 
+   

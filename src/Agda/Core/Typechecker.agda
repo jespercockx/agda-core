@@ -75,7 +75,7 @@ checkCoverage dt bs =
   where
     branchesToAll : Branches α cs → All (λ c → c ∈ conScope) cs
     branchesToAll BsNil = allEmpty
-    branchesToAll (BsCons (BBranch c _ _) bs) = allJoin (allSingl (proj₂ c)) (branchesToAll bs)
+    branchesToAll (BsCons (BBranch c _ _) bs) = allJoin (branchesToAll bs) (allSingl (proj₂ c))
 
 {-# COMPILE AGDA2HS checkCoverage #-}
 
@@ -92,7 +92,7 @@ checkBranches : ∀ {@0 pars ixs : RScope Name} {@0 cons : Scope Name}
                   (bs : Branches α cons)
                   (dt : Datatype pars ixs)
                   (ps : TermS α pars)
-                  (rt : Type (x ◃ (extScope α ixs)))
+                  (rt : Type (extScope α ixs ▸ x))
                 → TCM (TyBranches Γ dt ps rt bs)
 
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
@@ -132,7 +132,7 @@ inferCase ctx d rixs u bs rt = do
 inferPi
   : ∀ Γ (@0 x : Name)
   (a : Type α)
-  (b : Type (x ◃ α))
+  (b : Type  (α ▸ x))
   → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TPi x a b ∶ ty)
 inferPi ctx x (El su u) (El sv v) = do
   tu <- checkType ctx u (sortType su)
@@ -152,17 +152,18 @@ inferDef ctx f = do
   return $ ty , tyDef' ty eq
 {-# COMPILE AGDA2HS inferDef #-}
 
-checkTermS : ∀ {@0 α rβ} Γ (t : Telescope α rβ) (s : TermS α rβ) → TCM (TyTermS Γ s t)
-checkTermS ctx ⌈⌉ ⌈⌉ = return TyNil
-checkTermS ctx (x ∶ ty ◂ rest) (x ↦ u ◂ s) = do
-  tyx ← checkType ctx u ty
-  let r = rezzScope ctx
-      sstel = subst0 (λ (@0 β) → Subst β β)
-                (IsLawfulMonoid.rightIdentity iLawfulMonoidScope _)
-                (concatSubst (subToSubst r (subJoinHere _ subRefl)) SNil)
-      stel = substTelescope ⌈ sstel ◃ x ↦ u ⌉ rest
-  tyrest ← checkTermS ctx stel s
-  return (tyCons' tyx tyrest)
+checkTermS : ∀ {@0 α rβ} Γ (t : Telescope α rβ) (s : TermS α rβ) → TCM (Γ ⊢ˢ s ∶ t)
+checkTermS ctx ⌈⌉ t =
+  caseTermSNil t (λ where ⦃ refl ⦄ → return TyNil)
+checkTermS {α = α} ctx (ExtendTel {rβ = rβ} x ty rest) ts =
+  caseTermSCons ts (λ where
+    u s ⦃ refl ⦄ → do
+      tyx ← checkType ctx u ty
+      let r = rezzScope ctx
+          stel : Telescope α rβ
+          stel = substTelescope (idSubst r ▹ x ↦ u) rest
+      tyrest ← checkTermS ctx stel s
+      return (tyCons' tyx tyrest))
 {-# COMPILE AGDA2HS checkTermS #-}
 
 inferData : (Γ : Context α) (d : NameIn dataScope)
@@ -179,7 +180,7 @@ checkBranch : ∀ {@0 con : Name} (Γ : Context α)
                 (bs : Branch α con)
                 {@0 pars ixs} (dt : Datatype pars ixs)
                 (ps : TermS α pars)
-                (rt : Type (x ◃ extScope _ ixs))
+                (rt : Type (extScope _ ixs ▸ x))
             → TCM (TyBranch Γ dt ps rt bs)
 checkBranch ctx (BBranch c r rhs) dt ps rt = do
   let ra = rezzScope ctx
@@ -218,7 +219,7 @@ checkCon ctx c cargs (El s ty) = do
 {-# COMPILE AGDA2HS checkCon #-}
 
 checkLambda : ∀ Γ (@0 x : Name)
-              (u : Term (x ◃ α))
+              (u : Term  (α ▸ x))
               (ty : Type α)
               → TCM (Γ ⊢ TLam x u ∶ ty)
 checkLambda ctx x u (El s ty) = do
@@ -237,7 +238,7 @@ checkLambda ctx x u (El s ty) = do
 
 checkLet : ∀ Γ (@0 x : Name)
            (u : Term α)
-           (v : Term (x ◃ α))
+           (v : Term  (α ▸ x))
            (ty : Type α)
            → TCM (Γ ⊢ TLet x u v ∶ ty)
 checkLet ctx x u v ty = do

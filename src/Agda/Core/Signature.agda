@@ -26,15 +26,15 @@ private variable
   @0 rβ rγ : RScope Name
 
 opaque
-  unfolding Scope
+  unfolding RScope
 
-  caseTelEmpty : (tel : Telescope α Nil)
+  caseTelEmpty : (tel : Telescope α mempty)
                → (@0 {{tel ≡ ⌈⌉}} → d)
                → d
   caseTelEmpty ⌈⌉ f = f
 
   caseTelBind : (tel : Telescope α (x ◂ rβ))
-              → ((a : Type α) (rest : Telescope (x ◃ α) rβ) → @0 {{tel ≡ ExtendTel x a rest}} → d)
+              → ((a : Type α) (rest : Telescope (α ▸ x) rβ) → @0 {{tel ≡ ExtendTel x a rest}} → d)
               → d
   caseTelBind  (_ ∶ a ◂ tel) f = f a tel
 
@@ -129,7 +129,11 @@ rezzTel (x ∶ ty ◂ t) = rezzCong (λ t → x ◂ t) (rezzTel t)
 {-# COMPILE AGDA2HS rezzTel #-}
 
 opaque
-  addTel : Telescope α rβ → Telescope (extScope α rβ) rγ → Telescope α (concatRScope rβ rγ)
-  addTel {α = α} {rγ = rγ} ⌈⌉ tel0 = tel0
-  addTel {α = α} {rγ = rγ} (x ∶  ty ◂ s) tel0 = (x ∶ ty ◂ addTel s tel0)
+  addTel : Telescope α rβ → Telescope (extScope α rβ) rγ → Telescope α (rβ <> rγ)
+  addTel ⌈⌉ tel0 =
+    subst0 (λ α → Telescope α _) extScopeEmpty
+    (subst0 (Telescope _) (sym (leftIdentity _)) tel0)
+  addTel {α = α} {rγ = rγ} (x ∶  ty ◂ s) tel0 =
+    subst0 (Telescope α) (associativity (x ◂) _ rγ)
+    (x ∶ ty ◂ addTel s (subst0 (λ δ → Telescope δ rγ) extScopeBind tel0))
   {-# COMPILE AGDA2HS addTel #-}

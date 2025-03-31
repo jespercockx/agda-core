@@ -25,7 +25,7 @@ private variable
 
 data Subst : (@0 α β : Scope Name) → Set where
   SNil  : Subst mempty β
-  SCons :  Term β → Subst α β → Subst (α ▸ x) β
+  SCons :  Subst α β → Term β → Subst (α ▸ x) β
 
 {-# COMPILE AGDA2HS Subst deriving Show #-}
 infix 4 Subst
@@ -33,9 +33,9 @@ syntax Subst α β = α ⇒ β
 
 pattern ⌈⌉ = SNil
 infix 6 _▹_↦_
-pattern _▹_↦_ σ x u = SCons {x = x} u σ
+pattern _▹_↦_ σ x u = SCons {x = x} σ u
 infix 4 ▹_↦_
-pattern ▹_↦_ x u = SCons {x = x} u SNil
+pattern ▹_↦_ x u = SCons {x = x} SNil u
 
 rezzSubst : α ⇒ β → Rezz α
 rezzSubst ⌈⌉ = rezz mempty
@@ -199,7 +199,7 @@ instance
 {-# COMPILE AGDA2HS iSubstTermS #-}
 
 substTop : {{Substitute t}} → Rezz α → Term α → t (α ▸ x) → t α
-substTop r u = subst (SCons u (idSubst r))
+substTop r u = subst (idSubst r ▹ _ ↦ u)
 {-# COMPILE AGDA2HS substTop #-}
 
 substTelescope : (α ⇒ β) → Telescope α rγ → Telescope β rγ
