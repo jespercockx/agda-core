@@ -216,9 +216,11 @@ concatTermS {α = α} {rγ = rγ} (x ↦ u ◂ t1) t =
 
 opaque
   unfolding extScope
-  TermSrepeat : Rezz rβ → TermS (extScope α rβ) rβ
-  TermSrepeat (rezz []) = ⌈⌉
-  TermSrepeat (rezz (Erased x ∷ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (rezz rβ) inHere) ◂ TermSrepeat (rezz rβ)
+  termSrepeat : Rezz rβ → TermS (extScope α rβ) rβ
+  termSrepeat (rezz []) = ⌈⌉
+  termSrepeat (rezz (Erased x ∷ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (rezz rβ) inHere) ◂ termSrepeat (rezz rβ)
+  {-# COMPILE AGDA2HS termSrepeat #-}
+
 
 weakenTerm     : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β

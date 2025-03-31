@@ -44,6 +44,7 @@ rezzSubst (σ ▹ x ↦ u) = rezzBind (rezzSubst σ)
 weakenSubst : α ⊆ β → γ ⇒ α → γ ⇒ β
 weakenSubst p ⌈⌉ = ⌈⌉
 weakenSubst p (s ▹ x ↦ t) = weakenSubst p s ▹ x ↦ weaken p t
+{-# COMPILE AGDA2HS weakenSubst #-}
 
 instance
   iWeakenSubst : Weaken (Subst γ)
@@ -126,10 +127,14 @@ opaque
   substExtScope : (Rezz rγ) → α ⇒ β → α ⇒ (extScope β rγ)
   substExtScope (rezz []) s = s
   substExtScope (rezz (x ∷ rγ)) s = substExtScope (rezz rγ) (weaken (subBindDrop subRefl) s)
+  {-# COMPILE AGDA2HS substExtScope #-}
+
 
   substExtScopeKeep : (Rezz rγ) → α ⇒ β → (extScope α rγ) ⇒ (extScope β rγ)
   substExtScopeKeep (rezz []) p = p
   substExtScopeKeep (rezz (x ∷ rγ)) p = substExtScopeKeep (rezz rγ) (liftBindSubst p)
+  {-# COMPILE AGDA2HS substExtScopeKeep #-}
+
 
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β

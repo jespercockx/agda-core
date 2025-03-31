@@ -293,7 +293,7 @@ module UnificationStepAndStop where
       (let Σ : Telescope α rγ
            Σ = conIndTel con pSubst                                   -- type of the arguments of c
            σe : TermS (extScope α rγ) (e₀ ◂ mempty)
-           σe = e₀ ↦ TCon c (TermSrepeat (rezz rγ)) ◂ ⌈⌉           -- names of the new equalities to replace e₀
+           σe = e₀ ↦ TCon c (termSrepeat (rezz rγ)) ◂ ⌈⌉           -- names of the new equalities to replace e₀
            τ₀ : extScope α (e₀ ◂ mempty) ⇒ (extScope α rγ)
            τ₀ = extSubst (substExtScope (rezz rγ) (idSubst (rezz α))) σe
            τ : (α ▸ e₀) ⇒ (extScope α rγ)
@@ -330,16 +330,16 @@ module UnificationStepAndStop where
            iTel = dataIxTel dt pSubst
 
            iSubste : TermS (extScope α ixs) ixs
-           iSubste = TermSrepeat (rezz ixs)
+           iSubste = termSrepeat (rezz ixs)
            weakenαixs : α ⇒ (extScope α ixs)
            weakenαixs = substExtScope (rezz ixs) (idSubst (rezz α))
 
            weakenαind : α ⇒ (extScope α ind)
            weakenαind = substExtScope (rezz ind) (idSubst (rezz α))
            σe : TermS (extScope α ind) (e₀ ◂ mempty)
-           σe = e₀ ↦ TCon c (TermSrepeat(rezz ind)) ◂ ⌈⌉
+           σe = e₀ ↦ TCon c (termSrepeat(rezz ind)) ◂ ⌈⌉
            τ₀ : TermS (extScope α ind) ixs
-           τ₀ = (conIx con (weaken (subExtScope (rezz ind) subRefl) pSubst) (TermSrepeat(rezz ind)))
+           τ₀ = (conIx con (weaken (subExtScope (rezz ind) subRefl) pSubst) (termSrepeat(rezz ind)))
            τ₁ : extScope α ixs ⇒ (extScope α ind)
            τ₁ = extSubst {rγ = ixs} weakenαind τ₀
            τ₀ : extScope (extScope α ixs) (e₀ ◂ mempty) ⇒ (extScope α ind)

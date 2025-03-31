@@ -205,7 +205,7 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
                    Γ' = addContextTel Γ (conIndTel con pSubst)
 
                    cargs : TermS β fields
-                   cargs = TermSrepeat r
+                   cargs = termSrepeat r
 
                    parssubst : TermS β pScope
                    parssubst = weaken (subExtScope r subRefl) pSubst
