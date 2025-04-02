@@ -183,14 +183,30 @@ checkBranch : ∀ {@0 con : Name} (Γ : Context α)
                 (bs : Branch α con)
                 {@0 pars ixs} (dt : Datatype pars ixs)
                 (ps : TermS α pars)
-                (rt : Type (extScope _ ixs ▸ x))
+                (rt : Type (extScope α ixs ▸ x))
             → TCM (TyBranch Γ dt ps rt bs)
-checkBranch ctx (BBranch c r rhs) dt ps rt = do
-  let ra = rezzScope ctx
+checkBranch {α = α}  ctx (BBranch c r rhs) {pars = pars} {ixs = ixs} dt ps rt = do
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
-  crhs ← checkType _ _ _
-  return (TyBBranch (⟨ _ ⟩ cid) {αRun = ra} rhs crhs)
+  let ra = rezzScope ctx
+      @0 β : Scope Name
+      β = extScope α (fieldScope c)
+      con : Constructor pars ixs c
+      con = snd (dataConstructors dt (⟨ _ ⟩ cid))
+      cargs : TermS β (fieldScope c)
+      cargs = termSrepeat r
+      parssubst : TermS β pars
+      parssubst = weaken (subExtScope r subRefl) ps
+      ixsubst : TermS β ixs
+      ixsubst = evalConIx con parssubst cargs
+      idsubst : α ⇒ β
+      idsubst = weaken (subExtScope r subRefl) (idSubst ra)
+      bsubst : extScope α ixs ▸ x ⇒ β
+      bsubst = (extSubst idsubst ixsubst ▹ _ ↦ TCon c cargs)
+      rt' :  Type β
+      rt' = subst bsubst rt
+  crhs ← checkType _ rhs rt'
+  return (tyBBranch' (⟨ _ ⟩ cid) {r = r} {αRun = ra} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
 checkBranches ctx (rezz cons) bs dt ps rt =

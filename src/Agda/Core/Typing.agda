@@ -197,9 +197,9 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
   TyBBranch : (c : NameIn (dataConstructorScope dt))
               (let (c∈cons , con ) = dataConstructors dt c
                    fields = fieldScope (⟨ _ ⟩ c∈cons)
-                   β = extScope α fields)
-              {@0 r : Rezz fields} {- TODO: remove Rezz via helper function -}
-              {@0 αRun : Rezz α}
+                   β = extScope α fields
+                   r = rezz fields
+                   αRun = rezz α)
               (rhs : Term β)
               (let Γ' : Context β
                    Γ' = addContextTel Γ (evalConIndTel con pSubst)
@@ -317,3 +317,39 @@ tyCons' : {@0 Γ : Context α} {@0 αRun : Rezz α}
   → Γ ⊢ˢ (x ↦ u ◂ us) ∶ (x ∶ a ◂ Δ)
 tyCons' {αRun = α ⟨ refl ⟩} tyu tyus = TyCons tyu tyus
 {-# COMPILE AGDA2HS tyCons' #-}
+
+tyBBranch' : {@0 Γ : Context α} {@0 pars ixs : RScope Name} {@0 dt : Datatype pars ixs}
+            {@0 ps : TermS α pars}
+            {@0 return : Type ((extScope α ixs) ▸ x)}
+            (c : NameIn (dataConstructorScope dt))
+            (let (c∈cons , con ) = dataConstructors dt c
+                 fields = fieldScope (⟨ _ ⟩ c∈cons)
+                 β = extScope α fields)
+            {@0 r : Rezz fields}
+            {@0 αRun : Rezz α}
+            (rhs : Term β)
+            (let Γ' : Context β
+                 Γ' = addContextTel Γ (evalConIndTel con ps)
+
+                 cargs : TermS β fields
+                 cargs = termSrepeat r
+
+                 parssubst : TermS β pars
+                 parssubst = weakenTermS (subExtScope r subRefl) ps
+
+                 ixsubst : TermS β ixs
+                 ixsubst = evalConIx con parssubst cargs
+
+                 idsubst : α ⇒ β
+                 idsubst = weakenSubst (subExtScope r subRefl) (idSubst αRun)
+
+                 bsubst : extScope α ixs ▸ x ⇒ β
+                 bsubst = (extSubst idsubst ixsubst ▹ x ↦ TCon (⟨ _ ⟩ c∈cons) cargs)
+
+                 return' : Type β
+                 return' = subst bsubst return)
+
+          → Γ' ⊢ rhs ∶ return'
+          → TyBranch Γ dt ps return (BBranch (⟨ _ ⟩ c∈cons) r rhs)
+tyBBranch' c {r = fields ⟨ refl ⟩ } {αRun = α ⟨ refl ⟩} rsh crhs = TyBBranch c rsh crhs
+{-# COMPILE AGDA2HS tyBBranch' #-}
