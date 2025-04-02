@@ -61,10 +61,6 @@ infix 6 _∶_◂_
 pattern _∶_◂_ x t Δ = ExtendTel x t Δ
 
 {-# COMPILE AGDA2HS Telescope #-}
--- This should ideally be the following:
---   TermS α β = All (λ _ → Term β) α
--- but All being opaque prevents the positivity checker to do its job
--- see #6970
 
 data Term α where
   TVar  : (x : NameIn α) → Term α
