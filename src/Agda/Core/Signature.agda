@@ -45,15 +45,19 @@ record Constructor (@0 pars : RScope Name) (@0 ixs : RScope Name) (@0 c : NameIn
   field
     conIndTel : Telescope (extScope mempty pars) (fieldScope c)                -- the TypeS of the indexes of c
     conIx     :  TermS (extScope (extScope mempty pars) (fieldScope c)) ixs    -- how the indexes are constructred given parameters and c indices
-
-  evalConIndTel : {@0 α : Scope Name} → TermS α pars → Telescope α (fieldScope c)
-  evalConIndTel tPars = subst (extSubst ⌈⌉ tPars) conIndTel
-
-  evalConIx : {@0 α : Scope Name} → TermS α pars → TermS α (fieldScope c) → TermS α ixs
-  evalConIx tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) conIx
 open Constructor public
-
 {-# COMPILE AGDA2HS Constructor #-}
+
+evalConIndTel : {@0 pars : RScope Name} {@0 ixs : RScope Name} {@0 c : NameIn conScope}
+              → (con : Constructor pars ixs c) → {@0 α : Scope Name} → TermS α pars → Telescope α (fieldScope c)
+evalConIndTel con tPars = subst (extSubst ⌈⌉ tPars) (conIndTel con)
+{-# COMPILE AGDA2HS evalConIndTel #-}
+
+evalConIx : {@0 pars : RScope Name} {@0 ixs : RScope Name} {@0 c : NameIn conScope}
+              → (con : Constructor pars ixs c) → {@0 α : Scope Name} → TermS α pars → TermS α (fieldScope c) → TermS α ixs
+evalConIx con tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) (conIx con)
+{-# COMPILE AGDA2HS evalConIx #-}
+
 
 record Datatype (@0 pars : RScope Name) (@0 ixs : RScope Name) : Set where
   field
@@ -63,22 +67,27 @@ record Datatype (@0 pars : RScope Name) (@0 ixs : RScope Name) : Set where
     dataIxTel            : Telescope (extScope mempty pars) ixs
     dataConstructors     : ((⟨ c ⟩ cp) : NameIn  dataConstructorScope)
                          → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ c ⟩ p))
-
-  evalDataSort : {@0 α : Scope Name} → TermS α pars → Sort α
-  evalDataSort tPars = subst (extSubst ⌈⌉ tPars) dataSort
-
-  evalDataParTel : {@0 α : Scope Name} → Telescope α pars
-  evalDataParTel = subst ⌈⌉ dataParTel
-
-  evalDataIxTel : {@0 α : Scope Name} → TermS α pars → Telescope α ixs
-  evalDataIxTel tPars = subst (extSubst ⌈⌉ tPars) dataIxTel
 open Datatype public
-
 {-# COMPILE AGDA2HS Datatype #-}
+
+evalDataSort : {@0 pars : RScope Name} {@0 ixs : RScope Name}
+              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → TermS α pars → Sort α
+evalDataSort dt tPars = subst (extSubst ⌈⌉ tPars) (dataSort dt)
+{-# COMPILE AGDA2HS evalDataSort #-}
+
+evalDataParTel : {@0 pars : RScope Name} {@0 ixs : RScope Name}
+              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → Telescope α pars
+evalDataParTel dt = subst ⌈⌉ (dataParTel dt)
+{-# COMPILE AGDA2HS evalDataParTel #-}
+
+evalDataIxTel : {@0 pars : RScope Name} {@0 ixs : RScope Name}
+              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → TermS α pars → Telescope α ixs
+evalDataIxTel dt tPars = subst (extSubst ⌈⌉ tPars) (dataIxTel dt)
+{-# COMPILE AGDA2HS evalDataIxTel #-}
+
 
 data Definition : Set where
   FunctionDef : (funBody : Term mempty) → Definition
-
 {-# COMPILE AGDA2HS Definition #-}
 
 record Signature : Set where
