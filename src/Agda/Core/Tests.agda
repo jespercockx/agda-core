@@ -55,19 +55,19 @@ boolcons : ((⟨ c ⟩ cp) : NameIn cons)
 boolcons (⟨ c ⟩ cp) = lookupAll
   {p = λ c → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
   (let x = allJoin allEmpty (allSingl (inThere inHere
-                     , record { conIndTel = λ _ → EmptyTel
-                              ; conIx = λ _ _ → TSNil })) in
+                     , record { conIndTel = EmptyTel
+                              ; conIx = TSNil })) in
     allJoin x (allSingl (inHere
-                     , record { conIndTel = λ _ → EmptyTel
-                              ; conIx = λ _ _ → TSNil } ))
+                     , record { conIndTel = EmptyTel
+                              ; conIx = TSNil } ))
    )
   cp
 
 bool : Datatype mempty mempty
 bool .dataConstructorScope = cons
-bool .dataSort = λ _ → STyp 0
+bool .dataSort = STyp 0
 bool .dataParTel = EmptyTel
-bool .dataIxTel = λ _ → EmptyTel
+bool .dataIxTel = EmptyTel
 bool .dataConstructors = boolcons
 
 instance

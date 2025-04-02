@@ -109,18 +109,21 @@ inferApp ctx u v = do
 {-# COMPILE AGDA2HS inferApp #-}
 
 inferCase : ∀ {@0 cs} Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
-inferCase ctx d rixs u bs rt = do
-  let r = rezzScope ctx
+inferCase {α = α} ctx d rixs u bs rt = do
+  let r = Rezz α
+      r = rezzScope ctx
 
   El s tu , gtu ← inferType ctx u
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
     "can't typecheck a constrctor with a type that isn't a def application"
   Erased refl ← convNamesIn d d'
   df ⟨ deq ⟩ ← tcmGetDatatype d
-  let ds = dataSort df params
+  let ds : Sort α
+      ds = evalDataSort df params
+      gtu' : ctx ⊢ u ∶ dataType d ds params ixs
       gtu' = TyConv gtu (CRedL rp CRefl)
 
-  grt ← checkType _ _ _
+  grt ← checkType (_ , _ ∶ weaken (subExtScope rixs subRefl) (dataType d ds params ixs)) (unType rt) (sortType (typeSort rt))
 
   Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
@@ -171,9 +174,9 @@ inferData : (Γ : Context α) (d : NameIn dataScope)
           → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TData d pars ixs ∶ ty)
 inferData ctx d pars ixs = do
   dt ⟨ deq ⟩ ← tcmGetDatatype d
-  typars ← checkTermS ctx (dataParTel dt) pars
-  tyixs ← checkTermS ctx (dataIxTel dt pars) ixs
-  return (sortType (dataSort dt pars) , tyData' dt deq typars tyixs)
+  typars ← checkTermS ctx (evalDataParTel dt) pars
+  tyixs ← checkTermS ctx (evalDataIxTel dt pars) ixs
+  return (sortType (evalDataSort dt pars) , tyData' dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
 checkBranch : ∀ {@0 con : Name} (Γ : Context α)
@@ -212,8 +215,8 @@ checkCon ctx c cargs (El s ty) = do
   cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     "can't find a constructor with such a name"
   let con = snd (dataConstructors dt (⟨ _ ⟩ cid))
-      ctel = conIndTel con params
-      ctype = constructorType d c con (dataSort dt params) params cargs
+      ctel = evalConIndTel con params
+      ctype = constructorType d c con (evalDataSort dt params) params cargs
   tySubst ← checkTermS ctx ctel cargs
   checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt deq (⟨ _ ⟩ cid) tySubst) (El s ty)
 {-# COMPILE AGDA2HS checkCon #-}
@@ -302,3 +305,4 @@ inferSort ctx t = do
   return $ s , TyConv dt cp
 
 {-# COMPILE AGDA2HS inferSort #-}
+ 

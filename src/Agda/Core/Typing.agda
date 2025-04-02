@@ -45,7 +45,7 @@ constructorType : (d : NameIn dataScope)
                 → TermS α (fieldScope c)
                 → Type α
 constructorType d c con ds pars us =
-  dataType d ds pars (conIx con pars us)
+  dataType d ds pars (evalConIx con pars us)
 {-# COMPILE AGDA2HS constructorType #-}
 
 data TyTerm (@0 Γ : Context α) : @0 Term α → @0 Type α → Set
@@ -86,10 +86,10 @@ data TyTerm {α} Γ where
       (let dt : Datatype (dataParScope d) (dataIxScope d)
            dt = sigData sig d)
 
-    → Γ ⊢ˢ pSubst ∶ dataParTel dt
-    → Γ ⊢ˢ iSubst ∶ dataIxTel dt pSubst
+    → Γ ⊢ˢ pSubst ∶ evalDataParTel dt
+    → Γ ⊢ˢ iSubst ∶ evalDataIxTel dt pSubst
     ----------------------------------------------
-    → Γ ⊢ TData d pSubst iSubst ∶ sortType (dataSort dt pSubst)
+    → Γ ⊢ TData d pSubst iSubst ∶ sortType (evalDataSort dt pSubst)
 
   TyCon :
       {d : NameIn dataScope}
@@ -100,9 +100,9 @@ data TyTerm {α} Γ where
       (let (cp , con) = dataConstructors dt c)
       {@0 us : TermS α (fieldScope (⟨ _ ⟩ cp))}
 
-    → Γ ⊢ˢ us ∶ conIndTel con pars
+    → Γ ⊢ˢ us ∶ evalConIndTel con pars
     -----------------------------------------------------------
-    → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (dataSort dt pars) pars us
+    → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (evalDataSort dt pars) pars us
 
   TyLam :
     Γ , x ∶ a ⊢ u ∶ b
@@ -137,7 +137,7 @@ data TyTerm {α} Γ where
          αInα' = subExtScope iRun subRefl              -- proof that α is in α'
 
          Γ' : Context α'                                          -- new context with α and the indexes
-         Γ' = addContextTel Γ (dataIxTel dt pSubst)
+         Γ' = addContextTel Γ (evalDataIxTel dt pSubst)
 
          tx : Type α'
          tx = dataType d (weaken αInα' k) (weaken αInα' pSubst) iSubst'
@@ -202,7 +202,7 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
               {@0 αRun : Rezz α}
               (rhs : Term β)
               (let Γ' : Context β
-                   Γ' = addContextTel Γ (conIndTel con pSubst)
+                   Γ' = addContextTel Γ (evalConIndTel con pSubst)
 
                    cargs : TermS β fields
                    cargs = termSrepeat r
@@ -211,7 +211,7 @@ data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
                    parssubst = weaken (subExtScope r subRefl) pSubst
 
                    ixsubst : TermS β iScope
-                   ixsubst = conIx con parssubst cargs
+                   ixsubst = evalConIx con parssubst cargs
 
                    idsubst : α ⇒ β
                    idsubst = weaken (subExtScope r subRefl) (idSubst αRun)
@@ -254,10 +254,10 @@ tyData' : {@0 Γ : Context α}
   (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt
   → {@0 pars : TermS α (dataParScope d)}
   → {@0 ixs  : TermS α (dataIxScope d)}
-  → Γ ⊢ˢ pars ∶ dataParTel dt
-  → Γ ⊢ˢ ixs ∶ dataIxTel dt pars
+  → Γ ⊢ˢ pars ∶ evalDataParTel dt
+  → Γ ⊢ˢ ixs ∶ evalDataIxTel dt pars
   ----------------------------------------------
-  → Γ ⊢ TData d pars ixs ∶ sortType (dataSort dt pars)
+  → Γ ⊢ TData d pars ixs ∶ sortType (evalDataSort dt pars)
 tyData' dt refl typars tyixs = TyData typars tyixs
 {-# COMPILE AGDA2HS tyData' #-}
 
@@ -269,9 +269,9 @@ tyCon' : {@0 Γ : Context α}
   → (let (cp , con) = dataConstructors dt c)
   → {@0 pars : TermS α (dataParScope d)}
   → {@0 us : TermS α (fieldScope (⟨ _ ⟩ cp))}
-  → Γ ⊢ˢ us ∶ conIndTel con pars
+  → Γ ⊢ˢ us ∶ evalConIndTel con pars
   ----------------------------------------------
-  → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (dataSort dt pars) pars us
+  → Γ ⊢ TCon (⟨ _ ⟩ cp) us ∶ constructorType d (⟨ _ ⟩ cp) con (evalDataSort dt pars) pars us
 tyCon' dt refl c tySubst = TyCon tySubst
 {-# COMPILE AGDA2HS tyCon' #-}
 
@@ -298,7 +298,7 @@ tyCase' : {@0 Γ : Context α}
   {cases : Branches α (dataConstructorScope dt)}
   {return : Type (α' ▸ x)}
   (let αInα' = subExtScope iRun subRefl
-       Γ' =  addContextTel Γ (dataIxTel dt pSubst)
+       Γ' =  addContextTel Γ (evalDataIxTel dt pSubst)
        tx = dataType d (weaken αInα' k) (weaken αInα' pSubst) iSubst'
        return' = subst (α'Subst ▹ x ↦ u) return)
   → Γ' , x ∶ tx ⊢ unType return ∶ sortType (typeSort return)
