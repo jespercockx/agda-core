@@ -110,8 +110,7 @@ inferApp ctx u v = do
 
 inferCase : ∀ {@0 cs} Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
 inferCase {α = α} ctx d rixs u bs rt = do
-  let r = Rezz α
-      r = rezzScope ctx
+  let r = rezzScope ctx
 
   El s tu , gtu ← inferType ctx u
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu

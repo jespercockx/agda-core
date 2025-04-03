@@ -197,4 +197,3 @@ module TestUnifierSwap where
 
     testSwapHighest2Prop = (swapHighest {{fl = Suc (Suc (Suc (Suc Zero)))}} Context-w' m₀ ≡ Nothing )
     testSwapHighest2 = refl
-   
