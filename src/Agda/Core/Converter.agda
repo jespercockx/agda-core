@@ -110,7 +110,7 @@ convertTermSs : {{fl : Fuel}} → Rezz α →
                 (s p : TermS α rβ)
               → TCM (s ⇔ p)
 convertBranches : {{fl : Fuel}} → Rezz α →
-                ∀ {@0 cons : Scope Name}
+                ∀ {@0 cons : RScope Name}
                   (bs bp : Branches α cons)
                 → TCM (ConvBranches bs bp)
 
@@ -182,7 +182,7 @@ convertCase {x = x} rα d d' ri ri' u u' ws ws' rt rt' = do
   cm ← convertCheck (rezzBind {x = x} r)
                     (renameTop r (unType rt))
                     (renameTop r' (unType rt'))
-  Erased refl ← liftMaybe (allInScope (allBranches ws) (allBranches ws'))
+  Erased refl ← liftMaybe (allInRScope (allBranches ws) (allBranches ws'))
     "comparing case statements with different branches"
   cbs ← convertBranches rα ws ws'
   return (CCase d ri ri' ws ws' rt rt' cu cm cbs)

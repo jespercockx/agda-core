@@ -19,8 +19,8 @@ module Agda.Core.Substitute
 
 private variable
   @0 x c     : Name
-  @0 α β γ cs : Scope Name
-  @0 rγ : RScope Name
+  @0 α β γ : Scope Name
+  @0 rγ cs : RScope Name
   t : @0 Scope Name → Set
 
 data Subst : (@0 α β : Scope Name) → Set where

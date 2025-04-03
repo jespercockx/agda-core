@@ -37,7 +37,7 @@ instance
 
 datas = singleton "Bool"
 
-cons = mempty ▸ "false" ▸ "true"
+cons = "true" ◂ "false" ◂ mempty
 
 instance
   globals : Globals
@@ -46,25 +46,29 @@ instance
     ; dataScope = datas
     ; dataParScope = λ _ → mempty
     ; dataIxScope = λ _ → mempty
-    ; conScope = cons
+    ; conScope = (extScope mempty cons)
     ; fieldScope = λ _ → mempty
     }
 
-boolcons : ((⟨ c ⟩ cp) : NameIn cons)
-         → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))
-boolcons (⟨ c ⟩ cp) = lookupAll
-  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
-  (let x = allJoin allEmpty (allSingl (inThere inHere
+boolcons : ((⟨ c ⟩ cp) : NameInR cons)
+         → Σ (c ∈ extScope mempty cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))
+boolcons (⟨ c ⟩ cp) = lookupAllR
+  {p = λ c → Σ (c ∈ extScope mempty cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
+  (let x = allJoinR allEmptyR (allSinglR (subst0 (In _)
+                                                (sym (trans  extScopeBind (trans extScopeBind extScopeEmpty)))
+                                                inHere
                      , record { conIndTel = EmptyTel
                               ; conIx = TSNil })) in
-    allJoin x (allSingl (inHere
+    allJoinR x (allSinglR (subst0 (In _)
+                                 (sym (trans extScopeBind (trans extScopeBind extScopeEmpty)))
+                                 (inThere inHere)
                      , record { conIndTel = EmptyTel
                               ; conIx = TSNil } ))
    )
   cp
 
 bool : Datatype mempty mempty
-bool .dataConstructorScope = cons
+bool .dataConstructorRScope = cons
 bool .dataSort = STyp 0
 bool .dataParTel = EmptyTel
 bool .dataIxTel = EmptyTel
@@ -84,9 +88,9 @@ opaque
   unfolding ScopeThings
 
   `true : Term α
-  `true = TCon (⟨ "true" ⟩ inHere) TSNil
+  `true = TCon (⟨ "true" ⟩ inThere inHere) TSNil
   `false : Term α
-  `false = TCon (⟨ "false" ⟩ inThere inHere) TSNil
+  `false = TCon (⟨ "false" ⟩ inHere) TSNil
 
 module TestReduce (@0 x y z : Name) where
 
@@ -104,8 +108,8 @@ module TestReduce (@0 x y z : Name) where
 
     testTerm₂ : Term α
     testTerm₂ = TCase {x = "condition"} (⟨ "Bool" ⟩ inHere) (rezz _) `true
-                                  (BsCons (BBranch (⟨ "true" ⟩ inHere) (rezz _) `false)
-                                  (BsCons (BBranch (⟨ "false" ⟩ inThere inHere) (rezz _) `true)
+                                  (BsCons (BBranch (⟨ "true" ⟩ inThere inHere) (rezz _) `false)
+                                  (BsCons (BBranch (⟨ "false" ⟩ inHere) (rezz _) `true)
                                    BsNil))
                                   (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil))
 

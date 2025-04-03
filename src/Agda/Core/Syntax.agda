@@ -23,14 +23,14 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x a b c : Name
-  @0 α β γ cs : Scope Name
-  @0 rβ rγ : RScope Name
+  @0 α β γ : Scope Name
+  @0 rβ rγ cs : RScope Name
 
 data Term   (@0 α : Scope Name) : Set
 data Sort   (@0 α : Scope Name) : Set
 record Type (@0 α : Scope Name) : Set
 data Branch (@0 α : Scope Name) : @0 Name → Set
-data Branches (@0 α : Scope Name) : @0 Scope Name → Set
+data Branches (@0 α : Scope Name) : @0 RScope Name → Set
 
 record Type α where
   inductive
@@ -116,11 +116,11 @@ data Branch α where
 
 data Branches α where
   BsNil : Branches α mempty
-  BsCons : Branch α c → Branches α cs → Branches α (cs ▸ c)
+  BsCons : Branch α c → Branches α cs → Branches α (c ◂ cs)
 {-# COMPILE AGDA2HS Branches deriving Show #-}
 
 opaque
-  unfolding Scope
+  unfolding RScope
 
   caseBsNil : (bs : Branches α mempty)
             → (@0 ⦃ bs ≡ BsNil ⦄ → d)
@@ -128,7 +128,7 @@ opaque
   caseBsNil BsNil f = f
   {-# COMPILE AGDA2HS caseBsNil #-}
 
-  caseBsCons : (bs : Branches α (cs ▸ c))
+  caseBsCons : (bs : Branches α (c ◂ cs))
              → ((bh : Branch α c) (bt : Branches α cs) → @0 ⦃ bs ≡ BsCons bh bt ⦄ → d)
              → d
   caseBsCons (BsCons bh bt) f = f bh bt
@@ -148,9 +148,9 @@ opaque
   caseTermSCons (x ↦ t ◂ ts0) f = f t ts0
   {-# COMPILE AGDA2HS caseTermSCons #-}
 
-rezzBranches : Branches α β → Rezz β
+rezzBranches : Branches α rβ → Rezz rβ
 rezzBranches BsNil = rezz mempty
-rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → cs ▸ c) (rezzBranches bt)
+rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◂ cs) (rezzBranches bt)
 {-# COMPILE AGDA2HS rezzBranches #-}
 
 rezzTermS : TermS α rβ → Rezz rβ
@@ -158,9 +158,9 @@ rezzTermS ⌈⌉ = rezz _
 rezzTermS (x ↦ u ◂ t) = rezzCong (λ t → x ◂ t) (rezzTermS t)
 {-# COMPILE AGDA2HS rezzTermS #-}
 
-allBranches : Branches α β → All (λ c → c ∈ conScope) β
-allBranches BsNil = allEmpty
-allBranches (BsCons (BBranch (⟨ _ ⟩ ci) _ _) bs) = allJoin (allBranches bs) (allSingl ci)
+allBranches : Branches α rβ → AllR (λ c → c ∈ conScope) rβ
+allBranches BsNil = allEmptyR
+allBranches (BsCons (BBranch (⟨ _ ⟩ ci) _ _) bs) = allJoinR (allBranches bs) (allSinglR ci)
 {-# COMPILE AGDA2HS allBranches #-}
 
 applys : Term γ → List (Term γ) → Term γ

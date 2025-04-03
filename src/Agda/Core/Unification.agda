@@ -284,7 +284,7 @@ module UnificationStepAndStop where
       {pSubst : TermS α (dataParScope d)}                                              -- value of the parameters of d
       {iSubst : TermS α (dataIxScope d)}                                               -- value of the indices of d
       {Δe₀ : Telescope (α ▸ e₀) rβ}
-      ( (⟨ c₀ ⟩ cFromd) : NameIn (dataConstructorScope dt))                      -- c is a constructor of dt
+      ( (⟨ c₀ ⟩ cFromd) : NameInR (dataConstructorRScope dt))                      -- c is a constructor of dt
       (let cFromCon , con = dataConstructors dt (⟨ c₀ ⟩ cFromd)
            c = (⟨ c₀ ⟩ cFromCon)                                                 -- c is a constructor of a datatype
            rγ : RScope Name
@@ -317,7 +317,7 @@ module UnificationStepAndStop where
       {pSubst : TermS α pars}                                                    -- value of the parameters of d
       {iSubst₁ iSubst₂ : TermS α ixs}                                            -- value of the indices of d
       {Δe₀ixs : Telescope (extScope α ixs ▸ e₀) rβ₀}
-      { (⟨ c₀ ⟩ cFromd) : NameIn (dataConstructorScope dt)}                      -- c is a constructor of dt
+      { (⟨ c₀ ⟩ cFromd) : NameInR (dataConstructorRScope dt)}                      -- c is a constructor of dt
       (let cFromCon , con = dataConstructors dt (⟨ c₀ ⟩ cFromd)
            c = (⟨ c₀ ⟩ cFromCon)                                                 -- c is a constructor of a datatype
            ind : RScope Name

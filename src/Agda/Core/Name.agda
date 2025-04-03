@@ -16,6 +16,10 @@ NameIn : (@0 α : Scope Name) → Set
 NameIn α = Σ0 Name λ x → x ∈ α
 {-# COMPILE AGDA2HS NameIn inline #-}
 
+NameInR : (@0 rα : RScope Name) → Set
+NameInR rα = Σ0 Name λ x → rα ∋ x
+{-# COMPILE AGDA2HS NameInR inline #-}
+
 decNamesIn : ∀ {@0 α} (x y : NameIn α) → Dec (x ≡ y)
 decNamesIn x y = decIn _ _
 {-# COMPILE AGDA2HS decNamesIn inline #-}

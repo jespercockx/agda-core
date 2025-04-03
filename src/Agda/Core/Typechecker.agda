@@ -33,8 +33,8 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x : Name
-  @0 α cs cs' : Scope Name
-  @0 rβ pars ixs : RScope Name
+  @0 α : Scope Name
+  @0 rβ pars ixs cs cs' : RScope Name
 
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
@@ -65,17 +65,17 @@ tcmGetDatatype d = do
 
 checkCoverage : (dt : Datatype pars ixs)
               → Branches α cs
-              → TCM (Erase (dataConstructorScope dt ≡ cs))
+              → TCM (Erase (dataConstructorRScope dt ≡ cs))
 checkCoverage dt bs =
   liftMaybe
-    (allInScope
-      (tabulateAll (rezz _) (λ cp → fst (dataConstructors dt (⟨ _ ⟩ cp))))
+    (allInRScope
+      (tabulateAllR (rezz _) (λ cp → fst (dataConstructors dt (⟨ _ ⟩ cp))))
       (branchesToAll bs))
     "case statement does not cover all branches"
   where
-    branchesToAll : Branches α cs → All (λ c → c ∈ conScope) cs
-    branchesToAll BsNil = allEmpty
-    branchesToAll (BsCons (BBranch c _ _) bs) = allJoin (branchesToAll bs) (allSingl (proj₂ c))
+    branchesToAll : Branches α cs → AllR (λ c → c ∈ conScope) cs
+    branchesToAll BsNil = allEmptyR
+    branchesToAll (BsCons (BBranch c _ _) bs) = allJoinR (branchesToAll bs) (allSinglR (proj₂ c))
 
 {-# COMPILE AGDA2HS checkCoverage #-}
 
@@ -86,7 +86,7 @@ inferVar ctx x = return $ _ , TyTVar
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
-checkBranches : ∀ {@0 pars ixs : RScope Name} {@0 cons : Scope Name}
+checkBranches : ∀ {@0 pars ixs : RScope Name} {@0 cons : RScope Name}
                   (Γ : Context α)
                   (rz : Rezz cons)
                   (bs : Branches α cons)
@@ -209,7 +209,7 @@ checkBranch {α = α}  ctx (BBranch c r rhs) {pars = pars} {ixs = ixs} dt ps rt 
 {-# COMPILE AGDA2HS checkBranch #-}
 
 checkBranches ctx (rezz cons) bs dt ps rt =
-  caseScope cons
+  caseRScope cons
     (λ where {{refl}} → caseBsNil bs (λ where {{refl}} → return TyBsNil))
     (λ ch ct → λ where
       {{refl}} → caseBsCons bs (λ bh bt → λ where

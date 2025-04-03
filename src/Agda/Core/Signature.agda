@@ -61,11 +61,11 @@ evalConIx con tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) (conIx 
 
 record Datatype (@0 pars : RScope Name) (@0 ixs : RScope Name) : Set where
   field
-    dataConstructorScope : Scope Name
+    dataConstructorRScope : RScope Name
     dataSort             : Sort (extScope mempty pars)
     dataParTel           : Telescope mempty pars
     dataIxTel            : Telescope (extScope mempty pars) ixs
-    dataConstructors     : ((⟨ c ⟩ cp) : NameIn  dataConstructorScope)
+    dataConstructors     : ((⟨ c ⟩ cp) : NameInR dataConstructorRScope)
                          → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ c ⟩ p))
 open Datatype public
 {-# COMPILE AGDA2HS Datatype #-}
@@ -125,10 +125,10 @@ getBody sig x = case getDefinition sig x of λ where
 
 getConstructor : ((⟨ c ⟩ cp) : NameIn conScope)
                → ∀ {@0 pars ixs} (d : Datatype pars ixs)
-               → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
+               → Maybe (∃[ cd ∈ (dataConstructorRScope d ∋ c) ]
                          fst (dataConstructors d (⟨ c ⟩ cd)) ≡ cp)
 getConstructor c d =
-  findAll (tabulateAll (rezz (dataConstructorScope d)) (λ _ → tt))
+  findAllR (tabulateAllR (rezz (dataConstructorRScope d)) (λ _ → tt))
       λ _ p → ifEqualNamesIn (⟨ _ ⟩ fst (dataConstructors d (⟨ _ ⟩ p))) c
         (λ where {{refl}} → Just (p ⟨ refl ⟩))
         Nothing

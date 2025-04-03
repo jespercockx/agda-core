@@ -28,8 +28,8 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x y con : Name
-  @0 α β pars ixs cons : Scope Name
-  @0 rβ rγ : RScope Name
+  @0 α β : Scope Name
+  @0 rβ rγ cons : RScope Name
   @0 s t u v : Term α
   @0 a b c   : Type α
   @0 k l m   : Sort α
@@ -96,7 +96,7 @@ data TyTerm {α} Γ where
       {@0 pars : TermS α (dataParScope d)}
       (let dt : Datatype (dataParScope d) (dataIxScope d)
            dt = sigData sig d)
-      {c : NameIn (dataConstructorScope dt)}
+      {c : NameInR (dataConstructorRScope dt)}
       (let (cp , con) = dataConstructors dt c)
       {@0 us : TermS α (fieldScope (⟨ _ ⟩ cp))}
 
@@ -131,7 +131,7 @@ data TyTerm {α} Γ where
 
          α'Subst : α' ⇒ α                                        -- subst of α' to α
          α'Subst = extSubst (idSubst αRun) iSubst)
-    {cases : Branches α (dataConstructorScope dt)}                -- cases for constructors of dt
+    {cases : Branches α (dataConstructorRScope dt)}                -- cases for constructors of dt
     {return : Type (α' ▸ x)}                                      -- return type
     (let αInα' : α ⊆ α'
          αInα' = subExtScope iRun subRefl              -- proof that α is in α'
@@ -194,7 +194,7 @@ data TyBranches {α} Γ dt ps rt where
 {-# COMPILE AGDA2HS TyBranches #-}
 
 data TyBranch {α} {x} Γ {pScope} {iScope} dt pSubst return where
-  TyBBranch : (c : NameIn (dataConstructorScope dt))
+  TyBBranch : (c : NameInR (dataConstructorRScope dt))
               (let (c∈cons , con ) = dataConstructors dt c
                    fields = fieldScope (⟨ _ ⟩ c∈cons)
                    β = extScope α fields
@@ -265,7 +265,7 @@ tyData' dt refl typars tyixs = TyData typars tyixs
 tyCon' : {@0 Γ : Context α}
   {d : NameIn dataScope}
   (@0 dt : Datatype (dataParScope d) (dataIxScope d)) → @0 sigData sig d ≡ dt
-  → (c : NameIn (dataConstructorScope dt))
+  → (c : NameInR (dataConstructorRScope dt))
   → (let (cp , con) = dataConstructors dt c)
   → {@0 pars : TermS α (dataParScope d)}
   → {@0 us : TermS α (fieldScope (⟨ _ ⟩ cp))}
@@ -295,7 +295,7 @@ tyCase' : {@0 Γ : Context α}
   {@0 iSubst : TermS α iScope}
   (let iSubst' = weakenTermS (subExtScope iRun subRefl) iSubst
        α'Subst = extSubst (idSubst αRun) iSubst)
-  {cases : Branches α (dataConstructorScope dt)}
+  {cases : Branches α (dataConstructorRScope dt)}
   {return : Type (α' ▸ x)}
   (let αInα' = subExtScope iRun subRefl
        Γ' =  addContextTel Γ (evalDataIxTel dt pSubst)
@@ -321,7 +321,7 @@ tyCons' {αRun = α ⟨ refl ⟩} tyu tyus = TyCons tyu tyus
 tyBBranch' : {@0 Γ : Context α} {@0 pars ixs : RScope Name} {@0 dt : Datatype pars ixs}
             {@0 ps : TermS α pars}
             {@0 return : Type ((extScope α ixs) ▸ x)}
-            (c : NameIn (dataConstructorScope dt))
+            (c : NameInR (dataConstructorRScope dt))
             (let (c∈cons , con ) = dataConstructors dt c
                  fields = fieldScope (⟨ _ ⟩ c∈cons)
                  β = extScope α fields)

@@ -248,4 +248,3 @@ opaque
   unification Γ (⌈⌉ ≟ ⌈⌉ ∶ ⌈⌉) = Right < Γ ⟨ StepId Γ _ ⟩ >
   unification Γ (⌈ x ↦ aₗ ◃ σₗ ⌉ ≟ ⌈ x ↦ aᵣ ◃ σᵣ ⌉ ∶ ⌈ x ∶ t ◃ Δ ⌉) = {!   !}
 -- -}
- 

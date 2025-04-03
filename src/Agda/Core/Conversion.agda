@@ -23,8 +23,8 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x y z cn       : Name
-  @0 α β γ cs       : Scope Name
-  @0 rβ : RScope Name
+  @0 α β γ          : Scope Name
+  @0 rβ cs          : RScope Name
   @0 s s' t t' u u' v v' w w' : Term α
   @0 k l n sa sb    : Sort α
   @0 a a' b b' c c' : Type α
