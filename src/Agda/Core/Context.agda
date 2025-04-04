@@ -9,6 +9,7 @@ open import Haskell.Law.Monoid
 open import Haskell.Prelude hiding (All; s; t)
 
 open import Agda.Core.Name
+open import Agda.Core.Utils
 open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Syntax
 
@@ -63,3 +64,62 @@ addContextTel {α} c ⌈⌉ =
 addContextTel {α} c (ExtendTel {rβ = rβ} x ty telt) =
   subst0 Context (sym extScopeBind) (addContextTel (c , x ∶ ty) telt)
 {-# COMPILE AGDA2HS addContextTel #-}
+
+opaque
+  maybeLet : @0 Scope Name → Set
+  maybeLet α = (Maybe (Term α)) × Type α
+  {-# COMPILE AGDA2HS maybeLet inline #-}
+
+  weakenMaybeLet : α ⊆ β → maybeLet α → maybeLet β
+  weakenMaybeLet s (Nothing , ty) = (Nothing , weaken s ty)
+  weakenMaybeLet s (Just u , ty) = (Just (weaken s u) , weaken s ty)
+  {-# COMPILE AGDA2HS weakenMaybeLet inline #-}
+
+  instance
+    iWeakenMaybeLet : Weaken maybeLet
+    iWeakenMaybeLet .weaken = weakenMaybeLet
+    {-# COMPILE AGDA2HS iWeakenMaybeLet inline #-}
+
+  strengthenMaybeLet : α ⊆ β → maybeLet β → Maybe (maybeLet α)
+  strengthenMaybeLet s (Nothing , ty) with strengthenType s ty
+  ... | Nothing  = Nothing
+  ... | Just ty' = Just (Nothing , ty')
+  strengthenMaybeLet s (Just u , ty) with strengthen s u | strengthen s ty
+  ... | Nothing | _         = Nothing
+  ... | Just _  | Nothing   = Nothing
+  ... | Just u' | Just ty'  = Just (Just u' , ty')
+  {-# COMPILE AGDA2HS strengthenMaybeLet inline #-}
+
+  instance
+    iStrengthenMaybeLet : Strengthen maybeLet
+    iStrengthenMaybeLet .strengthen = strengthenMaybeLet
+    {-# COMPILE AGDA2HS iStrengthenMaybeLet inline #-}
+
+data CtxView : @0 Scope Name → Set where
+  CtxViewEmpty : CtxView mempty
+  CtxViewExtend : CtxView α → (@0 x : Name) → maybeLet α → CtxView (α ▸ x)
+
+private opaque
+  unfolding maybeLet
+  contextToCtxView : Context α → CtxView α
+  contextToCtxView ⌈⌉ = CtxViewEmpty
+  contextToCtxView (Γ , x ∶ ty) = CtxViewExtend (contextToCtxView Γ) x (Nothing , ty)
+  contextToCtxView (Γ , x ≔ u ∶ ty) = CtxViewExtend (contextToCtxView Γ) x (Just u , ty)
+
+  ctxViewToContext : CtxView α → Context α
+  ctxViewToContext CtxViewEmpty = ⌈⌉
+  ctxViewToContext (CtxViewExtend Γ x (Nothing , ty)) = ctxViewToContext Γ , x ∶ ty
+  ctxViewToContext (CtxViewExtend Γ x (Just u , ty)) = ctxViewToContext Γ , x ≔ u ∶ ty
+
+  equivLeft : (Γ : Context α) → ctxViewToContext (contextToCtxView Γ) ≡ Γ
+  equivLeft ⌈⌉ = refl
+  equivLeft (Γ , x ∶ ty) = cong (λ Γ₀ → Γ₀ , x ∶ ty) (equivLeft Γ)
+  equivLeft (Γ , x ≔ u ∶ ty) = cong (λ Γ₀ → Γ₀ , x ≔ u ∶ ty) (equivLeft Γ)
+
+  equivRight : (Γ : CtxView α) → contextToCtxView (ctxViewToContext Γ) ≡ Γ
+  equivRight CtxViewEmpty = refl
+  equivRight (CtxViewExtend Γ x (Nothing , ty)) = cong (λ Γ₀ → CtxViewExtend Γ₀ x (Nothing , ty)) (equivRight Γ)
+  equivRight (CtxViewExtend Γ x (Just u , ty)) = cong (λ Γ₀ → CtxViewExtend Γ₀ x (Just u , ty)) (equivRight Γ)
+
+equivalenceContext : Equivalence (Context α) (CtxView α)
+equivalenceContext = Equiv contextToCtxView ctxViewToContext equivLeft equivRight
