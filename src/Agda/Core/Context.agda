@@ -4,7 +4,7 @@ open import Utils.Either
 open import Utils.Tactics using (auto)
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Erase
-open import Haskell.Law.Equality
+open import Haskell.Law.Equality hiding (subst)
 open import Haskell.Law.Monoid
 open import Haskell.Prelude hiding (All; s; t)
 
@@ -12,6 +12,7 @@ open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Syntax
+open import Agda.Core.Substitute
 
 module Agda.Core.Context
   {{@0 globals : Globals}}
@@ -95,9 +96,21 @@ opaque
     iStrengthenMaybeLet .strengthen = strengthenMaybeLet
     {-# COMPILE AGDA2HS iStrengthenMaybeLet inline #-}
 
+  substMaybeLet : α ⇒ β → maybeLet α → maybeLet β
+  substMaybeLet s (Nothing , ty) = (Nothing , subst s ty)
+  substMaybeLet s (Just u , ty) = (Just (subst s u) , subst s ty)
+  {-# COMPILE AGDA2HS substMaybeLet inline #-}
+
+  instance
+    iSubstMaybeLet : Substitute maybeLet
+    iSubstMaybeLet .subst = substMaybeLet
+    {-# COMPILE AGDA2HS iSubstMaybeLet inline #-}
+
+
 data CtxView : @0 Scope Name → Set where
   CtxViewEmpty : CtxView mempty
   CtxViewExtend : CtxView α → (@0 x : Name) → maybeLet α → CtxView (α ▸ x)
+{-# COMPILE AGDA2HS CtxView #-}
 
 private opaque
   unfolding maybeLet
@@ -123,3 +136,9 @@ private opaque
 
 equivalenceContext : Equivalence (Context α) (CtxView α)
 equivalenceContext = Equiv contextToCtxView ctxViewToContext equivLeft equivRight
+{-# COMPILE AGDA2HS equivalenceContext #-}
+
+rezzScope' : (Γ : CtxView α) → Rezz α
+rezzScope' CtxViewEmpty = rezz _
+rezzScope' (CtxViewExtend g x _) = rezzCong (λ t → t <> (singleton x)) (rezzScope' g)
+{-# COMPILE AGDA2HS rezzScope' #-}
