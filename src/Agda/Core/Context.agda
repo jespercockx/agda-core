@@ -11,7 +11,6 @@ open import Haskell.Prelude hiding (All; s; t)
 open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Syntax
-open import Agda.Core.Signature
 
 module Agda.Core.Context
   {{@0 globals : Globals}}
@@ -26,32 +25,36 @@ private variable
 data Context : @0 Scope Name → Set where
   CtxEmpty  : Context mempty
   CtxExtend : Context α → (@0 x : Name) → Type α → Context  (α ▸ x)
-
+  CtxExtendLet : Context α → (@0 x : Name) → Term α → Type α → Context  (α ▸ x)
 {-# COMPILE AGDA2HS Context #-}
 
-_,_∶_ : Context α → (@0 x : Name) → Type α → Context  (α ▸ x)
-_,_∶_ = CtxExtend
+pattern ⌈⌉ = CtxEmpty
+pattern _,_∶_ g x ty = CtxExtend g x ty
+pattern _,_≔_∶_ g x u ty = CtxExtendLet g x u ty
 
-infix 4 _,_∶_
-
-{-# COMPILE AGDA2HS _,_∶_ inline #-}
+infixl 4 _,_∶_
+infixl 4 _,_≔_∶_
 
 private variable
   @0 Γ : Context α
 
 lookupVar : (Γ : Context α) (x : NameIn α) → Type α
-lookupVar CtxEmpty x = nameInEmptyCase x
-lookupVar (CtxExtend g y s) x = raiseType (rezz _) (nameInBindCase x
+lookupVar ⌈⌉ x = nameInEmptyCase x
+lookupVar (g , y ∶ s) x = raiseType (rezz _) (nameInBindCase x
+  (λ q → lookupVar g (⟨ _ ⟩ q))
+  (λ _ → s))
+lookupVar (g , y ≔ u ∶ s) x = raiseType (rezz _) (nameInBindCase x
   (λ q → lookupVar g (⟨ _ ⟩ q))
   (λ _ → s))
 
 {-# COMPILE AGDA2HS lookupVar #-}
 
 rezzScope : (Γ : Context α) → Rezz α
-rezzScope CtxEmpty = rezz _
-rezzScope (CtxExtend g x _) =
+rezzScope ⌈⌉ = rezz _
+rezzScope (g , x ∶ _) =
   rezzCong (λ t → t <> (singleton x)) (rezzScope g)
-
+rezzScope (g , x ≔ _ ∶ _) =
+  rezzCong (λ t → t <> (singleton x)) (rezzScope g)
 {-# COMPILE AGDA2HS rezzScope #-}
 
 addContextTel : Context α → Telescope α rβ  → Context (extScope α rβ)
