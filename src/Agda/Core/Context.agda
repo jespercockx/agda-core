@@ -67,78 +67,78 @@ addContextTel {α} c (ExtendTel {rβ = rβ} x ty telt) =
 {-# COMPILE AGDA2HS addContextTel #-}
 
 opaque
-  maybeLet : @0 Scope Name → Set
-  maybeLet α = (Maybe (Term α)) × Type α
-  {-# COMPILE AGDA2HS maybeLet inline #-}
+  MaybeLet : @0 Scope Name → Set
+  MaybeLet α = (Maybe (Term α)) × Type α
+  {-# COMPILE AGDA2HS MaybeLet #-}
 
-  weakenMaybeLet : α ⊆ β → maybeLet α → maybeLet β
+  weakenMaybeLet : α ⊆ β → MaybeLet α → MaybeLet β
   weakenMaybeLet s (Nothing , ty) = (Nothing , weaken s ty)
   weakenMaybeLet s (Just u , ty) = (Just (weaken s u) , weaken s ty)
-  {-# COMPILE AGDA2HS weakenMaybeLet inline #-}
+  {-# COMPILE AGDA2HS weakenMaybeLet #-}
 
   instance
-    iWeakenMaybeLet : Weaken maybeLet
+    iWeakenMaybeLet : Weaken MaybeLet
     iWeakenMaybeLet .weaken = weakenMaybeLet
-    {-# COMPILE AGDA2HS iWeakenMaybeLet inline #-}
+    {-# COMPILE AGDA2HS iWeakenMaybeLet #-}
 
-  strengthenMaybeLet : α ⊆ β → maybeLet β → Maybe (maybeLet α)
-  strengthenMaybeLet s (Nothing , ty) with strengthenType s ty
-  ... | Nothing  = Nothing
-  ... | Just ty' = Just (Nothing , ty')
-  strengthenMaybeLet s (Just u , ty) with strengthen s u | strengthen s ty
-  ... | Nothing | _         = Nothing
-  ... | Just _  | Nothing   = Nothing
-  ... | Just u' | Just ty'  = Just (Just u' , ty')
-  {-# COMPILE AGDA2HS strengthenMaybeLet inline #-}
+  strengthenMaybeLet : α ⊆ β → MaybeLet β → Maybe (MaybeLet α)
+  strengthenMaybeLet s (Nothing , ty) = do
+    ty' ← strengthenType s ty
+    return (Nothing , ty')
+  strengthenMaybeLet s (Just u , ty) = do
+    u' ← strengthen s u
+    ty' ← strengthen s ty
+    return (Just u' , ty')
+  {-# COMPILE AGDA2HS strengthenMaybeLet #-}
 
   instance
-    iStrengthenMaybeLet : Strengthen maybeLet
+    iStrengthenMaybeLet : Strengthen MaybeLet
     iStrengthenMaybeLet .strengthen = strengthenMaybeLet
-    {-# COMPILE AGDA2HS iStrengthenMaybeLet inline #-}
+    {-# COMPILE AGDA2HS iStrengthenMaybeLet #-}
 
-  substMaybeLet : α ⇒ β → maybeLet α → maybeLet β
+  substMaybeLet : α ⇒ β → MaybeLet α → MaybeLet β
   substMaybeLet s (Nothing , ty) = (Nothing , subst s ty)
   substMaybeLet s (Just u , ty) = (Just (subst s u) , subst s ty)
-  {-# COMPILE AGDA2HS substMaybeLet inline #-}
+  {-# COMPILE AGDA2HS substMaybeLet #-}
 
   instance
-    iSubstMaybeLet : Substitute maybeLet
+    iSubstMaybeLet : Substitute MaybeLet
     iSubstMaybeLet .subst = substMaybeLet
-    {-# COMPILE AGDA2HS iSubstMaybeLet inline #-}
+    {-# COMPILE AGDA2HS iSubstMaybeLet #-}
 
 
-data CtxView : @0 Scope Name → Set where
-  CtxViewEmpty : CtxView mempty
-  CtxViewExtend : CtxView α → (@0 x : Name) → maybeLet α → CtxView (α ▸ x)
-{-# COMPILE AGDA2HS CtxView #-}
+-- data CtxView : @0 Scope Name → Set where
+--   CtxViewEmpty : CtxView mempty
+--   CtxViewExtend : CtxView α → (@0 x : Name) → MaybeLet α → CtxView (α ▸ x)
+-- {-# COMPILE AGDA2HS CtxView #-}
 
-private opaque
-  unfolding maybeLet
-  contextToCtxView : Context α → CtxView α
-  contextToCtxView ⌈⌉ = CtxViewEmpty
-  contextToCtxView (Γ , x ∶ ty) = CtxViewExtend (contextToCtxView Γ) x (Nothing , ty)
-  contextToCtxView (Γ , x ≔ u ∶ ty) = CtxViewExtend (contextToCtxView Γ) x (Just u , ty)
+-- private opaque
+--   unfolding MaybeLet
+--   contextToCtxView : Context α → CtxView α
+--   contextToCtxView ⌈⌉ = CtxViewEmpty
+--   contextToCtxView (Γ , x ∶ ty) = CtxViewExtend (contextToCtxView Γ) x (Nothing , ty)
+--   contextToCtxView (Γ , x ≔ u ∶ ty) = CtxViewExtend (contextToCtxView Γ) x (Just u , ty)
 
-  ctxViewToContext : CtxView α → Context α
-  ctxViewToContext CtxViewEmpty = ⌈⌉
-  ctxViewToContext (CtxViewExtend Γ x (Nothing , ty)) = ctxViewToContext Γ , x ∶ ty
-  ctxViewToContext (CtxViewExtend Γ x (Just u , ty)) = ctxViewToContext Γ , x ≔ u ∶ ty
+--   ctxViewToContext : CtxView α → Context α
+--   ctxViewToContext CtxViewEmpty = ⌈⌉
+--   ctxViewToContext (CtxViewExtend Γ x (Nothing , ty)) = ctxViewToContext Γ , x ∶ ty
+--   ctxViewToContext (CtxViewExtend Γ x (Just u , ty)) = ctxViewToContext Γ , x ≔ u ∶ ty
 
-  equivLeft : (Γ : Context α) → ctxViewToContext (contextToCtxView Γ) ≡ Γ
-  equivLeft ⌈⌉ = refl
-  equivLeft (Γ , x ∶ ty) = cong (λ Γ₀ → Γ₀ , x ∶ ty) (equivLeft Γ)
-  equivLeft (Γ , x ≔ u ∶ ty) = cong (λ Γ₀ → Γ₀ , x ≔ u ∶ ty) (equivLeft Γ)
+--   equivLeft : (Γ : Context α) → ctxViewToContext (contextToCtxView Γ) ≡ Γ
+--   equivLeft ⌈⌉ = refl
+--   equivLeft (Γ , x ∶ ty) = cong (λ Γ₀ → Γ₀ , x ∶ ty) (equivLeft Γ)
+--   equivLeft (Γ , x ≔ u ∶ ty) = cong (λ Γ₀ → Γ₀ , x ≔ u ∶ ty) (equivLeft Γ)
 
-  equivRight : (Γ : CtxView α) → contextToCtxView (ctxViewToContext Γ) ≡ Γ
-  equivRight CtxViewEmpty = refl
-  equivRight (CtxViewExtend Γ x (Nothing , ty)) = cong (λ Γ₀ → CtxViewExtend Γ₀ x (Nothing , ty)) (equivRight Γ)
-  equivRight (CtxViewExtend Γ x (Just u , ty)) = cong (λ Γ₀ → CtxViewExtend Γ₀ x (Just u , ty)) (equivRight Γ)
+--   equivRight : (Γ : CtxView α) → contextToCtxView (ctxViewToContext Γ) ≡ Γ
+--   equivRight CtxViewEmpty = refl
+--   equivRight (CtxViewExtend Γ x (Nothing , ty)) = cong (λ Γ₀ → CtxViewExtend Γ₀ x (Nothing , ty)) (equivRight Γ)
+--   equivRight (CtxViewExtend Γ x (Just u , ty)) = cong (λ Γ₀ → CtxViewExtend Γ₀ x (Just u , ty)) (equivRight Γ)
 
-equivalenceContext : Equivalence (Context α) (CtxView α)
-equivalenceContext = Equiv contextToCtxView ctxViewToContext equivLeft equivRight
-{-# COMPILE AGDA2HS equivalenceContext #-}
+-- equivalenceContext : Equivalence (Context α) (CtxView α)
+-- equivalenceContext = Equiv contextToCtxView ctxViewToContext equivLeft equivRight
+-- {-# COMPILE AGDA2HS equivalenceContext #-}
 
-rezzScope' : (Γ : CtxView α) → Rezz α
-rezzScope' CtxViewEmpty = rezz _
-rezzScope' (CtxViewExtend g x _) = rezzCong (λ t → t <> (singleton x)) (rezzScope' g)
-{-# COMPILE AGDA2HS rezzScope' #-}
+-- rezzScope' : (Γ : CtxView α) → Rezz α
+-- rezzScope' CtxViewEmpty = rezz _
+-- rezzScope' (CtxViewExtend g x _) = rezzCong (λ t → t <> (singleton x)) (rezzScope' g)
+-- {-# COMPILE AGDA2HS rezzScope' #-}

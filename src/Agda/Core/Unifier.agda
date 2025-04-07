@@ -100,7 +100,7 @@ module Swap where
         -- σ₀ : Renaming  (α ▸ x) α₀'
         let σ : Renaming (α ▸ z ▸ x) (α₀' ▸ z)
             σ = renamingExtend (renamingExtend ((renamingWeakenVar σ₀) ∘ inThere) inHere) (inThere (σ₀ inHere))
-            az' : maybeLet α₀'
+            az' : MaybeLet α₀'
             az' = subst (renamingToSubst (rezzScope' Γ₁) σ₀) (weaken (subBindDrop subRefl) az)
             res1 : Σ0 _ λ α' → CtxView α' × Renaming (α ▸ z ▸ x) α'
             res1 = < CtxViewExtend Γ₀' z az' , σ >
@@ -108,7 +108,7 @@ module Swap where
       let otherCase = do
         ⟨ γ₀ ⟩ (Δ₀ , τ₀) ← swapHighest' {{fl}} (CtxViewExtend Γ0 z az) < yInα >
         -- τ₀ : Renaming (z ◃ α) γ₀
-        let ax' : maybeLet γ₀
+        let ax' : MaybeLet γ₀
             ax' = subst (renamingToSubst (rezzScope' (CtxViewExtend Γ0 z az)) τ₀) ax
             σ₁ : Renaming (α ▸ z ▸ x) (γ₀ ▸ x)
             σ₁ = renamingExtend (renamingWeakenVar τ₀) inHere
