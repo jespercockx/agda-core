@@ -57,6 +57,8 @@
             haskell-language-server
             agda2hs-custom
             (pkgs.agda.withPackages [ agda2hs-lib scope-lib ])
+            # ^ this gets shadowed by the agda introduced as a dependency for agda-core
+            #   still useful as you can look up the libraries file from the output
           ];
         };
       });

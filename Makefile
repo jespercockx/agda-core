@@ -4,8 +4,22 @@ LIBRARIES =
 
 .PHONY: app alllib clean clean-lib clean-agdai nix-tc nix-build
 
-alllib: lib lib/Agda/Core/Syntax.hs lib/Agda/Core/Reduce.hs lib/Agda/Core/Typechecker.hs \
-  lib/Agda/Core/TCM.hs
+# this should stay in sync with the modules defined in cabal
+# also the order is silly, we redo a lot of the work because we don't know the dependencies
+alllib: lib \
+  lib/Agda/Core/Context.hs \
+  lib/Agda/Core/Conversion.hs \
+  lib/Agda/Core/Converter.hs \
+  lib/Agda/Core/GlobalScope.hs \
+  lib/Agda/Core/Reduce.hs \
+  lib/Agda/Core/Signature.hs \
+  lib/Agda/Core/Substitute.hs \
+  lib/Agda/Core/Syntax.hs \
+  lib/Agda/Core/TCM.hs \
+  lib/Agda/Core/TCMInstances.hs \
+  lib/Agda/Core/Typechecker.hs \
+  lib/Agda/Core/Typing.hs \
+  lib/Agda/Core/Utils.hs
 
 # alllib: lib lib/*.hs
 
@@ -21,14 +35,18 @@ clean-lib:
 	rm -rf lib
 
 clean-agdai:
-	rm -rf src/*.agdai _build
+	find src -iname *.agdai -delete
+	rm -rf _build
 
 app: alllib
 	cabal build
 
+clean-hs:
+	rm -rf dist-newstyle
+
 nix/agda-core.nix: agda-core.cabal
 	cd nix && cabal2nix ../. > ./agda-core.nix # generate agda-core.nix
-	sed -i -e 's/ }:/\n, agda2hs }:/1' ./nix/agda-core.nix # replace first occurence of }: with an addition of a new argument -- agda2hs
+	sed -i -e 's/}:/, agda2hs }:/1' ./nix/agda-core.nix # add a new argument `agda2hs` before the first occurence of `}:`
 	patch ./nix/agda-core.nix ./nix/agda-core.diff # apply the rest of the diff
 
 nix-tc:

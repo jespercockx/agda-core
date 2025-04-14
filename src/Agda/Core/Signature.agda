@@ -1,6 +1,6 @@
 open import Scope
 
-open import Haskell.Prelude hiding (All; s; t)
+open import Haskell.Prelude hiding (All; c; d; s; t)
 open import Haskell.Extra.Dec using (ifDec)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality hiding (subst)
@@ -21,81 +21,86 @@ module Agda.Core.Signature {{@0 globals : Globals}} where
 private open module @0 G = Globals globals
 
 private variable
-  @0 x : Name
-  @0 α β γ : Scope Name
-  @0 rβ rγ : RScope Name
-
+  @0 x      : Name
+  @0 α β γ  : Scope Name
+  @0 rβ rγ  : RScope Name
+  @0 d      : NameData
 opaque
   unfolding RScope
 
   caseTelEmpty : (tel : Telescope α mempty)
-               → (@0 {{tel ≡ ⌈⌉}} → d)
-               → d
+               → (@0 {{tel ≡ ⌈⌉}} → e)
+               → e
   caseTelEmpty ⌈⌉ f = f
 
   caseTelBind : (tel : Telescope α (x ◂ rβ))
-              → ((a : Type α) (rest : Telescope (α ▸ x) rβ) → @0 {{tel ≡ ExtendTel x a rest}} → d)
-              → d
+              → ((a : Type α) (rest : Telescope (α ▸ x) rβ) → @0 {{tel ≡ ExtendTel x a rest}} → e)
+              → e
   caseTelBind  (_ ∶ a ◂ tel) f = f a tel
 
 {-# COMPILE AGDA2HS caseTelEmpty #-}
 {-# COMPILE AGDA2HS caseTelBind #-}
 
-record Constructor (@0 pars : RScope Name) (@0 ixs : RScope Name) (@0 c : NameIn conScope) : Set where
+record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
+  private
+    @0 pars : RScope Name
+    pars = dataParScope d
+    @0 ixs : RScope Name
+    ixs  = dataIxScope d
   field
+    conName   : String
     conIndTel : Telescope (extScope mempty pars) (fieldScope c)                -- the TypeS of the indexes of c
     conIx     :  TermS (extScope (extScope mempty pars) (fieldScope c)) ixs    -- how the indexes are constructred given parameters and c indices
 open Constructor public
 {-# COMPILE AGDA2HS Constructor #-}
 
-evalConIndTel : {@0 pars : RScope Name} {@0 ixs : RScope Name} {@0 c : NameIn conScope}
-              → (con : Constructor pars ixs c) → {@0 α : Scope Name} → TermS α pars → Telescope α (fieldScope c)
+evalConIndTel : {@0 c : NameCon d} → (con : Constructor c) →  TermS α (dataParScope d) → Telescope α (fieldScope c)
 evalConIndTel con tPars = subst (extSubst ⌈⌉ tPars) (conIndTel con)
 {-# COMPILE AGDA2HS evalConIndTel #-}
 
-evalConIx : {@0 pars : RScope Name} {@0 ixs : RScope Name} {@0 c : NameIn conScope}
-              → (con : Constructor pars ixs c) → {@0 α : Scope Name} → TermS α pars → TermS α (fieldScope c) → TermS α ixs
+evalConIx : {@0 c : NameCon d} → (con : Constructor c) → TermS α (dataParScope d) → TermS α (fieldScope c) → TermS α (dataIxScope d)
 evalConIx con tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) (conIx con)
 {-# COMPILE AGDA2HS evalConIx #-}
 
 
-record Datatype (@0 pars : RScope Name) (@0 ixs : RScope Name) : Set where
+record Datatype (@0 d : NameData) : Set where
+  private
+    @0 pars : RScope Name
+    pars = dataParScope d
+    @0 ixs : RScope Name
+    ixs  = dataIxScope d
   field
-    dataConstructorRScope : RScope Name
+    -- dataConstructorRScope : RScope Name
     dataSort             : Sort (extScope mempty pars)
     dataParTel           : Telescope mempty pars
     dataIxTel            : Telescope (extScope mempty pars) ixs
-    dataConstructors     : ((⟨ c ⟩ cp) : NameInR dataConstructorRScope)
-                         → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ c ⟩ p))
+    dataConstructors     : List (NameCon d) -- for Haskell side
+    -- dataConstructors     : dataConstructorRScope ∋ x → x ∈ conScope
 open Datatype public
 {-# COMPILE AGDA2HS Datatype #-}
 
-evalDataSort : {@0 pars : RScope Name} {@0 ixs : RScope Name}
-              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → TermS α pars → Sort α
+evalDataSort : (dt : Datatype d) → TermS α (dataParScope d) → Sort α
 evalDataSort dt tPars = subst (extSubst ⌈⌉ tPars) (dataSort dt)
 {-# COMPILE AGDA2HS evalDataSort #-}
 
-evalDataParTel : {@0 pars : RScope Name} {@0 ixs : RScope Name}
-              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → Telescope α pars
+evalDataParTel : (dt : Datatype d) → Telescope α (dataParScope d)
 evalDataParTel dt = subst ⌈⌉ (dataParTel dt)
 {-# COMPILE AGDA2HS evalDataParTel #-}
 
-evalDataIxTel : {@0 pars : RScope Name} {@0 ixs : RScope Name}
-              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → TermS α pars → Telescope α ixs
+evalDataIxTel : (dt : Datatype d) → TermS α (dataParScope d) → Telescope α (dataIxScope d)
 evalDataIxTel dt tPars = subst (extSubst ⌈⌉ tPars) (dataIxTel dt)
 {-# COMPILE AGDA2HS evalDataIxTel #-}
 
 
-data Definition : Set where
-  FunctionDef : (funBody : Term mempty) → Definition
-{-# COMPILE AGDA2HS Definition #-}
+data SigDefinition : Set where
+  FunctionDef : (funBody : Term mempty) → SigDefinition
+{-# COMPILE AGDA2HS SigDefinition #-}
 
 record Signature : Set where
   field
-    sigData : (d : NameIn dataScope)
-            → Datatype (dataParScope d) (dataIxScope d)
-    sigDefs : (f : NameIn defScope)
-            → Type (mempty {{iMonoidScope}}) × Definition
+    sigData : (d : NameData) → Datatype d
+    sigDefs : (f : NameIn defScope)  → Type mempty × SigDefinition
+    sigCons : (d : NameData) (c : NameCon d) → Constructor c -- Do not erase d, (d,c) is needed to find the constructor
 open Signature public
 
 {-# COMPILE AGDA2HS Signature #-}
@@ -109,7 +114,7 @@ getType sig x = subst ⌈⌉ (fst defs)
 
 {-# COMPILE AGDA2HS getType #-}
 
-getDefinition : Signature → (x : NameIn defScope) → Definition
+getDefinition : Signature → (x : NameIn defScope) → SigDefinition
 getDefinition sig x = snd defs
   where
     -- see above
@@ -123,17 +128,17 @@ getBody sig x = case getDefinition sig x of λ where
 
 {-# COMPILE AGDA2HS getBody #-}
 
-getConstructor : ((⟨ c ⟩ cp) : NameIn conScope)
-               → ∀ {@0 pars ixs} (d : Datatype pars ixs)
-               → Maybe (∃[ cd ∈ (dataConstructorRScope d ∋ c) ]
-                         fst (dataConstructors d (⟨ c ⟩ cd)) ≡ cp)
-getConstructor c d =
-  findAllR (tabulateAllR (rezz (dataConstructorRScope d)) (λ _ → tt))
-      λ _ p → ifEqualNamesIn (⟨ _ ⟩ fst (dataConstructors d (⟨ _ ⟩ p))) c
-        (λ where {{refl}} → Just (p ⟨ refl ⟩))
-        Nothing
+-- getConstructor : ((⟨ c ⟩ cp) : NameIn (dataConstructors d)))
+--                → ∀ {@0 pars ixs} (d : Datatype pars ixs)
+--                → Maybe (∃[ cd ∈ (dataConstructorRScope d ∋ c) ]
+--                          dataConstructors d cd ≡ cp)
+-- getConstructor (⟨ _ ⟩ cp) d =
+--   findAllR (tabulateAllR (rezz (dataConstructorRScope d)) (λ _ → tt))
+--       λ _ p → ifDec (decIn ((dataConstructors d p)) cp)
+--         (λ where {{refl}} → Just (p ⟨ refl ⟩))
+--         Nothing
 
-{-# COMPILE AGDA2HS getConstructor #-}
+-- {-# COMPILE AGDA2HS getConstructor #-}
 
 weakenTel : α ⊆ γ → Telescope α rβ → Telescope γ rβ
 weakenTel p ⌈⌉ = ⌈⌉
@@ -161,3 +166,22 @@ opaque
     subst0 (Telescope α) (associativity (x ◂) _ rγ)
     (x ∶ ty ◂ addTel s (subst0 (λ δ → Telescope δ rγ) extScopeBind tel0))
   {-# COMPILE AGDA2HS addTel #-}
+
+
+
+{- Definitions for haskell backend -}
+data Defn : Set where
+  FunctionDefn : (funBody : Term mempty) → Defn
+  DatatypeDefn :  (@0 d : NameData) → Datatype d → Defn
+  ConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → Constructor c → Defn
+{-# COMPILE AGDA2HS Defn #-}
+
+
+record Definition : Set where
+  field
+    defName : String
+    -- defId : Nat
+    defType : Type mempty
+    theDef : Defn
+open Definition public
+{-# COMPILE AGDA2HS Definition #-}

@@ -34,7 +34,7 @@ private open module @0 G = Globals globals
 private variable
   @0 x : Name
   @0 α : Scope Name
-  @0 rβ pars ixs cs cs' : RScope Name
+  @0 rβ : RScope Name
 
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
@@ -57,27 +57,33 @@ tcmGetDefinition x = do
   return (rezzCong (λ sig → getDefinition sig x) rsig)
 {-# COMPILE AGDA2HS tcmGetDefinition #-}
 
-tcmGetDatatype : (d : NameIn dataScope) → TCM (Rezz (sigData sig d))
+tcmGetDatatype : (d : NameData) → TCM (Rezz (sigData sig d))
 tcmGetDatatype d = do
   rsig ← tcmSignature
   return (rezzCong (λ sig → sigData sig d) rsig)
 {-# COMPILE AGDA2HS tcmGetDatatype #-}
 
-checkCoverage : (dt : Datatype pars ixs)
-              → Branches α cs
-              → TCM (Erase (dataConstructorRScope dt ≡ cs))
-checkCoverage dt bs =
-  liftMaybe
-    (allInRScope
-      (tabulateAllR (rezz _) (λ cp → fst (dataConstructors dt (⟨ _ ⟩ cp))))
-      (branchesToAll bs))
-    "case statement does not cover all branches"
-  where
-    branchesToAll : Branches α cs → AllR (λ c → c ∈ conScope) cs
-    branchesToAll BsNil = allEmptyR
-    branchesToAll (BsCons (BBranch c _ _) bs) = allJoinR (branchesToAll bs) (allSinglR (proj₂ c))
+tcmGetConstructor : {d : NameData} (c : NameCon d) → TCM (Rezz (sigCons sig d c))
+tcmGetConstructor {d = d} c = do
+  rsig ← tcmSignature
+  return (rezzCong (λ sig → sigCons sig d c) rsig)
+{-# COMPILE AGDA2HS tcmGetConstructor #-}
 
-{-# COMPILE AGDA2HS checkCoverage #-}
+-- checkCoverage : {@0 d : NameData} (dt : Datatype d)
+--               → Branches α d cs
+--               → TCM (Erase (dataConstructorRScope dt ≡ cs))
+-- checkCoverage dt bs =
+--   liftMaybe
+--     (allInRScope
+--       (tabulateAllR (rezz _) (dataConstructors dt))
+--       (branchesToAll bs))
+--     "case statement does not cover all branches"
+--   where
+--     branchesToAll : Branches α cs → AllR (λ c → c ∈ conScope) cs
+--     branchesToAll BsNil = allEmptyR
+--     branchesToAll (BsCons (BBranch c _ _) bs) = allJoinR (branchesToAll bs) (allSinglR (proj₂ c))
+
+-- {-# COMPILE AGDA2HS checkCoverage #-}
 
 inferVar : ∀ Γ (x : NameIn α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
 inferVar ctx x = return $ _ , TyTVar
@@ -86,13 +92,13 @@ inferVar ctx x = return $ _ , TyTVar
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
-checkBranches : ∀ {@0 pars ixs : RScope Name} {@0 cons : RScope Name}
+checkBranches : ∀ {d : NameData} {@0 cons : RScope (NameCon d)}
                   (Γ : Context α)
                   (rz : Rezz cons)
-                  (bs : Branches α cons)
-                  (dt : Datatype pars ixs)
-                  (ps : TermS α pars)
-                  (rt : Type (extScope α ixs ▸ x))
+                  (bs : Branches α d cons)
+                  (dt : Datatype d)
+                  (ps : TermS α (dataParScope d))
+                  (rt : Type (extScope α (dataIxScope d) ▸ x))
                 → TCM (TyBranches Γ dt ps rt bs)
 
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
@@ -105,10 +111,10 @@ inferApp ctx u v = do
   let tytype = substTop r v rt
       gc = CRedL rtp CRefl
       gtu' =  TyConv {b = El (typeSort tu) (TPi x at rt)} gtu gc
-  return (tytype , tyApp' gtu' gtv)
+  return (tytype , TyApp gtu' gtv)
 {-# COMPILE AGDA2HS inferApp #-}
 
-inferCase : ∀ {@0 cs} Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
+inferCase : ∀ Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
 inferCase {α = α} ctx d rixs u bs rt = do
   let r = rezzScope ctx
 
@@ -124,10 +130,10 @@ inferCase {α = α} ctx d rixs u bs rt = do
 
   grt ← checkType (_ , _ ∶ weaken (subExtScope rixs subRefl) (dataType d ds params ixs)) (unType rt) (sortType (typeSort rt))
 
-  Erased refl ← checkCoverage df bs
+  -- Erased refl ← checkCoverage df bs
   cb ← checkBranches ctx (rezzBranches bs) bs df params rt
 
-  return (_ , tyCase' {k = ds} df deq {αRun = r} {iRun = rixs} grt cb gtu')
+  return (_ , tyCase' {k = ds} df deq {iRun = rixs} grt cb gtu')
 
 {-# COMPILE AGDA2HS inferCase #-}
 
@@ -165,10 +171,10 @@ checkTermS {α = α} ctx (ExtendTel {rβ = rβ} x ty rest) ts =
           stel : Telescope α rβ
           stel = substTelescope (idSubst r ▹ x ↦ u) rest
       tyrest ← checkTermS ctx stel s
-      return (tyCons' tyx tyrest))
+      return (TyCons tyx tyrest))
 {-# COMPILE AGDA2HS checkTermS #-}
 
-inferData : (Γ : Context α) (d : NameIn dataScope)
+inferData : (Γ : Context α) (d : NameData)
           → (pars : TermS α (dataParScope d)) (ixs : TermS α (dataIxScope d))
           → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TData d pars ixs ∶ ty)
 inferData ctx d pars ixs = do
@@ -178,62 +184,66 @@ inferData ctx d pars ixs = do
   return (sortType (evalDataSort dt pars) , tyData' dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
-checkBranch : ∀ {@0 con : Name} (Γ : Context α)
+checkBranch : ∀ {d : NameData} {@0 con : NameCon d} (Γ : Context α)
                 (bs : Branch α con)
-                {@0 pars ixs} (dt : Datatype pars ixs)
-                (ps : TermS α pars)
-                (rt : Type (extScope α ixs ▸ x))
+                (dt : Datatype d)
+                (ps : TermS α (dataParScope d))
+                (rt : Type (extScope α (dataIxScope d) ▸ x))
             → TCM (TyBranch Γ dt ps rt bs)
-checkBranch {α = α}  ctx (BBranch c r rhs) {pars = pars} {ixs = ixs} dt ps rt = do
-  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
-    "can't find a constructor with such a name"
+checkBranch {α = α} {d = d} ctx (BBranch c r rhs) dt ps rt = do
+  -- cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
+    -- "can't find a constructor with such a name"
+  con ⟨ ceq ⟩ ← tcmGetConstructor c
   let ra = rezzScope ctx
       @0 β : Scope Name
       β = extScope α (fieldScope c)
-      con : Constructor pars ixs c
-      con = snd (dataConstructors dt (⟨ _ ⟩ cid))
       cargs : TermS β (fieldScope c)
       cargs = termSrepeat r
-      parssubst : TermS β pars
+      parssubst : TermS β (dataParScope d)
       parssubst = weaken (subExtScope r subRefl) ps
-      ixsubst : TermS β ixs
+      ixsubst : TermS β (dataIxScope d)
       ixsubst = evalConIx con parssubst cargs
       idsubst : α ⇒ β
       idsubst = weaken (subExtScope r subRefl) (idSubst ra)
-      bsubst : extScope α ixs ▸ x ⇒ β
-      bsubst = (extSubst idsubst ixsubst ▹ _ ↦ TCon c cargs)
+      bsubst : extScope α (dataIxScope d) ▸ x ⇒ β
+      bsubst = extSubst idsubst ixsubst ▹ _ ↦ TCon c cargs
       rt' :  Type β
       rt' = subst bsubst rt
   crhs ← checkType _ rhs rt'
-  return (tyBBranch' (⟨ _ ⟩ cid) {r = r} {αRun = ra} rhs crhs)
+  return (tyBBranch' c con ceq {r = r} {αRun = ra} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
-checkBranches ctx (rezz cons) bs dt ps rt =
+checkBranches {d = d} ctx (rezz cons) bs dt ps rt =
   caseRScope cons
     (λ where {{refl}} → caseBsNil bs (λ where {{refl}} → return TyBsNil))
     (λ ch ct → λ where
       {{refl}} → caseBsCons bs (λ bh bt → λ where
-        {{refl}} → TyBsCons <$> checkBranch ctx bh dt ps rt
+        {{refl}} → TyBsCons <$> checkBranch {d = d} ctx bh dt ps rt
                             <*> checkBranches ctx (rezzBranches bt) bt dt ps rt))
 {-# COMPILE AGDA2HS checkBranches #-}
 
 checkCon : ∀ Γ
-           (c : NameIn conScope)
+           {d : NameData}
+           (c : NameCon d)
            (cargs : TermS α (fieldScope c))
            (ty : Type α)
          → TCM (Γ ⊢ TCon c cargs ∶ ty)
-checkCon ctx c cargs (El s ty) = do
+checkCon ctx {d = d} c cargs (El s ty) = do
   let r = rezzScope ctx
-  d , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
-    "can't typecheck a constrctor with a type that isn't a def application"
-  dt ⟨ deq ⟩ ← tcmGetDatatype d
-  cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
-    "can't find a constructor with such a name"
-  let con = snd (dataConstructors dt (⟨ _ ⟩ cid))
-      ctel = evalConIndTel con params
-      ctype = constructorType d c con (evalDataSort dt params) params cargs
-  tySubst ← checkTermS ctx ctel cargs
-  checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt deq (⟨ _ ⟩ cid) tySubst) (El s ty)
+  d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
+    "can't typecheck a constructor with a type that isn't a def application"
+  ifDec (decIn (proj₂ d) (proj₂ d'))
+    (λ where {{refl}} → do
+        dt ⟨ dteq ⟩ ← tcmGetDatatype d
+        -- cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
+          -- "can't find a constructor with such a name"
+        con ⟨ ceq ⟩ ← tcmGetConstructor c
+        let ctel = evalConIndTel con params
+            ctype = constructorType dt con params cargs
+        tySubst ← checkTermS ctx ctel cargs
+        checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt dteq con ceq tySubst) (El s ty))
+    (tcError "datatypes not convertible")
+
 {-# COMPILE AGDA2HS checkCon #-}
 
 checkLambda : ∀ Γ (@0 x : Name)
@@ -280,8 +290,8 @@ checkType ctx (TLam x te) ty = checkLambda ctx x te ty
 checkType ctx (TApp u e) ty = do
   tapp ← inferApp ctx u e
   checkCoerce ctx (TApp u e) tapp ty
-checkType ctx (TCase {cs = cs} d r u bs rt) ty = do
-  tapp ← inferCase {cs = cs} ctx d r u bs rt
+checkType ctx (TCase d r u bs rt) ty = do
+  tapp ← inferCase ctx d r u bs rt
   checkCoerce ctx (TCase d r u bs rt) tapp ty
 checkType ctx (TProj u f) ty = tcError "not implemented: projections"
 checkType ctx (TPi x tu tv) ty = do

@@ -1,6 +1,6 @@
 open import Scope
 
-open import Haskell.Prelude hiding (All; coerce; a; b; c)
+open import Haskell.Prelude hiding (All; coerce; a; b; c; d)
 open import Haskell.Law.Equality using (sym; subst0)
 open import Haskell.Law.Monoid.Def using (leftIdentity; rightIdentity)
 open import Haskell.Law.Semigroup.Def using (associativity)
@@ -22,15 +22,18 @@ module Agda.Core.Syntax
 private open module @0 G = Globals globals
 
 private variable
-  @0 x a b c : Name
-  @0 α β γ : Scope Name
-  @0 rβ rγ cs : RScope Name
+  @0 x a b : Name
+  @0 α β γ    : Scope Name
+  @0 rβ rγ : RScope Name
+  @0 d : NameData
+  @0 c : NameCon d
+  @0 cs : RScope (NameCon d)
 
-data Term   (@0 α : Scope Name) : Set
-data Sort   (@0 α : Scope Name) : Set
-record Type (@0 α : Scope Name) : Set
-data Branch (@0 α : Scope Name) : @0 Name → Set
-data Branches (@0 α : Scope Name) : @0 RScope Name → Set
+data Term     (@0 α : Scope Name) : Set
+data Sort     (@0 α : Scope Name) : Set
+record Type   (@0 α : Scope Name) : Set
+data Branch   (@0 α : Scope Name) : {@0 d : NameData} → @0 NameCon d → Set
+data Branches (@0 α : Scope Name) (@0 d : NameData) : @0 RScope (NameCon d) → Set
 
 record Type α where
   inductive
@@ -65,20 +68,20 @@ pattern _∶_◂_ x t Δ = ExtendTel x t Δ
 data Term α where
   TVar  : (x : NameIn α) → Term α
   TDef  : (d : NameIn defScope) → Term α
-  TData : (d : NameIn dataScope)
+  TData : (d : NameData)
         → (TermS α (dataParScope d))
         → (TermS α (dataIxScope d))
         → Term α
-  TCon  : (c : NameIn conScope)
+  TCon  : {d : NameData} (c : NameCon d)
         → (TermS α (fieldScope c)) → Term α
   TLam  : (@0 x : Name) (v : Term (α ▸ x)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
   TProj : (u : Term α) (x : NameIn defScope) → Term α
-  TCase : (d : NameIn dataScope)                   -- Datatype of the variable we are splitting on
-        → Rezz (dataIxScope d)                     -- Run-time representation of index scope
-        → (u : Term α)                             -- Term we are casing on
-        → (bs : Branches α cs)                     -- Branches (one for each constructor of d)
-        → (m : Type ((extScope α (dataIxScope d)) ▸ x))  -- Return type
+  TCase : (d : NameData)                                  -- Datatype of the variable we are splitting on
+        → Rezz (dataIxScope d)                            -- Run-time representation of index scope
+        → (u : Term α)                                    -- Term we are casing on
+        → (bs : Branches α d (AllNameCon d))              -- Branches (one for each constructor of d)
+        → (m : Type ((extScope α (dataIxScope d)) ▸ x))   -- Return type
         → Term α
   TPi   : (@0 x : Name) (u : Type α) (v : Type (α ▸ x)) → Term α
   TSort : Sort α → Term α
@@ -108,47 +111,47 @@ sortType : Sort α → Type α
 sortType s = El (sucSort s) (TSort s)
 {-# COMPILE AGDA2HS sortType #-}
 
-data Branch α where
-  BBranch : (c : NameIn conScope)
+data Branch α  where
+  BBranch : {@0 d : NameData} (c : NameCon d)
           → Rezz (fieldScope c)
-          → Term (extScope α (fieldScope c)) → Branch α (proj₁ c)
+          → Term (extScope α (fieldScope c)) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
-data Branches α where
-  BsNil : Branches α mempty
-  BsCons : Branch α c → Branches α cs → Branches α (c ◂ cs)
+data Branches α d where
+  BsNil : Branches α d mempty
+  BsCons : Branch α c → Branches α d cs → Branches α d (c ◂ cs)
 {-# COMPILE AGDA2HS Branches deriving Show #-}
 
 opaque
   unfolding RScope
 
-  caseBsNil : (bs : Branches α mempty)
-            → (@0 ⦃ bs ≡ BsNil ⦄ → d)
-            → d
+  caseBsNil : (bs : Branches α d mempty)
+            → (@0 ⦃ bs ≡ BsNil ⦄ → e)
+            → e
   caseBsNil BsNil f = f
   {-# COMPILE AGDA2HS caseBsNil #-}
 
-  caseBsCons : (bs : Branches α (c ◂ cs))
-             → ((bh : Branch α c) (bt : Branches α cs) → @0 ⦃ bs ≡ BsCons bh bt ⦄ → d)
-             → d
+  caseBsCons : (bs : Branches α d (c ◂ cs))
+             → ((bh : Branch α c) (bt : Branches α d cs) → @0 ⦃ bs ≡ BsCons bh bt ⦄ → e)
+             → e
   caseBsCons (BsCons bh bt) f = f bh bt
   {-# COMPILE AGDA2HS caseBsCons #-}
 
 opaque
   unfolding RScope
   caseTermSNil : (ts : TermS α mempty)
-               → (@0 ⦃ ts ≡ ⌈⌉ ⦄ → d)
-               → d
+               → (@0 ⦃ ts ≡ ⌈⌉ ⦄ → e)
+               → e
   caseTermSNil ⌈⌉ f = f
   {-# COMPILE AGDA2HS caseTermSNil #-}
 
   caseTermSCons : (ts : TermS α (x ◂ rβ))
-            → ((t : Term α) (ts0 : TermS α rβ) → @0 ⦃ ts ≡ x ↦ t ◂ ts0 ⦄ → d)
-            → d
+            → ((t : Term α) (ts0 : TermS α rβ) → @0 ⦃ ts ≡ x ↦ t ◂ ts0 ⦄ → e)
+            → e
   caseTermSCons (x ↦ t ◂ ts0) f = f t ts0
   {-# COMPILE AGDA2HS caseTermSCons #-}
 
-rezzBranches : Branches α rβ → Rezz rβ
+rezzBranches : Branches α d cs → Rezz cs
 rezzBranches BsNil = rezz mempty
 rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◂ cs) (rezzBranches bt)
 {-# COMPILE AGDA2HS rezzBranches #-}
@@ -158,17 +161,17 @@ rezzTermS ⌈⌉ = rezz _
 rezzTermS (x ↦ u ◂ t) = rezzCong (λ t → x ◂ t) (rezzTermS t)
 {-# COMPILE AGDA2HS rezzTermS #-}
 
-allBranches : Branches α rβ → AllR (λ c → c ∈ conScope) rβ
-allBranches BsNil = allEmptyR
-allBranches (BsCons (BBranch (⟨ _ ⟩ ci) _ _) bs) = allJoinR (allBranches bs) (allSinglR ci)
-{-# COMPILE AGDA2HS allBranches #-}
+-- allBranches : Branches α cs → AllR (λ c → Σ (NameData) λ d → dataConstructors d ∋ c) cs
+-- allBranches BsNil = allEmptyR
+-- allBranches (BsCons (BBranch ci _ _) bs) = allJoinR (allBranches bs) (allSinglR {!   !}) -- ci)
+-- {-# COMPILE AGDA2HS allBranches #-}
 
 applys : Term γ → List (Term γ) → Term γ
 applys {γ = γ} v [] = v
 applys {γ = γ} v (u ∷ us) = applys (TApp v u) us
 {-# COMPILE AGDA2HS applys #-}
 
-dataType : (d : NameIn dataScope)
+dataType : (d : NameData)
          → Sort α
          → (pars : TermS α (dataParScope d))
          → (ixs : TermS α (dataIxScope d))
@@ -222,7 +225,7 @@ weakenTerm     : α ⊆ β → Term α → Term β
 weakenSort     : α ⊆ β → Sort α → Sort β
 weakenType     : α ⊆ β → Type α → Type β
 weakenBranch   : α ⊆ β → Branch α c → Branch β c
-weakenBranches : α ⊆ β → Branches α cs → Branches β cs
+weakenBranches : α ⊆ β → Branches α d cs → Branches β d cs
 weakenTermS    : α ⊆ β → TermS α rγ → TermS β rγ
 
 weakenTerm p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
@@ -271,7 +274,7 @@ instance
   iWeakenType .weaken = weakenType
   iWeakenBranch : Weaken (λ α → Branch α c)
   iWeakenBranch .weaken = weakenBranch
-  iWeakenBranches : Weaken (λ α → Branches α cs)
+  iWeakenBranches : Weaken (λ α → Branches α d cs)
   iWeakenBranches .weaken = weakenBranches
   iWeakenTermS : Weaken (λ α → TermS α rβ)
   iWeakenTermS .weaken = weakenTermS
@@ -294,7 +297,7 @@ strengthenTerm : α ⊆ β → Term β → Maybe (Term α)
 strengthenSort : α ⊆ β → Sort β → Maybe (Sort α)
 strengthenType : α ⊆ β → Type β → Maybe (Type α)
 strengthenBranch : α ⊆ β → Branch β c → Maybe (Branch α c)
-strengthenBranches : α ⊆ β → Branches β cs → Maybe (Branches α cs)
+strengthenBranches : α ⊆ β → Branches β d cs → Maybe (Branches α d cs)
 strengthenTermS : α ⊆ β → TermS β rγ → Maybe (TermS α rγ)
 
 strengthenTerm p (TVar (⟨ x ⟩ q)) = diffCase p q (λ q → Just (TVar (⟨ x ⟩ q))) (λ _ → Nothing)
@@ -348,7 +351,7 @@ instance
   iStrengthenSort .strengthen = strengthenSort
   iStrengthenBranch : Strengthen (λ α → Branch α c)
   iStrengthenBranch .strengthen = strengthenBranch
-  iStrengthenBranches : Strengthen (λ α → Branches α cs)
+  iStrengthenBranches : Strengthen (λ α → Branches α d cs)
   iStrengthenBranches .strengthen = strengthenBranches
   iStrengthenTermS : Strengthen (λ α → TermS α rβ)
   iStrengthenTermS .strengthen = strengthenTermS
@@ -384,7 +387,7 @@ opaque
 varInTerm : Term α → List (NameIn α)
 varInTermS : TermS α rγ → List (NameIn α)
 varInType : Type α → List (NameIn α)
-varInBranches : Branches α cs → List (NameIn α)
+varInBranches : Branches α d cs → List (NameIn α)
 varInBranch : Branch α c → List (NameIn α)
 
 varInTerm (TVar x) = x ∷ []

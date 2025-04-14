@@ -58,6 +58,8 @@ executable agda-core
     default-language: GHC2021
     main-is:          Main.hs
     other-modules:    Agda.Core.ToCore
+                    , Agda.Core.PrettyPrint
+                    , Agda.Core.UtilsH
                     , Paths_agda_core
     autogen-modules:  Paths_agda_core
     default-extensions:
@@ -76,4 +78,7 @@ executable agda-core
         mtl                  >= 2.2.2   && < 2.4,
         directory            >= 1.2.6.2 && < 1.4,
         filepath             >= 1.4.1.0 && < 1.5,
+        transformers,
+        ansi-terminal,
+        deepseq,
         agda-core
