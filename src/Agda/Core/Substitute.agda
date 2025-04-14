@@ -1,6 +1,6 @@
 open import Scope
 
-open import Haskell.Prelude hiding (All; coerce; a; b; c; t)
+open import Haskell.Prelude hiding (All; coerce; a; b; c; d; t)
 open import Haskell.Extra.Dec
 open import Haskell.Law.Equality using (subst0; sym; trans)
 open import Haskell.Law.Monoid.Def using (leftIdentity; rightIdentity)
@@ -16,12 +16,16 @@ open import Agda.Core.Syntax
 module Agda.Core.Substitute
   {{@0 globals : Globals}}
   where
+private open module @0 G = Globals globals
 
 private variable
-  @0 x c     : Name
-  @0 α β γ : Scope Name
-  @0 rγ cs : RScope Name
-  t : @0 Scope Name → Set
+  @0 x      : Name
+  @0 α β γ  : Scope Name
+  @0 rγ     : RScope Name
+  @0 d      : NameData
+  @0 c      : NameCon d
+  @0 cs     : RScope (NameCon d)
+  t        : @0 Scope Name → Set
 
 data Subst : (@0 α β : Scope Name) → Set where
   SNil  : Subst mempty β
@@ -114,8 +118,8 @@ opaque
 substTerm     : α ⇒ β → Term α → Term β
 substSort     : α ⇒ β → Sort α → Sort β
 substType     : α ⇒ β → Type α → Type β
-substBranch   : α ⇒ β → Branch α c → Branch β c
-substBranches : α ⇒ β → Branches α cs → Branches β cs
+substBranch   : α ⇒ β → Branch α {d = d} c → Branch β c
+substBranches : α ⇒ β → Branches α d cs → Branches β d cs
 substTermS   : α ⇒ β → TermS α rγ → TermS β rγ
 
 substSort f (STyp x) = STyp x
@@ -165,9 +169,9 @@ instance
   iSubstType .subst = substType
   iSubstSort : Substitute Sort
   iSubstSort .subst = substSort
-  iSubstBranch : Substitute (λ α → Branch α c)
+  iSubstBranch : Substitute (λ α → Branch α {d = d} c)
   iSubstBranch .subst = substBranch
-  iSubstBranches : Substitute (λ α → Branches α cs)
+  iSubstBranches : Substitute (λ α → Branches α d cs)
   iSubstBranches .subst = substBranches
   iSubstTermS : Substitute (λ α → TermS α rγ)
   iSubstTermS .subst = substTermS

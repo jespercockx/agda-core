@@ -37,7 +37,9 @@ instance
 
 datas = singleton "Bool"
 
-cons = "true" ◂ "false" ◂ mempty
+boolConsSC = "true" ◂ "false" ◂ mempty
+
+cons = extScope mempty boolConsSC
 
 instance
   globals : Globals
@@ -46,38 +48,41 @@ instance
     ; dataScope = datas
     ; dataParScope = λ _ → mempty
     ; dataIxScope = λ _ → mempty
-    ; conScope = (extScope mempty cons)
+    ; dataConstructors = λ _ → boolConsSC
     ; fieldScope = λ _ → mempty
     }
+open module @0 G = Globals globals
 
-boolcons : ((⟨ c ⟩ cp) : NameInR cons)
-         → Σ (c ∈ extScope mempty cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))
-boolcons (⟨ c ⟩ cp) = lookupAllR
-  {p = λ c → Σ (c ∈ extScope mempty cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
+boolcons : {@0 c  : Name} → boolConsSC ∋ c → c ∈ cons
+boolcons = lookupAllR {p = λ c → c ∈ cons}
   (let x = allJoinR allEmptyR (allSinglR (subst0 (In _)
                                                 (sym (trans  extScopeBind (trans extScopeBind extScopeEmpty)))
-                                                inHere
-                     , record { conIndTel = EmptyTel
-                              ; conIx = TSNil })) in
+                                                inHere)) in
     allJoinR x (allSinglR (subst0 (In _)
                                  (sym (trans extScopeBind (trans extScopeBind extScopeEmpty)))
-                                 (inThere inHere)
-                     , record { conIndTel = EmptyTel
-                              ; conIx = TSNil } ))
-   )
-  cp
+                                 (inThere inHere)))
+  )
 
-bool : Datatype mempty mempty
-bool .dataConstructorRScope = cons
-bool .dataSort = STyp 0
-bool .dataParTel = EmptyTel
-bool .dataIxTel = EmptyTel
-bool .dataConstructors = boolcons
+boolsigcons : {@0 d : NameData} (c : NameCon d) → Constructor {d = d} c
+boolsigcons _  = record { conIndTel = EmptyTel; conIx = TSNil }
+
+
+opaque
+  unfolding ScopeThings
+
+  nameBool : NameIn datas
+  nameBool = ⟨ "Bool" ⟩ inHere
+
+  -- bool : Datatype nameBool
+  -- bool .dataSort = STyp 0
+  -- bool .dataParTel = EmptyTel
+  -- bool .dataIxTel = EmptyTel
 
 instance
   sig : Signature
-  sig .sigData = λ _ → bool
+  sig .sigData = λ _ → record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}
   sig .sigDefs = nameInEmptyCase
+  sig .sigCons d c = boolsigcons {d = d} c
 
 instance
   {-# TERMINATING #-}
@@ -85,17 +90,22 @@ instance
   fuel = More {{fuel}}
 
 opaque
-  unfolding ScopeThings
+  unfolding ScopeThings nameBool
+
+  nameTrue : NameCon nameBool
+  nameTrue = ⟨ "true" ⟩ inRHere
+  nameFalse : NameCon nameBool
+  nameFalse = ⟨ "false" ⟩ inRThere inRHere
 
   `true : Term α
-  `true = TCon (⟨ "true" ⟩ inThere inHere) TSNil
+  `true = TCon {d = nameBool} nameTrue TSNil
   `false : Term α
-  `false = TCon (⟨ "false" ⟩ inHere) TSNil
+  `false = TCon {d = nameBool} nameFalse TSNil
 
 module TestReduce (@0 x y z : Name) where
 
   opaque
-    unfolding ScopeThings `true `false
+    unfolding ScopeThings `true `false nameTrue nameFalse nameBool AllNameCon
 
     testTerm₁ : Term α
     testTerm₁ = TApp (TLam x (TVar (⟨ x ⟩ inHere))) (TSort (STyp 0))
@@ -107,11 +117,11 @@ module TestReduce (@0 x y z : Name) where
     test₁ = refl
 
     testTerm₂ : Term α
-    testTerm₂ = TCase {x = "condition"} (⟨ "Bool" ⟩ inHere) (rezz _) `true
-                                  (BsCons (BBranch (⟨ "true" ⟩ inThere inHere) (rezz _) `false)
-                                  (BsCons (BBranch (⟨ "false" ⟩ inHere) (rezz _) `true)
+    testTerm₂ = TCase {x = "condition"} nameBool (rezz _) `true
+                                  (BsCons (BBranch nameTrue (rezz _) `false)
+                                  (BsCons (BBranch nameFalse (rezz _) `true)
                                    BsNil))
-                                  (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil))
+                                  (El (STyp 0) (TData nameBool TSNil TSNil))
 
     @0 testProp₂ : Set
     testProp₂ = reduceClosed (rezz sig) testTerm₂ ≡ Just `false
@@ -201,3 +211,4 @@ module TestUnifierSwap where
 
     testSwapHighest2Prop = (swapHighest {{fl = Suc (Suc (Suc (Suc Zero)))}} Context-w' m₀ ≡ Nothing )
     testSwapHighest2 = refl
+

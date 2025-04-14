@@ -1,4 +1,4 @@
-open import Haskell.Prelude hiding (All; a; b; c; s; t)
+open import Haskell.Prelude hiding (All; a; b; c; d; s; t)
 
 open import Scope
 
@@ -6,6 +6,7 @@ open import Haskell.Extra.Dec
 open import Haskell.Extra.Erase
 open import Utils.Either
 open import Utils.Tactics using (auto)
+open import Haskell.Law.Equality renaming (subst to transport)
 
 open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
@@ -22,21 +23,22 @@ module Agda.Core.Conversion
 private open module @0 G = Globals globals
 
 private variable
-  @0 x y z cn       : Name
+  @0 x y z          : Name
   @0 α β γ          : Scope Name
-  @0 rβ cs          : RScope Name
+  @0 rβ             : RScope Name
   @0 s s' t t' u u' v v' w w' : Term α
   @0 k l n sa sb    : Sort α
   @0 a a' b b' c c' : Type α
   @0 us vs          : TermS α rβ
 
-data Conv       {@0 α} : @0 Term α → @0 Term α → Set
-data ConvBranch {@0 α} : @0 Branch α cn → @0 Branch α cn → Set
-data ConvTermS  {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
 
-data ConvBranches {@0 α} : @0 Branches α cs → @0 Branches α cs → Set where
-  CBranchesNil : {bs bp : Branches α mempty} → ConvBranches bs bp
-  CBranchesCons : {b1 b2 : Branch α cn} {bs1 bs2 : Branches α cs}
+data Conv      {@0 α} : @0 Term α → @0 Term α → Set
+data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
+
+data ConvBranch   {@0 α} {@0 d : NameData} : {@0 cn cn' : NameCon d} → @0 Branch α cn → @0 Branch α cn' → Set
+data ConvBranches {@0 α} {@0 d : NameData} : {@0 cs : RScope(NameCon d)} → @0 Branches α d cs → @0 Branches α d cs → Set where
+  CBranchesNil : {bs bp : Branches α d mempty} → ConvBranches bs bp
+  CBranchesCons : {@0 cn : NameCon d} {b1 b2 : Branch α cn} {@0 cs : RScope(NameCon d)} {bs1 bs2 : Branches α d cs}
                 → ConvBranch b1 b2
                 → ConvBranches bs1 bs2
                 → ConvBranches (BsCons b1 bs1) (BsCons b2 bs2)
@@ -72,10 +74,10 @@ data Conv {α} where
   CApp   : u ≅ u'
          → w ≅ w'
          → TApp u w ≅ TApp u' w'
-  CCase  : ∀ {@0 x y z cs} {u u' : Term α} {@0 r : Rezz α}
-           (d : NameIn dataScope)
+  CCase  : ∀ {@0 x y z} {u u' : Term α} {@0 r : Rezz α}
+           (d : NameData)
            (r1 r2 : Rezz (dataIxScope d))
-           (bs bp : Branches α cs)
+           (bs bp : Branches α d (AllNameCon d))
            (ms : Type _) (mp : Type _)
          → u ≅ u'
          →   renameTop {y = z} (rezzExtScope r r1) (unType ms)
@@ -83,13 +85,13 @@ data Conv {α} where
          → ConvBranches bs bp
          → TCase {x = x} d r1 u bs ms ≅ TCase {x = y} d r2 u' bp mp
   -- TODO: CProj : {!   !}
-  CData  : (@0 d : NameIn dataScope)
+  CData  : (@0 d : NameData)
            {@0 ps qs : TermS α (dataParScope d)}
            {@0 is ks : TermS α (dataIxScope d)}
          → ps ⇔ qs
          → is ⇔ ks
          → TData d ps is ≅ TData d qs ks
-  CCon   : (c : NameIn conScope)
+  CCon   : {@0 d : NameData} (c : NameCon d)
            {@0 us vs : TermS α (fieldScope c)}
          → us ⇔ vs
          → TCon c us ≅ TCon c vs
@@ -100,11 +102,12 @@ data Conv {α} where
          → u  ≅ v'
          → u  ≅ v
 
-data ConvBranch {α} where
-  CBBranch : (c : NameIn conScope) (r1 r2 : _)
-             (t1 t2 : Term (extScope α (fieldScope c)))
-           → t1 ≅ t2
-           → ConvBranch (BBranch c r1 t1) (BBranch c r2 t2)
+data ConvBranch {α} {d} where
+  CBBranch : (c c' : NameCon d) (r1 : Rezz (fieldScope c)) (r2 : Rezz (fieldScope c'))
+             (t1 : Term (extScope α (fieldScope c))) (t2 : Term (extScope α (fieldScope c')))
+           → (@0 e : c ≡ c')
+           → subst0 _ e t1 ≅ t2
+           → ConvBranch (BBranch c r1 t1) (BBranch c' r2 t2)
 
 
 data ConvTermS {α} where

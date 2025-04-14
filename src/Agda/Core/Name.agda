@@ -24,6 +24,10 @@ decNamesIn : ∀ {@0 α} (x y : NameIn α) → Dec (x ≡ y)
 decNamesIn x y = decIn _ _
 {-# COMPILE AGDA2HS decNamesIn inline #-}
 
+decNamesInR : ∀ {@0 rα} (x y : NameInR rα) → Dec (x ≡ y)
+decNamesInR x y = decInR _ _
+{-# COMPILE AGDA2HS decNamesInR inline #-}
+
 ifEqualNamesIn : ∀ {@0 α} (x y : NameIn α)
                → (@0 {{x ≡ y}} → b) → (@0 {{x ≡ y → ⊥}} → b) → b
 ifEqualNamesIn x y = ifDec (decNamesIn x y)

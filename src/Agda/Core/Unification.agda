@@ -279,14 +279,13 @@ module UnificationStepAndStop where
     {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
     {- this only work with K -}
     Injectivity :
-      {d : NameIn dataScope}                                                     -- the datatype
+      {d : NameData}                                                     -- the datatype
       (let dt = sigData sig d)                                                   -- representation of the datatype d
       {pSubst : TermS α (dataParScope d)}                                              -- value of the parameters of d
       {iSubst : TermS α (dataIxScope d)}                                               -- value of the indices of d
       {Δe₀ : Telescope (α ▸ e₀) rβ}
-      ( (⟨ c₀ ⟩ cFromd) : NameInR (dataConstructorRScope dt))                      -- c is a constructor of dt
-      (let cFromCon , con = dataConstructors dt (⟨ c₀ ⟩ cFromd)
-           c = (⟨ c₀ ⟩ cFromCon)                                                 -- c is a constructor of a datatype
+      (c : NameCon d)                      -- c is a constructor of d
+      (let con = sigCons sig d c
            rγ : RScope Name
            rγ = fieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : TermS α rγ}
@@ -309,7 +308,7 @@ module UnificationStepAndStop where
       {- from β = ixs <> (e₀ ◃ β₀) to β' = γ <> β₀ -}
       {rβ₀ : RScope Name}
       {δ₁ δ₂ : TermS α rβ₀}
-      {d : NameIn dataScope}                                                     -- the datatype
+      {d : NameData}                                                     -- the datatype
       (let dt = sigData sig d
            pars = dataParScope d
            ixs = dataIxScope d)
@@ -317,9 +316,8 @@ module UnificationStepAndStop where
       {pSubst : TermS α pars}                                                    -- value of the parameters of d
       {iSubst₁ iSubst₂ : TermS α ixs}                                            -- value of the indices of d
       {Δe₀ixs : Telescope (extScope α ixs ▸ e₀) rβ₀}
-      { (⟨ c₀ ⟩ cFromd) : NameInR (dataConstructorRScope dt)}                      -- c is a constructor of dt
-      (let cFromCon , con = dataConstructors dt (⟨ c₀ ⟩ cFromd)
-           c = (⟨ c₀ ⟩ cFromCon)                                                 -- c is a constructor of a datatype
+      {c : NameCon d}                      -- c is a constructor of dt
+      (let con = sigCons sig d c
            ind : RScope Name
            ind = fieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : TermS α ind}
@@ -370,29 +368,38 @@ module UnificationStepAndStop where
   data CycleProof (x : NameIn α) : Term α → Set
   data CycleProof {α = α} x where
     BasicCycle :
-      {c : NameIn conScope}
+      {d : NameData}
+      {c : NameCon d}
       {σ : TermS α (fieldScope c)}
       → InTermS (TVar x) σ
       → CycleProof x (TCon c σ)
     SubCycle :
       {u v : Term α}
-      {c : NameIn conScope}
+      {d : NameData}
+      {c : NameCon d}
       {σ : TermS α (fieldScope c)}
       → CycleProof x v
       → InTermS v σ
       → CycleProof x (TCon c σ)
 
   data UnificationStop {α = α} Γ where
-    Conflict :
-      {nameC nameC' : Name}
-      {proofC : nameC ∈ conScope}
-      {proofC' : nameC' ∈ conScope}
-      (let c = ⟨ nameC ⟩ proofC
-           c' = ⟨ nameC' ⟩ proofC')
+    ConflictData :
+      {d d' : NameData}
+      {c : NameCon d} {c' : NameCon d'}
       {σ₁ : TermS α (fieldScope c)}
       {σ₂ : TermS α (fieldScope c')}
       {Ξ : Telescope α (e₀ ◂ rβ)}
-      → nameC ≠ nameC'
+      → d ≠ d'
+      ------------------------------------------------------------
+      → Γ , (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TCon c' σ₂ ◂ δ₂) ∶ Ξ ↣ᵤ⊥
+    ConflictCon :
+      {d d' : NameData}
+      {c : NameCon d} {c' : NameCon d'}
+      {σ₁ : TermS α (fieldScope c)}
+      {σ₂ : TermS α (fieldScope c')}
+      {Ξ : Telescope α (e₀ ◂ rβ)}
+      (e : d ≡ d')
+      → c' ≠ transport NameCon e c
       ------------------------------------------------------------
       → Γ , (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TCon c' σ₂ ◂ δ₂) ∶ Ξ ↣ᵤ⊥
     {- cycle right now isn't as strict as it should be to correspond to the

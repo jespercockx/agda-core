@@ -1,6 +1,6 @@
 open import Scope
 
-open import Haskell.Prelude hiding (All; coerce; _,_,_; c) renaming (_,_ to infixr 5 _,_)
+open import Haskell.Prelude hiding (All; coerce; _,_,_; c; d) renaming (_,_ to infixr 5 _,_)
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Refinement
 open import Haskell.Extra.Erase
@@ -24,10 +24,11 @@ module Agda.Core.Reduce
 private open module @0 G = Globals globals
 
 private variable
-  @0 x c      : Name
-  @0 α β γ : Scope Name
-  @0 rγ cs : RScope Name
-  @0 u v w    : Term α
+  @0 x      : Name
+  @0 α β γ  : Scope Name
+  @0 rγ     : RScope Name
+  @0 u v w  : Term α
+  @0 d      : NameData
 
 data Environment : (@0 α β : Scope Name) → Set where
   EnvNil  : Environment α α
@@ -60,8 +61,8 @@ envToSubst r (env , x ↦ v) =
 data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
   FProj : (x : NameIn defScope) → Frame α
-  FCase : (d : NameIn dataScope) (r : Rezz (dataIxScope d))
-          (bs : Branches α cs) (m : Type (extScope α (dataIxScope d) ▸ x)) → Frame α
+  FCase : (d : NameData) (r : Rezz (dataIxScope d))
+          (bs : Branches α d (AllNameCon d)) (m : Type (extScope α (dataIxScope d) ▸ x)) → Frame α
 
 {-# COMPILE AGDA2HS Frame #-}
 
@@ -121,14 +122,14 @@ unState r (MkState e v s) = subst (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
-lookupBranch : Branches α cs → (c : NameIn conScope)
+lookupBranch : {@0 cs : RScope (NameCon d)} → Branches α d cs → (c : NameCon d)
              → Maybe ( Rezz (fieldScope c)
                      × Term (extScope α (fieldScope c)))
 lookupBranch BsNil c = Nothing
-lookupBranch (BsCons (BBranch c' aty u) bs) c =
-  case decNamesIn c' c of λ where
-    (True  ⟨ refl ⟩) → Just (aty , u)
-    (False ⟨ _    ⟩) → lookupBranch bs c
+lookupBranch {d = d} (BsCons (BBranch c' aty u) bs) c =
+    case decNamesInR c' c of λ where
+      (True  ⟨ refl ⟩) →  Just (aty , u)
+      (False ⟨ _    ⟩) → lookupBranch bs c
 
 {-# COMPILE AGDA2HS lookupBranch #-}
 
@@ -171,13 +172,15 @@ step rsig (MkState e (TLet x v w) s) =
 step (rezz sig) (MkState e (TDef d) s) =
   case getBody sig d of λ where
     v → Just (MkState e (weaken subEmpty v) s)
-step rsig (MkState e (TCon c vs) (FCase d r bs _ ∷ s)) =
-  case lookupBranch bs c of λ where
-    (Just (r , v)) → Just (MkState
-      (extendEnvironment vs e)
-      v
-      (weakenStack (subExtScope r subRefl) s))
-    Nothing  → Nothing
+step rsig (MkState e (TCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
+  case decNamesIn d' d of λ where
+      (True  ⟨ refl ⟩) → case lookupBranch bs c of λ where
+        (Just (r , v)) → Just (MkState
+          (extendEnvironment vs e)
+          v
+          (weakenStack (subExtScope r subRefl) s))
+        Nothing  → Nothing
+      (False  ⟨ _ ⟩) → Nothing
 step rsig (MkState e (TData d ps is) s) = Nothing
 step rsig (MkState e (TCon c vs) (FProj f ∷ s)) = Nothing -- TODO
 step rsig (MkState e (TCon c x) s) = Nothing
