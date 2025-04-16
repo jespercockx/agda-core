@@ -3,7 +3,7 @@ open import Scope
 open import Haskell.Prelude hiding (All; s; t)
 open import Haskell.Extra.Dec using (ifDec)
 open import Haskell.Extra.Erase
-open import Haskell.Law.Equality
+open import Haskell.Law.Equality hiding (subst)
 open import Haskell.Law.Semigroup.Def
 open import Haskell.Law.Monoid.Def
 
@@ -13,6 +13,8 @@ open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
+open import Agda.Core.Substitute
+
 
 module Agda.Core.Signature {{@0 globals : Globals}} where
 
@@ -21,59 +23,71 @@ private open module @0 G = Globals globals
 private variable
   @0 x : Name
   @0 α β γ : Scope Name
-
-{- Telescopes are like contexts, mapping variables to types.
-   Unlike contexts, they aren't closed.
-   Telescope α β is like an extension of Context α with β.-}
-data Telescope (@0 α : Scope Name) : @0 Scope Name → Set where
-  EmptyTel  : Telescope α mempty
-  ExtendTel : (@0 x : Name) → Type α → Telescope (x ◃ α) β  → Telescope α (x ◃ β)
-
-pattern ⌈⌉ = EmptyTel
-infix 6 ⌈_∶_◃_⌉
-pattern ⌈_∶_◃_⌉ x t Δ = ExtendTel x t Δ
-
-{-# COMPILE AGDA2HS Telescope #-}
+  @0 rβ rγ : RScope Name
 
 opaque
-  unfolding Scope
+  unfolding RScope
 
   caseTelEmpty : (tel : Telescope α mempty)
                → (@0 {{tel ≡ ⌈⌉}} → d)
                → d
   caseTelEmpty ⌈⌉ f = f
 
-  caseTelBind : (tel : Telescope α (x ◃ β))
-              → ((a : Type α) (rest : Telescope (x ◃ α) β) → @0 {{tel ≡ ExtendTel x a rest}} → d)
+  caseTelBind : (tel : Telescope α (x ◂ rβ))
+              → ((a : Type α) (rest : Telescope (α ▸ x) rβ) → @0 {{tel ≡ ExtendTel x a rest}} → d)
               → d
-  caseTelBind ⌈ _ ∶ a ◃ tel ⌉ f = f a tel
+  caseTelBind  (_ ∶ a ◂ tel) f = f a tel
 
 {-# COMPILE AGDA2HS caseTelEmpty #-}
 {-# COMPILE AGDA2HS caseTelBind #-}
 
-record Constructor (@0 pars : Scope Name) (@0 ixs : Scope Name) (@0 c : NameIn conScope) : Set where
+record Constructor (@0 pars : RScope Name) (@0 ixs : RScope Name) (@0 c : NameIn conScope) : Set where
   field
-    conTelescope : Telescope pars (fieldScope c)
-    conIndices   : ixs ⇒ (revScope (fieldScope c) <> pars)
+    conIndTel : Telescope (extScope mempty pars) (fieldScope c)                -- the TypeS of the indexes of c
+    conIx     :  TermS (extScope (extScope mempty pars) (fieldScope c)) ixs    -- how the indexes are constructred given parameters and c indices
 open Constructor public
-
 {-# COMPILE AGDA2HS Constructor #-}
 
-record Datatype (@0 pars : Scope Name) (@0 ixs : Scope Name) : Set where
+evalConIndTel : {@0 pars : RScope Name} {@0 ixs : RScope Name} {@0 c : NameIn conScope}
+              → (con : Constructor pars ixs c) → {@0 α : Scope Name} → TermS α pars → Telescope α (fieldScope c)
+evalConIndTel con tPars = subst (extSubst ⌈⌉ tPars) (conIndTel con)
+{-# COMPILE AGDA2HS evalConIndTel #-}
+
+evalConIx : {@0 pars : RScope Name} {@0 ixs : RScope Name} {@0 c : NameIn conScope}
+              → (con : Constructor pars ixs c) → {@0 α : Scope Name} → TermS α pars → TermS α (fieldScope c) → TermS α ixs
+evalConIx con tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) (conIx con)
+{-# COMPILE AGDA2HS evalConIx #-}
+
+
+record Datatype (@0 pars : RScope Name) (@0 ixs : RScope Name) : Set where
   field
-    dataConstructorScope : Scope Name
-    dataSort             : Sort pars
-    dataParameterTel     : Telescope mempty pars
-    dataIndexTel         : Telescope pars ixs
-    dataConstructors     : ((⟨ c ⟩ cp) : NameIn  dataConstructorScope)
+    dataConstructorRScope : RScope Name
+    dataSort             : Sort (extScope mempty pars)
+    dataParTel           : Telescope mempty pars
+    dataIxTel            : Telescope (extScope mempty pars) ixs
+    dataConstructors     : ((⟨ c ⟩ cp) : NameInR dataConstructorRScope)
                          → Σ (c ∈ conScope) (λ p → Constructor pars ixs (⟨ c ⟩ p))
 open Datatype public
-
 {-# COMPILE AGDA2HS Datatype #-}
+
+evalDataSort : {@0 pars : RScope Name} {@0 ixs : RScope Name}
+              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → TermS α pars → Sort α
+evalDataSort dt tPars = subst (extSubst ⌈⌉ tPars) (dataSort dt)
+{-# COMPILE AGDA2HS evalDataSort #-}
+
+evalDataParTel : {@0 pars : RScope Name} {@0 ixs : RScope Name}
+              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → Telescope α pars
+evalDataParTel dt = subst ⌈⌉ (dataParTel dt)
+{-# COMPILE AGDA2HS evalDataParTel #-}
+
+evalDataIxTel : {@0 pars : RScope Name} {@0 ixs : RScope Name}
+              → (dt : Datatype pars ixs) → {@0 α : Scope Name} → TermS α pars → Telescope α ixs
+evalDataIxTel dt tPars = subst (extSubst ⌈⌉ tPars) (dataIxTel dt)
+{-# COMPILE AGDA2HS evalDataIxTel #-}
+
 
 data Definition : Set where
   FunctionDef : (funBody : Term mempty) → Definition
-
 {-# COMPILE AGDA2HS Definition #-}
 
 record Signature : Set where
@@ -86,8 +100,8 @@ open Signature public
 
 {-# COMPILE AGDA2HS Signature #-}
 
-getType : Signature → (x : NameIn defScope) → Type mempty
-getType sig x = fst defs
+getType : Signature → (x : NameIn defScope) → Type α
+getType sig x = subst ⌈⌉ (fst defs)
   where
     -- inlining this seems to trigger a bug in agda2hs
     -- TODO: investigate further
@@ -111,73 +125,39 @@ getBody sig x = case getDefinition sig x of λ where
 
 getConstructor : ((⟨ c ⟩ cp) : NameIn conScope)
                → ∀ {@0 pars ixs} (d : Datatype pars ixs)
-               → Maybe (∃[ cd ∈ (c ∈ dataConstructorScope d) ]
+               → Maybe (∃[ cd ∈ (dataConstructorRScope d ∋ c) ]
                          fst (dataConstructors d (⟨ c ⟩ cd)) ≡ cp)
 getConstructor c d =
-  findAll (tabulateAll (rezz (dataConstructorScope d)) (λ _ → tt))
+  findAllR (tabulateAllR (rezz (dataConstructorRScope d)) (λ _ → tt))
       λ _ p → ifEqualNamesIn (⟨ _ ⟩ fst (dataConstructors d (⟨ _ ⟩ p))) c
         (λ where {{refl}} → Just (p ⟨ refl ⟩))
         Nothing
 
 {-# COMPILE AGDA2HS getConstructor #-}
 
-weakenTel : α ⊆ γ → Telescope α β → Telescope γ β
+weakenTel : α ⊆ γ → Telescope α rβ → Telescope γ rβ
 weakenTel p ⌈⌉ = ⌈⌉
-weakenTel p ⌈ x ∶ ty ◃ t ⌉ = ⌈ x ∶ (weaken p ty) ◃ (weakenTel (subBindKeep p) t) ⌉
+weakenTel p (x ∶ ty ◂ t) = x ∶ (weaken p ty) ◂ (weakenTel (subBindKeep p) t)
 
 {-# COMPILE AGDA2HS weakenTel #-}
 
 instance
-  iWeakenTel : Weaken (λ α → Telescope α β)
+  iWeakenTel : Weaken (λ α → Telescope α rβ)
   iWeakenTel .weaken = weakenTel
 {-# COMPILE AGDA2HS iWeakenTel #-}
 
-rezzTel : Telescope α β → Rezz β
+rezzTel : Telescope α rβ → Rezz rβ
 rezzTel ⌈⌉ = rezz _
-rezzTel ⌈ x ∶ ty ◃ t ⌉ = rezzCong (λ t → singleton x <> t) (rezzTel t)
+rezzTel (x ∶ ty ◂ t) = rezzCong (λ t → x ◂ t) (rezzTel t)
 
 {-# COMPILE AGDA2HS rezzTel #-}
 
 opaque
-  addTel : Telescope α β → Telescope ((~ β) <> α) γ → Telescope α (β <> γ)
-  addTel {α = α} {γ = γ} ⌈⌉ tel0 = do
-    let Δ₁ : Telescope (mempty <> α) γ
-        Δ₁ = subst0 (λ ∅ → Telescope (∅ <> α) γ) revsIdentity tel0
-        Δ₂ : Telescope α γ
-        Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (leftIdentity α) Δ₁
-    subst0 (λ γ₀ → Telescope α γ₀) (sym (leftIdentity γ)) Δ₂
-  addTel {α = α} {γ = γ} ⌈ x ∶  ty ◃ s ⌉ tel0 = do
-    let Δ₁ : Telescope ((~ _ ▹ x) <> α) γ
-        Δ₁ = subst0 (λ  β₀ → Telescope (β₀ <> α) γ) (revsBindComp _ x) tel0
-        Δ₂ : Telescope (~ _ <> (x ◃ α)) γ
-        Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (sym (associativity (~ _) [ x ] α)) Δ₁
-        Ξ : Telescope (x ◃ α) (_ <> γ)
-        Ξ = addTel s Δ₂
-        Ξ' : Telescope α (x ◃ (_ <> γ))
-        Ξ' = ⌈ x ∶ ty ◃ Ξ ⌉
-        @0 e : x ◃ (_ <> γ) ≡ (x ◃ _) <> γ
-        e = associativity [ x ] _ γ
-    subst0 (λ γ₀ → Telescope α γ₀) e Ξ'
-
+  addTel : Telescope α rβ → Telescope (extScope α rβ) rγ → Telescope α (rβ <> rγ)
+  addTel ⌈⌉ tel0 =
+    subst0 (λ α → Telescope α _) extScopeEmpty
+    (subst0 (Telescope _) (sym (leftIdentity _)) tel0)
+  addTel {α = α} {rγ = rγ} (x ∶  ty ◂ s) tel0 =
+    subst0 (Telescope α) (associativity (x ◂) _ rγ)
+    (x ∶ ty ◂ addTel s (subst0 (λ δ → Telescope δ rγ) extScopeBind tel0))
   {-# COMPILE AGDA2HS addTel #-}
-
-  addTelrev : Telescope α (~ β) → Telescope (β <> α) γ → Telescope α ((~ β) <> γ)
-  addTelrev {α = α} {β = β} {γ = γ} sigma delta = do
-    let Δ₁ : Telescope (~ ~ β <> α) γ
-        Δ₁ = subst0 (λ β₀ → Telescope (β₀ <> α) γ) (sym (revsInvolution β)) delta
-    addTel sigma Δ₁
-
-  {-# COMPILE AGDA2HS addTelrev #-}
-
-{-
-opaque
-  unfolding revScope
-  addTel : Telescope α β → Telescope ((~ β) <> α) γ → Telescope α (β <> γ)
-  addTel ⌈⌉ Δ = Δ
-  addTel {α = α} {β = _ ∷ β} {γ = γ} ⌈ x ∶  ty ◃ Σ ⌉ Δ = do
-    let Δ₁ : Telescope ((~ β ▹ x) <> α) γ
-        Δ₁ = subst0 (λ  β₀ → Telescope (β₀ <> α) γ) (revsBindComp β x) Δ
-        Δ₂ : Telescope (~ β <> (x ◃ α)) γ
-        Δ₂ = subst0 (λ α₀ → Telescope α₀ γ) (sym (associativity (~ β) [ x ] α)) Δ₁
-    ⌈ x ∶ ty ◃ addTel Σ Δ₂ ⌉
--}

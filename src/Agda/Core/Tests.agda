@@ -29,15 +29,15 @@ private variable
   α : Scope Name
 
 instance
-  top : x ∈ (x ◃ α)
+  top : x ∈  (α ▸ x)
   top = inHere
 
-  pop : {{x ∈ α}} → x ∈ (y ◃ α)
+  pop : {{x ∈ α}} → x ∈  (α ▸ y)
   pop {{p}} = inThere p
 
 datas = singleton "Bool"
 
-cons = bind "true" $ bind "false" mempty
+cons = "true" ◂ "false" ◂ mempty
 
 instance
   globals : Globals
@@ -46,28 +46,32 @@ instance
     ; dataScope = datas
     ; dataParScope = λ _ → mempty
     ; dataIxScope = λ _ → mempty
-    ; conScope = cons
+    ; conScope = (extScope mempty cons)
     ; fieldScope = λ _ → mempty
     }
 
-boolcons : ((⟨ c ⟩ cp) : NameIn cons)
-         → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))
-boolcons (⟨ c ⟩ cp) = lookupAll
-  {p = λ c → Σ (c ∈ cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
-  (allJoin (allSingl (inHere
-                     , record { conTelescope = EmptyTel
-                              ; conIndices = SNil } )) $
-   allJoin (allSingl (inThere inHere
-                     , record { conTelescope = EmptyTel
-                              ; conIndices = SNil })) $
-   allEmpty)
+boolcons : ((⟨ c ⟩ cp) : NameInR cons)
+         → Σ (c ∈ extScope mempty cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))
+boolcons (⟨ c ⟩ cp) = lookupAllR
+  {p = λ c → Σ (c ∈ extScope mempty cons) (λ cp → Constructor mempty mempty (⟨ c ⟩ cp))}
+  (let x = allJoinR allEmptyR (allSinglR (subst0 (In _)
+                                                (sym (trans  extScopeBind (trans extScopeBind extScopeEmpty)))
+                                                inHere
+                     , record { conIndTel = EmptyTel
+                              ; conIx = TSNil })) in
+    allJoinR x (allSinglR (subst0 (In _)
+                                 (sym (trans extScopeBind (trans extScopeBind extScopeEmpty)))
+                                 (inThere inHere)
+                     , record { conIndTel = EmptyTel
+                              ; conIx = TSNil } ))
+   )
   cp
 
 bool : Datatype mempty mempty
-bool .dataConstructorScope = cons
+bool .dataConstructorRScope = cons
 bool .dataSort = STyp 0
-bool .dataParameterTel = EmptyTel
-bool .dataIndexTel = EmptyTel
+bool .dataParTel = EmptyTel
+bool .dataIxTel = EmptyTel
 bool .dataConstructors = boolcons
 
 instance
@@ -84,9 +88,9 @@ opaque
   unfolding ScopeThings
 
   `true : Term α
-  `true = TCon (⟨ "true" ⟩ inHere) SNil
+  `true = TCon (⟨ "true" ⟩ inThere inHere) TSNil
   `false : Term α
-  `false = TCon (⟨ "false" ⟩ inThere inHere) SNil
+  `false = TCon (⟨ "false" ⟩ inHere) TSNil
 
 module TestReduce (@0 x y z : Name) where
 
@@ -94,7 +98,7 @@ module TestReduce (@0 x y z : Name) where
     unfolding ScopeThings `true `false
 
     testTerm₁ : Term α
-    testTerm₁ = apply (TLam x (TVar (⟨ x ⟩ inHere))) (TSort (STyp 0))
+    testTerm₁ = TApp (TLam x (TVar (⟨ x ⟩ inHere))) (TSort (STyp 0))
 
     @0 testProp₁ : Set
     testProp₁ = reduceClosed (rezz sig) testTerm₁ ≡ Just (TSort (STyp 0))
@@ -104,10 +108,10 @@ module TestReduce (@0 x y z : Name) where
 
     testTerm₂ : Term α
     testTerm₂ = TCase {x = "condition"} (⟨ "Bool" ⟩ inHere) (rezz _) `true
-                                  (BsCons (BBranch (⟨ "true" ⟩ inHere) (rezz _) `false)
-                                  (BsCons (BBranch (⟨ "false" ⟩ inThere inHere) (rezz _) `true)
+                                  (BsCons (BBranch (⟨ "true" ⟩ inThere inHere) (rezz _) `false)
+                                  (BsCons (BBranch (⟨ "false" ⟩ inHere) (rezz _) `true)
                                    BsNil))
-                                  (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil))
+                                  (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil))
 
     @0 testProp₂ : Set
     testProp₂ = reduceClosed (rezz sig) testTerm₂ ≡ Just `false
@@ -124,7 +128,7 @@ module TestTypechecker (@0 x y z : Name) where
     testTerm₁ = TLam x (TVar (⟨ x ⟩ inHere))
 
     testType₁ : Type α
-    testType₁ = El (STyp 0) (TPi y (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil)) (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) SNil SNil)))
+    testType₁ = El (STyp 0) (TPi y (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil)) (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil)))
 
     testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
     testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (rezz _) fuel)
@@ -148,12 +152,12 @@ module TestUnifierSwap where
     vec A _ = A
 
   -- (n₀ : ℕ) (v : vec A n) (m₀ : ℕ) (v' : vec A n₀) (w : vec A m₀) (w' : vec A m₀)
-  Scope-n₀ = "n₀" ◃ mempty
-  Scope-v = "v" ◃ Scope-n₀
-  Scope-m₀ = "m₀" ◃ Scope-v
-  Scope-v' = "v'" ◃ Scope-m₀
-  Scope-w = "w" ◃ Scope-v'
-  Scope-w' = "w'" ◃ Scope-w
+  Scope-n₀ = mempty ▸ "n₀"
+  Scope-v = Scope-n₀ ▸ "v"
+  Scope-m₀ =  Scope-v ▸ "m₀"
+  Scope-v' =  Scope-m₀ ▸ "v'"
+  Scope-w = Scope-v' ▸ "w"
+  Scope-w' = Scope-w ▸ "w'"
 
   Context-n₀ = CtxEmpty , "n₀" ∶ ℕ
   Context-v : Context Scope-v

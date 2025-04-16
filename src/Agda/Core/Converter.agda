@@ -32,6 +32,7 @@ private open module @0 G = Globals globals
 private variable
   @0 x y : Name
   @0 α β : Scope Name
+  @0 rβ : RScope Name
 
 reduceTo : {@0 α : Scope Name} (r : Rezz α) (v : Term α)
          → TCM (∃[ t ∈ Term α ] (ReducesTo v t))
@@ -47,7 +48,7 @@ reduceToPi : {@0 α : Scope Name} (r : Rezz α)
            → (v : Term α)
            → String
            → TCM (Σ0[ x ∈ Name                        ]
-                   ∃[ (a , b) ∈ Type α × Type (x ◃ α) ]
+                   ∃[ (a , b) ∈ Type α × Type  (α ▸ x) ]
                    ReducesTo v (TPi x a b))
 reduceToPi r v err = reduceTo r v >>= λ where
   (TPi x a b ⟨ redv ⟩) → return (⟨ x ⟩ ((a , b) ⟨ redv ⟩))
@@ -58,7 +59,7 @@ reduceToData : {@0 α : Scope Name} (r : Rezz α)
            → (v : Term α)
            → String
            → TCM (Σ[ d ∈ NameIn dataScope ]
-                  ∃[ (pars , ixs) ∈ (dataParScope d ⇒ α) × (dataIxScope d ⇒ α) ]
+                  ∃[ (pars , ixs) ∈ (TermS α (dataParScope d)) × (TermS α (dataIxScope d)) ]
                   ReducesTo v (TData d pars ixs))
 reduceToData r v err = reduceTo r v >>= λ where
   (TData d pars ixs ⟨ redv ⟩) → return ((d , (pars , ixs) ⟨ redv ⟩))
@@ -105,24 +106,24 @@ convSorts (STyp u) (STyp u') =
 {-# COMPILE AGDA2HS convSorts #-}
 
 convertCheck : {{fl : Fuel}} → Rezz α → (t q : Term α) → TCM (t ≅ q)
-convertSubsts : {{fl : Fuel}} → Rezz α →
-                (s p : β ⇒ α)
+convertTermSs : {{fl : Fuel}} → Rezz α →
+                (s p : TermS α rβ)
               → TCM (s ⇔ p)
 convertBranches : {{fl : Fuel}} → Rezz α →
-                ∀ {@0 cons : Scope Name}
+                ∀ {@0 cons : RScope Name}
                   (bs bp : Branches α cons)
                 → TCM (ConvBranches bs bp)
 
 convDatas : {{fl : Fuel}} → Rezz α →
            (d e : NameIn dataScope)
-           (ps : dataParScope d ⇒ α) (qs : dataParScope e ⇒ α)
-           (is : dataIxScope d ⇒ α) (ks : dataIxScope e ⇒ α)
+           (ps : TermS α (dataParScope d)) (qs : TermS α (dataParScope e))
+           (is : TermS α (dataIxScope d)) (ks : TermS α (dataIxScope e))
          → TCM (Conv (TData d ps is) (TData e qs ks))
 convDatas r d e ps qs is ks = do
   ifDec (decIn (proj₂ d) (proj₂ e))
     (λ where {{refl}} → do
-      cps ← convertSubsts r ps qs
-      cis ← convertSubsts r is ks
+      cps ← convertTermSs r ps qs
+      cis ← convertTermSs r is ks
       return $ CData d cps cis)
     (tcError "datatypes not convertible")
 
@@ -130,13 +131,13 @@ convDatas r d e ps qs is ks = do
 
 convCons : {{fl : Fuel}} → Rezz α →
            (f g : NameIn conScope)
-           (lp : fieldScope f ⇒ α)
-           (lq : fieldScope g ⇒ α)
+           (lp : TermS α (fieldScope f))
+           (lq : TermS α (fieldScope g))
          → TCM (Conv (TCon f lp) (TCon g lq))
 convCons r f g lp lq = do
   ifDec (decIn (proj₂ f) (proj₂ g))
     (λ where {{refl}} → do
-      csp ← convertSubsts r lp lq
+      csp ← convertTermSs r lp lq
       return $ CCon f csp)
     (tcError "constructors not convertible")
 
@@ -145,8 +146,8 @@ convCons r f g lp lq = do
 convLams : {{fl : Fuel}}
          → Rezz α
          → (@0 x y : Name)
-           (u : Term (x ◃ α))
-           (v : Term (y ◃ α))
+           (u : Term  (α ▸ x))
+           (v : Term  (α ▸ y))
          → TCM (Conv (TLam x u) (TLam y v))
 convLams r x y u v = do
   CLam <$> convertCheck (rezzBind r) (renameTop r u) (renameTop r v)
@@ -171,17 +172,17 @@ convertCase : {{fl : Fuel}}
             → (r : Rezz (dataIxScope d)) (r' : Rezz (dataIxScope d'))
             → (u u' : Term α)
             → ∀ {@0 cs cs'} (ws : Branches α cs) (ws' : Branches α cs')
-            → (rt : Type (x ◃ _)) (rt' : Type (y ◃ _))
+            → (rt : Type (_ ▸ x)) (rt' : Type (_ ▸ y))
             → TCM (Conv (TCase d r u ws rt) (TCase d' r' u' ws' rt'))
 convertCase {x = x} rα d d' ri ri' u u' ws ws' rt rt' = do
   Erased refl ← convNamesIn d d'
   cu ← convertCheck rα u u'
-  let r  = rezz<> (rezz~ ri) rα
-      r' = rezz<> (rezz~ ri') rα
+  let r  = rezzExtScope rα ri
+      r' = rezzExtScope rα ri'
   cm ← convertCheck (rezzBind {x = x} r)
                     (renameTop r (unType rt))
                     (renameTop r' (unType rt'))
-  Erased refl ← liftMaybe (allInScope (allBranches ws) (allBranches ws'))
+  Erased refl ← liftMaybe (allInRScope (allBranches ws) (allBranches ws'))
     "comparing case statements with different branches"
   cbs ← convertBranches rα ws ws'
   return (CCase d ri ri' ws ws' rt rt' cu cm cbs)
@@ -192,8 +193,8 @@ convPis : {{fl : Fuel}}
         → Rezz α
         → (@0 x y : Name)
           (u u' : Type α)
-          (v  : Type (x ◃ α))
-          (v' : Type (y ◃ α))
+          (v  : Type  (α ▸ x))
+          (v' : Type  (α ▸ y))
         → TCM (Conv (TPi x u v) (TPi y u' v'))
 convPis r x y u u' v v' = do
   CPi <$> convertCheck r (unType u) (unType u')
@@ -201,15 +202,15 @@ convPis r x y u u' v v' = do
 
 {-# COMPILE AGDA2HS convPis #-}
 
-convertSubsts r SNil p = return CSNil
-convertSubsts r (SCons x st) p =
-  caseSubstBind p λ where
-    y pt {{refl}} → do
-      hc ← convertCheck r x y
-      tc ← convertSubsts r st pt
-      return (CSCons hc tc)
+convertTermSs r ⌈⌉ _ = return CSNil
+convertTermSs r (x ↦ u ◂ s0) t =
+  caseTermSCons t (λ where
+    v t0 ⦃ refl ⦄ → do
+      hc ← convertCheck r u v
+      tc ← convertTermSs r s0 t0
+      return (CSCons hc tc))
 
-{-# COMPILE AGDA2HS convertSubsts #-}
+{-# COMPILE AGDA2HS convertTermSs #-}
 
 convertBranch : {{fl : Fuel}}
               → Rezz α
@@ -220,7 +221,7 @@ convertBranch r (BBranch (⟨ c1 ⟩ cp1) rz1 rhs1) (BBranch (⟨ c2 ⟩ cp2) rz
   ifDec (decIn cp1 cp2)
     (λ where {{refl}} → do
       CBBranch (⟨ c1 ⟩ cp1) rz1 rz2 rhs1 rhs2 <$>
-        convertCheck (rezz<> (rezz~ rz2) r) rhs1 rhs2)
+        convertCheck (rezzExtScope r rz2) rhs1 rhs2)
     (tcError "can't convert two branches that match on different constructors")
 
 {-# COMPILE AGDA2HS convertBranch #-}
@@ -228,11 +229,11 @@ convertBranch r (BBranch (⟨ c1 ⟩ cp1) rz1 rhs1) (BBranch (⟨ c2 ⟩ cp2) rz
 convertBranches r BsNil        bp = return CBranchesNil
 convertBranches r (BsCons bsh bst) bp =
   caseBsCons bp (λ where
-    bph bpt {{refl}} → CBranchesCons <$> convertBranch r bsh bph <*> convertBranches r bst bpt)
+    bph bpt ⦃ refl ⦄ → CBranchesCons <$> convertBranch r bsh bph <*> convertBranches r bst bpt)
 
 {-# COMPILE AGDA2HS convertBranches #-}
 
-convertWhnf : {{fl : Fuel}} → Rezz α → (t q : Term α) → TCM (t ≅ q)
+convertWhnf : ⦃ fl : Fuel ⦄ → Rezz α → (t q : Term α) → TCM (t ≅ q)
 convertWhnf r (TVar x) (TVar y) = convVars x y
 convertWhnf r (TDef x) (TDef y) = convDefs x y
 convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
@@ -249,9 +250,9 @@ convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}
 
-convertCheck {{None}} r t z =
+convertCheck ⦃ None ⦄ r t z =
   tcError "not enough fuel to check conversion"
-convertCheck {{More}} r t q = do
+convertCheck ⦃ More ⦄ r t q = do
   t ⟨ tred ⟩ ← reduceTo r t
   q ⟨ qred ⟩ ← reduceTo r q
   (CRedL tred ∘ CRedR qred) <$> convertWhnf r t q
@@ -260,7 +261,7 @@ convertCheck {{More}} r t q = do
 
 convert : Rezz α → ∀ (t q : Term α) → TCM (t ≅ q)
 convert r t q = do
-  (I {{fl}}) ← tcmFuel
+  (I ⦃ fl ⦄) ← tcmFuel
   convertCheck r t q
 
 {-# COMPILE AGDA2HS convert #-}

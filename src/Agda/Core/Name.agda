@@ -16,6 +16,10 @@ NameIn : (@0 α : Scope Name) → Set
 NameIn α = Σ0 Name λ x → x ∈ α
 {-# COMPILE AGDA2HS NameIn inline #-}
 
+NameInR : (@0 rα : RScope Name) → Set
+NameInR rα = Σ0 Name λ x → rα ∋ x
+{-# COMPILE AGDA2HS NameInR inline #-}
+
 decNamesIn : ∀ {@0 α} (x y : NameIn α) → Dec (x ≡ y)
 decNamesIn x y = decIn _ _
 {-# COMPILE AGDA2HS decNamesIn inline #-}
@@ -29,7 +33,7 @@ nameInEmptyCase : NameIn mempty → a
 nameInEmptyCase x = inEmptyCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInEmptyCase inline #-}
 
-nameInBindCase : ∀ {@0 y α} (x : NameIn (y ◃ α)) → (@0 proj₁ x ≡ y → a) → (proj₁ x ∈ α → a) → a
+nameInBindCase : ∀ {@0 y α} (x : NameIn (α ▸ y)) → (proj₁ x ∈ α → a) → (@0 proj₁ x ≡ y → a) → a
 nameInBindCase x = inBindCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInBindCase inline #-}
 

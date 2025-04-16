@@ -89,8 +89,8 @@ class ToCore a where
 convert :: ToCore a => Defs -> Cons -> a -> Either Doc (CoreOf a)
 convert defs cons t = runReaderT (runToCore $ toCore t) (defs, cons)
 
-toSubst :: [Term] -> Core.Subst
-toSubst = foldr Core.SCons Core.SNil
+toTermS :: [Term] -> Core.TermS
+toTermS = foldr Core.TSCons Core.TSNil
 
 instance ToCore I.Term where
   type CoreOf I.Term = Term
@@ -116,7 +116,7 @@ instance ToCore I.Term where
         let vs = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
         con <- lookupCons (I.conName ch)
 
-        t <- TCon con . toSubst . (++ vs) <$> toCore (raise l args)
+        t <- TCon con . toTermS . (++ vs) <$> toCore (raise l args)
 
         -- in the end, we bind @l@ fresh variables
         pure (iterate TLam t !! l)
