@@ -107,38 +107,43 @@ opaque
     {-# COMPILE AGDA2HS iSubstMaybeLet #-}
 
 
--- data CtxView : @0 Scope Name → Set where
---   CtxViewEmpty : CtxView mempty
---   CtxViewExtend : CtxView α → (@0 x : Name) → MaybeLet α → CtxView (α ▸ x)
--- {-# COMPILE AGDA2HS CtxView #-}
+data CtxView : @0 Scope Name → Set where
+  CtxViewEmpty : CtxView mempty
+  CtxViewExtend : CtxView α → (@0 x : Name) → MaybeLet α → CtxView (α ▸ x)
+{-# COMPILE AGDA2HS CtxView #-}
 
--- private opaque
---   unfolding MaybeLet
---   contextToCtxView : Context α → CtxView α
---   contextToCtxView ⌈⌉ = CtxViewEmpty
---   contextToCtxView (Γ , x ∶ ty) = CtxViewExtend (contextToCtxView Γ) x (Nothing , ty)
---   contextToCtxView (Γ , x ≔ u ∶ ty) = CtxViewExtend (contextToCtxView Γ) x (Just u , ty)
+private opaque
+  unfolding MaybeLet
+  contextToCtxView : Context α → CtxView α
+  contextToCtxView ⌈⌉ = CtxViewEmpty
+  contextToCtxView (g , x ∶ ty) = CtxViewExtend (contextToCtxView g) x (Nothing , ty)
+  contextToCtxView (g , x ≔ u ∶ ty) = CtxViewExtend (contextToCtxView g) x (Just u , ty)
+  {-# COMPILE AGDA2HS contextToCtxView #-}
 
---   ctxViewToContext : CtxView α → Context α
---   ctxViewToContext CtxViewEmpty = ⌈⌉
---   ctxViewToContext (CtxViewExtend Γ x (Nothing , ty)) = ctxViewToContext Γ , x ∶ ty
---   ctxViewToContext (CtxViewExtend Γ x (Just u , ty)) = ctxViewToContext Γ , x ≔ u ∶ ty
 
---   equivLeft : (Γ : Context α) → ctxViewToContext (contextToCtxView Γ) ≡ Γ
---   equivLeft ⌈⌉ = refl
---   equivLeft (Γ , x ∶ ty) = cong (λ Γ₀ → Γ₀ , x ∶ ty) (equivLeft Γ)
---   equivLeft (Γ , x ≔ u ∶ ty) = cong (λ Γ₀ → Γ₀ , x ≔ u ∶ ty) (equivLeft Γ)
+  ctxViewToContext : CtxView α → Context α
+  ctxViewToContext CtxViewEmpty = ⌈⌉
+  ctxViewToContext (CtxViewExtend g x (Nothing , ty)) = ctxViewToContext g , x ∶ ty
+  ctxViewToContext (CtxViewExtend g x (Just u , ty)) = ctxViewToContext g , x ≔ u ∶ ty
+  {-# COMPILE AGDA2HS ctxViewToContext #-}
 
---   equivRight : (Γ : CtxView α) → contextToCtxView (ctxViewToContext Γ) ≡ Γ
---   equivRight CtxViewEmpty = refl
---   equivRight (CtxViewExtend Γ x (Nothing , ty)) = cong (λ Γ₀ → CtxViewExtend Γ₀ x (Nothing , ty)) (equivRight Γ)
---   equivRight (CtxViewExtend Γ x (Just u , ty)) = cong (λ Γ₀ → CtxViewExtend Γ₀ x (Just u , ty)) (equivRight Γ)
+  equivLeft : (g : Context α) → ctxViewToContext (contextToCtxView g) ≡ g
+  equivLeft ⌈⌉ = refl
+  equivLeft (g , x ∶ ty) = cong (λ g₀ → g₀ , x ∶ ty) (equivLeft g)
+  equivLeft (g , x ≔ u ∶ ty) = cong (λ g₀ → g₀ , x ≔ u ∶ ty) (equivLeft g)
 
--- equivalenceContext : Equivalence (Context α) (CtxView α)
--- equivalenceContext = Equiv contextToCtxView ctxViewToContext equivLeft equivRight
--- {-# COMPILE AGDA2HS equivalenceContext #-}
+  equivRight : (g : CtxView α) → contextToCtxView (ctxViewToContext g) ≡ g
+  equivRight CtxViewEmpty = refl
+  equivRight (CtxViewExtend g x (Nothing , ty)) = cong (λ g₀ → CtxViewExtend g₀ x (Nothing , ty)) (equivRight g)
+  equivRight (CtxViewExtend g x (Just u , ty)) = cong (λ g₀ → CtxViewExtend g₀ x (Just u , ty)) (equivRight g)
 
--- rezzScope' : (Γ : CtxView α) → Rezz α
--- rezzScope' CtxViewEmpty = rezz _
--- rezzScope' (CtxViewExtend g x _) = rezzCong (λ t → t <> (singleton x)) (rezzScope' g)
--- {-# COMPILE AGDA2HS rezzScope' #-}
+opaque
+  unfolding contextToCtxView
+  equivalenceContext : Equivalence (Context α) (CtxView α)
+  equivalenceContext = Equiv contextToCtxView ctxViewToContext equivLeft equivRight
+  {-# COMPILE AGDA2HS equivalenceContext #-}
+
+rezzScope' : (g : CtxView α) → Rezz α
+rezzScope' CtxViewEmpty = rezz _
+rezzScope' (CtxViewExtend g x _) = rezzCong (λ t → t <> (singleton x)) (rezzScope' g)
+{-# COMPILE AGDA2HS rezzScope' #-}
