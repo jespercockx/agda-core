@@ -60,10 +60,13 @@ module Shrinking where
   opaque
     unfolding Scope
     shrinkContext : Context α → ShrinkSubst α β → Context β
-    shrinkContext CtxEmpty RNil = CtxEmpty
-    shrinkContext (CtxExtend Γ x a) (RKeep σ) =
-      CtxExtend (shrinkContext Γ σ) x (subst (ShrinkSubstToSubst σ) a)
-    shrinkContext (CtxExtend Γ x a) (RCons u σ) = shrinkContext Γ σ
+    shrinkContext ⌈⌉ RNil = ⌈⌉
+    shrinkContext (Γ , x ∶ a) (RKeep σ) =
+      shrinkContext Γ σ , x ∶ subst (ShrinkSubstToSubst σ) a
+    shrinkContext (Γ , x ≔ u ∶ a) (RKeep σ) =
+      shrinkContext Γ σ , x ≔ subst (ShrinkSubstToSubst σ) u ∶ subst (ShrinkSubstToSubst σ) a
+    shrinkContext (Γ , _ ∶ _) (RCons u σ) = shrinkContext Γ σ
+    shrinkContext (Γ , _ ≔ _ ∶ _) (RCons u σ) = shrinkContext Γ σ
 
   opaque
     unfolding cut

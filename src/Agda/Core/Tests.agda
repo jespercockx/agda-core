@@ -182,12 +182,12 @@ module TestUnifierSwap where
 
   givenfuel = Suc (Suc (Suc (Suc Zero)))
   opaque
-    unfolding ScopeThings swapHighest vec
+    unfolding ScopeThings swapHighest swapTwoLast vec equivalenceContext
 
     @0 testSwapHighestBaseCaseProp : Set
     testSwapHighestBaseCase : testSwapHighestBaseCaseProp
 
-    testSwapHighestBaseCaseProp = (swapHighest {{fl = Zero}} Context-w' w ≡ Just _ )
+    testSwapHighestBaseCaseProp = (swapHighest {{fl = Zero}} Context-w' w ≡ Just (⟨ Scope-v' ▸ "w'" ▸ "w" ⟩ (Context-v' , "w'" ∶ _ , "w" ∶ _ , _)) )
     testSwapHighestBaseCase = refl
 
     @0 testSwapHighest1Prop : Set

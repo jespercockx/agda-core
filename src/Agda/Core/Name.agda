@@ -97,8 +97,8 @@ instance
     }
 
 -------------------------------------------------------------------------------
-pattern Vsuc n p = ⟨ _ ⟩ (Suc n ⟨ IsSuc p ⟩)
-pattern V2suc n p = ⟨ _ ⟩ (Suc (Suc n) ⟨ IsSuc (IsSuc p) ⟩)
-pattern Vzero = ⟨ _ ⟩ Zero ⟨ IsZero refl ⟩
-pattern Vone = ⟨ _ ⟩ (Suc Zero) ⟨ IsSuc (IsZero refl) ⟩
+pattern Vsuc x n p = ⟨ x ⟩ (Suc n ⟨ IsSuc p ⟩)
+pattern V2suc x n p = ⟨ x ⟩ (Suc (Suc n) ⟨ IsSuc (IsSuc p) ⟩)
+pattern Vzero x = ⟨ x ⟩ Zero ⟨ IsZero refl ⟩
+pattern Vone x = ⟨ x ⟩ (Suc Zero) ⟨ IsSuc (IsZero refl) ⟩
 -------------------------------------------------------------------------------

@@ -64,12 +64,16 @@ module Swap where
 
   opaque
     unfolding Scope
-    swapTwoLast : Context (α ▸ x ▸ y) → Maybe (Context (α ▸ y ▸ x))
-    swapTwoLast (CtxExtend (CtxExtend Γ y ay) x ax) = do
-      ax' ← strengthen (subBindDrop subRefl) ax
-      let ay' = weaken (subBindDrop subRefl) ay
-      return ((Γ , x ∶ ax' ) , y ∶ ay')
+    swapTwoLast' : CtxView (α ▸ x ▸ y) → Maybe (CtxView (α ▸ y ▸ x))
+    swapTwoLast' (CtxViewExtend (CtxViewExtend Γ x a) y b) = do
+      b' ← strengthenMaybeLet (subBindDrop subRefl) b
+      let a' = weaken (subBindDrop subRefl) a
+      return (CtxViewExtend (CtxViewExtend Γ y b') x a')
 
+    swapTwoLast : Context (α ▸ x ▸ y) → Maybe (Context (α ▸ y ▸ x))
+    swapTwoLast Γ = do
+      res ← swapTwoLast' (σ equivalenceContext Γ)
+      return (τ equivalenceContext res)
 
     {- Idea of swapHighest (x, z, Γ) y:
         - terminaison condition : you swap x and y or fail
@@ -80,73 +84,72 @@ module Swap where
           recursive call on (z, Γ) and return swapHighest (x, Γ') y
       (recursion terminates because the depth of y in the contexts
       used in recursive calls is decreasing.) -}
-    swapHighest : {{fl : Index}} → Context  (α ▸ x) → ((⟨ y ⟩ yp) : NameIn α)
-      → Maybe (Σ0 _ λ α' → Context α' × Renaming  (α ▸ x) α')
-    swapHighest (CtxExtend (CtxExtend Γ0 y ay) x ax) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
-      Γ' ← swapTwoLast (CtxExtend (CtxExtend Γ0 y ay) x ax)
+    swapHighest' : {{fl : Index}} → CtxView  (α ▸ x) → ((⟨ y ⟩ yp) : NameIn α)
+      → Maybe (Σ0 _ λ α' → CtxView α' × Renaming  (α ▸ x) α')
+    swapHighest' {α = Erased y ∷ α} {x = x} Γ (Vzero y) = do
+      Γ' ← swapTwoLast' Γ
       let σ : Renaming (α ▸ y ▸ x) (α ▸ x ▸ y)
-          σ = renamingExtend (renamingExtend (renamingWeaken (rezz (_ ∷ _ ∷ [])) id) inHere) (inThere inHere)
+          σ = renamingExtend (renamingExtend (renamingWeaken (rezz ([] ▸ x ▸ y)) id) inHere) (inThere inHere)
       return < Γ' , σ >
-    swapHighest {α = Erased z ∷ α}  {x = x} {{Suc fl}} (CtxExtend (CtxExtend Γ0 z az) x ax) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
-      let Γ : Context (α ▸ z ▸ x)
-          Γ = (CtxExtend (CtxExtend Γ0 z az) x ax)
-          yInα : y ∈ α
+    swapHighest' {α = Erased z ∷ α}  {x = x} {{Suc fl}} Γ@(CtxViewExtend (CtxViewExtend Γ0 z az) x ax) (Vsuc y value proof) =
+      let yInα : y ∈ α
           yInα = value ⟨ proof ⟩ in
       let areTheTwoLastVarsSwapable = do
-        (CtxExtend Γ₁ .z az') ← swapTwoLast Γ
-        ⟨ α₀' ⟩ (Γ₀' , σ₀ ) ← swapHighest {{fl}} Γ₁  < yInα >
+        (CtxViewExtend Γ₁ .z az') ← swapTwoLast' Γ
+        ⟨ α₀' ⟩ (Γ₀' , σ₀ ) ← swapHighest' {{fl}} Γ₁  < yInα >
         -- σ₀ : Renaming  (α ▸ x) α₀'
         let σ : Renaming (α ▸ z ▸ x) (α₀' ▸ z)
             σ = renamingExtend (renamingExtend ((renamingWeakenVar σ₀) ∘ inThere) inHere) (inThere (σ₀ inHere))
-            az' : Type α₀'
-            az' = subst (renamingToSubst (rezzScope Γ₁) σ₀) (weaken (subBindDrop subRefl) az)
-            res1 : Σ0 _ λ α' → Context α' × Renaming (α ▸ z ▸ x) α'
-            res1 = < CtxExtend Γ₀' z az' , σ >
+            az' : MaybeLet α₀'
+            az' = subst (renamingToSubst (rezzScope' Γ₁) σ₀) (weaken (subBindDrop subRefl) az)
+            res1 : Σ0 _ λ α' → CtxView α' × Renaming (α ▸ z ▸ x) α'
+            res1 = < CtxViewExtend Γ₀' z az' , σ >
         return res1 in
       let otherCase = do
-        ⟨ γ₀ ⟩ (Δ₀ , τ₀) ← swapHighest {{fl}} (CtxExtend Γ0 z az) < yInα >
+        ⟨ γ₀ ⟩ (Δ₀ , τ₀) ← swapHighest' {{fl}} (CtxViewExtend Γ0 z az) < yInα >
         -- τ₀ : Renaming (z ◃ α) γ₀
-        let ax' : Type γ₀
-            ax' = subst (renamingToSubst (rezzScope (CtxExtend Γ0 z az)) τ₀) ax
+        let ax' : MaybeLet γ₀
+            ax' = subst (renamingToSubst (rezzScope' (CtxViewExtend Γ0 z az)) τ₀) ax
             σ₁ : Renaming (α ▸ z ▸ x) (γ₀ ▸ x)
             σ₁ = renamingExtend (renamingWeakenVar τ₀) inHere
-        ⟨ α' ⟩ (Γ' , σ₂) ← swapHighest {{fl}} (CtxExtend Δ₀ x ax') < τ₀ (inThere yInα) >
+        ⟨ α' ⟩ (Γ' , σ₂) ← swapHighest' {{fl}} (CtxViewExtend Δ₀ x ax') < τ₀ (inThere yInα) >
         -- σ₂ : Renaming (x ◃ α₀') α'
-        let res2 : Σ0 _ λ α' → Context α' × Renaming (α ▸ z ▸ x) α'
+        let res2 : Σ0 _ λ α' → CtxView α' × Renaming (α ▸ z ▸ x) α'
             res2 = < Γ' , σ₂ ∘ σ₁ >
         return res2 in
       caseMaybe areTheTwoLastVarsSwapable (λ x → Just x) otherCase
-    swapHighest {{Zero}} (CtxExtend (CtxExtend _ _ _) _ _) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩))  = Nothing -- this shouldn't happens as at all times fl ≥ position of y in the scope
+    swapHighest' {{Zero}} (CtxViewExtend (CtxViewExtend _ _ _) _ _) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩))  = Nothing -- this shouldn't happens as at all times fl ≥ position of y in the scope
+
+
+    swapHighest : {{fl : Index}} → Context  (α ▸ x) → ((⟨ y ⟩ yp) : NameIn α)
+      → Maybe (Σ0 _ λ α' → Context α' × Renaming  (α ▸ x) α')
+    swapHighest {{fl = fl}} Γ v = do
+      ⟨ α' ⟩ (res , σ) ← swapHighest' {{ fl = fl }} (σ equivalenceContext Γ) v
+      return (⟨ α' ⟩ (τ equivalenceContext res , σ))
 
     swap : Context α → (x y : NameIn α) → Either SwapError (Maybe (Σ0 _ λ α' → Context α' × Renaming α α'))
-    swap _ Vzero Vzero = Left CantSwapVarWithItSelf
-    swap Γ Vzero (Vsuc value proof) = do
+    swap _ (Vzero _) (Vzero _) = Left CantSwapVarWithItSelf
+    swap Γ (Vzero _) (Vsuc _ value proof) = do
       Right (swapHighest {{value}} Γ < (value ⟨ proof ⟩) >)
-    swap _ (Vsuc _ _) Vzero = Left VarInWrongOrder
-    swap _ Vone Vone = Left CantSwapVarWithItSelf
-    swap _ (V2suc _ _) Vone = Left VarInWrongOrder
-    swap (CtxExtend Γ z az) (Vsuc vx px) (V2suc vy py) = do
-      Just (⟨ α₀' ⟩ (Γ0' , σ₀)) ← swap Γ (⟨ _ ⟩ (vx ⟨ px ⟩)) (⟨ _ ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
+    swap _ (Vsuc _ _ _) (Vzero _) = Left VarInWrongOrder
+    swap _ (Vone _) (Vone _) = Left CantSwapVarWithItSelf
+    swap _ (V2suc _ _ _) (Vone _) = Left VarInWrongOrder
+    swap (Γ , z ∶ az) (Vsuc x vx px) (V2suc y vy py) = do
+      Just (⟨ α₀' ⟩ (Γ0' , σ₀)) ← swap Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
         where Nothing → Right Nothing
       -- σ₀ : Renaming _ α₀'
       let τ₀ = renamingToSubst (rezzScope Γ) σ₀
           σ : Renaming (_ ▸ z) (α₀' ▸ z)
           σ = renamingExtend (renamingWeakenVar σ₀) inHere
-      Right (Just < CtxExtend Γ0' z (subst τ₀ az), σ >)
-  {-
-  swapVarListFuel2 : Context α → (x : NameIn α) → (l : List (NameIn α)) → (fl : Nat) → @0 {{lengthNat l ≡ fl}} → Maybe (Σ0 _ λ α' → Context α' × Renaming α α')
-  swapVarListFuel2 Γ (⟨ x ⟩ xp) ((⟨ y ⟩ yp) ∷ l) (suc fl) {{e}} = {!   !} --  do
-    -- ⟨ _ ⟩ (Γ0' , σ₀) ← try_swap Γ (⟨ x ⟩ xp) (⟨ y ⟩ yp)
-    -- let e : lengthNat (map (λ z → < σ₀ (proj₂ z) >) l) ≡ fl
-    --     e = lengthMap ((λ z → < σ₀ (proj₂ z) >)) l
-    -- ⟨ _ ⟩ (Γ' , σ) ← swapVarListFuel2 fl Γ0' (⟨ x ⟩ σ₀ xp) (map (λ z → < σ₀ (proj₂ z) >) l) {{e}}
-    -- return < Γ' , σ ∘ σ₀ >
-    -- where try_swap : Context α → (x y : NameIn α) → Maybe (Σ0 _ λ α' → Context α' × Renaming α α')
-    --       try_swap Γ x y with (swap Γ x y)
-    --       ... | Left CantSwapVarWithItSelf = Nothing
-    --       ... | Left VarInWrongOrder = Just < Γ , id >
-    --       ... | Right val = val
-  swapVarListFuel2 Γ x [] zero = Just < Γ , id > -}
+      Right (Just < Γ0' , z ∶ (subst τ₀ az), σ >)
+    swap (Γ , z ≔ u ∶ az) (Vsuc x vx px) (V2suc y vy py) = do
+      Just (⟨ α₀' ⟩ (Γ0' , σ₀)) ← swap Γ (⟨ x ⟩ (vx ⟨ px ⟩)) (⟨ y ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
+        where Nothing → Right Nothing
+      -- σ₀ : Renaming _ α₀'
+      let τ₀ = renamingToSubst (rezzScope Γ) σ₀
+          σ : Renaming (_ ▸ z) (α₀' ▸ z)
+          σ = renamingExtend (renamingWeakenVar σ₀) inHere
+      Right (Just < Γ0' , z ≔ (subst τ₀ u) ∶ (subst τ₀ az), σ >)
 
   swapVarListFuel : (fl : Nat) → Context α → (x : NameIn α) → (l : List (NameIn α)) → Maybe (Σ0 _ λ α' → Context α' × Renaming α α')
   swapVarListFuel (suc fl) Γ (⟨ x ⟩ xp) ((⟨ y ⟩ yp) ∷ l) = do

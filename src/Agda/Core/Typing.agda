@@ -166,7 +166,7 @@ data TyTerm {α} Γ where
 
   TyLet :
     Γ ⊢ u ∶ a
-    → Γ , x ∶ a ⊢ v ∶ weakenType (subBindDrop subRefl) b
+    → Γ , x ≔ u ∶ a ⊢ v ∶ weakenType (subBindDrop subRefl) b
     ----------------------------------------------
     → Γ ⊢ TLet x u v ∶ b
 
