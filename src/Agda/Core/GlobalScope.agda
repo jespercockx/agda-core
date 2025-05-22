@@ -11,10 +11,10 @@ record Globals : Set where
   no-eta-equality
   field
     defScope          : Scope Name
-    dataScope         : Scope Name                                                              -- why a Scope and not a list ?
+    dataScope         : Scope Name
     dataParScope      : NameIn dataScope → RScope Name
     dataIxScope       : NameIn dataScope → RScope Name
-    dataConstructors  : NameIn dataScope → RScope Name                                          -- why a RScope and not a list ?
+    dataConstructors  : NameIn dataScope → RScope Name                                          -- TODO: change RScope for an erased list
     fieldScope        : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name
   NameData : Set
   NameData = NameIn dataScope

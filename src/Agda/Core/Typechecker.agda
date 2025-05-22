@@ -69,22 +69,6 @@ tcmGetConstructor {d = d} c = do
   return (rezzCong (λ sig → sigCons sig d c) rsig)
 {-# COMPILE AGDA2HS tcmGetConstructor #-}
 
--- checkCoverage : {@0 d : NameData} (dt : Datatype d)
---               → Branches α d cs
---               → TCM (Erase (dataConstructorRScope dt ≡ cs))
--- checkCoverage dt bs =
---   liftMaybe
---     (allInRScope
---       (tabulateAllR (rezz _) (dataConstructors dt))
---       (branchesToAll bs))
---     "case statement does not cover all branches"
---   where
---     branchesToAll : Branches α cs → AllR (λ c → c ∈ conScope) cs
---     branchesToAll BsNil = allEmptyR
---     branchesToAll (BsCons (BBranch c _ _) bs) = allJoinR (branchesToAll bs) (allSinglR (proj₂ c))
-
--- {-# COMPILE AGDA2HS checkCoverage #-}
-
 inferVar : ∀ Γ (x : NameIn α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
 inferVar ctx x = return $ _ , TyTVar
 {-# COMPILE AGDA2HS inferVar #-}
