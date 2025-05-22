@@ -161,11 +161,6 @@ rezzTermS ⌈⌉ = rezz _
 rezzTermS (x ↦ u ◂ t) = rezzCong (λ t → x ◂ t) (rezzTermS t)
 {-# COMPILE AGDA2HS rezzTermS #-}
 
--- allBranches : Branches α cs → AllR (λ c → Σ (NameData) λ d → dataConstructors d ∋ c) cs
--- allBranches BsNil = allEmptyR
--- allBranches (BsCons (BBranch ci _ _) bs) = allJoinR (allBranches bs) (allSinglR {!   !}) -- ci)
--- {-# COMPILE AGDA2HS allBranches #-}
-
 applys : Term γ → List (Term γ) → Term γ
 applys {γ = γ} v [] = v
 applys {γ = γ} v (u ∷ us) = applys (TApp v u) us

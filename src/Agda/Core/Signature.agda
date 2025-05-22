@@ -48,7 +48,6 @@ record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
     @0 ixs : RScope Name
     ixs  = dataIxScope d
   field
-    conName   : String
     conIndTel : Telescope (extScope mempty pars) (fieldScope c)                -- the TypeS of the indexes of c
     conIx     :  TermS (extScope (extScope mempty pars) (fieldScope c)) ixs    -- how the indexes are constructred given parameters and c indices
 open Constructor public
@@ -70,12 +69,10 @@ record Datatype (@0 d : NameData) : Set where
     @0 ixs : RScope Name
     ixs  = dataIxScope d
   field
-    -- dataConstructorRScope : RScope Name
     dataSort             : Sort (extScope mempty pars)
     dataParTel           : Telescope mempty pars
     dataIxTel            : Telescope (extScope mempty pars) ixs
     dataConstructors     : List (NameCon d) -- for Haskell side
-    -- dataConstructors     : dataConstructorRScope ∋ x → x ∈ conScope
 open Datatype public
 {-# COMPILE AGDA2HS Datatype #-}
 
@@ -128,22 +125,9 @@ getBody sig x = case getDefinition sig x of λ where
 
 {-# COMPILE AGDA2HS getBody #-}
 
--- getConstructor : ((⟨ c ⟩ cp) : NameIn (dataConstructors d)))
---                → ∀ {@0 pars ixs} (d : Datatype pars ixs)
---                → Maybe (∃[ cd ∈ (dataConstructorRScope d ∋ c) ]
---                          dataConstructors d cd ≡ cp)
--- getConstructor (⟨ _ ⟩ cp) d =
---   findAllR (tabulateAllR (rezz (dataConstructorRScope d)) (λ _ → tt))
---       λ _ p → ifDec (decIn ((dataConstructors d p)) cp)
---         (λ where {{refl}} → Just (p ⟨ refl ⟩))
---         Nothing
-
--- {-# COMPILE AGDA2HS getConstructor #-}
-
 weakenTel : α ⊆ γ → Telescope α rβ → Telescope γ rβ
 weakenTel p ⌈⌉ = ⌈⌉
 weakenTel p (x ∶ ty ◂ t) = x ∶ (weaken p ty) ◂ (weakenTel (subBindKeep p) t)
-
 {-# COMPILE AGDA2HS weakenTel #-}
 
 instance
@@ -180,7 +164,6 @@ data Defn : Set where
 record Definition : Set where
   field
     defName : String
-    -- defId : Nat
     defType : Type mempty
     theDef : Defn
 open Definition public
