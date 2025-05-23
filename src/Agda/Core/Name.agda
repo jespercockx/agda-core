@@ -1,13 +1,11 @@
-
-open import Haskell.Prim
-open import Haskell.Prim.Ord
 open import Haskell.Prelude
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Erase
 open import Haskell.Extra.Refinement
-open import Scope
 
 module Agda.Core.Name where
+
+open import Scope public
 
 Name = String
 {-# COMPILE AGDA2HS Name inline #-}

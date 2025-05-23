@@ -31,9 +31,10 @@ import Agda.TypeChecking.Substitute qualified as I
 import Agda.TypeChecking.Telescope qualified as I
 
 
-import Agda.Core.Syntax (Term(..), Sort(..))
-import Agda.Core.Syntax         qualified as Core
-import Agda.Core.Signature      qualified as Core
+import Agda.Core.Syntax.Term (Term(..), Sort(..))
+import Agda.Core.Syntax.Term      qualified as Core
+import Agda.Core.Syntax.Context   qualified as Core
+import Agda.Core.Syntax.Signature qualified as Core
 
 import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt)
 
@@ -88,6 +89,10 @@ lookupData :: QName -> ToCoreM Index
 lookupData qn = fromMaybeM complain $ asksData (Map.!? qn)
   where complain = throwError $ "Trying to access an unknown datatype: " <+> pretty qn
 
+lookupDefOrData :: QName -> ToCoreM Index
+lookupDefOrData qn = catchError (catchError (lookupDef qn) (\_ -> lookupData qn))
+  (\_ -> throwError $ "Trying to access an unknown definition/datatype: " <+> pretty qn)
+
 -- | Lookup a constructor name in the current module.
 --   Fails if the constructor cannot be found.
 lookupCon :: QName -> ToCoreM (Index, Index)
@@ -128,7 +133,7 @@ instance ToCore I.Term where
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
 
-  toCore (I.Def qn es) = tApp <$> (TDef <$> lookupDef qn) <*> toCore es
+  toCore (I.Def qn es) = tApp <$> (TDef <$> lookupDefOrData qn) <*> toCore es
 
   toCore (I.Con ch ci es)
     | Just args <- allApplyElims es

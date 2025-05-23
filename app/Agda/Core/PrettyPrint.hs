@@ -3,14 +3,15 @@ module Agda.Core.PrettyPrint (NameMap(..), prettyCore) where
 
 
 import Scope.In (Index(..))
-import Agda.Core.Syntax qualified as Core
+import Agda.Core.Syntax.Term        qualified as Core
+import Agda.Core.Syntax.Context     qualified as Core
+import  Agda.Core.Syntax.Signature  qualified as Core
 import GHC.Natural (Natural)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map (lookup)
 import Agda.Utils.Maybe (fromMaybe)
 import Agda.Core.UtilsH (indexToNat)
 import Agda.Utils.List2 (toList1)
-import qualified Agda.Core.Signature as Core
 
 data AboveCoreTerm =
     Something
