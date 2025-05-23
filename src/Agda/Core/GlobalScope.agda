@@ -1,8 +1,6 @@
 module Agda.Core.GlobalScope where
 
-open import Scope
-open import Utils.Tactics using (auto)
-open import Haskell.Prelude hiding (All; s; t)
+open import Haskell.Prelude
 open import Haskell.Extra.Erase
 
 open import Agda.Core.Name

@@ -1,20 +1,12 @@
-open import Scope
-
 open import Haskell.Prelude hiding (All; s; t; a; coerce)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
-open import Haskell.Law.Monoid.Def
 open import Haskell.Law.Semigroup.Def using (associativity)
 
 open import Agda.Core.Name
-open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
-open import Agda.Core.Signature
-open import Agda.Core.Substitute
-open import Agda.Core.Context
-open import Agda.Core.TCM
-open import Agda.Core.TCMInstances
+open import Agda.Core.Syntax.Strengthening
 
 module Agda.Core.Unification
     {{@0 globals : Globals}}
@@ -200,7 +192,7 @@ module TelescopeEq where
     unfolding Scope RScope
     telescopeDrop : Rezz α → Telescope α (x ◂ rβ) → Term α → Telescope α rβ
     telescopeDrop αRun (x ∶ a ◂ Δ) w =
-      substTelescope (concatSubst (idSubst αRun) (▹ x ↦ w)) Δ
+      substTelescope (idSubst αRun ▹ x ↦ w) Δ
 
     telescopicEqDrop : Rezz α → TelescopicEq α (x ◂ rβ) → Term α → TelescopicEq α rβ
     telescopicEqDrop αRun (TelEq (x ↦ u ◂ δ₁) (x ↦ v ◂ δ₂) Δ) w = TelEq δ₁ δ₂ (telescopeDrop αRun Δ w)
@@ -258,6 +250,7 @@ module UnificationStepAndStop where
       → Strengthened u u₀
       ------------------------------------------------------------
       → Γ , (e₀ ↦ TVar (⟨ x ⟩ xp) ◂ δ₁) ≟ (e₀ ↦ u ◂ δ₂) ∶ Ξ ↣ᵤ Γ' , ΔEq'
+
     SolutionR :
       {xp : x ∈ α}
       (let α₀ , α₁ = cut xp
@@ -290,7 +283,7 @@ module UnificationStepAndStop where
            rγ = fieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : TermS α rγ}
       (let Σ : Telescope α rγ
-           Σ = evalConIndTel con pSubst                                   -- type of the arguments of c
+           Σ = instConIndTel con pSubst                                   -- type of the arguments of c
            σe : TermS (extScope α rγ) (e₀ ◂ mempty)
            σe = e₀ ↦ TCon c (termSrepeat (rezz rγ)) ◂ ⌈⌉           -- names of the new equalities to replace e₀
            τ₀ : extScope α (e₀ ◂ mempty) ⇒ (extScope α rγ)
@@ -299,7 +292,7 @@ module UnificationStepAndStop where
            τ = subst0 (λ ψ → ψ ⇒ (extScope α rγ)) (trans extScopeBind extScopeEmpty) τ₀
            Δγ : Telescope (extScope α rγ) rβ                           -- telescope using rγ instead of e₀
            Δγ = substTelescope τ Δe₀)
-      ------------------------------------------------------------------- ⚠ NOT a rewrite rule ⚠ (c = (⟨ c₀ ⟩ cFromCon))
+      -------------------------------------------------------------------
      → Γ , (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TCon c σ₂ ◂ δ₂) ∶ (e₀ ∶ dataType d ds pSubst iSubst ◂ Δe₀)
         ↣ᵤ Γ , concatTermS σ₁ δ₁ ≟ concatTermS σ₂ δ₂ ∶ addTel Σ Δγ
 
@@ -322,10 +315,10 @@ module UnificationStepAndStop where
            ind = fieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : TermS α ind}
       (let Σ : Telescope α ind
-           Σ = evalConIndTel con pSubst                                    -- type of the arguments of c
+           Σ = instConIndTel con pSubst                                    -- type of the arguments of c
 
            iTel : Telescope α ixs
-           iTel = evalDataIxTel dt pSubst
+           iTel = instDataIxTel dt pSubst
 
            iSubste : TermS (extScope α ixs) ixs
            iSubste = termSrepeat (rezz ixs)
@@ -337,7 +330,7 @@ module UnificationStepAndStop where
            σe : TermS (extScope α ind) (e₀ ◂ mempty)
            σe = e₀ ↦ TCon c (termSrepeat(rezz ind)) ◂ ⌈⌉
            τ₀ : TermS (extScope α ind) ixs
-           τ₀ = (evalConIx con (weaken (subExtScope (rezz ind) subRefl) pSubst) (termSrepeat(rezz ind)))
+           τ₀ = (instConIx con (weaken (subExtScope (rezz ind) subRefl) pSubst) (termSrepeat(rezz ind)))
            τ₁ : extScope α ixs ⇒ (extScope α ind)
            τ₁ = extSubst {rγ = ixs} weakenαind τ₀
            τ₀ : extScope (extScope α ixs) (e₀ ◂ mempty) ⇒ (extScope α ind)
@@ -346,12 +339,11 @@ module UnificationStepAndStop where
            τ = subst0 (λ ψ → ψ ⇒ (extScope α ind)) (trans extScopeBind extScopeEmpty) τ₀
            Δγ : Telescope (extScope α ind) rβ₀
            Δγ = subst τ Δe₀ixs)
-     ------------------------------------------------------------------- ⚠ NOT a rewrite rule ⚠
+     -------------------------------------------------------------------
      → Γ , concatTermS iSubst₁ (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ concatTermS iSubst₂ (e₀ ↦ TCon c σ₂ ◂ δ₂)
            ∶ addTel iTel (e₀ ∶ dataType d ds (subst weakenαixs pSubst) iSubste ◂ Δe₀ixs)
        ↣ᵤ Γ , concatTermS σ₁ δ₁ ≟ concatTermS σ₂ δ₂ ∶ addTel Σ Δγ
     {- TODO: replace Injectivity and InjectivityDep by better rule from article proof relevant Unification (2018) J. Cockx & D. Devriese -}
-    {- if possible change definition of constructors and datatypes to make Injectivity a rewrite rule -}
   {- End of UnificationStep -}
 
   data InTermS (t : Term α) : TermS α rβ → Set

@@ -1,9 +1,5 @@
 open import Haskell.Prelude
 open import Haskell.Extra.Erase
-open import Haskell.Law.Equality
-
-open import Scope
-
 
 open import Agda.Core.Name
 

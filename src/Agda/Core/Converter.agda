@@ -1,23 +1,15 @@
 open import Haskell.Prelude as Prelude
-open import Scope
-open import Utils.Tactics using (auto)
+open import Haskell.Extra.Erase
+open import Haskell.Extra.Dec using (ifDec)
+open import Haskell.Law.Eq
 
 open import Agda.Core.Name
-open import Agda.Core.GlobalScope using (Globals)
-open import Agda.Core.Signature
-open import Agda.Core.Syntax as Syntax
-open import Agda.Core.Substitute
-open import Agda.Core.Context
+open import Agda.Core.Utils
+open import Agda.Core.Syntax
 open import Agda.Core.Conversion
 open import Agda.Core.Reduce
 open import Agda.Core.TCM
 open import Agda.Core.TCMInstances
-open import Agda.Core.Utils
-
-open import Haskell.Extra.Erase
-open import Haskell.Extra.Dec
-open import Haskell.Law.Eq
-open import Haskell.Law.Equality
 
 module Agda.Core.Converter
     {{@0 globals : Globals}}

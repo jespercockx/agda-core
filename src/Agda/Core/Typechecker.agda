@@ -1,28 +1,19 @@
 open import Haskell.Prelude
   hiding ( All; m; _,_,_)
   renaming (_,_ to infixr 5 _,_)
-
-open import Scope
-open import Utils.Tactics using (auto)
-
-open import Agda.Core.Name
-open import Agda.Core.GlobalScope using (Globals)
-open import Agda.Core.Signature
-open import Agda.Core.Syntax as Syntax
-open import Agda.Core.Context
-open import Agda.Core.Conversion
-open import Agda.Core.Typing
-open import Agda.Core.Reduce
-open import Agda.Core.Substitute
-open import Agda.Core.TCM
-open import Agda.Core.TCMInstances
-open import Agda.Core.Converter
-open import Agda.Core.Utils
-
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
-open import Haskell.Law.Monoid
+
+open import Agda.Core.Name
+open import Agda.Core.Utils
+open import Agda.Core.Syntax
+open import Agda.Core.Conversion
+open import Agda.Core.Typing
+open import Agda.Core.Reduce
+open import Agda.Core.TCM
+open import Agda.Core.TCMInstances
+open import Agda.Core.Converter
 
 module Agda.Core.Typechecker
     {{@0 globals : Globals}}
@@ -108,7 +99,7 @@ inferCase {α = α} ctx d rixs u bs rt = do
   Erased refl ← convNamesIn d d'
   df ⟨ deq ⟩ ← tcmGetDatatype d
   let ds : Sort α
-      ds = evalDataSort df params
+      ds = instDataSort df params
       gtu' : ctx ⊢ u ∶ dataType d ds params ixs
       gtu' = TyConv gtu (CRedL rp CRefl)
 
@@ -163,9 +154,9 @@ inferData : (Γ : Context α) (d : NameData)
           → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TData d pars ixs ∶ ty)
 inferData ctx d pars ixs = do
   dt ⟨ deq ⟩ ← tcmGetDatatype d
-  typars ← checkTermS ctx (evalDataParTel dt) pars
-  tyixs ← checkTermS ctx (evalDataIxTel dt pars) ixs
-  return (sortType (evalDataSort dt pars) , tyData' dt deq typars tyixs)
+  typars ← checkTermS ctx (instDataParTel dt) pars
+  tyixs ← checkTermS ctx (instDataIxTel dt pars) ixs
+  return (sortType (instDataSort dt pars) , tyData' dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
 checkBranch : ∀ {d : NameData} {@0 con : NameCon d} (Γ : Context α)
@@ -186,7 +177,7 @@ checkBranch {α = α} {d = d} ctx (BBranch (rezz c) r rhs) dt ps rt = do
       parssubst : TermS β (dataParScope d)
       parssubst = weaken (subExtScope r subRefl) ps
       ixsubst : TermS β (dataIxScope d)
-      ixsubst = evalConIx con parssubst cargs
+      ixsubst = instConIx con parssubst cargs
       idsubst : α ⇒ β
       idsubst = weaken (subExtScope r subRefl) (idSubst ra)
       bsubst : extScope α (dataIxScope d) ▸ x ⇒ β
@@ -194,7 +185,7 @@ checkBranch {α = α} {d = d} ctx (BBranch (rezz c) r rhs) dt ps rt = do
       rt' :  Type β
       rt' = subst bsubst rt
   crhs ← checkType _ rhs rt'
-  return (tyBBranch' c con ceq {r = r} {αRun = ra} rhs crhs)
+  return (tyBBranch' c con ceq {r = r} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
 checkBranches {d = d} ctx (rezz cons) bs dt ps rt =
@@ -222,7 +213,7 @@ checkCon ctx {d = d} c cargs (El s ty) = do
         -- cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
           -- "can't find a constructor with such a name"
         con ⟨ ceq ⟩ ← tcmGetConstructor c
-        let ctel = evalConIndTel con params
+        let ctel = instConIndTel con params
             ctype = constructorType dt con params cargs
         tySubst ← checkTermS ctx ctel cargs
         checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt dteq con ceq tySubst) (El s ty))

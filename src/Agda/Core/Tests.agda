@@ -1,23 +1,13 @@
-
 module Agda.Core.Tests where
 
 open import Haskell.Prelude hiding (All)
-
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality
-open import Haskell.Extra.Refinement
-
-open import Scope
-open import Utils.Tactics using (auto)
 
 open import Agda.Core.Name
-open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
-open import Agda.Core.Signature
 open import Agda.Core.Reduce
-
-open import Agda.Core.Context
 open import Agda.Core.TCM
 open import Agda.Core.Typing
 open import Agda.Core.Typechecker

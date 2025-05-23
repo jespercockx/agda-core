@@ -1,11 +1,9 @@
-
-open import Agda.Core.GlobalScope using (Globals)
-open import Agda.Core.Signature
-open import Scope
-
 open import Haskell.Prelude hiding (All; m)
 open import Haskell.Extra.Erase using (Rezz; rezz; ⟨_⟩_)
-open import Agda.Core.Utils using (Fuel; ∃-syntax; _⟨_⟩; Instance; I)
+open import Agda.Core.Utils     using (Fuel; ∃-syntax; _⟨_⟩; Instance; I)
+
+open import Agda.Core.GlobalScope      using (Globals)
+open import Agda.Core.Syntax.Signature using (Signature)
 
 module Agda.Core.TCM
     {{@0 globals : Globals}}

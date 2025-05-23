@@ -21,14 +21,17 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  Agda.Core.Context
+    exposed-modules:  Agda.Core.Syntax.Term
+                    , Agda.Core.Syntax.Weakening
+                    , Agda.Core.Syntax.Strengthening
+                    , Agda.Core.Syntax.VarInTerm
+                    , Agda.Core.Syntax.Substitute
+                    , Agda.Core.Syntax.Signature
+                    , Agda.Core.Syntax.Context
                     , Agda.Core.Conversion
                     , Agda.Core.Converter
                     , Agda.Core.GlobalScope
                     , Agda.Core.Reduce
-                    , Agda.Core.Signature
-                    , Agda.Core.Substitute
-                    , Agda.Core.Syntax
                     , Agda.Core.TCM
                     , Agda.Core.TCMInstances
                     , Agda.Core.Typechecker

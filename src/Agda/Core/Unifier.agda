@@ -1,18 +1,12 @@
-open import Scope
-
 open import Haskell.Prelude hiding (All; s; t; a; coerce)
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
-open import Haskell.Law.Monoid.Def
-open import Haskell.Law.List
 
 open import Agda.Core.Name
-open import Agda.Core.GlobalScope using (Globals)
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
-open import Agda.Core.Signature
-open import Agda.Core.Substitute
-open import Agda.Core.Context
+open import Agda.Core.Syntax.Strengthening
+open import Agda.Core.Syntax.VarInTerm
 open import Agda.Core.TCM
 open import Agda.Core.TCMInstances
 open import Agda.Core.Unification

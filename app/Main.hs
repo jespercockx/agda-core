@@ -30,9 +30,9 @@ import Agda.Core.UtilsH
       lineInDoc,
       reportSDocFailure,
       reportSDocWarning )
-import Agda.Core.Context ( Context(CtxEmpty) )
-import Agda.Core.Signature qualified as Core
-import Agda.Core.Syntax qualified as Core
+import Agda.Core.Syntax.Context ( Context(CtxEmpty) )
+import Agda.Core.Syntax.Signature qualified as Core
+import Agda.Core.Syntax.Term qualified as Core
 import Agda.Core.TCM qualified as Core
 import Agda.Core.Utils qualified as Core
 import Agda.Core.Typechecker (checkType)
@@ -40,6 +40,7 @@ import Agda.Core.Typechecker (checkType)
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.Maybe (mapMaybe, isNothing, fromMaybe)
 import Agda.Utils.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef')
+import Agda.Utils.Impossible (__IMPOSSIBLE__)
 
 import Agda.Syntax.Common.Pretty qualified as Pretty
 
@@ -140,10 +141,10 @@ data ACEnv = ACEnv {
 
 agdaCorePreCompile :: AgdaCoreOptions -> TCM ACEnv
 agdaCorePreCompile Options{optTypecheck} = do
-  tcg  <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty
-  names     <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty
-  preSig     <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty
-  i         <- liftIO $ newIORef Zero
+  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty
+  names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty
+  preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty
+  i       <- liftIO $ newIORef Zero
   pure $ ACEnv {toCoreGlobal    = tcg,
                 names           = names,
                 preSignature    = preSig,
@@ -197,21 +198,21 @@ agdaCoreCompile env _ _ def = do
     -- if a datatype is encontered, add all constructors to the environement
     -- if a constructor is encontered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
-                Internal.Datatype{dataCons} -> do
-                  let ntcg_datas  = Map.insert defName index tcg_datas
-                      nnames_datas = Map.insert  (indexToNat index) name nameData
-                      tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
-                      ntcg_cons = Map.union tcg_cons tcg_data_cons
-                  reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
-                  pure (ToCoreGlobal tcg_defs ntcg_datas ntcg_cons, NameMap nameDefs nnames_datas nameCons)
-                Internal.Constructor{} -> do
-                  let (dID, cID) = tcg_cons Map.! defName
-                  let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
-                  pure (ToCoreGlobal tcg_defs tcg_datas tcg_cons, NameMap nameDefs nameData nnames_cons)
-                _ -> do
-                  let nnames_defs = Map.insert (indexToNat index) name nameDefs
-                  let ntcg_defs = Map.insert defName index tcg_defs
-                  pure (ToCoreGlobal ntcg_defs tcg_datas tcg_cons, NameMap nnames_defs nameData nameCons)
+    Internal.Datatype{dataCons} -> do
+      let ntcg_datas  = Map.insert defName index tcg_datas
+          nnames_datas = Map.insert  (indexToNat index) name nameData
+          tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
+          ntcg_cons = Map.union tcg_cons tcg_data_cons
+      reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
+      pure (ToCoreGlobal tcg_defs ntcg_datas ntcg_cons, NameMap nameDefs nnames_datas nameCons)
+    Internal.Constructor{} -> do
+      let (dID, cID) = tcg_cons Map.! defName
+      let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_cons, NameMap nameDefs nameData nnames_cons)
+    _ -> do
+      let nnames_defs = Map.insert (indexToNat index) name nameDefs
+      let ntcg_defs = Map.insert defName index tcg_defs
+      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_cons, NameMap nnames_defs nameData nameCons)
 
   liftIO $ writeIORef ioTcg   ntcg
   liftIO $ writeIORef ioNames nnames
@@ -232,18 +233,26 @@ agdaCoreCompile env _ _ def = do
       reportSDoc "agda-core.check" 4 $ text $ "  Type: " <> prettyCore nnames ty'
       reportSDoc "agda-core.check" 4 $ text $ "  Definition: " <> prettyCore nnames defn'
       case defn' of
-        Core.FunctionDefn _       -> liftIO $ writeIORef ioPreSig (PreSignature { preSigDefs = Map.insert (indexToNat index) def' preSigDefs,
-                                                                                  preSigData = preSigData,
-                                                                                  preSigCons = preSigCons})
-        Core.DatatypeDefn dt      -> liftIO $ writeIORef ioPreSig (PreSignature { preSigDefs = preSigDefs,
-                                                                                  preSigData = Map.insert (indexToNat index) dt preSigData,
-                                                                                  preSigCons = preSigCons})
+        Core.FunctionDefn _  -> liftIO $ writeIORef ioPreSig $
+          PreSignature
+            { preSigDefs = Map.insert (indexToNat index) def' preSigDefs
+            , preSigData = preSigData
+            , preSigCons = preSigCons
+            }
+        Core.DatatypeDefn dt -> liftIO $ writeIORef ioPreSig $
+          PreSignature
+            { preSigDefs = preSigDefs
+            , preSigData = Map.insert (indexToNat index) dt preSigData
+            , preSigCons = preSigCons
+            }
         Core.ConstructorDefn cons -> do
           let (dID, cID) = tcg_cons Map.! defName
-          liftIO $ writeIORef ioPreSig (PreSignature {  preSigDefs = preSigDefs,
-                                                        preSigData = preSigData,
-                                                        preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons})
-
+          liftIO $ writeIORef ioPreSig $
+            PreSignature
+              {  preSigDefs = preSigDefs
+              , preSigData = preSigData
+              , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
+              }
       return $ pure def'
 
 
@@ -254,26 +263,14 @@ preSignatureToSignature :: PreSignature -> Core.Signature
 preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
   let datas i  = case preSigData Map.!? indexToNat i of
         Just dt -> dt
-        _ -> undefined
+        _ -> __IMPOSSIBLE__
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
-        _ -> undefined
+        _ -> __IMPOSSIBLE__
   let cons d c = case preSigCons Map.!? (indexToNat d, indexToNat c) of
         Just ct -> ct
-        _ -> undefined
+        _ -> __IMPOSSIBLE__
   Core.Signature datas defns cons
-
-lookupData :: Map Natural Core.Definition -> Index -> Core.Datatype
-lookupData defns i =
-  case defns Map.!? indexToNat i of
-    Just Core.Definition{theDef = Core.DatatypeDefn dt} -> dt
-    _ -> undefined
-
-lookupCons :: Map Natural Core.Definition -> Index -> Index -> Core.Constructor
-lookupCons defns _ i =
-  case defns Map.!? indexToNat i of
-    Just Core.Definition{theDef = Core.ConstructorDefn con} -> con
-    _ -> undefined
 
 
 agdaCorePostModule :: ACEnv -> ACMEnv -> IsMain -> TopLevelModuleName -> [ACSyntax] -> TCM ACMod
@@ -285,7 +282,7 @@ agdaCorePostModule ACEnv{preSignature = ioPreSig} _ _ tlm defs = do
   liftIO $ setSGR []
   reportSDoc "agda-core.check" 2 lineInDoc
   reportSDocWarning "agda-core.check" 1 $ text "Warning : Typechecking backend is in developpement"
-  reportSDocWarning "agda-core.check" 1 $ text "undefined will be called if terms for which compilation failed are called"
+  reportSDocWarning "agda-core.check" 1 $ text "__IMPOSSIBLE__ will be called if terms for which compilation failed are called"
   for_ defs \def -> do
     case def of
       Left n -> reportSDocFailure "agda-core.check" $ text $ "Skiped " <> n <> " :  term not compiled"

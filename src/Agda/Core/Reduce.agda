@@ -1,20 +1,12 @@
-open import Scope
-
 open import Haskell.Prelude hiding (All; coerce; _,_,_; c; d) renaming (_,_ to infixr 5 _,_)
-open import Haskell.Extra.Dec
-open import Haskell.Extra.Refinement
 open import Haskell.Extra.Erase
 open import Haskell.Law.Equality renaming (subst to transport)
 open import Haskell.Law.Monoid
-open import Utils.Either
-open import Utils.Tactics using (auto)
+open import Utils.Either using (mapRight)
 
 open import Agda.Core.Name
-open import Agda.Core.GlobalScope using (Globals)
-open import Agda.Core.Syntax
-open import Agda.Core.Substitute
-open import Agda.Core.Signature
 open import Agda.Core.Utils
+open import Agda.Core.Syntax
 
 module Agda.Core.Reduce
   {{@0 globals : Globals}}
@@ -140,7 +132,7 @@ opaque
     where
       aux : Rezz rγ → TermS β rγ → Environment α β → Environment α (extScope β rγ)
       aux r ⌈⌉ e = e
-      aux (rezz (Erased x ∷ rγ₀)) (TSCons {α = β} {rβ = rγ₀} {x = x} v vs) e =
+      aux (rezz (Erased x ∷ rγ₀)) (TSCons {rβ = rγ₀} {x = x} v vs) e =
         aux (rezz rγ₀) (weaken (subBindDrop subRefl) vs) (e , x ↦ v)
   {-# COMPILE AGDA2HS extendEnvironment #-}
 
