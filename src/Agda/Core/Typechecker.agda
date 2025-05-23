@@ -174,7 +174,7 @@ checkBranch : ∀ {d : NameData} {@0 con : NameCon d} (Γ : Context α)
                 (ps : TermS α (dataParScope d))
                 (rt : Type (extScope α (dataIxScope d) ▸ x))
             → TCM (TyBranch Γ dt ps rt bs)
-checkBranch {α = α} {d = d} ctx (BBranch c r rhs) dt ps rt = do
+checkBranch {α = α} {d = d} ctx (BBranch (rezz c) r rhs) dt ps rt = do
   -- cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     -- "can't find a constructor with such a name"
   con ⟨ ceq ⟩ ← tcmGetConstructor c

@@ -126,7 +126,7 @@ lookupBranch : {@0 cs : RScope (NameCon d)} → Branches α d cs → (c : NameCo
              → Maybe ( Rezz (fieldScope c)
                      × Term (extScope α (fieldScope c)))
 lookupBranch BsNil c = Nothing
-lookupBranch {d = d} (BsCons (BBranch c' aty u) bs) c =
+lookupBranch {d = d} (BsCons (BBranch (rezz c') aty u) bs) c =
     case decNamesInR c' c of λ where
       (True  ⟨ refl ⟩) →  Just (aty , u)
       (False ⟨ _    ⟩) → lookupBranch bs c

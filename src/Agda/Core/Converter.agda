@@ -218,15 +218,15 @@ convertTermSs r (x ↦ u ◂ s0) t =
 
 convertBranch : ⦃ fl : Fuel ⦄
               → Rezz α
-              → {@0 d : NameData} {@0 c c' : NameCon d}
-              → (b1 : Branch α c) (b2 : Branch α c')
+              → {@0 d : NameData} {@0 c : NameCon d}
+              → (b1 : Branch α c) (b2 : Branch α c)
               → TCM (ConvBranch b1 b2)
-convertBranch r (BBranch c1 rz1 rhs1) (BBranch c2 rz2 rhs2) =
-  ifDec (decNamesInR c1 c2)
-    (λ where ⦃ refl ⦄ → do
-      CBBranch c1 c2 rz1 rz2 rhs1 rhs2 refl <$>
-        convertCheck (rezzExtScope r rz2) rhs1 rhs2)
-    (tcError "can't convert two branches that match on different constructors")
+convertBranch r (BBranch rc rz1 rhs1) (BBranch rc' rz2 rhs2) =
+  -- ifDec (decNamesInR c c)
+  --   (λ where ⦃ refl ⦄ → do
+      CBBranch rc rc' rz1 rz2 rhs1 rhs2 <$>
+        convertCheck (rezzExtScope r rz2) rhs1 rhs2 -- )
+    -- (tcError "can't convert two branches that match on different constructors")
 
 {-# COMPILE AGDA2HS convertBranch #-}
 

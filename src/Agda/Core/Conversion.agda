@@ -35,7 +35,7 @@ private variable
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
 
-data ConvBranch   {@0 α} {@0 d : NameData} : {@0 cn cn' : NameCon d} → @0 Branch α cn → @0 Branch α cn' → Set
+data ConvBranch   {@0 α} {@0 d : NameData} {@0 c : NameCon d} : @0 Branch α c → @0 Branch α c → Set
 data ConvBranches {@0 α} {@0 d : NameData} : {@0 cs : RScope(NameCon d)} → @0 Branches α d cs → @0 Branches α d cs → Set where
   CBranchesNil : {bs bp : Branches α d mempty} → ConvBranches bs bp
   CBranchesCons : {@0 cn : NameCon d} {b1 b2 : Branch α cn} {@0 cs : RScope(NameCon d)} {bs1 bs2 : Branches α d cs}
@@ -102,15 +102,14 @@ data Conv {α} where
          → u  ≅ v'
          → u  ≅ v
 
-data ConvBranch {α} {d} where
-  CBBranch : (c c' : NameCon d) (r1 : Rezz (fieldScope c)) (r2 : Rezz (fieldScope c'))
-             (t1 : Term (extScope α (fieldScope c))) (t2 : Term (extScope α (fieldScope c')))
-           → (@0 e : c ≡ c')
-           → subst0 _ e t1 ≅ t2
-           → ConvBranch (BBranch c r1 t1) (BBranch c' r2 t2)
+data ConvBranch {α = α} {c = c} where
+  CBBranch :  (cr1 cr2 : Rezz c) (r1 r2 : Rezz (fieldScope c))
+             (t1 : Term (extScope α (fieldScope c))) (t2 : Term (extScope α (fieldScope c)))
+           → t1 ≅ t2
+           → ConvBranch (BBranch cr1 r1 t1) (BBranch cr2 r2 t2)
 
 
-data ConvTermS {α} where
+data ConvTermS {α = α} where
   CSNil : ConvTermS {rβ = mempty} us vs
   CSCons : {@0 x : Name}
          → u ≅ v

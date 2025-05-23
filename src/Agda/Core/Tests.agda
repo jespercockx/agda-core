@@ -118,8 +118,8 @@ module TestReduce (@0 x y z : Name) where
 
     testTerm₂ : Term α
     testTerm₂ = TCase {x = "condition"} nameBool (rezz _) `true
-                                  (BsCons (BBranch nameTrue (rezz _) `false)
-                                  (BsCons (BBranch nameFalse (rezz _) `true)
+                                  (BsCons (BBranch (rezz nameTrue) (rezz _) `false)
+                                  (BsCons (BBranch (rezz nameFalse) (rezz _) `true)
                                    BsNil))
                                   (El (STyp 0) (TData nameBool TSNil TSNil))
 

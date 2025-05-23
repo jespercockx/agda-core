@@ -4,12 +4,7 @@ open import Haskell.Prelude hiding (All; coerce; a; b; c; d)
 open import Haskell.Law.Equality using (sym; subst0)
 open import Haskell.Law.Monoid.Def using (leftIdentity; rightIdentity)
 open import Haskell.Law.Semigroup.Def using (associativity)
-open import Haskell.Prim.Tuple using (first)
 open import Haskell.Extra.Erase
-
--- NOTE(flupe): comes from scope library, should be moved upstream probably
-open import Utils.Misc
-open import Utils.Tactics using (auto)
 
 open import Agda.Core.Name
 open import Agda.Core.GlobalScope using (Globals)
@@ -22,17 +17,17 @@ module Agda.Core.Syntax
 private open module @0 G = Globals globals
 
 private variable
-  @0 x a b : Name
-  @0 α β γ    : Scope Name
-  @0 rβ rγ : RScope Name
-  @0 d : NameData
-  @0 c : NameCon d
-  @0 cs : RScope (NameCon d)
+  @0 x      : Name
+  @0 α β γ  : Scope Name
+  @0 rβ rγ  : RScope Name
+  @0 d      : NameData
+  @0 c      : NameCon d
+  @0 cs     : RScope (NameCon d)
 
 data Term     (@0 α : Scope Name) : Set
 data Sort     (@0 α : Scope Name) : Set
 record Type   (@0 α : Scope Name) : Set
-data Branch   (@0 α : Scope Name) : {@0 d : NameData} → @0 NameCon d → Set
+data Branch   (@0 α : Scope Name) {@0 d : NameData} (@0 c : NameCon d) : Set
 data Branches (@0 α : Scope Name) (@0 d : NameData) : @0 RScope (NameCon d) → Set
 
 record Type α where
@@ -111,9 +106,8 @@ sortType : Sort α → Type α
 sortType s = El (sucSort s) (TSort s)
 {-# COMPILE AGDA2HS sortType #-}
 
-data Branch α  where
-  BBranch : {@0 d : NameData} (c : NameCon d)
-          → Rezz (fieldScope c)
+data Branch α c where
+  BBranch : Rezz c → Rezz (fieldScope c)
           → Term (extScope α (fieldScope c)) → Branch α c
 {-# COMPILE AGDA2HS Branch deriving Show #-}
 
@@ -243,7 +237,7 @@ weakenSort p (STyp x) = STyp x
 weakenType p (El st t) = El (weakenSort p st) (weakenTerm p t)
 {-# COMPILE AGDA2HS weakenType #-}
 
-weakenBranch p (BBranch c r x) = BBranch c r (weakenTerm (subExtScopeKeep r p) x)
+weakenBranch p (BBranch rc r x) = BBranch rc r (weakenTerm (subExtScopeKeep r p) x)
 {-# COMPILE AGDA2HS weakenBranch #-}
 
 weakenBranches p BsNil         = BsNil
@@ -316,7 +310,7 @@ strengthenSort p (STyp n) = Just (STyp n)
 
 strengthenType p (El st t) = El <$> strengthenSort p st <*> strengthenTerm p t
 
-strengthenBranch p (BBranch c r v) = BBranch c r <$> strengthenTerm (subExtScopeKeep r p) v
+strengthenBranch p (BBranch rc r v) = BBranch rc r <$> strengthenTerm (subExtScopeKeep r p) v
 
 strengthenBranches p BsNil = Just BsNil
 strengthenBranches p (BsCons b bs) = BsCons <$> strengthenBranch p b <*> strengthenBranches p bs
@@ -409,4 +403,4 @@ varInType (El _ u) = varInTerm u
 varInBranches BsNil = []
 varInBranches (BsCons b bs) = varInBranch b <> (varInBranches bs)
 
-varInBranch (BBranch c r v) = liftListNameIn r (varInTerm v)
+varInBranch (BBranch rc r v) = liftListNameIn r (varInTerm v)
