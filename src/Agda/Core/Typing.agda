@@ -224,7 +224,7 @@ data TyBranch {α = α} {x} Γ {d = d} dt pSubst return where
                    return' = subst bsubst return)
 
             → Γ' ⊢ rhs ∶ return'
-            → TyBranch Γ dt pSubst return (BBranch c r rhs)
+            → TyBranch Γ dt pSubst return (BBranch (rezz c) r rhs)
 
 {-# COMPILE AGDA2HS TyBranch #-}
 
@@ -335,6 +335,6 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
                  return' = subst bsubst return)
 
           → Γ' ⊢ rhs ∶ return'
-          → TyBranch Γ dt ps return (BBranch c r rhs)
+          → TyBranch Γ dt ps return (BBranch (rezz c) r rhs)
 tyBBranch' c0 con refl {r = rezz fields} {αRun = rezz α} rsh crhs = TyBBranch c0 rsh crhs
 {-# COMPILE AGDA2HS tyBBranch' #-}

@@ -146,7 +146,7 @@ substTerm f (TLet x u v)      = TLet x (substTerm f u) (substTerm (liftBindSubst
 substTerm f (TAnn u t)        = TAnn (substTerm f u) (substType f t)
 {-# COMPILE AGDA2HS substTerm #-}
 
-substBranch f (BBranch c r u) = BBranch c r (substTerm (substExtScopeKeep r f) u)
+substBranch f (BBranch rc r u) = BBranch rc r (substTerm (substExtScopeKeep r f) u)
 {-# COMPILE AGDA2HS substBranch #-}
 
 substBranches f BsNil = BsNil
