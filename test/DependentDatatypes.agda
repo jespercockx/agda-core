@@ -1,4 +1,4 @@
-module dependantDatatypes where
+module DependentDatatypes where
 
 data Nat : Set where
   Zero : Nat

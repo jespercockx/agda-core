@@ -95,7 +95,7 @@ opaque
 module TestReduce (@0 x y z : Name) where
 
   opaque
-    unfolding ScopeThings `true `false nameTrue nameFalse nameBool AllNameCon
+    unfolding ScopeThings `true `false nameTrue nameFalse nameBool AllNameCon rScopeToRScopeNameInR
 
     testTerm₁ : Term α
     testTerm₁ = TApp (TLam x (TVar (⟨ x ⟩ inHere))) (TSort (STyp 0))

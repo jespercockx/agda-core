@@ -1,4 +1,4 @@
-module simpleDatatypes where
+module SimpleDatatypes where
 
 data ⊤ : Set where
   tt : ⊤

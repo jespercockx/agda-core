@@ -23,9 +23,6 @@ record Globals : Set where
   opaque
     unfolding RScope
     AllNameCon : (d : NameData) → RScope (NameCon d)
-    AllNameCon d = levelup (dataConstructors d)
-      where levelup : (rα : RScope Name) → RScope (NameInR rα)
-            levelup [] = []
-            levelup (Erased x ∷ s)  = Erased (⟨ x ⟩ inRHere) ∷ map (λ where (Erased (⟨ _ ⟩ t)) → Erased (⟨ _ ⟩ (inRThere t))) (levelup s)
+    AllNameCon d = rScopeToRScopeNameInR (dataConstructors d)
 open Globals public
 {-# COMPILE AGDA2HS Globals #-}
