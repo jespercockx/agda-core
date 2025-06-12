@@ -39,6 +39,13 @@ nameInBindCase : ∀ {@0 y α} (x : NameIn (α ▸ y)) → (proj₁ x ∈ α →
 nameInBindCase x = inBindCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInBindCase inline #-}
 
+opaque
+  unfolding RScope
+  rScopeToRScopeNameInR : (rα : RScope Name) → RScope (NameInR rα)
+  rScopeToRScopeNameInR [] = []
+  rScopeToRScopeNameInR (Erased x ∷ s)  = Erased (⟨ x ⟩ inRHere) ∷ map (λ where (Erased (⟨ _ ⟩ t)) → Erased (⟨ _ ⟩ (inRThere t))) (rScopeToRScopeNameInR s)
+{-# COMPILE AGDA2HS rScopeToRScopeNameInR #-}
+
 private variable
   @0 α : Scope Name
 

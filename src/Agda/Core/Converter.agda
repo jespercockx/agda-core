@@ -135,8 +135,8 @@ convCons r {d} {d'} f g lp lq = do
         (λ where {{refl}} → do
           csp ← convertTermSs r lp lq
           return $ CCon f csp)
-        (tcError "constructors not convertibles"))
-    (tcError "constructors are from not convertibles datatypes")
+        (tcError "constructors not convertible"))
+    (tcError "constructors are from not convertible datatypes")
 
 {-# COMPILE AGDA2HS convCons #-}
 
@@ -179,8 +179,6 @@ convertCase {x = x} rα d d' ri ri' u u' ws ws' rt rt' = do
   cm ← convertCheck (rezzBind {x = x} r)
                     (renameTop r (unType rt))
                     (renameTop r' (unType rt'))
-  -- Erased refl ← liftMaybe (allInRScope (allBranches ws) (allBranches ws'))
-    -- "comparing case statements with different branches"
   cbs ← convertBranches rα ws ws'
   return (CCase d ri ri' ws ws' rt rt' cu cm cbs)
 
@@ -214,12 +212,8 @@ convertBranch : ⦃ fl : Fuel ⦄
               → (b1 : Branch α c) (b2 : Branch α c)
               → TCM (ConvBranch b1 b2)
 convertBranch r (BBranch rc rz1 rhs1) (BBranch rc' rz2 rhs2) =
-  -- ifDec (decNamesInR c c)
-  --   (λ where ⦃ refl ⦄ → do
       CBBranch rc rc' rz1 rz2 rhs1 rhs2 <$>
-        convertCheck (rezzExtScope r rz2) rhs1 rhs2 -- )
-    -- (tcError "can't convert two branches that match on different constructors")
-
+        convertCheck (rezzExtScope r rz2) rhs1 rhs2
 {-# COMPILE AGDA2HS convertBranch #-}
 
 convertBranches r BsNil            bp = return CBranchesNil

@@ -65,6 +65,7 @@ import Control.Monad.Except (ExceptT, MonadError (throwError), liftEither, runEx
 import Agda.TypeChecking.SizedTypes.WarshallSolver (Error)
 import qualified Agda.TypeChecking.Primitive as I
 import Agda.Benchmarking (Phase(Definition))
+import Agda.Compiler.JS.Compiler (global)
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 -- main function
@@ -99,7 +100,7 @@ agdaCoreCommandLineFlags :: [OptDescr (Flag AgdaCoreOptions)]
 agdaCoreCommandLineFlags =
   [
   Option ['d'] ["disable-backend"] (NoArg disableOpt) "Disable backend",
-  Option [] ["no-typecheck"] (NoArg disableTypecheck) "Disable typechecking"
+  Option [] ["no-typecheck"] (NoArg disableTypecheck) "Disable typechecking from agda-core (Agda still typecheck)"
   ]
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
@@ -132,11 +133,11 @@ data PreSignature = PreSignature {
 }
 
 data ACEnv = ACEnv {
-  toCoreGlobal    :: IORef ToCoreGlobal,                  -- Internal.QNames to definitions/datatypes/constructors ID
-  names           :: IORef NameMap,          -- remember definition/datatypes ID to the names
-  preSignature    :: IORef PreSignature,
-  counterID       :: IORef Index,
-  isTypechecking  :: Bool
+  toCoreGlobal          :: IORef ToCoreGlobal,     -- Internal.QNames to definitions/datatypes/constructors ID
+  toCoreNames           :: IORef NameMap,          -- remember definition/datatypes ID to the names
+  toCorePreSignature    :: IORef PreSignature,
+  toCoreCounterID       :: IORef Index,
+  toCoreIsTypechecking  :: Bool
   }
 
 agdaCorePreCompile :: AgdaCoreOptions -> TCM ACEnv
@@ -145,12 +146,12 @@ agdaCorePreCompile Options{optTypecheck} = do
   names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty
   preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty
   i       <- liftIO $ newIORef Zero
-  pure $ ACEnv {toCoreGlobal    = tcg,
-                names           = names,
-                preSignature    = preSig,
-                counterID       = i,
-                isTypechecking  = optTypecheck
-                }
+  pure $ ACEnv { toCoreGlobal          = tcg
+               , toCoreNames           = names
+               , toCorePreSignature    = preSig
+               , toCoreCounterID       = i
+               , toCoreIsTypechecking  = optTypecheck
+               }
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 -- PreModule (actions for modules before compilation)
@@ -184,13 +185,13 @@ type ACSyntax = Either String Core.Definition
 
 agdaCoreCompile :: ACEnv -> ACMEnv -> IsMain -> Internal.Definition -> TCM ACSyntax
 agdaCoreCompile env _ _ def = do
-  let ACEnv{toCoreGlobal = ioTcg, counterID = ioIndex, names = ioNames, preSignature = ioPreSig } = env
+  let ACEnv{toCoreGlobal = ioTcg, toCoreCounterID = ioIndex, toCoreNames = ioNames, toCorePreSignature = ioPreSig } = env
       Internal.Defn{defName, defType, theDef} = def
 
   let name = show $ Pretty.pretty $ last $ Internal.qnameToList0 defName            -- name of term that we are compiling
   reportSDoc "agda-core.check" 2 $ text $ "Compilation of " <> name <> " :"
 
-  ToCoreGlobal {defs = tcg_defs, datas = tcg_datas, cons = tcg_cons}  <- liftIO $ readIORef ioTcg
+  ToCoreGlobal {globalDefs = tcg_defs, globalDatas = tcg_datas, globalCons = tcg_cons}  <- liftIO $ readIORef ioTcg
   NameMap {nameDefs, nameData, nameCons}                              <- liftIO $ readIORef ioNames
   PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
@@ -274,8 +275,8 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
 
 
 agdaCorePostModule :: ACEnv -> ACMEnv -> IsMain -> TopLevelModuleName -> [ACSyntax] -> TCM ACMod
-agdaCorePostModule ACEnv{isTypechecking = False} _ _ _ _ = pure ()
-agdaCorePostModule ACEnv{preSignature = ioPreSig} _ _ tlm defs = do
+agdaCorePostModule ACEnv{toCoreIsTypechecking = False} _ _ _ _ = pure ()
+agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
   reportSDoc "agda-core.check" 2 lineInDoc
   liftIO $ setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Cyan ]
   reportSDoc "agda-core.check" 1 . boxInDoc $ "Typechecking module " <> show (Pretty.pretty tlm)

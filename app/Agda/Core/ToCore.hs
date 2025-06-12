@@ -22,7 +22,7 @@ import Agda.Syntax.Internal.Elim (allApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
-import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust)
+import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe)
 
 import Data.Map.Strict qualified as Map
 import Agda.TypeChecking.Monad  qualified as I
@@ -57,9 +57,9 @@ tApp t (e:es) = TApp t e `tApp` es
 --   to proofs of global def scope membership.
 --   Datatypes are stored in a different structure
 --   Constructors are stored with their datatype
-data ToCoreGlobal = ToCoreGlobal { defs  :: Map QName Index,
-                                   datas :: Map QName Index,
-                                   cons  :: Map QName (Index, Index)}
+data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
+                                   globalDatas :: Map QName Index,
+                                   globalCons  :: Map QName (Index, Index)}
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
@@ -69,13 +69,13 @@ newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either Doc) a }
   deriving newtype (MonadReader ToCoreGlobal)
 
 asksDef :: (Map QName Index -> a) -> ToCoreM a
-asksDef = asks . (.  \ToCoreGlobal{defs} -> defs)
+asksDef = asks . (.  \ToCoreGlobal{globalDefs} -> globalDefs)
 
 asksData :: (Map QName Index -> a) -> ToCoreM a
-asksData = asks . (. \ToCoreGlobal{datas} -> datas)
+asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
 asksCon :: (Map QName (Index, Index) -> a) -> ToCoreM a
-asksCon = asks . (. \ToCoreGlobal{cons} -> cons)
+asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
 -- | Lookup a definition name in the current module.
 --   Fails if the definition cannot be found.
@@ -219,7 +219,7 @@ toCoreDefn (I.AbstractDefn _) _ =
   throwError "abstract definition are not supported"
 
 toCoreDefn (I.FunctionDefn def) _ =
-  withError (\e -> multiLineText $ "function definition failure: \n" <> Pretty.render (nest 1 e)) (do
+  withError (\e -> multiLineText $ "function definition failure: \n" <> Pretty.render (nest 1 e)) $ do
   case def of
     -- case where you use lambda
     I.FunctionData{..}
@@ -235,22 +235,21 @@ toCoreDefn (I.FunctionDefn def) _ =
       , vars      <- I.clausePats cl
       , Just body <- I.clauseBody cl
       -- -> Core.FunctionDefn <$> toCore body
-      -> throwError $ "only definitions via λ are supported"
+      -> throwError "only definitions via λ are supported"
 
     -- case with pattern matching variables
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , l      <- _funClauses
-      -> throwError $ "pattern matching isn't supported"
+      -> throwError "pattern matching isn't supported"
     I.FunctionData{..}
       | isJust (maybeRight _funProjection >>= I.projProper) -- record projections case
       -> throwError "record projections aren't supported"
     I.FunctionData{}
       -> throwError "unsupported case (shouldn't happens)"
-    )
 
 toCoreDefn (I.DatatypeDefn dt) ty =
-  withError (\e -> multiLineText $ "datatype definition failure: \n" <> Pretty.render (nest 1 e)) (do
+  withError (\e -> multiLineText $ "datatype definition failure: \n" <> Pretty.render (nest 1 e)) $ do
   let I.DatatypeData{ _dataPars  = pars,
                       _dataIxs   = ixs,
                       _dataCons  = cons,
@@ -266,13 +265,13 @@ toCoreDefn (I.DatatypeDefn dt) ty =
                           dataParTel            = parsTel,
                           dataIxTel             = ixsTel,
                           dataConstructors      = cons_indexes}
-  return $ Core.DatatypeDefn d)
+  return $ Core.DatatypeDefn d
 
 toCoreDefn (I.RecordDefn _) _ =
   throwError "records are not supported"
 
 toCoreDefn (I.ConstructorDefn cs) ty =
-  withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) (do
+  withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
   let I.ConstructorData{  _conPars  = pars,
                           _conArity = arity,
                           _conData  = dname}  = cs
@@ -282,16 +281,14 @@ toCoreDefn (I.ConstructorDefn cs) ty =
   indTel <- toCore internalIndTel
   case tyCon of
     I.Def _ elims ->  do
-      maybe (throwError "index using variable not in scope") (\ixs -> do
+      caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs -> do
           ixs' <- toCore ixs
           let conIxs = foldr Core.TSCons Core.TSNil ixs'
           let c = Core.Constructor{ conIndTel = indTel,
                                     conIx     = conIxs}
           return $ Core.ConstructorDefn c
-       ) (I.allApplyElims $ drop pars elims)
     _ -> do
       throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
-  )
 
 toCoreDefn (I.PrimitiveDefn _) _ =
   throwError "primitive are not supported"
@@ -337,7 +334,7 @@ instance ToCore I.Elim where
   type CoreOf I.Elim = Term
   toCore :: I.Elim -> ToCoreM Term
   toCore (I.Apply x)   = toCore x
-  toCore (I.Proj _ qn) = TDef <$> lookupDef qn
+  toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
   toCore I.IApply{}    = throwError "cubical endpoint application not supported"
 
 

@@ -1,5 +1,5 @@
-open import zero
-module one where
+open import Zero
+module One where
 
 id : (A : Set) → A → A
 id = λ A x → x
