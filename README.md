@@ -1,5 +1,8 @@
 Something is slowly growing here. It is still fragile so better not disturb it, but you may take a look if you'd like.
 
+<img src="logo.svg" alt="logo" width="650"/>
+
+
 **What is this?** Agda Core is, as its name suggests, intended to be a core language for Agda.
 
 **Why make a core language for Agda?** Because people whose opinion I value were asking for it. Also, implementing a new language from scratch is fun, so there's that.
