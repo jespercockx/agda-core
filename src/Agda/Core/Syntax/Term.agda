@@ -40,7 +40,7 @@ data Term α where
         → Rezz (dataIxScope d)                            -- Run-time representation of index scope
         → (u : Term α)                                    -- Term we are casing on
         → (bs : Branches α d (AllNameCon d))              -- Branches (one for each constructor of d)
-        → (m : Type ((extScope α (dataIxScope d)) ▸ x))   -- Return type
+        → (m : Type (α ◂▸ dataIxScope d ▸ x))   -- Return type
         → Term α
   TPi   : (@0 x : Name) (u : Type α) (v : Type (α ▸ x)) → Term α
   TSort : Sort α → Term α
@@ -70,7 +70,7 @@ data Sort α where
 
 data Branch α c where
   BBranch : Rezz c → Rezz (fieldScope c)
-          → Term (extScope α (fieldScope c)) → Branch α c
+          → Term (α ◂▸ fieldScope c) → Branch α c
 
 data Branches α d where
   BsNil  : Branches α d mempty
@@ -207,7 +207,7 @@ concatTermS {α = α} {rγ = rγ} (x ↦ u ◂ t1) t =
 
 opaque
   unfolding extScope
-  termSrepeat : Rezz rβ → TermS (extScope α rβ) rβ
+  termSrepeat : Rezz rβ → TermS (α ◂▸ rβ) rβ
   termSrepeat (rezz []) = ⌈⌉
   termSrepeat (rezz (Erased x ∷ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (rezz rβ) inHere) ◂ termSrepeat (rezz rβ)
   {-# COMPILE AGDA2HS termSrepeat #-}

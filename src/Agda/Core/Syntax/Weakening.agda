@@ -98,7 +98,7 @@ instance
                                       {- Useful functions -}
 ---------------------------------------------------------------------------------------------------
 
-raise : Rezz rγ → Term α → Term (extScope α rγ)
+raise : Rezz rγ → Term α → Term (α ◂▸ rγ)
 raise r = weakenTerm (subExtScope r subRefl)
 {-# COMPILE AGDA2HS raise #-}
 

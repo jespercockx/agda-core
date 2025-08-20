@@ -54,7 +54,7 @@ data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
   FProj : (x : NameIn defScope) → Frame α
   FCase : (d : NameData) (r : Rezz (dataIxScope d))
-          (bs : Branches α d (AllNameCon d)) (m : Type (extScope α (dataIxScope d) ▸ x)) → Frame α
+          (bs : Branches α d (AllNameCon d)) (m : Type (α ◂▸ dataIxScope d ▸ x)) → Frame α
 
 {-# COMPILE AGDA2HS Frame #-}
 
@@ -116,7 +116,7 @@ unState r (MkState e v s) = subst (envToSubst r e) (unStack s v)
 
 lookupBranch : {@0 cs : RScope (NameCon d)} → Branches α d cs → (c : NameCon d)
              → Maybe ( Rezz (fieldScope c)
-                     × Term (extScope α (fieldScope c)))
+                     × Term (α ◂▸ fieldScope c))
 lookupBranch BsNil c = Nothing
 lookupBranch {d = d} (BsCons (BBranch (rezz c') aty u) bs) c =
     case decNamesInR c' c of λ where
@@ -127,10 +127,10 @@ lookupBranch {d = d} (BsCons (BBranch (rezz c') aty u) bs) c =
 
 opaque
   unfolding extScope
-  extendEnvironment : TermS β rγ → Environment α β → Environment α (extScope β rγ)
+  extendEnvironment : TermS β rγ → Environment α β → Environment α (β ◂▸ rγ)
   extendEnvironment vs e = aux (rezzTermS vs) vs e
     where
-      aux : Rezz rγ → TermS β rγ → Environment α β → Environment α (extScope β rγ)
+      aux : Rezz rγ → TermS β rγ → Environment α β → Environment α (β ◂▸ rγ)
       aux r ⌈⌉ e = e
       aux (rezz (Erased x ∷ rγ₀)) (TSCons {rβ = rγ₀} {x = x} v vs) e =
         aux (rezz rγ₀) (weaken (subBindDrop subRefl) vs) (e , x ↦ v)

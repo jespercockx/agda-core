@@ -38,11 +38,11 @@ data TyTermS (@0 Γ : Context α) : @0 TermS α rβ → @0 Telescope α rβ → 
 
 data TyBranches (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
                 (@0 ps : TermS α (dataParScope d))
-                (@0 rt : Type ((extScope α (dataIxScope d)) ▸ x)) : {@0 cs : RScope (NameCon d)} → @0 Branches α d cs → Set
+                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 cs : RScope (NameCon d)} → @0 Branches α d cs → Set
 
 data TyBranch   (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
                 (@0 ps : TermS α (dataParScope d))
-                (@0 rt : Type ((extScope α (dataIxScope d)) ▸ x)) : {@0 c : NameCon d} → @0 Branch α c → Set
+                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 c : NameCon d} → @0 Branch α c → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -103,7 +103,7 @@ data TyTerm {α} Γ where
     {d : NameData}                                                -- the name of a datatype
     (let pScope = dataParScope d                                  -- parameters of d
          iScope = dataIxScope d                                   -- indexes of d
-         α'     = extScope α iScope                               -- general scope + indexes
+         α'     = α ◂▸ iScope                               -- general scope + indexes
          dt     = sigData sig d                                   -- the datatype called d
          iRun   = rezz iScope)                                    -- runtime index scope
     {@0 pars : TermS α pScope}                                    -- parameters of d in Scope α
@@ -176,7 +176,7 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
               (let con : Constructor c
                    con = sigCons sig d c
                    fields = fieldScope c
-                   α' = extScope α fields
+                   α' = α ◂▸ fields
                    r = rezz fields)
               (rhs : Term α')
               (let Γ' : Context α'
@@ -194,7 +194,7 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
                    asubst : α ⇒ α'
                    asubst = weaken (subExtScope r subRefl) (idSubst (rezzScope Γ))
 
-                   bsubst : extScope α (dataIxScope d) ▸ x ⇒ α'
+                   bsubst : α ◂▸ dataIxScope d ▸ x ⇒ α'
                    bsubst = (extSubst asubst ixs' ▹ x ↦ TCon c cargs)
 
                    return' : Type α'
@@ -256,7 +256,7 @@ tyCase' : {@0 Γ : Context α}
   (@0 dt : Datatype d) → @0 sigData sig d ≡ dt
    → (let pScope = dataParScope d
           iScope = dataIxScope d
-          α' = extScope α iScope)
+          α' = α ◂▸ iScope)
   → (let @0 αRun : Rezz α
          αRun = rezzScope Γ)
   {@0 iRun : Rezz iScope}
@@ -281,10 +281,10 @@ tyCase' dt refl {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
 
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
             {@0 ps : TermS α (dataParScope d)}
-            {@0 return : Type ((extScope α (dataIxScope d)) ▸ x)}
+            {@0 return : Type (α ◂▸ dataIxScope d ▸ x)}
             (c : NameCon d)
             (let fields = fieldScope c
-                 β = extScope α fields)
+                 β = α ◂▸ fields)
             (@0 con : Constructor c)
             → @0 sigCons sig d c ≡ con
             → {@0 r : Rezz fields}
@@ -304,7 +304,7 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
                  idsubst : α ⇒ β
                  idsubst = weakenSubst (subExtScope r subRefl) (idSubst (rezzScope Γ))
 
-                 bsubst : extScope α (dataIxScope d) ▸ x ⇒ β
+                 bsubst : α ◂▸ dataIxScope d ▸ x ⇒ β
                  bsubst = extSubst idsubst ixsubst ▹ x ↦ TCon c cargs
 
                  return' : Type β

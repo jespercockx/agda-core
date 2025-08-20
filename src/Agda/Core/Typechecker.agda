@@ -73,7 +73,7 @@ checkBranches : ∀ {d : NameData} {@0 cons : RScope (NameCon d)}
                   (bs : Branches α d cons)
                   (dt : Datatype d)
                   (ps : TermS α (dataParScope d))
-                  (rt : Type (extScope α (dataIxScope d) ▸ x))
+                  (rt : Type (α ◂▸ dataIxScope d ▸ x))
                 → TCM (TyBranches Γ dt ps rt bs)
 
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
@@ -163,7 +163,7 @@ checkBranch : ∀ {d : NameData} {@0 con : NameCon d} (Γ : Context α)
                 (bs : Branch α con)
                 (dt : Datatype d)
                 (ps : TermS α (dataParScope d))
-                (rt : Type (extScope α (dataIxScope d) ▸ x))
+                (rt : Type (α ◂▸ dataIxScope d ▸ x))
             → TCM (TyBranch Γ dt ps rt bs)
 checkBranch {α = α} {d = d} ctx (BBranch (rezz c) r rhs) dt ps rt = do
   -- cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
@@ -171,7 +171,7 @@ checkBranch {α = α} {d = d} ctx (BBranch (rezz c) r rhs) dt ps rt = do
   con ⟨ ceq ⟩ ← tcmGetConstructor c
   let ra = rezzScope ctx
       @0 β : Scope Name
-      β = extScope α (fieldScope c)
+      β = α ◂▸ fieldScope c
       cargs : TermS β (fieldScope c)
       cargs = termSrepeat r
       parssubst : TermS β (dataParScope d)
@@ -180,7 +180,7 @@ checkBranch {α = α} {d = d} ctx (BBranch (rezz c) r rhs) dt ps rt = do
       ixsubst = instConIx con parssubst cargs
       idsubst : α ⇒ β
       idsubst = weaken (subExtScope r subRefl) (idSubst ra)
-      bsubst : extScope α (dataIxScope d) ▸ x ⇒ β
+      bsubst : α ◂▸ dataIxScope d ▸ x ⇒ β
       bsubst = extSubst idsubst ixsubst ▹ _ ↦ TCon c cargs
       rt' :  Type β
       rt' = subst bsubst rt

@@ -29,7 +29,7 @@ datas = singleton "Bool"
 
 boolConsSC = "true" ◂ "false" ◂ mempty
 
-cons = extScope mempty boolConsSC
+cons = mempty ◂▸ boolConsSC
 
 instance
   globals : Globals

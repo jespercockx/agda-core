@@ -30,9 +30,9 @@ record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
     @0 ixs : RScope Name
     ixs  = dataIxScope d
   field
-    conIndTel : Telescope (extScope mempty pars) (fieldScope c)
+    conIndTel : Telescope (mempty ◂▸ pars) (fieldScope c)
     -- the TypeS of the indexes of c
-    conIx     :  TermS (extScope (extScope mempty pars) (fieldScope c)) ixs
+    conIx     :  TermS (mempty ◂▸ pars ◂▸ fieldScope c) ixs
     -- how the indexes are constructred given parameters and c indices
 
   instConIndTel : TermS α (dataParScope d) → Telescope α (fieldScope c)
@@ -57,9 +57,9 @@ record Datatype (@0 d : NameData) : Set where
     @0 ixs : RScope Name
     ixs  = dataIxScope d
   field
-    dataSort             : Sort (extScope mempty pars)
+    dataSort             : Sort (mempty ◂▸ pars)
     dataParTel           : Telescope mempty pars
-    dataIxTel            : Telescope (extScope mempty pars) ixs
+    dataIxTel            : Telescope (mempty ◂▸ pars) ixs
     dataConstructors     : List (NameCon d) -- for Haskell side
 
   instDataSort : TermS α (dataParScope d) → Sort α

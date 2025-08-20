@@ -97,7 +97,7 @@ data Conv {α} where
 
 data ConvBranch {α = α} {c = c} where
   CBBranch :  (cr1 cr2 : Rezz c) (r1 r2 : Rezz (fieldScope c))
-             (t1 : Term (extScope α (fieldScope c))) (t2 : Term (extScope α (fieldScope c)))
+             (t1 : Term (α ◂▸ fieldScope c)) (t2 : Term (α ◂▸ fieldScope c))
            → t1 ≅ t2
            → ConvBranch (BBranch cr1 r1 t1) (BBranch cr2 r2 t2)
 

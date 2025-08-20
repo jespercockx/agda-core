@@ -58,7 +58,7 @@ rezzTel (x ∶ ty ◂ t) = rezzCong (λ t → x ◂ t) (rezzTel t)
 {-# COMPILE AGDA2HS rezzTel #-}
 
 opaque
-  addTel : Telescope α rβ → Telescope (extScope α rβ) rγ → Telescope α (rβ <> rγ)
+  addTel : Telescope α rβ → Telescope (α ◂▸ rβ) rγ → Telescope α (rβ <> rγ)
   addTel ⌈⌉ tel0 =
     subst0 (λ α → Telescope α _) extScopeEmpty
     (subst0 (Telescope _) (sym (leftIdentity _)) tel0)
@@ -87,7 +87,7 @@ opaque
                                       {- Useful functions -}
 ---------------------------------------------------------------------------------------------------
 
-addContextTel : Context α → Telescope α rβ  → Context (extScope α rβ)
+addContextTel : Context α → Telescope α rβ  → Context (α ◂▸ rβ)
 addContextTel c ⌈⌉ =
   subst0 Context (sym extScopeEmpty) c
 addContextTel c (ExtendTel x ty telt) =
