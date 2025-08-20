@@ -6,9 +6,13 @@ open import Haskell.Extra.Refinement
 module Agda.Core.Name where
 
 open import Scope public
-
 Name = String
 {-# COMPILE AGDA2HS Name inline #-}
+
+infixl 10 _◂▸_
+_◂▸_ : Scope Name → RScope Name → Scope Name
+_◂▸_ α rβ = extScope α rβ
+{-# COMPILE AGDA2HS _◂▸_ inline #-}
 
 NameIn : (@0 α : Scope Name) → Set
 NameIn α = Σ0 Name λ x → x ∈ α

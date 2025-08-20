@@ -73,7 +73,7 @@ idSubst : {@0 β : Scope Name} → Rezz β → β ⇒ β
 idSubst r = subToSubst r subRefl
 {-# COMPILE AGDA2HS idSubst #-}
 
-extSubst : β ⇒ α → TermS α rγ → (extScope β rγ) ⇒ α
+extSubst : β ⇒ α → TermS α rγ → (β ◂▸ rγ) ⇒ α
 extSubst {α = α} s ⌈⌉ = subst0 (λ γ → γ ⇒ α) (sym extScopeEmpty) s
 extSubst {α = α} s (x ↦ u ◂ t) = subst0 (λ γ → γ ⇒ α) (sym extScopeBind) (extSubst (s ▹ x ↦ u) t)
 {-# COMPILE AGDA2HS extSubst #-}
@@ -85,12 +85,12 @@ liftBindSubst {y = y} e = (weaken (subBindDrop subRefl) e) ▹ _ ↦ (TVar (⟨ 
 
 opaque
   unfolding extScope -- if we had an induction principle for RScope we could avoid the unfolding
-  substExtScope : (Rezz rγ) → α ⇒ β → α ⇒ (extScope β rγ)
+  substExtScope : (Rezz rγ) → α ⇒ β → α ⇒ (β ◂▸ rγ)
   substExtScope (rezz []) s = s
   substExtScope (rezz (x ∷ rγ)) s = substExtScope (rezz rγ) (weaken (subBindDrop subRefl) s)
   {-# COMPILE AGDA2HS substExtScope #-}
 
-  substExtScopeKeep : (Rezz rγ) → α ⇒ β → (extScope α rγ) ⇒ (extScope β rγ)
+  substExtScopeKeep : (Rezz rγ) → α ⇒ β → (α ◂▸ rγ) ⇒ (β ◂▸ rγ)
   substExtScopeKeep (rezz []) p = p
   substExtScopeKeep (rezz (x ∷ rγ)) p = substExtScopeKeep (rezz rγ) (liftBindSubst p)
   {-# COMPILE AGDA2HS substExtScopeKeep #-}

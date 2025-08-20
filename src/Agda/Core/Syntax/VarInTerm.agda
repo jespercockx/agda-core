@@ -27,12 +27,12 @@ opaque
   liftBindListNameIn ((⟨ x ⟩ (Zero ⟨ p ⟩)) ∷ l) = liftBindListNameIn l
   liftBindListNameIn ((⟨ x ⟩ (Suc n ⟨ IsSuc p ⟩)) ∷ l) = < n ⟨ p ⟩ > ∷ (liftBindListNameIn l)
 
-  liftListNameIn : Rezz rγ → List (NameIn (extScope α rγ)) → List (NameIn α)
+  liftListNameIn : Rezz rγ → List (NameIn (α ◂▸ rγ)) → List (NameIn α)
   liftListNameIn _ [] = []
   liftListNameIn {rγ = rγ} rγRun ((⟨ x ⟩ xInγα) ∷ l) =
     let @0 γ : Scope Name
-        γ = extScope [] rγ
-        @0 e : (extScope α rγ) ≡ γ ++ α
+        γ = [] ◂▸ rγ
+        @0 e : α ◂▸ rγ ≡ γ ++ α
         e = extScopeConcatEmpty _ rγ
         γRun : Rezz γ
         γRun = rezzExtScope (rezz []) rγRun in

@@ -284,13 +284,13 @@ module UnificationStepAndStop where
       {σ₁ σ₂ : TermS α rγ}
       (let Σ : Telescope α rγ
            Σ = instConIndTel con pSubst                                   -- type of the arguments of c
-           σe : TermS (extScope α rγ) (e₀ ◂ mempty)
+           σe : TermS (α ◂▸ rγ) (e₀ ◂ mempty)
            σe = e₀ ↦ TCon c (termSrepeat (rezz rγ)) ◂ ⌈⌉           -- names of the new equalities to replace e₀
-           τ₀ : extScope α (e₀ ◂ mempty) ⇒ (extScope α rγ)
+           τ₀ : α ◂▸ (e₀ ◂ mempty) ⇒ (α ◂▸ rγ)
            τ₀ = extSubst (substExtScope (rezz rγ) (idSubst (rezz α))) σe
-           τ : (α ▸ e₀) ⇒ (extScope α rγ)
-           τ = subst0 (λ ψ → ψ ⇒ (extScope α rγ)) (trans extScopeBind extScopeEmpty) τ₀
-           Δγ : Telescope (extScope α rγ) rβ                           -- telescope using rγ instead of e₀
+           τ : (α ▸ e₀) ⇒ (α ◂▸ rγ)
+           τ = subst0 (λ ψ → ψ ⇒ (α ◂▸ rγ)) (trans extScopeBind extScopeEmpty) τ₀
+           Δγ : Telescope (α ◂▸ rγ) rβ                           -- telescope using rγ instead of e₀
            Δγ = substTelescope τ Δe₀)
       -------------------------------------------------------------------
      → Γ , (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TCon c σ₂ ◂ δ₂) ∶ (e₀ ∶ dataType d ds pSubst iSubst ◂ Δe₀)
@@ -305,10 +305,10 @@ module UnificationStepAndStop where
       (let dt = sigData sig d
            pars = dataParScope d
            ixs = dataIxScope d)
-      {ds : Sort (extScope α ixs)}
+      {ds : Sort (α ◂▸ ixs)}
       {pSubst : TermS α pars}                                                    -- value of the parameters of d
       {iSubst₁ iSubst₂ : TermS α ixs}                                            -- value of the indices of d
-      {Δe₀ixs : Telescope (extScope α ixs ▸ e₀) rβ₀}
+      {Δe₀ixs : Telescope (α ◂▸ ixs ▸ e₀) rβ₀}
       {c : NameCon d}                      -- c is a constructor of dt
       (let con = sigCons sig d c
            ind : RScope Name
@@ -320,24 +320,24 @@ module UnificationStepAndStop where
            iTel : Telescope α ixs
            iTel = instDataIxTel dt pSubst
 
-           iSubste : TermS (extScope α ixs) ixs
+           iSubste : TermS (α ◂▸ ixs) ixs
            iSubste = termSrepeat (rezz ixs)
-           weakenαixs : α ⇒ (extScope α ixs)
+           weakenαixs : α ⇒ (α ◂▸ ixs)
            weakenαixs = substExtScope (rezz ixs) (idSubst (rezz α))
 
-           weakenαind : α ⇒ (extScope α ind)
+           weakenαind : α ⇒ (α ◂▸ ind)
            weakenαind = substExtScope (rezz ind) (idSubst (rezz α))
-           σe : TermS (extScope α ind) (e₀ ◂ mempty)
+           σe : TermS (α ◂▸ ind) (e₀ ◂ mempty)
            σe = e₀ ↦ TCon c (termSrepeat(rezz ind)) ◂ ⌈⌉
-           τ₀ : TermS (extScope α ind) ixs
+           τ₀ : TermS (α ◂▸ ind) ixs
            τ₀ = (instConIx con (weaken (subExtScope (rezz ind) subRefl) pSubst) (termSrepeat(rezz ind)))
-           τ₁ : extScope α ixs ⇒ (extScope α ind)
+           τ₁ : α ◂▸ ixs ⇒ (α ◂▸ ind)
            τ₁ = extSubst {rγ = ixs} weakenαind τ₀
-           τ₀ : extScope (extScope α ixs) (e₀ ◂ mempty) ⇒ (extScope α ind)
+           τ₀ : α ◂▸ ixs ◂▸ (e₀ ◂ mempty) ⇒ (α ◂▸ ind)
            τ₀ = extSubst τ₁ σe
-           τ  : (extScope α ixs) ▸ e₀ ⇒ (extScope α ind)
-           τ = subst0 (λ ψ → ψ ⇒ (extScope α ind)) (trans extScopeBind extScopeEmpty) τ₀
-           Δγ : Telescope (extScope α ind) rβ₀
+           τ  : (α ◂▸ ixs) ▸ e₀ ⇒ (α ◂▸ ind)
+           τ = subst0 (λ ψ → ψ ⇒ (α ◂▸ ind)) (trans extScopeBind extScopeEmpty) τ₀
+           Δγ : Telescope (α ◂▸ ind) rβ₀
            Δγ = subst τ Δe₀ixs)
      -------------------------------------------------------------------
      → Γ , concatTermS iSubst₁ (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ concatTermS iSubst₂ (e₀ ↦ TCon c σ₂ ◂ δ₂)
