@@ -8,14 +8,13 @@ open import Haskell.Law.Equality renaming (subst to transport)
 open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
-open import Agda.Core.Conversion
-open import Agda.Core.Typing
-open import Agda.Core.Reduce
-open import Agda.Core.TCM
-open import Agda.Core.TCMInstances
-open import Agda.Core.Converter
+open import Agda.Core.Conversion.Reduce
+open import Agda.Core.Conversion.Rules
+open import Agda.Core.Typing.Rules
+open import Agda.Core.TCM.Instances
+open import Agda.Core.Conversion.Converter
 
-module Agda.Core.Typechecker
+module Agda.Core.Typing.Typechecker
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where

@@ -7,13 +7,12 @@ open import Agda.Core.Utils
 open import Agda.Core.Syntax
 open import Agda.Core.Syntax.Strengthening
 open import Agda.Core.Syntax.VarInTerm
-open import Agda.Core.TCM
-open import Agda.Core.TCMInstances
-open import Agda.Core.Unification
+open import Agda.Core.TCM.Instances
+open import Agda.Core.Unification.Rules
 open UnificationStepAndStop
 open TelescopeEq
 
-module Agda.Core.Unifier
+module Agda.Core.Unification.Unifier
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where

@@ -8,7 +8,7 @@ open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
 
-module Agda.Core.Reduce
+module Agda.Core.Conversion.Reduce
   {{@0 globals : Globals}}
   {{@0 sig : Signature}}
   where

@@ -28,14 +28,14 @@ library
                     , Agda.Core.Syntax.Substitute
                     , Agda.Core.Syntax.Signature
                     , Agda.Core.Syntax.Context
-                    , Agda.Core.Conversion
-                    , Agda.Core.Converter
                     , Agda.Core.GlobalScope
-                    , Agda.Core.Reduce
-                    , Agda.Core.TCM
-                    , Agda.Core.TCMInstances
-                    , Agda.Core.Typechecker
-                    , Agda.Core.Typing
+                    , Agda.Core.TCM.TCM
+                    , Agda.Core.TCM.Instances
+                    , Agda.Core.Conversion.Reduce
+                    , Agda.Core.Conversion.Rules
+                    , Agda.Core.Conversion.Converter
+                    , Agda.Core.Typing.Rules
+                    , Agda.Core.Typing.Typechecker
                     , Agda.Core.Utils
                     , Scope.All
                     , Scope.Core

@@ -7,12 +7,12 @@ open import Haskell.Law.Equality
 open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
-open import Agda.Core.Reduce
-open import Agda.Core.TCM
-open import Agda.Core.Typing
-open import Agda.Core.Typechecker
-open import Agda.Core.Unification
-open import Agda.Core.Unifier
+open import Agda.Core.Conversion.Reduce
+open import Agda.Core.TCM.TCM
+open import Agda.Core.Typing.Rules
+open import Agda.Core.Typing.Typechecker
+open import Agda.Core.Unification.Rules
+open import Agda.Core.Unification.Unifier
 
 private variable
   x y : Name

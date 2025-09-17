@@ -6,18 +6,17 @@ open import Haskell.Law.Eq
 open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
-open import Agda.Core.Conversion
-open import Agda.Core.Reduce
-open import Agda.Core.TCM
-open import Agda.Core.TCMInstances
+open import Agda.Core.Conversion.Rules
+open import Agda.Core.Conversion.Reduce
+open import Agda.Core.TCM.Instances
 
-module Agda.Core.Converter
+module Agda.Core.Conversion.Converter
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where
 
 -- Workaround for https://github.com/agda/agda2hs/issues/324
-{-# FOREIGN AGDA2HS import Agda.Core.TCMInstances #-}
+{-# FOREIGN AGDA2HS import Agda.Core.TCM.Instances #-}
 
 private open module @0 G = Globals globals
 

@@ -5,7 +5,7 @@ open import Agda.Core.Utils     using (Fuel; ∃-syntax; _⟨_⟩; Instance; I)
 open import Agda.Core.GlobalScope      using (Globals)
 open import Agda.Core.Syntax.Signature using (Signature)
 
-module Agda.Core.TCM
+module Agda.Core.TCM.TCM
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where
