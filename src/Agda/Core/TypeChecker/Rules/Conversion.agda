@@ -6,9 +6,9 @@ open import Haskell.Law.Equality renaming (subst to transport)
 
 open import Agda.Core.Name
 open import Agda.Core.Syntax
-open import Agda.Core.Conversion.Reduce
+open import Agda.Core.Reduction.Reduce
 
-module Agda.Core.Conversion.Rules
+module Agda.Core.TypeChecker.Rules.Conversion
   {{@0 globals : Globals}}
   {{@0 sig     : Signature}}
   where

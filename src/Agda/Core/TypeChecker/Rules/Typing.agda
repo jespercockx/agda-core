@@ -4,9 +4,9 @@ open import Haskell.Extra.Erase
 open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
-open import Agda.Core.Conversion.Rules
+open import Agda.Core.TypeChecker.Rules.Conversion
 
-module Agda.Core.Typing.Rules
+module Agda.Core.TypeChecker.Rules.Typing
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where
