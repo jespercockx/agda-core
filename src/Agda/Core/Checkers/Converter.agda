@@ -6,11 +6,11 @@ open import Haskell.Law.Eq
 open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
-open import Agda.Core.TypeChecker.Rules.Conversion
-open import Agda.Core.Reduction.Reduce
+open import Agda.Core.Rules.Conversion
+open import Agda.Core.Reduce
 open import Agda.Core.TCM.Instances
 
-module Agda.Core.TypeChecker.Checkers.Converter
+module Agda.Core.Checkers.Converter
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where

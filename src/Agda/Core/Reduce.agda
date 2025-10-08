@@ -8,9 +8,9 @@ open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
 
--- TODO: Split in two files: rules and checker
+-- TODO: Split in two files: rules and checkers
 
-module Agda.Core.Reduction.Reduce
+module Agda.Core.Reduce
   {{@0 globals : Globals}}
   {{@0 sig : Signature}}
   where

@@ -31,11 +31,11 @@ library
                     , Agda.Core.GlobalScope
                     , Agda.Core.TCM.TCM
                     , Agda.Core.TCM.Instances
-                    , Agda.Core.Reduction.Reduce
-                    , Agda.Core.TypeChecker.Rules.Conversion
-                    , Agda.Core.TypeChecker.Checkers.Converter
-                    , Agda.Core.TypeChecker.Rules.Typing
-                    , Agda.Core.TypeChecker.Checkers.TypeCheck
+                    , Agda.Core.Reduce
+                    , Agda.Core.Rules.Conversion
+                    , Agda.Core.Checkers.Converter
+                    , Agda.Core.Rules.Typing
+                    , Agda.Core.Checkers.TypeCheck
                     , Agda.Core.Utils
                     , Scope.All
                     , Scope.Core

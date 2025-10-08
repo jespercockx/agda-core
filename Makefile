@@ -12,13 +12,13 @@ alllib: lib \
   lib/Agda/Core/Syntax/Strengthening.hs \
   lib/Agda/Core/Syntax/VarInTerm.hs \
   lib/Agda/Core/Syntax.hs \
-  lib/Agda/Core/Reduction/Reduce.hs \
-  lib/Agda/Core/TypeChecker/Rules/Conversion.hs \
-  lib/Agda/Core/TypeChecker/Rules/Typing.hs \
+  lib/Agda/Core/Reduce.hs \
+  lib/Agda/Core/Rules/Conversion.hs \
+  lib/Agda/Core/Rules/Typing.hs \
   lib/Agda/Core/TCM/TCM.hs \
   lib/Agda/Core/TCM/Instances.hs \
-  lib/Agda/Core/TypeChecker/Checkers/Converter.hs \
-  lib/Agda/Core/TypeChecker/Checkers/TypeCheck.hs
+  lib/Agda/Core/Checkers/Converter.hs \
+  lib/Agda/Core/Checkers/TypeCheck.hs
 
 # alllib: lib lib/*.hs
 

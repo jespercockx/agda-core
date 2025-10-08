@@ -8,11 +8,11 @@ open import Agda.Core.Syntax
 open import Agda.Core.Syntax.Strengthening
 open import Agda.Core.Syntax.VarInTerm
 open import Agda.Core.TCM.Instances
-open import Agda.Core.TypeChecker.Rules.Unification
+open import Agda.Core.Rules.Unification
 open UnificationStepAndStop
 open TelescopeEq
 
-module Agda.Core.TypeChecker.Checkers.Unifier
+module Agda.Core.Checkers.Unifier
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where
