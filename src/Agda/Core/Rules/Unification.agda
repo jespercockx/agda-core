@@ -8,7 +8,7 @@ open import Agda.Core.Utils
 open import Agda.Core.Syntax
 open import Agda.Core.Syntax.Strengthening
 
-module Agda.Core.Unification
+module Agda.Core.Rules.Unification
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where

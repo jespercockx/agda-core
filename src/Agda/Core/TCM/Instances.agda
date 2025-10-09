@@ -2,12 +2,14 @@ open import Haskell.Prelude
 
 open import Agda.Core.GlobalScope       using (Globals)
 open import Agda.Core.Syntax.Signature  using (Signature)
-open import Agda.Core.TCM
 
-module Agda.Core.TCMInstances
+module Agda.Core.TCM.Instances
     {{@0 globals : Globals}}
     {{@0 sig : Signature}}
   where
+
+open import Agda.Core.TCM.TCM           public
+-- If you use TCM Instances you will need TCM
 
 private
   fmapTCM : (a → b) → TCM a → TCM b

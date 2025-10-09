@@ -8,11 +8,11 @@ open import Agda.Core.Name
 open import Agda.Core.Utils
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
-open import Agda.Core.TCM
-open import Agda.Core.Typing
-open import Agda.Core.Typechecker
-open import Agda.Core.Unification
-open import Agda.Core.Unifier
+open import Agda.Core.TCM.TCM
+open import Agda.Core.Rules.Typing
+open import Agda.Core.Checkers.TypeCheck
+open import Agda.Core.Rules.Unification
+open import Agda.Core.Checkers.Unifier
 
 private variable
   x y : Name

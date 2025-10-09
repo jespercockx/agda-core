@@ -33,9 +33,9 @@ import Agda.Core.UtilsH
 import Agda.Core.Syntax.Context ( Context(CtxEmpty) )
 import Agda.Core.Syntax.Signature qualified as Core
 import Agda.Core.Syntax.Term qualified as Core
-import Agda.Core.TCM qualified as Core
+import Agda.Core.TCM.TCM qualified as Core
 import Agda.Core.Utils qualified as Core
-import Agda.Core.Typechecker (checkType)
+import Agda.Core.Checkers.TypeCheck (checkType)
 
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.Maybe (mapMaybe, isNothing, fromMaybe)

@@ -7,18 +7,18 @@ LIBRARIES =
 # this should stay in sync with the modules defined in cabal
 # also the order is silly, we redo a lot of the work because we don't know the dependencies
 alllib: lib \
+  lib/Agda/Core/Utils.hs \
+  lib/Agda/Core/GlobalScope.hs \
   lib/Agda/Core/Syntax/Strengthening.hs \
   lib/Agda/Core/Syntax/VarInTerm.hs \
   lib/Agda/Core/Syntax.hs \
-  lib/Agda/Core/Conversion.hs \
-  lib/Agda/Core/Converter.hs \
-  lib/Agda/Core/GlobalScope.hs \
   lib/Agda/Core/Reduce.hs \
-  lib/Agda/Core/TCM.hs \
-  lib/Agda/Core/TCMInstances.hs \
-  lib/Agda/Core/Typechecker.hs \
-  lib/Agda/Core/Typing.hs \
-  lib/Agda/Core/Utils.hs
+  lib/Agda/Core/Rules/Conversion.hs \
+  lib/Agda/Core/Rules/Typing.hs \
+  lib/Agda/Core/TCM/TCM.hs \
+  lib/Agda/Core/TCM/Instances.hs \
+  lib/Agda/Core/Checkers/Converter.hs \
+  lib/Agda/Core/Checkers/TypeCheck.hs
 
 # alllib: lib lib/*.hs
 
