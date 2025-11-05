@@ -20,7 +20,7 @@
       let
         pkgs = import nixpkgs {inherit system;};
 
-        agda2hs-lib = agda2hs.packages.${system}.agda2hs-lib;
+        agda2hs-lib = agda2hs.packages.${system}.base-lib;
         scope-lib = scope.packages.${system}.scope-lib;
         agda2hs-custom = (agda2hs.lib.${system}.withPackages) [agda2hs-lib scope-lib];
 
