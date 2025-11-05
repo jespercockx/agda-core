@@ -1,9 +1,4 @@
-open import Haskell.Prelude           using (mempty; _<>_; _≡_; e)
-open import Haskell.Extra.Erase       using (Rezz; rezz; rezzCong)
-open import Haskell.Law.Monoid.Def    using (leftIdentity; rightIdentity)
-open import Haskell.Law.Semigroup.Def using (associativity)
-open import Haskell.Law.Equality      using (subst0; sym)
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax.Term
 
@@ -12,6 +7,7 @@ module Agda.Core.Syntax.Context
   where
 
 private variable
+  a b c d e  : Set
   @0 x y     : Name
   @0 α       : Scope Name
   @0 rβ rγ   : RScope Name

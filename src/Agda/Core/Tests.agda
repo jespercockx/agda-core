@@ -1,11 +1,8 @@
 module Agda.Core.Tests where
 
-open import Haskell.Prelude hiding (All)
-open import Haskell.Extra.Erase
-open import Haskell.Law.Equality
+open import Agda.Core.Prelude
 
 open import Agda.Core.Name
-open import Agda.Core.Utils
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
 open import Agda.Core.TCM.TCM

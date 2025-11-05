@@ -1,9 +1,4 @@
-open import Haskell.Prelude hiding (All; a; b; c; d; s; t)
-
-open import Haskell.Extra.Dec
-open import Haskell.Extra.Erase
-open import Haskell.Law.Equality renaming (subst to transport)
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce

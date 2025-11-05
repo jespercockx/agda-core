@@ -1,8 +1,5 @@
-open import Haskell.Prelude       using (_<>_)
-open import Haskell.Extra.Erase   using (Rezz; rezz)
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
-open import Agda.Core.Utils
 open import Agda.Core.Syntax.Term
 open import Agda.Core.Syntax.Context
 

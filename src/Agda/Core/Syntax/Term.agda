@@ -1,12 +1,6 @@
-open import Haskell.Prelude           hiding (All; coerce; a; b; c; d)
-open import Haskell.Law.Equality      using (sym; subst0)
-open import Haskell.Law.Monoid.Def    using (leftIdentity; rightIdentity)
-open import Haskell.Law.Semigroup.Def using (associativity)
-open import Haskell.Extra.Erase
-
+open import Agda.Core.Prelude
 import Agda.Core.GlobalScope
 open import Agda.Core.Name
-open import Agda.Core.Utils
 
 module Agda.Core.Syntax.Term
   {{@0 globals : Agda.Core.GlobalScope.Globals}}
@@ -14,6 +8,9 @@ module Agda.Core.Syntax.Term
 
 open Agda.Core.GlobalScope using (Globals) public
 private open module @0 G = Globals globals
+
+private variable
+  a b e : Set
 
 data Term     (@0 α : Scope Name) : Set
 data TermS    (@0 α : Scope Name) : (@0 rβ : RScope Name) → Set

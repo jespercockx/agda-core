@@ -1,8 +1,6 @@
 module Agda.Core.GlobalScope where
 
-open import Haskell.Prelude
-open import Haskell.Extra.Erase
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
 
 record Globals : Set where

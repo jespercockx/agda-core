@@ -1,8 +1,23 @@
-module Agda.Core.Utils where
+module Agda.Core.Prelude where
 
-open import Haskell.Prelude
-open import Haskell.Extra.Refinement using (∃; _⟨_⟩)  public
-open import Haskell.Extra.Erase      using (Σ0; ⟨_⟩_) public
+open import Haskell.Prelude as Prelude public
+  hiding (All; coerce; _,_,_; a; b; c; d; e; f; m; s; t)
+  renaming (Type to Set; _,_ to infixr 5 _,_)
+
+open import Haskell.Extra.Dec public
+open import Haskell.Extra.Erase public
+open import Haskell.Extra.Refinement public
+
+open import Haskell.Law.Eq public
+open import Haskell.Law.Equality public
+  renaming (subst to transport)
+open import Haskell.Law.Monoid public
+open import Haskell.Law.Semigroup.Def public
+
+open import Utils.Either public
+
+private variable
+  a b c : Set
 
 -- we have 3 kinds of dependent pairs available,
 -- encoding (x : a) (y : p x)
@@ -61,6 +76,7 @@ record Instance (a : Set) : Set where
 {-# COMPILE AGDA2HS Instance unboxed #-}
 
 record Equivalence (a b : Set) : Set where
+  no-eta-equality
   constructor Equiv
   field
     σ : a → b

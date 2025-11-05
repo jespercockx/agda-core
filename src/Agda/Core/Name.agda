@@ -1,9 +1,9 @@
-open import Haskell.Prelude
-open import Haskell.Extra.Dec
-open import Haskell.Extra.Erase
-open import Haskell.Extra.Refinement
+open import Agda.Core.Prelude
 
 module Agda.Core.Name where
+
+private variable
+  a b c : Set
 
 open import Scope public
 Name = String

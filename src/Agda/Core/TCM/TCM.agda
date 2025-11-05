@@ -1,7 +1,4 @@
-open import Haskell.Prelude hiding (All; m)
-open import Haskell.Extra.Erase using (Rezz; rezz; ⟨_⟩_)
-open import Agda.Core.Utils     using (Fuel; ∃-syntax; _⟨_⟩; Instance; I)
-
+open import Agda.Core.Prelude
 open import Agda.Core.GlobalScope      using (Globals)
 open import Agda.Core.Syntax.Signature using (Signature)
 
@@ -11,6 +8,9 @@ module Agda.Core.TCM.TCM
   where
 
 private open module @0 G = Globals globals
+
+private variable
+  a b c d e : Set
 
 TCError = String
 

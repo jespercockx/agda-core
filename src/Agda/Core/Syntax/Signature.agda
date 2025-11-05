@@ -1,11 +1,5 @@
-open import Haskell.Prelude hiding (All; c; d; s; t)
-open import Haskell.Extra.Erase
-open import Haskell.Law.Equality      using (subst0; sym)
-open import Haskell.Law.Semigroup.Def using (associativity)
-open import Haskell.Law.Monoid.Def
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
-open import Agda.Core.Utils
 
 open import Agda.Core.Syntax.Term
 open import Agda.Core.Syntax.Context

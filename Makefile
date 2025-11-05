@@ -7,7 +7,7 @@ LIBRARIES =
 # this should stay in sync with the modules defined in cabal
 # also the order is silly, we redo a lot of the work because we don't know the dependencies
 alllib: lib \
-  lib/Agda/Core/Utils.hs \
+  lib/Agda/Core/Prelude.hs \
   lib/Agda/Core/GlobalScope.hs \
   lib/Agda/Core/Syntax/Strengthening.hs \
   lib/Agda/Core/Syntax/VarInTerm.hs \

@@ -1,9 +1,5 @@
-open import Haskell.Prelude       using (List; _∷_; []; _++_; _≡_; _<>_)
-open import Haskell.Law.Equality  using (subst0)
-open import Haskell.Extra.Erase
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
-open import Agda.Core.Utils
 open import Agda.Core.Syntax.Term
 
 module Agda.Core.Syntax.VarInTerm

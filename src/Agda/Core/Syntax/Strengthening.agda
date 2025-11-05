@@ -1,7 +1,5 @@
-open import Haskell.Prelude hiding (All; coerce; a; b; c; d)
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
-open import Agda.Core.Utils
 open import Agda.Core.Syntax.Term
 
 module Agda.Core.Syntax.Strengthening

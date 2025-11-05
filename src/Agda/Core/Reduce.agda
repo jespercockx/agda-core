@@ -1,11 +1,6 @@
-open import Haskell.Prelude hiding (All; coerce; _,_,_; c; d) renaming (_,_ to infixr 5 _,_)
-open import Haskell.Extra.Erase
-open import Haskell.Law.Equality renaming (subst to transport)
-open import Haskell.Law.Monoid
-open import Utils.Either using (mapRight)
 
+open import Agda.Core.Prelude
 open import Agda.Core.Name
-open import Agda.Core.Utils
 open import Agda.Core.Syntax
 
 -- TODO: Split in two files: rules and checkers

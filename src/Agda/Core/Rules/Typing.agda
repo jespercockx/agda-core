@@ -1,8 +1,5 @@
-open import Haskell.Prelude hiding (All; a; b; c; e; s; t; m)
-open import Haskell.Extra.Erase
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
-open import Agda.Core.Utils
 open import Agda.Core.Syntax
 open import Agda.Core.Rules.Conversion
 

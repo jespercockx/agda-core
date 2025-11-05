@@ -36,7 +36,7 @@ library
                     , Agda.Core.Checkers.Converter
                     , Agda.Core.Rules.Typing
                     , Agda.Core.Checkers.TypeCheck
-                    , Agda.Core.Utils
+                    , Agda.Core.Prelude
                     , Scope.All
                     , Scope.Core
                     , Scope.Diff

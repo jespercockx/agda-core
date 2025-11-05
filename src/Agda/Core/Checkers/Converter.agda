@@ -1,10 +1,5 @@
-open import Haskell.Prelude as Prelude
-open import Haskell.Extra.Erase
-open import Haskell.Extra.Dec using (ifDec)
-open import Haskell.Law.Eq
-
+open import Agda.Core.Prelude
 open import Agda.Core.Name
-open import Agda.Core.Utils
 open import Agda.Core.Syntax
 open import Agda.Core.Rules.Conversion
 open import Agda.Core.Reduce
