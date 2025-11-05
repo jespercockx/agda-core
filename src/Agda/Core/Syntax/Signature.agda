@@ -18,6 +18,7 @@ private variable
                                         {- Constructor -}
 ---------------------------------------------------------------------------------------------------
 record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
+  no-eta-equality
   private
     @0 pars : RScope Name
     pars = dataParScope d
@@ -45,6 +46,7 @@ instConIx con tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) (conIx 
                                           {- Datatype -}
 ---------------------------------------------------------------------------------------------------
 record Datatype (@0 d : NameData) : Set where
+  no-eta-equality
   private
     @0 pars : RScope Name
     pars = dataParScope d
@@ -79,6 +81,7 @@ data SigDefinition : Set where
 {-# COMPILE AGDA2HS SigDefinition #-}
 
 record Signature : Set where
+  no-eta-equality
   field
     sigData : (d : NameData) → Datatype d
     sigDefs : (f : NameIn defScope)  → Type mempty × SigDefinition
@@ -120,6 +123,7 @@ data Defn : Set where
 
 
 record Definition : Set where
+  no-eta-equality
   field
     defName : String
     defType : Type mempty

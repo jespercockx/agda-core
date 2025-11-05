@@ -90,6 +90,7 @@ weakenStack s (f ∷ fs) = weakenFrame s f ∷ weakenStack s fs
 {-# COMPILE AGDA2HS weakenStack #-}
 
 record State (@0 α : Scope Name) : Set where
+  pattern; no-eta-equality
   constructor MkState
   field
     @0 {fullScope}  : Scope Name

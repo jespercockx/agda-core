@@ -54,7 +54,7 @@ pattern ⌈⌉ = TSNil
 pattern _↦_◂_ x t s = TSCons {x = x} t s
 
 record Type α where
-  inductive
+  inductive; no-eta-equality; pattern
   constructor El
   field
     typeSort : Sort α

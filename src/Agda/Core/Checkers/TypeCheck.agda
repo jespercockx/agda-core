@@ -220,12 +220,14 @@ checkLambda : ∀ Γ (@0 x : Name)
 checkLambda ctx x u (El s ty) = do
   let r = singScope ctx
 
-  ⟨ y ⟩ (tu , tv) ⟨ rtp ⟩ ← reduceToPi r ty
+  -- TODO: introduce helper function to avoid pattern match on codomain
+  ⟨ y ⟩ (tu , El tvs tvt) ⟨ rtp ⟩ ← reduceToPi r ty
     "couldn't reduce a term to a pi type"
-  let gc = CRedR rtp (CPi CRefl CRefl)
-      sp = piSort (typeSort tu) (typeSort tv)
 
-  d ← checkType (ctx , x ∶ tu) u (renameTopType (rezzScope ctx) tv)
+  d ← checkType (ctx , x ∶ tu) u (El (renameTopSort r tvs) (renameTop r tvt))
+
+  let gc = CRedR rtp (CPi CRefl CRefl)
+      sp = piSort (typeSort tu) tvs
 
   return $ TyConv (TyLam {k = sp} d) gc
 

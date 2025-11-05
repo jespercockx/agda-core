@@ -17,6 +17,7 @@ TCError = String
 {-# COMPILE AGDA2HS TCError #-}
 
 record TCEnv : Set where
+  pattern; no-eta-equality
   constructor MkTCEnv
   field
     tcSignature : Singleton sig
@@ -26,6 +27,7 @@ open TCEnv public
 {-# COMPILE AGDA2HS TCEnv #-}
 
 record TCM (a : Set) : Set where
+  pattern; no-eta-equality
   constructor MkTCM
   field runTCM : TCEnv → Either TCError a
 open TCM public
