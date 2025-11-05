@@ -94,7 +94,7 @@ data TyTerm {α} Γ where
     → Γ ⊢ u ∶ El k (TPi x b c)
     → Γ ⊢ v ∶ b
     ------------------------------------
-    → Γ ⊢ TApp u v ∶ substTop (rezzScope Γ) v c
+    → Γ ⊢ TApp u v ∶ substTop (singScope Γ) v c
 
   TyCase :
     {d : NameData}                                                -- the name of a datatype
@@ -102,13 +102,13 @@ data TyTerm {α} Γ where
          iScope = dataIxScope d                                   -- indexes of d
          α'     = α ◂▸ iScope                               -- general scope + indexes
          dt     = sigData sig d                                   -- the datatype called d
-         iRun   = rezz iScope)                                    -- runtime index scope
+         iRun   = sing iScope)                                    -- runtime index scope
     {@0 pars : TermS α pScope}                                    -- parameters of d in Scope α
     {@0 ixs  : TermS α iScope}                                    -- indexes of d in Scope α
     (let ixs' : TermS α' iScope                                   -- indexes of d in Scope α'
          ixs' = weaken (subExtScope iRun subRefl) ixs
          α'Subst : α' ⇒ α                                         -- subst of α' to α
-         α'Subst = extSubst (idSubst (rezzScope Γ)) ixs)
+         α'Subst = extSubst (idSubst (singScope Γ)) ixs)
     {cases : Branches α d (AllNameCon d)}                         -- cases for constructors of dt
     {return : Type (α' ▸ x)}                                      -- return type
     (let αInα' : α ⊆ α'
@@ -174,7 +174,7 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
                    con = sigCons sig d c
                    fields = fieldScope c
                    α' = α ◂▸ fields
-                   r = rezz fields)
+                   r = sing fields)
               (rhs : Term α')
               (let Γ' : Context α'
                    Γ' = addContextTel Γ (instConIndTel con pars)
@@ -189,7 +189,7 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
                    ixs' = instConIx con pars' cargs
 
                    asubst : α ⇒ α'
-                   asubst = weaken (subExtScope r subRefl) (idSubst (rezzScope Γ))
+                   asubst = weaken (subExtScope r subRefl) (idSubst (singScope Γ))
 
                    bsubst : α ◂▸ dataIxScope d ▸ x ⇒ α'
                    bsubst = (extSubst asubst ixs' ▹ x ↦ TCon c cargs)
@@ -198,7 +198,7 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
                    return' = subst bsubst return)
 
             → Γ' ⊢ rhs ∶ return'
-            → TyBranch Γ dt pars return (BBranch (rezz c) r rhs)
+            → TyBranch Γ dt pars return (BBranch (sing c) r rhs)
 
 {-# COMPILE AGDA2HS TyBranch #-}
 
@@ -208,7 +208,7 @@ data TyTermS {α} Γ where
     Γ ⊢ˢ  ⌈⌉ ∶ ⌈⌉
   TyCons : {@0 us : TermS α rβ} {@0 Δ : Telescope (α ▸ x) rβ}
     → Γ ⊢ u ∶ a
-    → Γ ⊢ˢ us ∶ substTelescope (idSubst (rezzScope Γ) ▹ x ↦ u) Δ
+    → Γ ⊢ˢ us ∶ substTelescope (idSubst (singScope Γ) ▹ x ↦ u) Δ
     -----------------------------------------------------------
     → Γ ⊢ˢ (x ↦ u ◂ us) ∶ (x ∶ a ◂ Δ)
 
@@ -254,9 +254,9 @@ tyCase' : {@0 Γ : Context α}
    → (let pScope = dataParScope d
           iScope = dataIxScope d
           α' = α ◂▸ iScope)
-  → (let @0 αRun : Rezz α
-         αRun = rezzScope Γ)
-  {@0 iRun : Rezz iScope}
+  → (let @0 αRun : Singleton α
+         αRun = singScope Γ)
+  {@0 iRun : Singleton iScope}
   {@0 pSubst : TermS α pScope}
   {@0 iSubst : TermS α iScope}
   (let iSubst' = weakenTermS (subExtScope iRun subRefl) iSubst
@@ -284,7 +284,7 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
                  β = α ◂▸ fields)
             (@0 con : Constructor c)
             → @0 sigCons sig d c ≡ con
-            → {@0 r : Rezz fields}
+            → {@0 r : Singleton fields}
             (rhs : Term β)
             (let Γ' : Context β
                  Γ' = addContextTel Γ (instConIndTel con ps)
@@ -299,7 +299,7 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
                  ixsubst = instConIx con parssubst cargs
 
                  idsubst : α ⇒ β
-                 idsubst = weakenSubst (subExtScope r subRefl) (idSubst (rezzScope Γ))
+                 idsubst = weakenSubst (subExtScope r subRefl) (idSubst (singScope Γ))
 
                  bsubst : α ◂▸ dataIxScope d ▸ x ⇒ β
                  bsubst = extSubst idsubst ixsubst ▹ x ↦ TCon c cargs
@@ -308,6 +308,6 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
                  return' = subst bsubst return)
 
           → Γ' ⊢ rhs ∶ return'
-          → TyBranch Γ dt ps return (BBranch (rezz c) r rhs)
-tyBBranch' c0 con refl {r = rezz fields} rsh crhs = TyBBranch c0 rsh crhs
+          → TyBranch Γ dt ps return (BBranch (sing c) r rhs)
+tyBBranch' c0 con refl {r = sing fields} rsh crhs = TyBBranch c0 rsh crhs
 {-# COMPILE AGDA2HS tyBBranch' #-}

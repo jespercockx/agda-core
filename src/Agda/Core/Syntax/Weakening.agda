@@ -95,18 +95,18 @@ instance
                                       {- Useful functions -}
 ---------------------------------------------------------------------------------------------------
 
-raise : Rezz rγ → Term α → Term (α ◂▸ rγ)
+raise : Singleton rγ → Term α → Term (α ◂▸ rγ)
 raise r = weakenTerm (subExtScope r subRefl)
 {-# COMPILE AGDA2HS raise #-}
 
 private -- it should use a RScope instead of β and then could be public
-  raiseType : {@0 α β : Scope Name} → Rezz β → Type α → Type (α <> β)
+  raiseType : {@0 α β : Scope Name} → Singleton β → Type α → Type (α <> β)
   raiseType r = weakenType (subJoinDrop r subRefl)
   {-# COMPILE AGDA2HS raiseType #-}
 
 lookupVar : (Γ : Context α) (x : NameIn α) → Type α
 lookupVar CtxEmpty x = nameInEmptyCase x
-lookupVar (CtxExtend g y s) x = raiseType (rezz _) (nameInBindCase x
+lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
   (λ q → lookupVar g (⟨ _ ⟩ q))
   (λ _ → s))
 {-# COMPILE AGDA2HS lookupVar #-}

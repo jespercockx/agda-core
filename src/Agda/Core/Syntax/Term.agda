@@ -34,7 +34,7 @@ data Term α where
   TProj : (u : Term α) (x : NameIn defScope) → Term α
   TCase : {@0 x : Name}
         → (d : NameData)                                  -- Datatype of the variable we are splitting on
-        → Rezz (dataIxScope d)                            -- Run-time representation of index scope
+        → Singleton (dataIxScope d)                            -- Run-time representation of index scope
         → (u : Term α)                                    -- Term we are casing on
         → (bs : Branches α d (AllNameCon d))              -- Branches (one for each constructor of d)
         → (m : Type (α ◂▸ dataIxScope d ▸ x))   -- Return type
@@ -66,7 +66,7 @@ data Sort α where
   -- TODO: universe polymorphism
 
 data Branch α c where
-  BBranch : Rezz c → Rezz (fieldScope c)
+  BBranch : Singleton c → Singleton (fieldScope c)
           → Term (α ◂▸ fieldScope c) → Branch α c
 
 data Branches α d where
@@ -151,15 +151,15 @@ opaque
 
 -- Resurection of Scope/RScope
 
-rezzBranches : Branches α d cs → Rezz cs
-rezzBranches BsNil = rezz mempty
-rezzBranches (BsCons {c = c} bh bt) = rezzCong (λ cs → c ◂ cs) (rezzBranches bt)
-{-# COMPILE AGDA2HS rezzBranches #-}
+singBranches : Branches α d cs → Singleton cs
+singBranches BsNil = sing mempty
+singBranches (BsCons {c = c} bh bt) = singCong (λ cs → c ◂ cs) (singBranches bt)
+{-# COMPILE AGDA2HS singBranches #-}
 
-rezzTermS : TermS α rβ → Rezz rβ
-rezzTermS ⌈⌉ = rezz _
-rezzTermS (x ↦ u ◂ t) = rezzCong (λ t → x ◂ t) (rezzTermS t)
-{-# COMPILE AGDA2HS rezzTermS #-}
+singTermS : TermS α rβ → Singleton rβ
+singTermS ⌈⌉ = sing _
+singTermS (x ↦ u ◂ t) = singCong (λ t → x ◂ t) (singTermS t)
+{-# COMPILE AGDA2HS singTermS #-}
 
 -- others
 
@@ -204,7 +204,7 @@ concatTermS {α = α} {rγ = rγ} (x ↦ u ◂ t1) t =
 
 opaque
   unfolding extScope
-  termSrepeat : Rezz rβ → TermS (α ◂▸ rβ) rβ
-  termSrepeat (rezz []) = ⌈⌉
-  termSrepeat (rezz (Erased x ∷ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (rezz rβ) inHere) ◂ termSrepeat (rezz rβ)
+  termSrepeat : Singleton rβ → TermS (α ◂▸ rβ) rβ
+  termSrepeat (sing []) = ⌈⌉
+  termSrepeat (sing (Erased x ∷ rβ)) = x ↦ TVar (⟨ x ⟩ inScopeInExtScope (sing rβ) inHere) ◂ termSrepeat (sing rβ)
   {-# COMPILE AGDA2HS termSrepeat #-}

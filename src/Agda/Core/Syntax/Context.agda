@@ -24,12 +24,12 @@ pattern _,_∶_ Γ x a = CtxExtend Γ x a
 
 {-# COMPILE AGDA2HS Context #-}
 
-rezzScope : (Γ : Context α) → Rezz α
-rezzScope CtxEmpty = rezz _
-rezzScope (CtxExtend g x _) =
-  rezzCong (λ t → t <> (singleton x)) (rezzScope g)
+singScope : (Γ : Context α) → Singleton α
+singScope CtxEmpty = sing _
+singScope (CtxExtend g x _) =
+  singCong (λ t → t <> (singleton x)) (singScope g)
 
-{-# COMPILE AGDA2HS rezzScope #-}
+{-# COMPILE AGDA2HS singScope #-}
 ---------------------------------------------------------------------------------------------------
                                         {- Telescopes -}
 ---------------------------------------------------------------------------------------------------
@@ -47,11 +47,11 @@ pattern _∶_◂_ x t Δ = ExtendTel x t Δ
 
 {-# COMPILE AGDA2HS Telescope #-}
 
-rezzTel : Telescope α rβ → Rezz rβ
-rezzTel ⌈⌉ = rezz _
-rezzTel (x ∶ ty ◂ t) = rezzCong (λ t → x ◂ t) (rezzTel t)
+singTel : Telescope α rβ → Singleton rβ
+singTel ⌈⌉ = sing _
+singTel (x ∶ ty ◂ t) = singCong (λ t → x ◂ t) (singTel t)
 
-{-# COMPILE AGDA2HS rezzTel #-}
+{-# COMPILE AGDA2HS singTel #-}
 
 opaque
   addTel : Telescope α rβ → Telescope (α ◂▸ rβ) rγ → Telescope α (rβ <> rγ)

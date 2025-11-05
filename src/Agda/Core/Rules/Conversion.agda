@@ -35,41 +35,41 @@ infix 3 Conv
 syntax Conv x y        = x ≅ y
 syntax ConvTermS us vs = us ⇔ vs
 
-renameTop : Rezz α → Term  (α ▸ x) → Term  (α ▸ y)
+renameTop : Singleton α → Term  (α ▸ x) → Term  (α ▸ y)
 renameTop = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTop #-}
 
-renameTopSort : Rezz α → Sort  (α ▸ x) → Sort  (α ▸ y)
+renameTopSort : Singleton α → Sort  (α ▸ x) → Sort  (α ▸ y)
 renameTopSort = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopSort #-}
 
-renameTopType : Rezz α → Type  (α ▸ x) → Type  (α ▸ y)
+renameTopType : Singleton α → Type  (α ▸ x) → Type  (α ▸ y)
 renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
 data Conv {α} where
   CRefl  : u ≅ u
-  CLam   : {@0 r : Rezz α}
+  CLam   : {@0 r : Singleton α}
          → renameTop {y = z} r u ≅ renameTop {y = z} r v
          → TLam y u ≅ TLam z v
-  CPi    : {@0 r : Rezz α}
+  CPi    : {@0 r : Singleton α}
          → unType a ≅ unType a'
          → unType b ≅ renameTop r (unType b')
          → TPi x a b ≅ TPi y a' b'
   CApp   : u ≅ u'
          → w ≅ w'
          → TApp u w ≅ TApp u' w'
-  CCase  : ∀ {@0 x y z} {u u' : Term α} {@0 r : Rezz α}
+  CCase  : ∀ {@0 x y z} {u u' : Term α} {@0 r : Singleton α}
            (d : NameData)
-           (r1 r2 : Rezz (dataIxScope d))
+           (r1 r2 : Singleton (dataIxScope d))
            (bs bp : Branches α d (AllNameCon d))
            (ms : Type _) (mp : Type _)
          → u ≅ u'
-         →   renameTop {y = z} (rezzExtScope r r1) (unType ms)
-           ≅ renameTop {y = z} (rezzExtScope r r2) (unType mp)
+         →   renameTop {y = z} (singExtScope r r1) (unType ms)
+           ≅ renameTop {y = z} (singExtScope r r2) (unType mp)
          → ConvBranches bs bp
          → TCase {x = x} d r1 u bs ms ≅ TCase {x = y} d r2 u' bp mp
   -- TODO: CProj : {!   !}
@@ -91,7 +91,7 @@ data Conv {α} where
          → u  ≅ v
 
 data ConvBranch {α = α} {c = c} where
-  CBBranch :  (cr1 cr2 : Rezz c) (r1 r2 : Rezz (fieldScope c))
+  CBBranch :  (cr1 cr2 : Singleton c) (r1 r2 : Singleton (fieldScope c))
              (t1 : Term (α ◂▸ fieldScope c)) (t2 : Term (α ◂▸ fieldScope c))
            → t1 ≅ t2
            → ConvBranch (BBranch cr1 r1 t1) (BBranch cr2 r2 t2)

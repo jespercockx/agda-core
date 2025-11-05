@@ -20,21 +20,21 @@ renamingExtend σ xInβ = λ zInx◃α → inBindCase zInx◃α σ (λ where ref
 
 opaque
   unfolding Scope
-  renamingWeaken : ∀ {@0 α β γ : Scope Name} → Rezz γ → Renaming α β → Renaming α (β <> γ)
-  renamingWeaken (rezz []) σ = σ
-  renamingWeaken (rezz (_ ∷ α)) σ = inThere ∘ (renamingWeaken (rezz α) σ)
+  renamingWeaken : ∀ {@0 α β γ : Scope Name} → Singleton γ → Renaming α β → Renaming α (β <> γ)
+  renamingWeaken (sing []) σ = σ
+  renamingWeaken (sing (_ ∷ α)) σ = inThere ∘ (renamingWeaken (sing α) σ)
 
 renamingWeakenVar : ∀ {@0 α β : Scope Name} {@0 x : Name} → Renaming α β → Renaming α  (β ▸ x)
 renamingWeakenVar σ = inThere ∘ σ
 
 opaque
   unfolding Scope
-  renamingToSubst : ∀ {@0 α β : Scope Name} → Rezz α → Renaming α β → α ⇒ β
-  renamingToSubst (rezz []) _ = ⌈⌉
-  renamingToSubst (rezz (Erased x ∷ α)) r =
+  renamingToSubst : ∀ {@0 α β : Scope Name} → Singleton α → Renaming α β → α ⇒ β
+  renamingToSubst (sing []) _ = ⌈⌉
+  renamingToSubst (sing (Erased x ∷ α)) r =
     let r' : Renaming α _
         r' = λ xp → r (coerce (subBindDrop subRefl) xp) in
-    renamingToSubst (rezz α) r' ▹ x ↦  TVar < r (Zero ⟨ IsZero refl ⟩) >
+    renamingToSubst (sing α) r' ▹ x ↦  TVar < r (Zero ⟨ IsZero refl ⟩) >
 
 
 
@@ -74,7 +74,7 @@ module Swap where
     swapHighest (CtxExtend (CtxExtend Γ0 y ay) x ax) (⟨ y ⟩ (Zero ⟨ IsZero refl ⟩)) = do
       Γ' ← swapTwoLast (CtxExtend (CtxExtend Γ0 y ay) x ax)
       let σ : Renaming (α ▸ y ▸ x) (α ▸ x ▸ y)
-          σ = renamingExtend (renamingExtend (renamingWeaken (rezz (_ ∷ _ ∷ [])) id) inHere) (inThere inHere)
+          σ = renamingExtend (renamingExtend (renamingWeaken (sing (_ ∷ _ ∷ [])) id) inHere) (inThere inHere)
       return < Γ' , σ >
     swapHighest {α = Erased z ∷ α}  {x = x} {{Suc fl}} (CtxExtend (CtxExtend Γ0 z az) x ax) (⟨ y ⟩ (Suc value ⟨ IsSuc proof ⟩)) =
       let Γ : Context (α ▸ z ▸ x)
@@ -88,7 +88,7 @@ module Swap where
         let σ : Renaming (α ▸ z ▸ x) (α₀' ▸ z)
             σ = renamingExtend (renamingExtend ((renamingWeakenVar σ₀) ∘ inThere) inHere) (inThere (σ₀ inHere))
             az' : Type α₀'
-            az' = subst (renamingToSubst (rezzScope Γ₁) σ₀) (weaken (subBindDrop subRefl) az)
+            az' = subst (renamingToSubst (singScope Γ₁) σ₀) (weaken (subBindDrop subRefl) az)
             res1 : Σ0 _ λ α' → Context α' × Renaming (α ▸ z ▸ x) α'
             res1 = < CtxExtend Γ₀' z az' , σ >
         return res1 in
@@ -96,7 +96,7 @@ module Swap where
         ⟨ γ₀ ⟩ (Δ₀ , τ₀) ← swapHighest {{fl}} (CtxExtend Γ0 z az) < yInα >
         -- τ₀ : Renaming (z ◃ α) γ₀
         let ax' : Type γ₀
-            ax' = subst (renamingToSubst (rezzScope (CtxExtend Γ0 z az)) τ₀) ax
+            ax' = subst (renamingToSubst (singScope (CtxExtend Γ0 z az)) τ₀) ax
             σ₁ : Renaming (α ▸ z ▸ x) (γ₀ ▸ x)
             σ₁ = renamingExtend (renamingWeakenVar τ₀) inHere
         ⟨ α' ⟩ (Γ' , σ₂) ← swapHighest {{fl}} (CtxExtend Δ₀ x ax') < τ₀ (inThere yInα) >
@@ -118,7 +118,7 @@ module Swap where
       Just (⟨ α₀' ⟩ (Γ0' , σ₀)) ← swap Γ (⟨ _ ⟩ (vx ⟨ px ⟩)) (⟨ _ ⟩ ((Suc vy) ⟨ IsSuc py ⟩))
         where Nothing → Right Nothing
       -- σ₀ : Renaming _ α₀'
-      let τ₀ = renamingToSubst (rezzScope Γ) σ₀
+      let τ₀ = renamingToSubst (singScope Γ) σ₀
           σ : Renaming (_ ▸ z) (α₀' ▸ z)
           σ = renamingExtend (renamingWeakenVar σ₀) inHere
       Right (Just < CtxExtend Γ0' z (subst τ₀ az), σ >)
@@ -160,12 +160,12 @@ module Swap where
   opaque
     swapVarTermStrengthened : (Γ : Context α) → ((⟨ x ⟩ xp) : NameIn α) → (u : Term α)
       → Maybe (Σ0 _ λ α' → Context α' × (Σ[ σ ∈ Renaming α α' ]
-        (Σ[ u₀ ∈ Term (cutDrop (σ xp)) ] Strengthened (subst (renamingToSubst (rezzScope Γ) σ) u) u₀)))
+        (Σ[ u₀ ∈ Term (cutDrop (σ xp)) ] Strengthened (subst (renamingToSubst (singScope Γ) σ) u) u₀)))
     swapVarTermStrengthened Γ (⟨ x ⟩ xp) u =
       caseMaybe (swapVarTerm Γ (⟨ x ⟩ xp) u)
         (λ (⟨ α' ⟩ (Γ' , σ)) →
           let u' : Term α'
-              u' = subst (renamingToSubst (rezzScope Γ) σ) u in
+              u' = subst (renamingToSubst (singScope Γ) σ) u in
           caseMaybe (strengthen subCutDrop u')
             (λ u₀ {{e}} → Just (⟨ α' ⟩ (Γ' , (σ , (u₀ , (subCutDrop ⟨ e ⟩))))))
             Nothing)

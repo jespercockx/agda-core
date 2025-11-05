@@ -24,32 +24,32 @@ checkCoerce : ∀ Γ (t : Term α)
             → (cty : Type α)
             → TCM (Γ ⊢ t ∶ cty)
 checkCoerce ctx t (gty , dgty) cty = do
-  let r = rezzScope ctx
+  let r = singScope ctx
   TyConv dgty <$> convert r (unType gty) (unType cty)
 {-# COMPILE AGDA2HS checkCoerce #-}
 
-tcmGetType : (x : NameIn defScope) → TCM (Rezz (getType {α = α} sig x))
+tcmGetType : (x : NameIn defScope) → TCM (Singleton (getType {α = α} sig x))
 tcmGetType x = do
   rsig ← tcmSignature
-  return (rezzCong (λ sig → getType sig x) rsig)
+  return (singCong (λ sig → getType sig x) rsig)
 {-# COMPILE AGDA2HS tcmGetType #-}
 
-tcmGetDefinition : (x : NameIn defScope) → TCM (Rezz (getDefinition sig x))
+tcmGetDefinition : (x : NameIn defScope) → TCM (Singleton (getDefinition sig x))
 tcmGetDefinition x = do
   rsig ← tcmSignature
-  return (rezzCong (λ sig → getDefinition sig x) rsig)
+  return (singCong (λ sig → getDefinition sig x) rsig)
 {-# COMPILE AGDA2HS tcmGetDefinition #-}
 
-tcmGetDatatype : (d : NameData) → TCM (Rezz (sigData sig d))
+tcmGetDatatype : (d : NameData) → TCM (Singleton (sigData sig d))
 tcmGetDatatype d = do
   rsig ← tcmSignature
-  return (rezzCong (λ sig → sigData sig d) rsig)
+  return (singCong (λ sig → sigData sig d) rsig)
 {-# COMPILE AGDA2HS tcmGetDatatype #-}
 
-tcmGetConstructor : {d : NameData} (c : NameCon d) → TCM (Rezz (sigCons sig d c))
+tcmGetConstructor : {d : NameData} (c : NameCon d) → TCM (Singleton (sigCons sig d c))
 tcmGetConstructor {d = d} c = do
   rsig ← tcmSignature
-  return (rezzCong (λ sig → sigCons sig d c) rsig)
+  return (singCong (λ sig → sigCons sig d c) rsig)
 {-# COMPILE AGDA2HS tcmGetConstructor #-}
 
 inferVar : ∀ Γ (x : NameIn α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
@@ -61,7 +61,7 @@ inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
 checkBranches : ∀ {d : NameData} {@0 cons : RScope (NameCon d)}
                   (Γ : Context α)
-                  (rz : Rezz cons)
+                  (rz : Singleton cons)
                   (bs : Branches α d cons)
                   (dt : Datatype d)
                   (ps : TermS α (dataParScope d))
@@ -70,7 +70,7 @@ checkBranches : ∀ {d : NameData} {@0 cons : RScope (NameCon d)}
 
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
 inferApp ctx u v = do
-  let r = rezzScope ctx
+  let r = singScope ctx
   tu , gtu ← inferType ctx u
   ⟨ x ⟩ (at , rt) ⟨ rtp ⟩ ← reduceToPi r (unType tu)
     "couldn't reduce term to a pi type"
@@ -83,7 +83,7 @@ inferApp ctx u v = do
 
 inferCase : ∀ Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
 inferCase {α = α} ctx d rixs u bs rt = do
-  let r = rezzScope ctx
+  let r = singScope ctx
 
   El s tu , gtu ← inferType ctx u
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
@@ -98,7 +98,7 @@ inferCase {α = α} ctx d rixs u bs rt = do
   grt ← checkType (_ , _ ∶ weaken (subExtScope rixs subRefl) (dataType d ds params ixs)) (unType rt) (sortType (typeSort rt))
 
   -- Erased refl ← checkCoverage df bs
-  cb ← checkBranches ctx (rezzBranches bs) bs df params rt
+  cb ← checkBranches ctx (singBranches bs) bs df params rt
 
   return (_ , tyCase' {k = ds} df deq {iRun = rixs} grt cb gtu')
 
@@ -134,7 +134,7 @@ checkTermS {α = α} ctx (ExtendTel {rβ = rβ} x ty rest) ts =
   caseTermSCons ts (λ where
     u s ⦃ refl ⦄ → do
       tyx ← checkType ctx u ty
-      let r = rezzScope ctx
+      let r = singScope ctx
           stel : Telescope α rβ
           stel = substTelescope (idSubst r ▹ x ↦ u) rest
       tyrest ← checkTermS ctx stel s
@@ -157,11 +157,11 @@ checkBranch : ∀ {d : NameData} {@0 con : NameCon d} (Γ : Context α)
                 (ps : TermS α (dataParScope d))
                 (rt : Type (α ◂▸ dataIxScope d ▸ x))
             → TCM (TyBranch Γ dt ps rt bs)
-checkBranch {α = α} {d = d} ctx (BBranch (rezz c) r rhs) dt ps rt = do
+checkBranch {α = α} {d = d} ctx (BBranch (sing c) r rhs) dt ps rt = do
   -- cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
     -- "can't find a constructor with such a name"
   con ⟨ ceq ⟩ ← tcmGetConstructor c
-  let ra = rezzScope ctx
+  let ra = singScope ctx
       @0 β : Scope Name
       β = α ◂▸ fieldScope c
       cargs : TermS β (fieldScope c)
@@ -180,13 +180,13 @@ checkBranch {α = α} {d = d} ctx (BBranch (rezz c) r rhs) dt ps rt = do
   return (tyBBranch' c con ceq {r = r} rhs crhs)
 {-# COMPILE AGDA2HS checkBranch #-}
 
-checkBranches {d = d} ctx (rezz cons) bs dt ps rt =
+checkBranches {d = d} ctx (sing cons) bs dt ps rt =
   caseRScope cons
     (λ where {{refl}} → caseBsNil bs (λ where {{refl}} → return TyBsNil))
     (λ ch ct → λ where
       {{refl}} → caseBsCons bs (λ bh bt → λ where
         {{refl}} → TyBsCons <$> checkBranch {d = d} ctx bh dt ps rt
-                            <*> checkBranches ctx (rezzBranches bt) bt dt ps rt))
+                            <*> checkBranches ctx (singBranches bt) bt dt ps rt))
 {-# COMPILE AGDA2HS checkBranches #-}
 
 checkCon : ∀ Γ
@@ -196,7 +196,7 @@ checkCon : ∀ Γ
            (ty : Type α)
          → TCM (Γ ⊢ TCon c cargs ∶ ty)
 checkCon ctx {d = d} c cargs (El s ty) = do
-  let r = rezzScope ctx
+  let r = singScope ctx
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
     "can't typecheck a constructor with a type that isn't a def application"
   ifDec (decIn (proj₂ d) (proj₂ d'))
@@ -218,7 +218,7 @@ checkLambda : ∀ Γ (@0 x : Name)
               (ty : Type α)
               → TCM (Γ ⊢ TLam x u ∶ ty)
 checkLambda ctx x u (El s ty) = do
-  let r = rezzScope ctx
+  let r = singScope ctx
 
   ⟨ y ⟩ (tu , tv) ⟨ rtp ⟩ ← reduceToPi r ty
     "couldn't reduce a term to a pi type"
@@ -290,7 +290,7 @@ inferType ctx (TAnn u t) = (_,_) t <$> (TyAnn <$> checkType ctx u t)
 {-# COMPILE AGDA2HS inferType #-}
 
 inferSort ctx t = do
-  let r = rezzScope ctx
+  let r = singScope ctx
   st , dt ← inferType ctx t
   s ⟨ rp ⟩ ← reduceToSort r (unType st) "couldn't reduce a term to a sort"
   let cp = CRedL rp CRefl

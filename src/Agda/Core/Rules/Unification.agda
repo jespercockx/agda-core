@@ -29,9 +29,9 @@ module Shrinking where
 
   opaque
     unfolding Scope
-    idShrinkSubst : Rezz α → ShrinkSubst α α
-    idShrinkSubst (rezz []) = RNil
-    idShrinkSubst (rezz (Erased x ∷ α)) = RKeep (idShrinkSubst (rezz α))
+    idShrinkSubst : Singleton α → ShrinkSubst α α
+    idShrinkSubst (sing []) = RNil
+    idShrinkSubst (sing (Erased x ∷ α)) = RKeep (idShrinkSubst (sing α))
 
 
   ShrinkSubstToSubst : ShrinkSubst α β → α ⇒ β
@@ -54,9 +54,9 @@ module Shrinking where
 
   opaque
     unfolding cut
-    shrinkFromCut : Rezz α → (xp : x ∈ α) → Term (cutDrop xp) → ShrinkSubst α (cutDrop xp <> cutTake xp)
-    shrinkFromCut (rezz (_ ∷  α')) (Zero ⟨ IsZero refl ⟩) u = RCons u (idShrinkSubst (rezz α'))
-    shrinkFromCut (rezz (_ ∷ α')) (Suc n ⟨ IsSuc p ⟩) u = RKeep (shrinkFromCut (rezz α') (n ⟨ p ⟩) u)
+    shrinkFromCut : Singleton α → (xp : x ∈ α) → Term (cutDrop xp) → ShrinkSubst α (cutDrop xp <> cutTake xp)
+    shrinkFromCut (sing (_ ∷  α')) (Zero ⟨ IsZero refl ⟩) u = RCons u (idShrinkSubst (sing α'))
+    shrinkFromCut (sing (_ ∷ α')) (Suc n ⟨ IsSuc p ⟩) u = RKeep (shrinkFromCut (sing α') (n ⟨ p ⟩) u)
 
 {- End of module Shrinking -}
 open Shrinking
@@ -185,11 +185,11 @@ module TelescopeEq where
 
   opaque
     unfolding Scope RScope
-    telescopeDrop : Rezz α → Telescope α (x ◂ rβ) → Term α → Telescope α rβ
+    telescopeDrop : Singleton α → Telescope α (x ◂ rβ) → Term α → Telescope α rβ
     telescopeDrop αRun (x ∶ a ◂ Δ) w =
       substTelescope (idSubst αRun ▹ x ↦ w) Δ
 
-    telescopicEqDrop : Rezz α → TelescopicEq α (x ◂ rβ) → Term α → TelescopicEq α rβ
+    telescopicEqDrop : Singleton α → TelescopicEq α (x ◂ rβ) → Term α → TelescopicEq α rβ
     telescopicEqDrop αRun (TelEq (x ↦ u ◂ δ₁) (x ↦ v ◂ δ₂) Δ) w = TelEq δ₁ δ₂ (telescopeDrop αRun Δ w)
 
 {- End of module TelescopeEq -}
@@ -223,7 +223,7 @@ module UnificationStepAndStop where
       {t : Term α}
       {Ξ : Telescope α (e₀ ◂ rβ)}
       (let Δ : Telescope α rβ
-           Δ = telescopeDrop (rezz α) Ξ t)                             -- replace e₀ by t in the telescope
+           Δ = telescopeDrop (sing α) Ξ t)                             -- replace e₀ by t in the telescope
       ------------------------------------------------------------
       → Γ , (e₀ ↦ t ◂ δ₁) ≟ (e₀ ↦ t ◂ δ₂) ∶ Ξ ↣ᵤ Γ , δ₁ ≟ δ₂ ∶ Δ
 
@@ -235,11 +235,11 @@ module UnificationStepAndStop where
       {u : Term α}
       {u₀ : Term α₀}                                                   -- u₀ is independant from x as x ∉ α₀
       {Ξ : Telescope α (e₀ ◂ rβ)}
-      (let rσ = shrinkFromCut (rezz α) xp u₀                            -- an order preserving substitution to remove x
+      (let rσ = shrinkFromCut (sing α) xp u₀                            -- an order preserving substitution to remove x
            Γ' : Context α'
            Γ' = shrinkContext Γ rσ                                     -- new context where x is removed
            ΔEq : TelescopicEq α rβ
-           ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (rezz α) Ξ u                  -- replace e₀ by u in the telescopic equality
+           ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (sing α) Ξ u                  -- replace e₀ by u in the telescopic equality
            ΔEq' : TelescopicEq α' rβ
            ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)       -- replace x by u
       → Strengthened u u₀
@@ -253,11 +253,11 @@ module UnificationStepAndStop where
       {u : Term α}
       {u₀ : Term α₀}                                                   -- u₀ is independant from x as x ∉ α₀
       {Ξ : Telescope α (e₀ ◂ rβ)}
-      (let rσ = shrinkFromCut (rezz α) xp u₀                            -- an order preserving substitution to remove x
+      (let rσ = shrinkFromCut (sing α) xp u₀                            -- an order preserving substitution to remove x
            Γ' : Context α'
            Γ' = shrinkContext Γ rσ                                     -- new context where x is removed
            ΔEq : TelescopicEq α rβ
-           ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (rezz α) Ξ u                  -- replace e₀ by u in the telescopic equality
+           ΔEq = δ₁ ≟ δ₂ ∶ telescopeDrop (sing α) Ξ u                  -- replace e₀ by u in the telescopic equality
            ΔEq' : TelescopicEq α' rβ
            ΔEq' = substTelescopicEq (ShrinkSubstToSubst rσ) ΔEq)       -- replace x by u
       → Strengthened u u₀
@@ -280,9 +280,9 @@ module UnificationStepAndStop where
       (let Σ : Telescope α rγ
            Σ = instConIndTel con pSubst                                   -- type of the arguments of c
            σe : TermS (α ◂▸ rγ) (e₀ ◂ mempty)
-           σe = e₀ ↦ TCon c (termSrepeat (rezz rγ)) ◂ ⌈⌉           -- names of the new equalities to replace e₀
+           σe = e₀ ↦ TCon c (termSrepeat (sing rγ)) ◂ ⌈⌉           -- names of the new equalities to replace e₀
            τ₀ : α ◂▸ (e₀ ◂ mempty) ⇒ (α ◂▸ rγ)
-           τ₀ = extSubst (substExtScope (rezz rγ) (idSubst (rezz α))) σe
+           τ₀ = extSubst (substExtScope (sing rγ) (idSubst (sing α))) σe
            τ : (α ▸ e₀) ⇒ (α ◂▸ rγ)
            τ = subst0 (λ ψ → ψ ⇒ (α ◂▸ rγ)) (trans extScopeBind extScopeEmpty) τ₀
            Δγ : Telescope (α ◂▸ rγ) rβ                           -- telescope using rγ instead of e₀
@@ -316,16 +316,16 @@ module UnificationStepAndStop where
            iTel = instDataIxTel dt pSubst
 
            iSubste : TermS (α ◂▸ ixs) ixs
-           iSubste = termSrepeat (rezz ixs)
+           iSubste = termSrepeat (sing ixs)
            weakenαixs : α ⇒ (α ◂▸ ixs)
-           weakenαixs = substExtScope (rezz ixs) (idSubst (rezz α))
+           weakenαixs = substExtScope (sing ixs) (idSubst (sing α))
 
            weakenαind : α ⇒ (α ◂▸ ind)
-           weakenαind = substExtScope (rezz ind) (idSubst (rezz α))
+           weakenαind = substExtScope (sing ind) (idSubst (sing α))
            σe : TermS (α ◂▸ ind) (e₀ ◂ mempty)
-           σe = e₀ ↦ TCon c (termSrepeat(rezz ind)) ◂ ⌈⌉
+           σe = e₀ ↦ TCon c (termSrepeat(sing ind)) ◂ ⌈⌉
            τ₀ : TermS (α ◂▸ ind) ixs
-           τ₀ = (instConIx con (weaken (subExtScope (rezz ind) subRefl) pSubst) (termSrepeat(rezz ind)))
+           τ₀ = (instConIx con (weaken (subExtScope (sing ind) subRefl) pSubst) (termSrepeat(sing ind)))
            τ₁ : α ◂▸ ixs ⇒ (α ◂▸ ind)
            τ₁ = extSubst {rγ = ixs} weakenαind τ₀
            τ₀ : α ◂▸ ixs ◂▸ (e₀ ◂ mempty) ⇒ (α ◂▸ ind)

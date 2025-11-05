@@ -20,7 +20,7 @@ private variable
   @0 α β : Scope Name
   @0 rβ : RScope Name
 
-reduceTo : {@0 α : Scope Name} (r : Rezz α) (v : Term α)
+reduceTo : {@0 α : Scope Name} (r : Singleton α) (v : Term α)
          → TCM (∃[ t ∈ Term α ] (ReducesTo v t))
 reduceTo r v = do
   (I {{fl}}) ← tcmFuel
@@ -30,7 +30,7 @@ reduceTo r v = do
     (Just u) ⦃ p ⦄ → return $ u ⟨ ⟨ r ⟩ ⟨ rsig ⟩ it ⟨ p ⟩ ⟩
 {-# COMPILE AGDA2HS reduceTo #-}
 
-reduceToPi : {@0 α : Scope Name} (r : Rezz α)
+reduceToPi : {@0 α : Scope Name} (r : Singleton α)
            → (v : Term α)
            → String
            → TCM (Σ0[ x ∈ Name                        ]
@@ -41,7 +41,7 @@ reduceToPi r v err = reduceTo r v >>= λ where
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToPi #-}
 
-reduceToData : {@0 α : Scope Name} (r : Rezz α)
+reduceToData : {@0 α : Scope Name} (r : Singleton α)
            → (v : Term α)
            → String
            → TCM (Σ[ d ∈ NameIn dataScope ]
@@ -52,7 +52,7 @@ reduceToData r v err = reduceTo r v >>= λ where
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToData #-}
 
-reduceToSort : {@0 α : Scope Name} (r : Rezz α)
+reduceToSort : {@0 α : Scope Name} (r : Singleton α)
            → (v : Term α)
            → String
            → TCM (∃[ s ∈ Sort α ] ReducesTo v (TSort s))
@@ -91,16 +91,16 @@ convSorts (STyp u) (STyp u') =
     (tcError "can't convert two different sorts")
 {-# COMPILE AGDA2HS convSorts #-}
 
-convertCheck : {{fl : Fuel}} → Rezz α → (t q : Term α) → TCM (t ≅ q)
-convertTermSs : {{fl : Fuel}} → Rezz α →
+convertCheck : {{fl : Fuel}} → Singleton α → (t q : Term α) → TCM (t ≅ q)
+convertTermSs : {{fl : Fuel}} → Singleton α →
                 (s p : TermS α rβ)
               → TCM (s ⇔ p)
-convertBranches : {{fl : Fuel}} → Rezz α →
+convertBranches : {{fl : Fuel}} → Singleton α →
                 ∀ {@0 d : NameData} {@0 cs : RScope (NameCon d)}
                   (bs bp : Branches α d cs)
                 → TCM (ConvBranches bs bp)
 
-convDatas : {{fl : Fuel}} → Rezz α →
+convDatas : {{fl : Fuel}} → Singleton α →
            (d e : NameData)
            (ps : TermS α (dataParScope d)) (qs : TermS α (dataParScope e))
            (is : TermS α (dataIxScope d)) (ks : TermS α (dataIxScope e))
@@ -115,7 +115,7 @@ convDatas r d e ps qs is ks = do
 
 {-# COMPILE AGDA2HS convDatas #-}
 
-convCons : {{fl : Fuel}} → Rezz α →
+convCons : {{fl : Fuel}} → Singleton α →
            {d d' : NameData}
            (f : NameCon d)
            (g : NameCon d')
@@ -135,18 +135,18 @@ convCons r {d} {d'} f g lp lq = do
 {-# COMPILE AGDA2HS convCons #-}
 
 convLams : {{fl : Fuel}}
-         → Rezz α
+         → Singleton α
          → (@0 x y : Name)
            (u : Term  (α ▸ x))
            (v : Term  (α ▸ y))
          → TCM (Conv (TLam x u) (TLam y v))
 convLams r x y u v = do
-  CLam <$> convertCheck (rezzBind r) (renameTop r u) (renameTop r v)
+  CLam <$> convertCheck (singBind r) (renameTop r u) (renameTop r v)
 
 {-# COMPILE AGDA2HS convLams #-}
 
 convApps : {{fl : Fuel}}
-         → Rezz α
+         → Singleton α
          → (u u' : Term α)
            (w w' : Term α)
          → TCM (Conv (TApp u w) (TApp u' w'))
@@ -158,9 +158,9 @@ convApps r u u' w w' = do
 {-# COMPILE AGDA2HS convApps #-}
 
 convertCase : {{fl : Fuel}}
-            → Rezz α
+            → Singleton α
             → (d d' : NameData)
-            → (r : Rezz (dataIxScope d)) (r' : Rezz (dataIxScope d'))
+            → (r : Singleton (dataIxScope d)) (r' : Singleton (dataIxScope d'))
             → (u u' : Term α)
             → ∀ (ws : Branches α d (AllNameCon d)) (ws' : Branches α d' (AllNameCon d'))
             → (rt : Type (_ ▸ x)) (rt' : Type (_ ▸ y))
@@ -168,9 +168,9 @@ convertCase : {{fl : Fuel}}
 convertCase {x = x} rα d d' ri ri' u u' ws ws' rt rt' = do
   Erased refl ← convNamesIn d d'
   cu ← convertCheck rα u u'
-  let r  = rezzExtScope rα ri
-      r' = rezzExtScope rα ri'
-  cm ← convertCheck (rezzBind {x = x} r)
+  let r  = singExtScope rα ri
+      r' = singExtScope rα ri'
+  cm ← convertCheck (singBind {x = x} r)
                     (renameTop r (unType rt))
                     (renameTop r' (unType rt'))
   cbs ← convertBranches rα ws ws'
@@ -179,7 +179,7 @@ convertCase {x = x} rα d d' ri ri' u u' ws ws' rt rt' = do
 {-# COMPILE AGDA2HS convertCase #-}
 
 convPis : {{fl : Fuel}}
-        → Rezz α
+        → Singleton α
         → (@0 x y : Name)
           (u u' : Type α)
           (v  : Type  (α ▸ x))
@@ -187,7 +187,7 @@ convPis : {{fl : Fuel}}
         → TCM (Conv (TPi x u v) (TPi y u' v'))
 convPis r x y u u' v v' =
   CPi <$> convertCheck r (unType u) (unType u')
-      <*> convertCheck (rezzBind r) (unType v) (renameTop r (unType v'))
+      <*> convertCheck (singBind r) (unType v) (renameTop r (unType v'))
 
 {-# COMPILE AGDA2HS convPis #-}
 
@@ -201,13 +201,13 @@ convertTermSs r (x ↦ u ◂ s0) t =
 {-# COMPILE AGDA2HS convertTermSs #-}
 
 convertBranch : ⦃ fl : Fuel ⦄
-              → Rezz α
+              → Singleton α
               → {@0 d : NameData} {@0 c : NameCon d}
               → (b1 : Branch α c) (b2 : Branch α c)
               → TCM (ConvBranch b1 b2)
 convertBranch r (BBranch rc rz1 rhs1) (BBranch rc' rz2 rhs2) =
       CBBranch rc rc' rz1 rz2 rhs1 rhs2 <$>
-        convertCheck (rezzExtScope r rz2) rhs1 rhs2
+        convertCheck (singExtScope r rz2) rhs1 rhs2
 {-# COMPILE AGDA2HS convertBranch #-}
 
 convertBranches r BsNil            bp = return CBranchesNil
@@ -217,7 +217,7 @@ convertBranches r (BsCons bsh bst) bp =
 
 {-# COMPILE AGDA2HS convertBranches #-}
 
-convertWhnf : ⦃ fl : Fuel ⦄ → Rezz α → (t q : Term α) → TCM (t ≅ q)
+convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
 convertWhnf r (TVar x) (TVar y) = convVars x y
 convertWhnf r (TDef x) (TDef y) = convDefs x y
 convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
@@ -243,7 +243,7 @@ convertCheck ⦃ More ⦄ r t q = do
 
 {-# COMPILE AGDA2HS convertCheck #-}
 
-convert : Rezz α → ∀ (t q : Term α) → TCM (t ≅ q)
+convert : Singleton α → ∀ (t q : Term α) → TCM (t ≅ q)
 convert r t q = do
   I ⦃ fl ⦄ ← tcmFuel
   convertCheck r t q

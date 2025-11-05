@@ -32,9 +32,9 @@ pattern _▹_↦_ σ x u = SCons {x = x} σ u
 infix 4 ▹_↦_
 pattern ▹_↦_ x u = SCons {x = x} SNil u
 
-rezzSubst : α ⇒ β → Rezz α
-rezzSubst ⌈⌉ = rezz mempty
-rezzSubst (σ ▹ x ↦ u) = rezzBind (rezzSubst σ)
+singSubst : α ⇒ β → Singleton α
+singSubst ⌈⌉ = sing mempty
+singSubst (σ ▹ x ↦ u) = singBind (singSubst σ)
 
 weakenSubst : α ⊆ β → γ ⇒ α → γ ⇒ β
 weakenSubst p ⌈⌉ = ⌈⌉
@@ -57,13 +57,13 @@ lookupSubst (f ▹ _ ↦ u) x q = inBindCase q (lookupSubst f x) (λ _ → u)
 opaque
   unfolding Scope Sub
 
-  subToSubst : Rezz α → α ⊆ β → α ⇒ β
-  subToSubst (rezz []) p = ⌈⌉
-  subToSubst (rezz (Erased x ∷ α)) p =
-    (subToSubst (rezz α) (joinSubLeft (rezz _) p)) ▹ x ↦ (TVar (⟨ x ⟩ coerce p inHere))
+  subToSubst : Singleton α → α ⊆ β → α ⇒ β
+  subToSubst (sing []) p = ⌈⌉
+  subToSubst (sing (Erased x ∷ α)) p =
+    (subToSubst (sing α) (joinSubLeft (sing _) p)) ▹ x ↦ (TVar (⟨ x ⟩ coerce p inHere))
 {-# COMPILE AGDA2HS subToSubst #-}
 
-idSubst : {@0 β : Scope Name} → Rezz β → β ⇒ β
+idSubst : {@0 β : Scope Name} → Singleton β → β ⇒ β
 idSubst r = subToSubst r subRefl
 {-# COMPILE AGDA2HS idSubst #-}
 
@@ -79,14 +79,14 @@ liftBindSubst {y = y} e = (weaken (subBindDrop subRefl) e) ▹ _ ↦ (TVar (⟨ 
 
 opaque
   unfolding extScope -- if we had an induction principle for RScope we could avoid the unfolding
-  substExtScope : (Rezz rγ) → α ⇒ β → α ⇒ (β ◂▸ rγ)
-  substExtScope (rezz []) s = s
-  substExtScope (rezz (x ∷ rγ)) s = substExtScope (rezz rγ) (weaken (subBindDrop subRefl) s)
+  substExtScope : (Singleton rγ) → α ⇒ β → α ⇒ (β ◂▸ rγ)
+  substExtScope (sing []) s = s
+  substExtScope (sing (x ∷ rγ)) s = substExtScope (sing rγ) (weaken (subBindDrop subRefl) s)
   {-# COMPILE AGDA2HS substExtScope #-}
 
-  substExtScopeKeep : (Rezz rγ) → α ⇒ β → (α ◂▸ rγ) ⇒ (β ◂▸ rγ)
-  substExtScopeKeep (rezz []) p = p
-  substExtScopeKeep (rezz (x ∷ rγ)) p = substExtScopeKeep (rezz rγ) (liftBindSubst p)
+  substExtScopeKeep : (Singleton rγ) → α ⇒ β → (α ◂▸ rγ) ⇒ (β ◂▸ rγ)
+  substExtScopeKeep (sing []) p = p
+  substExtScopeKeep (sing (x ∷ rγ)) p = substExtScopeKeep (sing rγ) (liftBindSubst p)
   {-# COMPILE AGDA2HS substExtScopeKeep #-}
 
 
@@ -170,7 +170,7 @@ instance
   iSubstTelescope .subst = substTelescope
 {-# COMPILE AGDA2HS iSubstTelescope #-}
 
-substTop : ⦃ Substitute t ⦄ → Rezz α → Term α → t (α ▸ x) → t α
+substTop : ⦃ Substitute t ⦄ → Singleton α → Term α → t (α ▸ x) → t α
 substTop r u = subst (idSubst r ▹ _ ↦ u)
 {-# COMPILE AGDA2HS substTop #-}
 

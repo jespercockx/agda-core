@@ -98,20 +98,20 @@ module TestReduce (@0 x y z : Name) where
     testTerm₁ = TApp (TLam x (TVar (⟨ x ⟩ inHere))) (TSort (STyp 0))
 
     @0 testProp₁ : Set
-    testProp₁ = reduceClosed (rezz sig) testTerm₁ ≡ Just (TSort (STyp 0))
+    testProp₁ = reduceClosed (sing sig) testTerm₁ ≡ Just (TSort (STyp 0))
 
     test₁ : testProp₁
     test₁ = refl
 
     testTerm₂ : Term α
-    testTerm₂ = TCase {x = "condition"} nameBool (rezz _) `true
-                                  (BsCons (BBranch (rezz nameTrue) (rezz _) `false)
-                                  (BsCons (BBranch (rezz nameFalse) (rezz _) `true)
+    testTerm₂ = TCase {x = "condition"} nameBool (sing _) `true
+                                  (BsCons (BBranch (sing nameTrue) (sing _) `false)
+                                  (BsCons (BBranch (sing nameFalse) (sing _) `true)
                                    BsNil))
                                   (El (STyp 0) (TData nameBool TSNil TSNil))
 
     @0 testProp₂ : Set
-    testProp₂ = reduceClosed (rezz sig) testTerm₂ ≡ Just `false
+    testProp₂ = reduceClosed (sing sig) testTerm₂ ≡ Just `false
 
     test₂ : testProp₂
     test₂ = refl
@@ -128,7 +128,7 @@ module TestTypechecker (@0 x y z : Name) where
     testType₁ = El (STyp 0) (TPi y (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil)) (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil)))
 
     testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
-    testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (rezz _) fuel)
+    testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (sing _) fuel)
 
     @0 testProp₁ : Set
     test₁ : testProp₁

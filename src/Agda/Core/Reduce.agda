@@ -39,7 +39,7 @@ envToLets (env , x ↦ u) v = envToLets env (TLet x u v)
 
 {-# COMPILE AGDA2HS envToLets #-}
 
-envToSubst : Rezz α → Environment α β → β ⇒ α
+envToSubst : Singleton α → Environment α β → β ⇒ α
 envToSubst r EnvNil = idSubst r
 envToSubst r (env , x ↦ v) =
   let s = envToSubst r env
@@ -50,7 +50,7 @@ envToSubst r (env , x ↦ v) =
 data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
   FProj : (x : NameIn defScope) → Frame α
-  FCase : (d : NameData) (r : Rezz (dataIxScope d))
+  FCase : (d : NameData) (r : Singleton (dataIxScope d))
           (bs : Branches α d (AllNameCon d)) (m : Type (α ◂▸ dataIxScope d ▸ x)) → Frame α
 
 {-# COMPILE AGDA2HS Frame #-}
@@ -106,16 +106,16 @@ makeState {α = α} v = MkState (EnvNil {α = α}) v []
 
 {-# COMPILE AGDA2HS makeState #-}
 
-unState : Rezz α → State α → Term α
+unState : Singleton α → State α → Term α
 unState r (MkState e v s) = subst (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
 lookupBranch : {@0 cs : RScope (NameCon d)} → Branches α d cs → (c : NameCon d)
-             → Maybe ( Rezz (fieldScope c)
+             → Maybe ( Singleton (fieldScope c)
                      × Term (α ◂▸ fieldScope c))
 lookupBranch BsNil c = Nothing
-lookupBranch {d = d} (BsCons (BBranch (rezz c') aty u) bs) c =
+lookupBranch {d = d} (BsCons (BBranch (sing c') aty u) bs) c =
     case decNamesInR c' c of λ where
       (True  ⟨ refl ⟩) →  Just (aty , u)
       (False ⟨ _    ⟩) → lookupBranch bs c
@@ -125,12 +125,12 @@ lookupBranch {d = d} (BsCons (BBranch (rezz c') aty u) bs) c =
 opaque
   unfolding extScope
   extendEnvironment : TermS β rγ → Environment α β → Environment α (β ◂▸ rγ)
-  extendEnvironment vs e = aux (rezzTermS vs) vs e
+  extendEnvironment vs e = aux (singTermS vs) vs e
     where
-      aux : Rezz rγ → TermS β rγ → Environment α β → Environment α (β ◂▸ rγ)
+      aux : Singleton rγ → TermS β rγ → Environment α β → Environment α (β ◂▸ rγ)
       aux r ⌈⌉ e = e
-      aux (rezz (Erased x ∷ rγ₀)) (TSCons {rβ = rγ₀} {x = x} v vs) e =
-        aux (rezz rγ₀) (weaken (subBindDrop subRefl) vs) (e , x ↦ v)
+      aux (sing (Erased x ∷ rγ₀)) (TSCons {rβ = rγ₀} {x = x} v vs) e =
+        aux (sing rγ₀) (weaken (subBindDrop subRefl) vs) (e , x ↦ v)
   {-# COMPILE AGDA2HS extendEnvironment #-}
 
 lookupEnvironment : Environment α β → x ∈ β → Either (x ∈ α) (Term β)
@@ -140,7 +140,7 @@ lookupEnvironment (e , x ↦ v) p = inBindCase p
   (λ _ → Right (weaken (subBindDrop subRefl) v))
 {-# COMPILE AGDA2HS lookupEnvironment #-}
 
-step : (rsig : Rezz sig) (s : State α) → Maybe (State α)
+step : (rsig : Singleton sig) (s : State α) → Maybe (State α)
 step rsig (MkState e (TVar (⟨ x ⟩ p)) s) =
   case lookupEnvironment e p of λ where
     (Left _) → Nothing
@@ -158,7 +158,7 @@ step rsig (MkState e (TLet x v w) s) =
     (e , x ↦ v)
     w
     (weakenStack (subBindDrop subRefl) s))
-step (rezz sig) (MkState e (TDef d) s) =
+step (sing sig) (MkState e (TDef d) s) =
   case getBody sig d of λ where
     v → Just (MkState e (weaken subEmpty v) s)
 step rsig (MkState e (TCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
@@ -180,8 +180,8 @@ step rsig (MkState e (TAnn u t) s) = Just (MkState e u s) -- TODO preserve annot
 
 {-# COMPILE AGDA2HS step #-}
 
-reduce : Rezz α
-       → (rsig : Rezz sig) (v : Term α) → {{Fuel}} → Maybe (Term α)
+reduce : Singleton α
+       → (rsig : Singleton sig) (v : Term α) → {{Fuel}} → Maybe (Term α)
 reduce {α = α} r rsig v = go (makeState v)
   where
     go : (s : State α) → {{Fuel}} → Maybe (Term α)
@@ -191,13 +191,13 @@ reduce {α = α} r rsig v = go (makeState v)
           Nothing   → Just (unState r s)
 {-# COMPILE AGDA2HS reduce #-}
 
-reduceClosed : (rsig : Rezz sig) (v : Term mempty) → {{Fuel}} → Maybe (Term mempty)
-reduceClosed = reduce (rezz _)
+reduceClosed : (rsig : Singleton sig) (v : Term mempty) → {{Fuel}} → Maybe (Term mempty)
+reduceClosed = reduce (sing _)
 
 {-# COMPILE AGDA2HS reduceClosed #-}
 
 ReducesTo : (v w : Term α) → Set
-ReducesTo {α = α} v w = Σ0[ r ∈ Rezz α ] Σ0[ rsig ∈ Rezz sig ] ∃[ f ∈ Fuel ] reduce r rsig v {{f}} ≡ Just w
+ReducesTo {α = α} v w = Σ0[ r ∈ Singleton α ] Σ0[ rsig ∈ Singleton sig ] ∃[ f ∈ Fuel ] reduce r rsig v {{f}} ≡ Just w
 
 reduceAppView : ∀ (s : Term α)
                → ∃[ t ∈ Term α ]                        ReducesTo s t
