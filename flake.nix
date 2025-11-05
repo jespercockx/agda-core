@@ -1,10 +1,10 @@
 {
   description = "Agda core";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixpkgs-unstable;
   inputs.flake-utils.url = github:numtide/flake-utils;
   inputs.agda2hs = {
-    url = "github:agda/agda2hs";
+    url = "github:agda/agda2hs/stable";
     inputs.nixpkgs.follows = "nixpkgs";
     inputs.flake-utils.follows = "flake-utils";
   };
