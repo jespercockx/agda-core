@@ -12,3 +12,4 @@ lib
 dist-newstyle
 result
 .direnv
+src/**/*.hs
