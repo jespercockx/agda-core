@@ -22,7 +22,6 @@ jobs:
         nix_conf: |
           keep-env-derivations = true
           keep-outputs = true
-    - uses: DeterminateSystems/magic-nix-cache-action@v6
     - name: Restore and save Nix store
       uses: nix-community/cache-nix-action@v6
       with:
