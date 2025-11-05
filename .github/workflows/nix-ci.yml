@@ -17,6 +17,15 @@ jobs:
             derivation: agda-core-lib
     steps:
     - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v22
-    - uses: DeterminateSystems/magic-nix-cache-action@v4
+    - uses: nixbuild/nix-quick-install-action@v34
+      with:
+        nix_conf: |
+          keep-env-derivations = true
+          keep-outputs = true
+    - uses: DeterminateSystems/magic-nix-cache-action@v6
+    - name: Restore and save Nix store
+      uses: nix-community/cache-nix-action@v6
+      with:
+        # restore and save a cache using this key
+        primary-key: nix-${{ matrix.derivation }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
     - run: nix build .#${{ matrix.derivation }} --print-build-logs
