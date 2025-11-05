@@ -14,13 +14,14 @@ record Globals : Set where
     fieldScope        : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name
   NameData : Set
   NameData = NameIn dataScope
-  {-# COMPILE AGDA2HS NameData inline #-}
   NameCon : NameData → Set
   NameCon d = NameInR (dataConstructors d)
-  {-# COMPILE AGDA2HS NameCon inline #-}
   opaque
     unfolding RScope
     AllNameCon : (d : NameData) → RScope (NameCon d)
     AllNameCon d = rScopeToRScopeNameInR (dataConstructors d)
 open Globals public
+
+{-# COMPILE AGDA2HS NameData inline #-}
+{-# COMPILE AGDA2HS NameCon inline #-}
 {-# COMPILE AGDA2HS Globals #-}
