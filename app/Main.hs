@@ -4,6 +4,7 @@ import Data.Either (partitionEithers)
 import Data.Foldable (for_, foldl')
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Text qualified as Text
 import Data.Version (showVersion)
 
 import Control.Monad.IO.Class (liftIO)
@@ -34,7 +35,7 @@ import Agda.Core.Syntax.Context ( Context(CtxEmpty) )
 import Agda.Core.Syntax.Signature qualified as Core
 import Agda.Core.Syntax.Term qualified as Core
 import Agda.Core.TCM.TCM qualified as Core
-import Agda.Core.Utils qualified as Core
+import Agda.Core.Prelude qualified as Core
 import Agda.Core.Checkers.TypeCheck (checkType)
 
 import Agda.Utils.Either (maybeRight)
@@ -110,7 +111,7 @@ agdaCoreCommandLineFlags =
 backend :: Backend' AgdaCoreOptions ACEnv ACMEnv ACMod ACSyntax
 backend = Backend'
   { backendName           = "agda-core"
-  , backendVersion        = Just (showVersion version)
+  , backendVersion        = Just $ Text.pack $ showVersion version
   , options               = defaultOptions
   , commandLineFlags      = agdaCoreCommandLineFlags
   , isEnabled             = optIsEnabled
@@ -121,6 +122,8 @@ backend = Backend'
   , compileDef            = agdaCoreCompile                -- 3 translates internal to agda-core
   , scopeCheckingSuffices = False
   , mayEraseType          = \ _       -> pure True
+  , backendInteractTop    = Nothing
+  , backendInteractHole   = Nothing
   }
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 -- PreCompile

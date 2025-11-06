@@ -1,87 +1,90 @@
-cabal-version:      3.0
-name:               agda-core
-version:            0.1.0.0
--- synopsis:
--- description:
-license:            Unlicense
-license-file:       LICENSE
-author:             Jesper Cockx, Lucas Escot
-maintainer:         jesper@sikanda.be, lucas@escot.me
--- copyright:
-build-type:         Simple
--- extra-doc-files:    CHANGELOG.md
--- extra-source-files:
-
-common warnings
-    ghc-options:
-      -Wall
-      -fno-warn-unused-matches
-      -fno-warn-unused-imports
-      -fno-warn-unused-local-binds
+cabal-version: 3.0
+name:          agda-core
+version:       0.1.0.0
+license:       Unlicense
+license-file:  LICENSE
+maintainer:    jesper@sikanda.be, lucas@escot.me
+author:        Jesper Cockx, Lucas Escot
+build-type:    Simple
 
 library
-    import:           warnings
-    exposed-modules:  Agda.Core.Syntax.Term
-                    , Agda.Core.Syntax.Weakening
-                    , Agda.Core.Syntax.Strengthening
-                    , Agda.Core.Syntax.VarInTerm
-                    , Agda.Core.Syntax.Substitute
-                    , Agda.Core.Syntax.Signature
-                    , Agda.Core.Syntax.Context
-                    , Agda.Core.GlobalScope
-                    , Agda.Core.TCM.TCM
-                    , Agda.Core.TCM.Instances
-                    , Agda.Core.Reduce
-                    , Agda.Core.Rules.Conversion
-                    , Agda.Core.Checkers.Converter
-                    , Agda.Core.Rules.Typing
-                    , Agda.Core.Checkers.TypeCheck
-                    , Agda.Core.Prelude
-                    , Scope.All
-                    , Scope.Core
-                    , Scope.Diff
-                    , Scope.In
-                    , Scope.Reverse
-                    , Scope.Split
-                    , Scope.Sub
-                    , Utils.Either
-                    , Utils.List
-    build-depends:    base   >= 4.17    && < 4.21
+    exposed-modules:
+        Agda.Core.Syntax.Term
+        Agda.Core.Syntax.Weakening
+        Agda.Core.Syntax.Strengthening
+        Agda.Core.Syntax.VarInTerm
+        Agda.Core.Syntax.Substitute
+        Agda.Core.Syntax.Signature
+        Agda.Core.Syntax.Context
+        Agda.Core.GlobalScope
+        Agda.Core.TCM.TCM
+        Agda.Core.TCM.Instances
+        Agda.Core.Reduce
+        Agda.Core.Rules.Conversion
+        Agda.Core.Checkers.Converter
+        Agda.Core.Rules.Typing
+        Agda.Core.Checkers.TypeCheck
+        Agda.Core.Prelude
+        Scope.All
+        Scope.Core
+        Scope.Diff
+        Scope.In
+        Scope.Reverse
+        Scope.Split
+        Scope.Sub
+        Utils.Either
+        Utils.List
+
     hs-source-dirs:   lib
     default-language: GHC2021
-
     ghc-options:
-      -- agda2hs generates many (safe) incomplete patterns
-      -fno-warn-incomplete-patterns
-      -fno-warn-name-shadowing
+        -Wall
+        -fno-warn-unused-matches
+        -fno-warn-unused-imports
+        -fno-warn-unused-local-binds
+        -fno-warn-incomplete-patterns
+        -fno-warn-name-shadowing
+
+    build-depends:
+        base >= 4.17 && < 4.22
 
 executable agda-core
-    import:           warnings
-    hs-source-dirs:   app
-    default-language: GHC2021
-    main-is:          Main.hs
-    other-modules:    Agda.Core.ToCore
-                    , Agda.Core.PrettyPrint
-                    , Agda.Core.UtilsH
-                    , Paths_agda_core
-    autogen-modules:  Paths_agda_core
+    main-is:            Main.hs
+    hs-source-dirs:     app
+    other-modules:
+        Agda.Core.ToCore
+        Agda.Core.PrettyPrint
+        Agda.Core.UtilsH
+        Paths_agda_core
+
+    autogen-modules:    Paths_agda_core
+    default-language:   GHC2021
     default-extensions:
-      LambdaCase
-      RecordWildCards
-      MultiWayIf
-      BlockArguments
-      ViewPatterns
-      DerivingStrategies
+        BlockArguments
+        DerivingStrategies
+        LambdaCase
+        MultiWayIf
+        OverloadedStrings
+        RecordWildCards
+        ViewPatterns
+
+    ghc-options:
+        -Wall
+        -fno-warn-unused-matches
+        -fno-warn-unused-imports
+        -fno-warn-unused-local-binds
+
     build-depends:
-        base                 >= 4.17    && < 4.21,
-        Agda                 >= 2.8.0   && < 2.9.0,
-        bytestring           >= 0.11.5  && < 0.13,
-        containers           >= 0.6     && < 0.9,
-        unordered-containers >= 0.2.19  && < 0.3,
-        mtl                  >= 2.2.2   && < 2.4,
-        directory            >= 1.2.6.2 && < 1.4,
-        filepath             >= 1.4.1.0 && < 1.6,
-        transformers,
-        ansi-terminal,
-        deepseq,
-        agda-core
+        Agda                     >= 2.8.0       && < 2.9.0,
+        agda-core                >= 0.1         && < 0.2,
+        ansi-terminal            >= 1.1.3       && < 1.2,
+        base                     >= 4.17        && < 4.22,
+        bytestring               >= 0.11.5      && < 0.13,
+        containers               >= 0.6         && < 0.9,
+        deepseq                  >= 1.5.1.0     && < 1.6,
+        directory                >= 1.2.6.2     && < 1.4,
+        filepath                 >= 1.4.1.0     && < 1.6,
+        mtl                      >= 2.2.2       && < 2.4,
+        transformers             >= 0.6.1.2     && < 0.7,
+        text                     >= 2.1.2       && < 2.2,
+        unordered-containers     >= 0.2.19      && < 0.3,

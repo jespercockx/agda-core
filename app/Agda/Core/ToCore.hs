@@ -212,7 +212,7 @@ toCoreDefn (I.AxiomDefn _) _ =
 toCoreDefn (I.DataOrRecSigDefn _ ) _ =
   throwError "encontered the unexpected case of a not fully defined data or record type"
 
-toCoreDefn  I.GeneralizableVar _ =
+toCoreDefn (I.GeneralizableVar _) _ =
   throwError "generalisable var are not supported"
 
 toCoreDefn (I.AbstractDefn _) _ =
