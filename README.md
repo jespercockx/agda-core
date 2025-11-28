@@ -46,7 +46,7 @@ realpath scope.agda-lib >> "$AGDA_DIR/libraries"
 
 This registers the scope library with Agda.
 
-#### 3. Build agda-core
+### 3. Build agda-core
 
 Clone this repository (if you haven’t already), then in the repository root run:
 
@@ -55,7 +55,7 @@ make
 cabal build
 ```
 
-#### 4. Typecheck Agda files using agda-core
+### 4. Typecheck Agda files using agda-core
 
 Invoke the custom Agda frontend like this:
 ```bash
