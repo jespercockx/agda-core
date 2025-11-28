@@ -14,10 +14,6 @@ Something is slowly growing here. It is still fragile so better not disturb it, 
 
 ## Build instructions
 
-Let `$AGDA_DIR` be the output of `agda --print-agda-app-dir`
-
-## Build Instructions
-
 ### 1. Determine your Agda application directory
 
 Run the following command and note the output location:
