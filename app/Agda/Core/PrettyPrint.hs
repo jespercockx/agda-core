@@ -157,3 +157,8 @@ instance PrettyCore Core.Defn where
   prettyCore m (Core.ConstructorDefn c) =
     prettyCore m c
 
+instance PrettyCore Core.Definition where
+  prettyCore :: NameMap -> Core.Definition -> String
+  prettyCore m Core.Definition { defName, defType, theDef } = 
+    "Core.Definition{" <> defName <> "<is a defType>" <> prettyCore m theDef <> "}" 
+

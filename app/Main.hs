@@ -1,5 +1,7 @@
 module Main where
 
+import Debug.Trace
+
 import Data.Either (partitionEithers)
 import Data.Foldable (for_, foldl')
 import Data.Map.Strict (Map)
@@ -67,7 +69,6 @@ import Agda.TypeChecking.SizedTypes.WarshallSolver (Error)
 import qualified Agda.TypeChecking.Primitive as I
 import Agda.Benchmarking (Phase(Definition))
 import Agda.Compiler.JS.Compiler (global)
-
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 -- main function
 
@@ -186,6 +187,13 @@ agdaCorePreModule _ _ tlm _ =
 
 type ACSyntax = Either String Core.Definition
 
+
+debugIndex :: Index -> TCM ()
+debugIndex index = do
+  let indexAsNat = indexToNat index
+  reportSDoc "agda-core.debug" 10 $ text ("Index of definition being translated: " <> show indexAsNat)
+  reportSDoc "agda-core.debug" 10 $ text ""
+
 agdaCoreCompile :: ACEnv -> ACMEnv -> IsMain -> Internal.Definition -> TCM ACSyntax
 agdaCoreCompile env _ _ def = do
   let ACEnv{toCoreGlobal = ioTcg, toCoreCounterID = ioIndex, toCoreNames = ioNames, toCorePreSignature = ioPreSig } = env
@@ -203,6 +211,7 @@ agdaCoreCompile env _ _ def = do
     -- if a constructor is encontered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataCons} -> do
+      reportSDoc "agda-core.check" 10 $ text $ "Adding all constructors of datatype " <> name <> " to tcg environment"
       let ntcg_datas  = Map.insert defName index tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
           tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
@@ -228,6 +237,7 @@ agdaCoreCompile env _ _ def = do
 
 
   case convert ntcg def of
+    -- Failed to convert `def` with environent `ntcg`
     Left e     -> do
       reportSDocFailure "agda-core.check"   $ text $ "  Failed to convert '" <> name <> "' to core syntax:"
       reportSDocFailure "agda-core.check"   $ text "    " <> pure e
@@ -236,6 +246,9 @@ agdaCoreCompile env _ _ def = do
       let Core.Definition{defType = ty', theDef = defn'} = def'
       reportSDoc "agda-core.check" 4 $ text $ "  Type: " <> prettyCore nnames ty'
       reportSDoc "agda-core.check" 4 $ text $ "  Definition: " <> prettyCore nnames defn'
+
+      debugIndex index
+
       case defn' of
         Core.FunctionDefn _  -> liftIO $ writeIORef ioPreSig $
           PreSignature
@@ -250,6 +263,8 @@ agdaCoreCompile env _ _ def = do
             , preSigCons = preSigCons
             }
         Core.ConstructorDefn cons -> do
+          -- (diode-lang): Why is the "old" tcg_cons referenced here, 
+          -- if it was updated to `ntcg`?
           let (dID, cID) = tcg_cons Map.! defName
           liftIO $ writeIORef ioPreSig $
             PreSignature
@@ -257,6 +272,10 @@ agdaCoreCompile env _ _ def = do
               , preSigData = preSigData
               , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
               }
+
+      PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
+
+      -- (diode-lang): Health check signature here
       return $ pure def'
 
 
@@ -268,9 +287,13 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
   let datas i  = case preSigData Map.!? indexToNat i of
         Just dt -> dt
         _ -> __IMPOSSIBLE__
+
+  let preSigDefsAsList = Map.toList preSigDefs
+  let strPreSigDefs = foldr (\(k, def) acc -> "Key: " ++ show k ++ ", Def: " ++ "<def>" ++ "\n" ++ acc) "" preSigDefsAsList
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
         _ -> __IMPOSSIBLE__
+
   let cons d c = case preSigCons Map.!? (indexToNat d, indexToNat c) of
         Just ct -> ct
         _ -> __IMPOSSIBLE__
@@ -279,7 +302,7 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
 
 agdaCorePostModule :: ACEnv -> ACMEnv -> IsMain -> TopLevelModuleName -> [ACSyntax] -> TCM ACMod
 agdaCorePostModule ACEnv{toCoreIsTypechecking = False} _ _ _ _ = pure ()
-agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
+agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} nameMap _ tlm defs = do
   reportSDoc "agda-core.check" 2 lineInDoc
   liftIO $ setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Cyan ]
   reportSDoc "agda-core.check" 1 . boxInDoc $ "Typechecking module " <> show (Pretty.pretty tlm)
@@ -292,6 +315,8 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
       Left n -> reportSDocFailure "agda-core.check" $ text $ "Skiped " <> n <> " :  term not compiled"
       Right Core.Definition{ defName, theDef = Core.FunctionDefn funBody, defType } -> do
         reportSDoc "agda-core.check" 2 $ text $ "Typechecking of " <> defName <> " :"
+        reportSDoc "agda-core.check" 10 $ text $ defName <> " has funBody: " <> show funBody
+        reportSDoc "agda-core.check" 10 $ text $ defName <> " has defType: " <> show defType <> "\n"
         preSig <- liftIO $ readIORef ioPreSig
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl

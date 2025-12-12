@@ -16,7 +16,7 @@ import Data.Map.Strict (Map)
 import Numeric.Natural (Natural)
 
 import Agda.Syntax.Common ( Arg(unArg) )
-import Agda.Syntax.Abstract.Name (QName)
+import Agda.Syntax.Abstract.Name (QName, showQNameId, uglyShowName, qnameName)
 import Agda.Syntax.Internal (lensSort, unDom, unEl)
 import Agda.Syntax.Internal.Elim (allApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
@@ -46,6 +46,9 @@ import qualified Agda.Syntax.Common.Pretty as Pretty
 import System.IO (withBinaryFile)
 import Agda.Compiler.Backend (Definition(defType))
 import Control.Exception (throw)
+
+import Debug.Trace
+
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
@@ -108,7 +111,7 @@ class ToCore a where
 
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
-convert defs t = runReaderT (runToCore $ toCore t) defs
+convert tcg t = runReaderT (runToCore $ toCore t) tcg
 
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
@@ -133,7 +136,26 @@ instance ToCore I.Term where
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
 
-  toCore (I.Def qn es) = tApp <$> (TDef <$> lookupDefOrData qn) <*> toCore es
+  -- (diode-lang) Seems like a bug: lookUpDefOrData can return data, but a `TDef` is always constructed
+  -- toCore (I.Def qn es) = tApp <$> (TDef <$> lookupDefOrData qn) <*> toCore es
+
+
+  toCore (I.Def qn es) = do
+    coreEs <- toCore es
+    -- Try looking up as definition first
+
+    catchError 
+      (do 
+        idx <- lookupDef qn
+        let def = TDef idx
+        return (tApp def coreEs)
+      )
+      --Otherwise, try looking up as datatype
+      (\_ -> do 
+        idx <- lookupData qn
+        let dataRef = TData idx Core.TSNil Core.TSNil
+        return (tApp dataRef coreEs)
+      )
 
   toCore (I.Con ch ci es)
     | Just args <- allApplyElims es

@@ -1,4 +1,4 @@
-module EtaFunctions where 
+module EtaFunctionsNoCrash where 
 
 data Bool : Set where
   true : Bool
@@ -23,7 +23,7 @@ s' = λ f → λ typ → f typ
 id : (A : Set) → A → A
 id = λ A x → x
 
-idbool : Bool → Bool
+idbool : Set → Set
 idbool = λ b → b
 
 addTwo : Nat → Nat
