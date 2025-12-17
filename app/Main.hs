@@ -188,12 +188,6 @@ agdaCorePreModule _ _ tlm _ =
 type ACSyntax = Either String Core.Definition
 
 
-debugIndex :: Index -> TCM ()
-debugIndex index = do
-  let indexAsNat = indexToNat index
-  reportSDoc "agda-core.debug" 10 $ text ("Index of definition being translated: " <> show indexAsNat)
-  reportSDoc "agda-core.debug" 10 $ text ""
-
 agdaCoreCompile :: ACEnv -> ACMEnv -> IsMain -> Internal.Definition -> TCM ACSyntax
 agdaCoreCompile env _ _ def = do
   let ACEnv{toCoreGlobal = ioTcg, toCoreCounterID = ioIndex, toCoreNames = ioNames, toCorePreSignature = ioPreSig } = env
@@ -211,7 +205,6 @@ agdaCoreCompile env _ _ def = do
     -- if a constructor is encontered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataCons} -> do
-      reportSDoc "agda-core.check" 10 $ text $ "Adding all constructors of datatype " <> name <> " to tcg environment"
       let ntcg_datas  = Map.insert defName index tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
           tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
@@ -247,7 +240,8 @@ agdaCoreCompile env _ _ def = do
       reportSDoc "agda-core.check" 4 $ text $ "  Type: " <> prettyCore nnames ty'
       reportSDoc "agda-core.check" 4 $ text $ "  Definition: " <> prettyCore nnames defn'
 
-      debugIndex index
+      reportSDoc "agda-core.debug" 10 $ text ("Index of definition being translated: " <> show (indexToNat index))
+      reportSDoc "agda-core.debug" 10 $ text ""
 
       case defn' of
         Core.FunctionDefn _  -> liftIO $ writeIORef ioPreSig $

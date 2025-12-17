@@ -48,6 +48,7 @@ import Agda.Compiler.Backend (Definition(defType))
 import Control.Exception (throw)
 
 import Debug.Trace
+import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 
 -- TODO(flupe): move this to Agda.Core.Syntax
@@ -137,9 +138,7 @@ instance ToCore I.Term where
   toCore (I.Lit l) = throwError "literals not supported"
 
   -- (diode-lang) Seems like a bug: lookUpDefOrData can return data, but a `TDef` is always constructed
-  -- toCore (I.Def qn es) = tApp <$> (TDef <$> lookupDefOrData qn) <*> toCore es
-
-
+  
   toCore (I.Def qn es) = do
     coreEs <- toCore es
     -- Try looking up as definition first
@@ -257,7 +256,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       , vars      <- I.clausePats cl
       , Just body <- I.clauseBody cl
       -- -> Core.FunctionDefn <$> toCore body
-      -> throwError "only definitions via λ are supported"
+      -> trace ("matched on I.FunctionData with vars=" <> (show (I.clausePats cl))) (throwError "only definitions via λ are supported")
 
     -- case with pattern matching variables
     I.FunctionData{..}
@@ -268,7 +267,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       | isJust (maybeRight _funProjection >>= I.projProper) -- record projections case
       -> throwError "record projections aren't supported"
     I.FunctionData{}
-      -> throwError "unsupported case (shouldn't happens)"
+      -> throwError "unsupported case (shouldn't happen)"
 
 toCoreDefn (I.DatatypeDefn dt) ty =
   withError (\e -> multiLineText $ "datatype definition failure: \n" <> Pretty.render (nest 1 e)) $ do
@@ -349,6 +348,7 @@ instance ToCore a => ToCore (Arg a) where
 -- TODO(flupe): enforce that there are no weird modalities in the arg (e.g: disallow irrelevance)
 instance ToCore a => ToCore (I.Dom a) where
   type CoreOf (I.Dom a) = CoreOf a
+  toCore :: ToCore a => I.Dom a -> ToCoreM (CoreOf (I.Dom a))
   toCore = toCore . unDom
 
 
