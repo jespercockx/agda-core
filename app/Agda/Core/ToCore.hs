@@ -47,8 +47,23 @@ import System.IO (withBinaryFile)
 import Agda.Compiler.Backend (Definition(defType))
 import Control.Exception (throw)
 
-import Debug.Trace
 import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
+
+import Agda.Syntax.Common.Pretty(text, render)
+
+import Debug.Trace
+
+-- Helper to add color
+traceColor :: String -> String -> a -> a
+traceColor color msg = trace (color ++ msg ++ "\x1b[0m")
+
+traceRed, traceGreen, traceYellow, traceBlue, traceMagenta, traceCyan :: String -> a -> a
+traceRed     = traceColor "\x1b[31m"
+traceGreen   = traceColor "\x1b[32m"
+traceYellow  = traceColor "\x1b[33m"
+traceBlue    = traceColor "\x1b[34m"
+traceMagenta = traceColor "\x1b[35m"
+traceCyan    = traceColor "\x1b[36m"
 
 
 -- TODO(flupe): move this to Agda.Core.Syntax
@@ -136,8 +151,6 @@ instance ToCore I.Term where
 
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
-
-  -- (diode-lang) Seems like a bug: lookUpDefOrData can return data, but a `TDef` is always constructed
   
   toCore (I.Def qn es) = do
     coreEs <- toCore es
@@ -156,19 +169,20 @@ instance ToCore I.Term where
         return (tApp dataRef coreEs)
       )
 
-  toCore (I.Con ch ci es)
+  toCore (I.Con ch _ es)
     | Just args <- allApplyElims es
     = do
         -- @l@ is the amount of arguments missing from the application.
         -- we need to eta-expand manually @l@ times to fully-apply the constructor.
         let l  = length (I.conFields ch) - length es
-        let vs = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
+        -- Construct @l@ additional deBruijn indices
+        let additionalVars = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
         (dt , con) <- lookupCon (I.conName ch)
 
-        t <- TCon dt con . toTermS . (++ vs) <$> toCore (raise l args)
+        t <- TCon dt con . toTermS . (++ additionalVars) <$> toCore (raise l args)
 
-        -- in the end, we bind @l@ fresh variables
-        pure (iterate TLam t !! l)
+        -- in the end, we bind @l@ fresh deBruijn indices
+        traceMagenta "Constructed TLam" pure (iterate TLam t !! l)
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
@@ -248,7 +262,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       , [cl]      <- _funClauses
       , []        <- I.clausePats cl
       , Just body <- I.clauseBody cl
-      -> Core.FunctionDefn <$> toCore body
+      -> Core.FunctionDefn <$> traceMagenta ("calling toCore with body=" <> (render $ pretty body)) toCore body
     -- case with no pattern matching
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
@@ -256,7 +270,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       , vars      <- I.clausePats cl
       , Just body <- I.clauseBody cl
       -- -> Core.FunctionDefn <$> toCore body
-      -> trace ("matched on I.FunctionData with vars=" <> (show (I.clausePats cl))) (throwError "only definitions via λ are supported")
+      -> (throwError "only definitions via λ are supported")
 
     -- case with pattern matching variables
     I.FunctionData{..}
@@ -336,6 +350,7 @@ instance ToCore I.Definition where
 -- Others
 instance (Subst a, ToCore a) => ToCore (I.Abs a) where
   type CoreOf (I.Abs a) = CoreOf a
+  toCore :: (Subst a, ToCore a) => I.Abs a -> ToCoreM (CoreOf (I.Abs a))
   toCore = toCore . absBody
 
 

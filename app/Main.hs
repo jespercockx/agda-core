@@ -224,9 +224,10 @@ agdaCoreCompile env _ _ def = do
   liftIO $ writeIORef ioNames nnames
   liftIO $ writeIORef ioIndex (Suc index)
 
+  defTypeDoc <- prettyTCM defType
   reportSDoc "agda-core.check" 4 $ text "  Agda type: " <> prettyTCM defType
   reportSDoc "agda-core.check" 5 $ text "  Agda definition: " <> text (show $ Pretty.pretty theDef)
-
+  -- reportSDoc "agda-core.check" 5 $ text "  Agda definition: " <> text (show theDef)
 
 
   case convert ntcg def of
@@ -237,8 +238,8 @@ agdaCoreCompile env _ _ def = do
       return $ throwError name
     Right def'-> do
       let Core.Definition{defType = ty', theDef = defn'} = def'
-      reportSDoc "agda-core.check" 4 $ text $ "  Type: " <> prettyCore nnames ty'
-      reportSDoc "agda-core.check" 4 $ text $ "  Definition: " <> prettyCore nnames defn'
+      reportSDoc "agda-core.check" 4 $ text $ "  Agda Core Type: " <> prettyCore nnames ty'
+      reportSDoc "agda-core.check" 4 $ text $ "  Agda Core Definition: " <> prettyCore nnames defn'
 
       reportSDoc "agda-core.debug" 10 $ text ("Index of definition being translated: " <> show (indexToNat index))
       reportSDoc "agda-core.debug" 10 $ text ""
@@ -309,8 +310,6 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} nameMap _ tlm defs = do
       Left n -> reportSDocFailure "agda-core.check" $ text $ "Skiped " <> n <> " :  term not compiled"
       Right Core.Definition{ defName, theDef = Core.FunctionDefn funBody, defType } -> do
         reportSDoc "agda-core.check" 2 $ text $ "Typechecking of " <> defName <> " :"
-        reportSDoc "agda-core.check" 10 $ text $ defName <> " has funBody: " <> show funBody
-        reportSDoc "agda-core.check" 10 $ text $ defName <> " has defType: " <> show defType <> "\n"
         preSig <- liftIO $ readIORef ioPreSig
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl
