@@ -97,7 +97,7 @@ prettyCoreTermAux m (IsLambda n) term = -- when we have several λ
 instance PrettyCore Core.TermS where
   prettyCore :: NameMap -> Core.TermS -> String
   prettyCore m Core.TSNil = ""
-  prettyCore m (Core.TSCons t ts) = prettyCoreTermAux m IsRigthApp t <> " " <> prettyCore m t
+  prettyCore m (Core.TSCons t ts) = prettyCoreTermAux m IsRigthApp t <> " " <> prettyCore m ts
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 instance PrettyCore Core.Sort where
