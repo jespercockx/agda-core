@@ -10,5 +10,12 @@ const = λ A → λ x → λ y → x
 eta-functions_expl : (A B : Set) (f : A → B) → (Id (A → B) f (λ x → (f (const A x x))))
 eta-functions_expl = λ A B → λ f → refl (A → B) f
 
+eta-functions_two : (A B : Set) (f : A → B) → 
+    (Id (A → B) (λ x → (f (const A x x))) (λ v → (λ w → (f w)) v) )
+eta-functions_two = λ A B → λ f → refl (A → B) f
+
+eta-functions_three : (A B : Set) (f : A → B) → 
+    (Id (A → B) (λ v → (λ w → (f w)) v) (λ x → (f (const A x x))) )
+eta-functions_three = λ A B → λ f → refl (A → B) f
 
 

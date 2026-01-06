@@ -229,7 +229,9 @@ convertWhnf r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
   convertCase r d d' ri ri' u u' bs bs' rt rt'
 convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
 convertWhnf r (TSort s) (TSort t) = convSorts s t
---let and ann shoudln't appear here since they get reduced away
+--let and ann shouldn't appear here since they get reduced away
+convertWhnf r (TVar _) (TLam _ _) = tcError "implement eta-functions 1"
+convertWhnf r (TLam x v) (TVar x') = tcError "implement eta-functions 2"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}

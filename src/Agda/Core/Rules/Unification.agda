@@ -14,8 +14,8 @@ private open module @0 G = Globals globals
                                    {- PART ONE : Shrinking -}
 ---------------------------------------------------------------------------------------------------
 module Shrinking where
-  {- A module where shrinking, an operation to remove some variables of a scope while
-    preserving dependancies is defined -}
+  {- A module where shrinking is defined, which is an operation to remove some variables of a scope while
+    preserving dependencies-}
 
   private variable
     @0 x : Name
