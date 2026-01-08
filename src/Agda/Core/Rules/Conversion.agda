@@ -89,6 +89,8 @@ data Conv {α} where
   CRedR  : @0 ReducesTo v v'
          → u  ≅ v'
          → u  ≅ v
+  -- TODO : eta
+  
 
 data ConvBranch {α = α} {c = c} where
   CBBranch :  (cr1 cr2 : Singleton c) (r1 r2 : Singleton (fieldScope c))

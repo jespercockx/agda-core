@@ -232,6 +232,7 @@ convertWhnf r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
 convertWhnf r (TVar _) (TLam _ _) = tcError "implement eta-functions 1"
 convertWhnf r (TLam x v) (TVar x') = tcError "implement eta-functions 2"
+convertWhnf r (TApp _ _) (TLam _ _) = tcError "implement eta-functions 3"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}

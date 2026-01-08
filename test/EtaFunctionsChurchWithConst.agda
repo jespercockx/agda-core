@@ -1,3 +1,8 @@
+data Nat : Set where
+  Zero : Nat
+  Suc : Nat → Nat
+
+
 Id : (A : Set) (x : A) → A → Set₁
 Id = λ A x y → (P : A → Set) → P x → P y
 
@@ -19,3 +24,8 @@ eta-functions_three : (A B : Set) (f : A → B) →
 eta-functions_three = λ A B → λ f → refl (A → B) f
 
 
+-- f 0 =?= \x -> f 0 x
+-- f : Nat -> Nat -> Nat
+
+eta-app-1 : (f : Nat -> Nat -> Nat) -> Id (Nat -> Nat) (f Zero) (\x -> (f Zero (const Nat x x)))
+eta-app-1 = λ f → refl (Nat → Nat) (f Zero)
