@@ -29,3 +29,6 @@ eta-functions_three = λ A B → λ f → refl (A → B) f
 
 eta-app-1 : (f : Nat -> Nat -> Nat) -> Id (Nat -> Nat) (f Zero) (\x -> (f Zero (const Nat x x)))
 eta-app-1 = λ f → refl (Nat → Nat) (f Zero)
+
+eta-app-1-alt-proof : (f : Nat -> Nat -> Nat) -> Id (Nat -> Nat) (f Zero) (\x -> (f Zero (const Nat x x)))
+eta-app-1-alt-proof = λ f → eta-functions_expl Nat Nat (f Zero)
