@@ -50,6 +50,16 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
+
+membershipExtension0 : (α : Scope Name) (x : Name) → x ∈ (α ▸ x)
+membershipExtension0 α x = Zero ⟨ IsZero refl ⟩
+
+membershipExtension1 : (n : NameIn α) → (x : Name) → (proj₁ n) ∈ (α ▸ x)
+membershipExtension1 n x = 
+  -- i is index, 
+  let i ⟨ p ⟩ = proj₂ n
+  in (Suc i) ⟨ IsSuc p ⟩
+
 data Conv {α} where
   CRefl  : u ≅ u
   CLam   : {@0 r : Singleton α}
@@ -90,6 +100,21 @@ data Conv {α} where
          → u  ≅ v'
          → u  ≅ v
   -- TODO : eta
+  -- CEta : TLam x (TApp {!!} {!!}) ≅ t
+
+  -- CEtaVar : (x : Name) (f : NameIn α) → (TVar f) ≅ (TLam x ((TApp {!!} {!!}))) 
+
+  CEtaVar : (f : NameIn α) (x : Name) → 
+    let name_f = proj₁ f in 
+    let proof_f = proj₂ f in 
+
+    let proofOfMembershipX = membershipExtension0 α x in
+    let newProofOfMembershipF = membershipExtension1 f x in 
+
+    let depPairF = ⟨ name_f ⟩ newProofOfMembershipF  in
+    let depPairX = ⟨ x ⟩ proofOfMembershipX in
+
+    (TLam x (TApp (TVar depPairF) (TVar depPairX))) ≅ TVar f
   
 
 data ConvBranch {α = α} {c = c} where
