@@ -105,7 +105,7 @@ module Swap where
             res2 = < Γ' , σ₂ ∘ σ₁ >
         return res2 in
       caseMaybe areTheTwoLastVarsSwapable (λ x → Just x) otherCase
-    swapHighest {{Zero}} (CtxExtend (CtxExtend _ _ _) _ _) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩))  = Nothing -- this shouldn't happens as at all times fl ≥ position of y in the scope
+    swapHighest {{Zero}} (CtxExtend (CtxExtend _ _ _) _ _) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩))  = Nothing -- this shouldn't happen as at all times fl ≥ position of y in the scope
 
     swap : Context α → (x y : NameIn α) → Either SwapError (Maybe (Σ0 _ λ α' → Context α' × Renaming α α'))
     swap _ Vzero Vzero = Left CantSwapVarWithItSelf

@@ -52,11 +52,10 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 
 membershipExtension0 : (α : Scope Name) (x : Name) → x ∈ (α ▸ x)
-membershipExtension0 α x = Zero ⟨ IsZero refl ⟩
+membershipExtension0 _ _ = Zero ⟨ IsZero refl ⟩
 
 membershipExtension1 : (n : NameIn α) → (x : Name) → (proj₁ n) ∈ (α ▸ x)
-membershipExtension1 n x = 
-  -- i is index, 
+membershipExtension1 n _ = 
   let i ⟨ p ⟩ = proj₂ n
   in (Suc i) ⟨ IsSuc p ⟩
 
@@ -100,21 +99,25 @@ data Conv {α} where
          → u  ≅ v'
          → u  ≅ v
   -- TODO : eta
-  -- CEta : TLam x (TApp {!!} {!!}) ≅ t
-
   -- CEtaVar : (x : Name) (f : NameIn α) → (TVar f) ≅ (TLam x ((TApp {!!} {!!}))) 
 
-  CEtaVar : (f : NameIn α) (x : Name) → 
+  CEtaVar : (@0 x : Name) (f : NameIn α) → 
     let name_f = proj₁ f in 
     let proof_f = proj₂ f in 
 
-    let proofOfMembershipX = membershipExtension0 α x in
-    let newProofOfMembershipF = membershipExtension1 f x in 
+    let proofOfMembershipX = Zero ⟨ IsZero refl ⟩ in
+    let newProofOfMembershipF = let i ⟨ p ⟩ = proj₂ f in (Suc i) ⟨ IsSuc p ⟩ 
+    in
 
-    let depPairF = ⟨ name_f ⟩ newProofOfMembershipF  in
+    -- we need to convince Agda that f is a `NameIn α ▸ x` and that x is a `NameIn α ▸ x`
+    let depPairF = ⟨ name_f ⟩ newProofOfMembershipF  in 
     let depPairX = ⟨ x ⟩ proofOfMembershipX in
 
-    (TLam x (TApp (TVar depPairF) (TVar depPairX))) ≅ TVar f
+    -- we need to receive a `b` and ensure it is convertible to a `TApp` with correct `f` and `x`,
+    -- before we can say that we can convert `TVar f` to eta-expanded form
+    (b : Term (α ▸ x))
+    → b ≅ TApp (TVar depPairF) (TVar depPairX) 
+    → TVar f ≅ (TLam x b)
   
 
 data ConvBranch {α = α} {c = c} where
