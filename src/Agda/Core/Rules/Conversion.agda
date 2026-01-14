@@ -118,6 +118,13 @@ data Conv {α} where
     (b : Term (α ▸ x))
     → b ≅ TApp (TVar depPairF) (TVar depPairX) 
     → TVar f ≅ (TLam x b)
+  CEtaVar2 : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
+    let 
+    depPairX = ⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)
+    subsetProof = (subWeaken subRefl)
+    in
+    b ≅ (TApp (weakenTerm subsetProof f) (TVar depPairX))
+    → f ≅ (TLam x b)
   
 
 data ConvBranch {α = α} {c = c} where

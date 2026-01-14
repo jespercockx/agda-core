@@ -230,16 +230,21 @@ convertWhnf r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
 convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
 convertWhnf r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
-convertWhnf r (TVar f) (TLam x b) = 
-  let newProofOfMembershipF = let i ⟨ proofF ⟩ = proj₂ f in (Suc i) ⟨ IsSuc proofF ⟩ 
-  in
-  let depPairF = ⟨ proj₁ f ⟩ newProofOfMembershipF in
-  let depPairX = ⟨ x ⟩ (Zero ⟨ IsZero refl ⟩) in
-  let term = TApp (TVar depPairF) (TVar depPairX) in 
-  let newScope = singBind r in
-  do
-    proof <- (convertCheck newScope b term )
-    return (CEtaVar x f b proof)
+-- convertWhnf r (TVar f) (TLam x b) =
+--   let i ⟨ proofF ⟩ = proj₂ f 
+--   in
+--   let newProofOfMembershipF = (Suc i) ⟨ IsSuc proofF ⟩ 
+--   in
+--   let depPairF = ⟨ proj₁ f ⟩ newProofOfMembershipF in
+--   let depPairX = ⟨ x ⟩ (Zero ⟨ IsZero refl ⟩) in
+--   let term = TApp (TVar depPairF) (TVar depPairX) in 
+--   let newScope = singBind r in
+--   do
+--     proof <- (convertCheck newScope b term )
+--     -- (x : Name) (f : NameIn α)
+--     -- (b : Term x ▸ α) (proof : b ≅ TApp (TVar depPairF) (TVar depPairX) )
+--     return (CEtaVar x f b proof)
+convertWhnf r (TVar f) (TLam x b) = {!!}
 convertWhnf r (TLam x v) (TVar x') = tcError "implement eta-functions 2"
 convertWhnf r (TApp _ _) (TLam _ _) = tcError "implement eta-functions 3"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
