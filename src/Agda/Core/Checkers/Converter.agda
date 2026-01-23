@@ -246,14 +246,14 @@ convertWhnf r (TSort s) (TSort t) = convSorts s t
 --     return (CEtaVar x f b proof)
 convertWhnf r functionTerm (TLam x b) = 
   let 
-  depPairX = ⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)
+  -- depPairX = ⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)
   subsetProof = (subWeaken subRefl)
   newScope = singBind r
-  term = TApp (weakenTerm subsetProof functionTerm) (TVar depPairX)
+  term = TApp (weakenTerm subsetProof functionTerm) (TVar (VZero x))
   in
   do
     conversionProof <- convertCheck newScope b term
-    return (CEtaVar2 x functionTerm b conversionProof)
+    return (CEtaFunctions x functionTerm b conversionProof)
 -- convertWhnf r (TLam x v) (TVar x') = tcError "implement eta-functions 2"
 -- convertWhnf r (TApp _ _) (TLam _ _) = tcError "implement eta-functions 3"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
