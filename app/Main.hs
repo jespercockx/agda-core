@@ -201,8 +201,8 @@ agdaCoreCompile env _ _ def = do
   PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
-    -- if a datatype is encontered, add all constructors to the environement
-    -- if a constructor is encontered, skip it to avoid conflict
+    -- if a datatype is encountered, add all constructors to the environement
+    -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataCons} -> do
       let ntcg_datas  = Map.insert defName index tcg_datas
@@ -231,7 +231,7 @@ agdaCoreCompile env _ _ def = do
 
 
   case convert ntcg def of
-    -- Failed to convert `def` with environent `ntcg`
+    -- Failed to convert `def` with the ToCoreGlobal `ntcg`
     Left e     -> do
       reportSDocFailure "agda-core.check"   $ text $ "  Failed to convert '" <> name <> "' to core syntax:"
       reportSDocFailure "agda-core.check"   $ text "    " <> pure e

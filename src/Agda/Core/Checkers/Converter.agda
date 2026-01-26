@@ -246,7 +246,6 @@ convertWhnf r (TSort s) (TSort t) = convSorts s t
 --     return (CEtaVar x f b proof)
 convertWhnf r functionTerm (TLam x b) = 
   let 
-  -- depPairX = ⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)
   subsetProof = (subWeaken subRefl)
   newScope = singBind r
   term = TApp (weakenTerm subsetProof functionTerm) (TVar (VZero x))
