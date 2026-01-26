@@ -98,26 +98,6 @@ data Conv {α} where
   CRedR  : @0 ReducesTo v v'
          → u  ≅ v'
          → u  ≅ v
-  -- TODO : eta
-  -- CEtaVar : (x : Name) (f : NameIn α) → (TVar f) ≅ (TLam x ((TApp {!!} {!!}))) 
-
-  CEtaVar : (@0 x : Name) (f : NameIn α) → 
-    let name_f = proj₁ f in 
-    let proof_f = proj₂ f in 
-
-    let proofOfMembershipX = Zero ⟨ IsZero refl ⟩ in
-    let newProofOfMembershipF = let i ⟨ p ⟩ = proj₂ f in (Suc i) ⟨ IsSuc p ⟩ 
-    in
-
-    -- we need to convince Agda that f is a `NameIn α ▸ x` and that x is a `NameIn α ▸ x`
-    let depPairF = ⟨ name_f ⟩ newProofOfMembershipF  in 
-    let depPairX = ⟨ x ⟩ proofOfMembershipX in
-
-    -- we need to receive a `b` and ensure it is convertible to a `TApp` with correct `f` and `x`,
-    -- before we can say that we can convert `TVar f` to eta-expanded form
-    (b : Term (α ▸ x))
-    → b ≅ TApp (TVar depPairF) (TVar depPairX) 
-    → TVar f ≅ (TLam x b)
   CEtaFunctions : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
     let 
     subsetProof = (subWeaken subRefl)

@@ -167,7 +167,7 @@ instance ToCore I.Term where
       --Otherwise, try looking up as datatype
       (\_ -> do 
         idx <- lookupData qn
-        -- TODO: Use Agda's `getConstInfo` function in order to correctly compile the parameters and indices of the datatype
+        -- TODO (diode-lang): Use Agda's `getConstInfo` function in order to correctly compile the parameters and indices of the datatype
         let dataRef = TData idx Core.TSNil Core.TSNil
         return (tApp dataRef coreEs)
       )
