@@ -148,28 +148,38 @@ instance ToCore I.Term where
 
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
-  
-  toCore (I.Def qn es) 
+
+  toCore (I.Def qn es)
     | Just args <- allApplyElims es
     = do
       -- Try looking up as definition first
       catchError
-        (do 
+        (do
           idx <- lookupDef qn
           let def = TDef idx
           coreEs <- toCore es
           return (tApp def coreEs)
         )
         --Otherwise, try looking up as datatype
-        (\_ -> do 
+        (\_ -> do
           (idx, (amountOfParams, amountOfIndices)) <- lookupData qn
 
           --always take all parameters
           paramTermS <- toTermS <$> toCore (take amountOfParams args)
-          
-          indexTermS <- toTermS <$> toCore (drop amountOfParams args)
 
-          return (TData idx paramTermS indexTermS)
+          -- @m@ is the amount of arguments to the index list which are missing
+          let indexListGiven = drop amountOfParams args
+          let m = amountOfIndices - (length indexListGiven)
+
+          -- Construct @m@ additional deBruijn indices
+          -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
+          let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
+          
+          indexTermS <- toTermS . (++ additionalVars) <$> toCore (raise m indexListGiven)
+          let tdata = TData idx paramTermS indexTermS
+
+          -- in the end, we have (TLam (TLam (TLam ...))) of depth m
+          return (iterate TLam tdata !! m)
         )
 
   toCore I.Def{} = throwError "cubical endpoint application to definitions/datatypes not supported"
@@ -311,7 +321,7 @@ toCoreDefn (I.RecordDefn rd) ty =
   withError (\e -> multiLineText $ "record definition failure \n" <> Pretty.render (nest 1 e)) $ do
     let I.RecordData{
       _recPars = pars,
-      _recFields = fields} = rd 
+      _recFields = fields} = rd
     throwError "records are not supported"
 
 toCoreDefn (I.ConstructorDefn cs) ty =
