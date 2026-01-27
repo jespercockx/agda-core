@@ -149,10 +149,13 @@ instance ToCore I.Term where
         --Otherwise, try looking up as datatype
         (\_ -> do 
           (idx, (amountOfParams, amountOfIndices)) <- lookupData qn
+
+          --always take all parameters
+          paramTermS <- toTermS <$> toCore (take amountOfParams args)
           
-          let dataRef = TData idx Core.TSNil Core.TSNil
-          coreEs <- toCore es
-          return (tApp dataRef coreEs)
+          indexTermS <- toTermS <$> toCore (drop amountOfParams args)
+
+          return (TData idx paramTermS indexTermS)
         )
 
   toCore I.Def{} = throwError "cubical endpoint application to definitions/datatypes not supported"
