@@ -23,6 +23,7 @@ import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineTe
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
 import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe)
+import Agda.Syntax.Common ( Nat )
 
 import Data.Map.Strict qualified as Map
 import Agda.TypeChecking.Monad  qualified as I
@@ -77,7 +78,7 @@ tApp t (e:es) = TApp t e `tApp` es
 --   Datatypes are stored in a different structure
 --   Constructors are stored with their datatype
 data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
-                                   globalDatas :: Map QName Index,
+                                   globalDatas :: Map QName (Index, (Nat, Nat)),
                                    globalCons  :: Map QName (Index, Index)}
 
 -- | Custom monad used for translating to core syntax.
@@ -90,7 +91,7 @@ newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either Doc) a }
 asksDef :: (Map QName Index -> a) -> ToCoreM a
 asksDef = asks . (.  \ToCoreGlobal{globalDefs} -> globalDefs)
 
-asksData :: (Map QName Index -> a) -> ToCoreM a
+asksData :: (Map QName (Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
 asksCon :: (Map QName (Index, Index) -> a) -> ToCoreM a
@@ -104,13 +105,9 @@ lookupDef qn = fromMaybeM complain $ asksDef (Map.!? qn)
 
 -- | Lookup a datatype name in the current module.
 --   Fails if the datatype cannot be found.
-lookupData :: QName -> ToCoreM Index
+lookupData :: QName -> ToCoreM (Index, (Nat, Nat))
 lookupData qn = fromMaybeM complain $ asksData (Map.!? qn)
   where complain = throwError $ "Trying to access an unknown datatype: " <+> pretty qn
-
-lookupDefOrData :: QName -> ToCoreM Index
-lookupDefOrData qn = catchError (catchError (lookupDef qn) (\_ -> lookupData qn))
-  (\_ -> throwError $ "Trying to access an unknown definition/datatype: " <+> pretty qn)
 
 -- | Lookup a constructor name in the current module.
 --   Fails if the constructor cannot be found.
@@ -152,25 +149,27 @@ instance ToCore I.Term where
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
   
-  toCore (I.Def qn es) = do
-    -- constInfo <- I.getConstInfo qn
-    coreEs <- toCore es
-    
-    -- Try looking up as definition first
+  toCore (I.Def qn es) 
+    | Just args <- allApplyElims es
+    = do
+      -- Try looking up as definition first
+      catchError
+        (do 
+          idx <- lookupDef qn
+          let def = TDef idx
+          coreEs <- toCore es
+          return (tApp def coreEs)
+        )
+        --Otherwise, try looking up as datatype
+        (\_ -> do 
+          (idx, (amountOfParams, amountOfIndices)) <- lookupData qn
+          
+          let dataRef = TData idx Core.TSNil Core.TSNil
+          coreEs <- toCore es
+          return (tApp dataRef coreEs)
+        )
 
-    catchError 
-      (do 
-        idx <- lookupDef qn
-        let def = TDef idx
-        return (tApp def coreEs)
-      )
-      --Otherwise, try looking up as datatype
-      (\_ -> do 
-        idx <- lookupData qn
-        -- TODO (diode-lang): Use Agda's `getConstInfo` function in order to correctly compile the parameters and indices of the datatype
-        let dataRef = TData idx Core.TSNil Core.TSNil
-        return (tApp dataRef coreEs)
-      )
+  toCore I.Def{} = throwError "cubical endpoint application to definitions/datatypes not supported"
 
   toCore (I.Con ch _ es)
     | Just args <- allApplyElims es
@@ -378,7 +377,9 @@ instance ToCore I.Elim where
   type CoreOf I.Elim = Term
   toCore :: I.Elim -> ToCoreM Term
   toCore (I.Apply x)   = toCore x
-  toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
+  --TODO (diode-lang) : Support projection as an Elim
+  -- toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
+  toCore (I.Proj _ qn) = throwError "record projection not supported"
   toCore I.IApply{}    = throwError "cubical endpoint application not supported"
 
 
