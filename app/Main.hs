@@ -204,8 +204,9 @@ agdaCoreCompile env _ _ def = do
     -- if a datatype is encountered, add all constructors to the environement
     -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
-    Internal.Datatype{dataCons} -> do
-      let ntcg_datas  = Map.insert defName index tcg_datas
+    Internal.Datatype{dataPars, dataIxs, dataCons} -> do
+      constInfo <- Internal.getConstInfo defName
+      let ntcg_datas  = Map.insert defName (index, (dataPars, dataIxs)) tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
           tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
           ntcg_cons = Map.union tcg_cons tcg_data_cons

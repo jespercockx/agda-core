@@ -1,3 +1,5 @@
+module EtaFunctionsChurch where
+
 data Nat : Set where
   Zero : Nat
   Suc : Nat → Nat
