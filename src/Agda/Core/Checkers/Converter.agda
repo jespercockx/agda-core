@@ -239,11 +239,16 @@ convertWhnf r functionTerm (TLam x b) =
   do
     conversionProof <- convertCheck newScope b term
     return (CEtaFunctions x functionTerm b conversionProof)
+<<<<<<< HEAD
 convertWhnf r a b = do
   conversionProof <- convertCheck r b a
   return (CSym conversionProof)
 -- convertWhnf r (TLam x v) (TVar x') = tcError "implement eta-functions 2"
 -- convertWhnf r (TApp _ _) (TLam _ _) = tcError "implement eta-functions 3"
+=======
+convertWhnf r (TLam x v) (TVar x') = tcError "implement eta-functions 2"
+convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
+>>>>>>> a146e6c (Working example for function eta-conversion where TLam is on left and TVar is on right)
 
 {-# COMPILE AGDA2HS convertWhnf #-}
 
