@@ -51,20 +51,6 @@ import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 import Agda.Syntax.Common.Pretty(text, render)
 
-import Debug.Trace
-
--- Helper to add color
-traceColor :: String -> String -> a -> a
-traceColor color msg = trace (color ++ msg ++ "\x1b[0m")
-
-traceRed, traceGreen, traceYellow, traceBlue, traceMagenta, traceCyan :: String -> a -> a
-traceRed     = traceColor "\x1b[31m"
-traceGreen   = traceColor "\x1b[32m"
-traceYellow  = traceColor "\x1b[33m"
-traceBlue    = traceColor "\x1b[34m"
-traceMagenta = traceColor "\x1b[35m"
-traceCyan    = traceColor "\x1b[36m"
-
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
@@ -185,7 +171,7 @@ instance ToCore I.Term where
         t <- TCon dt con . toTermS . (++ additionalVars) <$> toCore (raise l args)
 
         -- in the end, we bind @l@ fresh deBruijn indices
-        traceMagenta "Constructed TLam" pure (iterate TLam t !! l)
+        pure (iterate TLam t !! l)
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
@@ -265,7 +251,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       , [cl]      <- _funClauses
       , []        <- I.clausePats cl
       , Just body <- I.clauseBody cl
-      -> Core.FunctionDefn <$> traceMagenta ("calling toCore with body=" <> (render $ pretty body)) toCore body
+      -> Core.FunctionDefn <$> toCore body
     -- case with no pattern matching
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
@@ -273,7 +259,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       , vars      <- I.clausePats cl
       , Just body <- I.clauseBody cl
       -- -> Core.FunctionDefn <$> toCore body
-      -> (throwError "only definitions via λ are supported")
+      -> throwError "only definitions via λ are supported"
 
     -- case with pattern matching variables
     I.FunctionData{..}
@@ -306,10 +292,6 @@ toCoreDefn (I.DatatypeDefn dt) ty =
   return $ Core.DatatypeDefn d
 
 toCoreDefn (I.RecordDefn rd) ty =
-  withError (\e -> multiLineText $ "record definition failure \n" <> Pretty.render (nest 1 e)) $ do
-    let I.RecordData{
-      _recPars = pars,
-      _recFields = fields} = rd 
     throwError "records are not supported"
 
 toCoreDefn (I.ConstructorDefn cs) ty =
@@ -379,6 +361,7 @@ instance ToCore I.Elim where
   toCore :: I.Elim -> ToCoreM Term
   toCore (I.Apply x)   = toCore x
   toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
+
   toCore I.IApply{}    = throwError "cubical endpoint application not supported"
 
 

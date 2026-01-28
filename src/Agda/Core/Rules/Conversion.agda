@@ -99,11 +99,9 @@ data Conv {α} where
          → u  ≅ v'
          → u  ≅ v
   CEtaFunctions : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
-    let 
-    subsetProof = (subWeaken subRefl)
-    in
-    b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
-    → f ≅ (TLam x b)
+    let subsetProof = subWeaken subRefl in
+      b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
+      → f ≅ (TLam x b)
   
 
 data ConvBranch {α = α} {c = c} where

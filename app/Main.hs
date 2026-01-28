@@ -268,8 +268,6 @@ agdaCoreCompile env _ _ def = do
               , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
               }
 
-      PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
-
       -- (diode-lang): Health check signature here
       return $ pure def'
 
@@ -283,8 +281,6 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
         Just dt -> dt
         _ -> __IMPOSSIBLE__
 
-  let preSigDefsAsList = Map.toList preSigDefs
-  let strPreSigDefs = foldr (\(k, def) acc -> "Key: " ++ show k ++ ", Def: " ++ "<def>" ++ "\n" ++ acc) "" preSigDefsAsList
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
         _ -> __IMPOSSIBLE__
@@ -297,7 +293,7 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
 
 agdaCorePostModule :: ACEnv -> ACMEnv -> IsMain -> TopLevelModuleName -> [ACSyntax] -> TCM ACMod
 agdaCorePostModule ACEnv{toCoreIsTypechecking = False} _ _ _ _ = pure ()
-agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} nameMap _ tlm defs = do
+agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
   reportSDoc "agda-core.check" 2 lineInDoc
   liftIO $ setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Cyan ]
   reportSDoc "agda-core.check" 1 . boxInDoc $ "Typechecking module " <> show (Pretty.pretty tlm)
