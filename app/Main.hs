@@ -259,17 +259,14 @@ agdaCoreCompile env _ _ def = do
             , preSigCons = preSigCons
             }
         Core.ConstructorDefn cons -> do
-          -- (diode-lang): Why is the "old" tcg_cons referenced here, 
-          -- if it was updated to `ntcg`?
-          let (dID, cID) = tcg_cons Map.! defName
+          -- It should not matter here whether one uses `tcg_cons` (old one) or `globalCons ntcg` (new one), but let's use the new one to be safe
+          let (dID, cID) = globalCons ntcg Map.! defName
           liftIO $ writeIORef ioPreSig $
             PreSignature
               {  preSigDefs = preSigDefs
               , preSigData = preSigData
               , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
               }
-
-      -- (diode-lang): Health check signature here
       return $ pure def'
 
 
