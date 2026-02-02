@@ -39,6 +39,7 @@ import Agda.Core.Syntax.Term qualified as Core
 import Agda.Core.TCM.TCM qualified as Core
 import Agda.Core.Prelude qualified as Core
 import Agda.Core.Checkers.TypeCheck (checkType)
+import Agda.Core.Checkers.Terminate (checkTermination, SubTermContext(..))
 
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.Maybe (mapMaybe, isNothing, fromMaybe)
@@ -306,7 +307,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} nameMap _ tlm defs = do
   reportSDoc "agda-core.check" 2 lineInDoc
   reportSDocWarning "agda-core.check" 1 $ text "Warning : Typechecking backend is in developpement"
   reportSDocWarning "agda-core.check" 1 $ text "__IMPOSSIBLE__ will be called if terms for which compilation failed are called"
-  for_ defs \def -> do
+  for_ (zip (iterate Scope.inThere Scope.inHere) defs) $ \(i, def) -> do
     case def of
       Left n -> reportSDocFailure "agda-core.check" $ text $ "Skiped " <> n <> " :  term not compiled"
       Right Core.Definition{ defName, theDef = Core.FunctionDefn funBody, defType } -> do
@@ -315,9 +316,12 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} nameMap _ tlm defs = do
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl
             env = Core.MkTCEnv sig fl
+        case checkTermination StCtxEmpty i [] funBody of
+          False -> reportSDocFailure "agda-core.check" $ text $ "Termination error for: " <> show defName
+          True -> reportSDoc "agda-core.check" 1 $ text $ "before TC: " <> show funBody <> " with name: " <> defName <> ", typchecking against: " <> show defType
         case Core.runTCM (checkType CtxEmpty funBody defType) env of
-              Left err -> reportSDoc "agda-core.check" 3 $ text $ "  Type checking error: " ++ err
-              Right ok -> reportSDoc "agda-core.check" 3 $ text "  Type checking success"
+            Left err -> reportSDoc "agda-core.check" 3 $ text $ "  Type checking error: " ++ err
+            Right ok -> reportSDoc "agda-core.check" 3 $ text "  Type checking success"
       Right Core.Definition{ defName } ->
         reportSDocWarning "agda-core.check" 2 $ text $ "Skiped " <> defName <> " : not a function"
 

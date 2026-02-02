@@ -16,6 +16,9 @@ private variable
   @0 c   : NameCon d
   @0 cs  : RScope (NameCon d)
 
+weakenNameIn   : α ⊆ β → NameIn α → NameIn β
+weakenNameIn p (⟨ a ⟩ b) = ⟨ a ⟩ coerce p b
+
 weakenTerm     : α ⊆ β → Term α → Term β
 weakenTermS    : α ⊆ β → TermS α rγ → TermS β rγ
 weakenSort     : α ⊆ β → Sort α → Sort β
@@ -23,7 +26,7 @@ weakenType     : α ⊆ β → Type α → Type β
 weakenBranch   : α ⊆ β → Branch α {d = d} c → Branch β {d = d} c
 weakenBranches : α ⊆ β → Branches α d cs → Branches β d cs
 
-weakenTerm p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
+weakenTerm p (TVar x)          = TVar (weakenNameIn p x)
 weakenTerm p (TDef d)          = TDef d
 weakenTerm p (TData d ps is)   = TData d (weakenTermS p ps) (weakenTermS p is)
 weakenTerm p (TCon c vs)       = TCon c (weakenTermS p vs)
@@ -52,6 +55,7 @@ weakenBranches p (BsCons b bs) = BsCons (weakenBranch p b) (weakenBranches p bs)
 {-# COMPILE AGDA2HS weakenTerm #-}
 {-# COMPILE AGDA2HS weakenTermS #-}
 {-# COMPILE AGDA2HS weakenType #-}
+{-# COMPILE AGDA2HS weakenNameIn #-}
 {-# COMPILE AGDA2HS weakenSort #-}
 {-# COMPILE AGDA2HS weakenBranch #-}
 
@@ -110,3 +114,4 @@ lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
   (λ q → lookupVar g (⟨ _ ⟩ q))
   (λ _ → s))
 {-# COMPILE AGDA2HS lookupVar #-}
+

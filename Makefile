@@ -18,7 +18,8 @@ alllib: lib \
   lib/Agda/Core/TCM/TCM.hs \
   lib/Agda/Core/TCM/Instances.hs \
   lib/Agda/Core/Checkers/Converter.hs \
-  lib/Agda/Core/Checkers/TypeCheck.hs
+  lib/Agda/Core/Checkers/TypeCheck.hs \
+  lib/Agda/Core/Checkers/Terminate.hs
 
 # alllib: lib lib/*.hs
 

@@ -54,8 +54,9 @@ private variable
   @0 α : Scope Name
 
 indexToNat : Index → Nat
-indexToNat Zero = zero
-indexToNat (Suc n) = suc (indexToNat n)
+indexToNat Zero = 0
+indexToNat (Suc n) = 1 + (indexToNat n)
+{-# COMPILE AGDA2HS indexToNat #-}
 
 natToIndex : Nat → Index
 natToIndex zero = Zero
@@ -64,6 +65,7 @@ natToIndex (suc n) = Suc (natToIndex n)
 instance
   iEqForIndex : Eq Index
   iEqForIndex ._==_  = λ n m → (indexToNat n) == (indexToNat m)
+  {-# COMPILE AGDA2HS iEqForIndex #-}
 
 instance
   iOrdFromLessThanIndex : OrdFromLessThan Index
