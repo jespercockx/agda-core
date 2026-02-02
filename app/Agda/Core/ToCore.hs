@@ -38,7 +38,7 @@ import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, intToIndex, numOfArgs)
+import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, intToIndex, numOfArgs, numOfLamNest)
 
 
 import Scope.In (Index)
@@ -81,7 +81,7 @@ tApp t (e:es) = TApp t e `tApp` es
 --   Constructors are stored with their datatype
 data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
                                    globalDatas :: Map QName (Index, (Nat, Nat)),
-                                   globalCons  :: Map QName (Index, Index)}
+                                   globalCons  :: Map QName (Index, Index, (Nat, Nat))}
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
@@ -96,7 +96,7 @@ asksDef = asks . (.  \ToCoreGlobal{globalDefs} -> globalDefs)
 asksData :: (Map QName (Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
-asksCon :: (Map QName (Index, Index) -> a) -> ToCoreM a
+asksCon :: (Map QName (Index, Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
 -- | Lookup a definition name in the current module.
@@ -113,7 +113,7 @@ lookupData qn = fromMaybeM complain $ asksData (Map.!? qn)
 
 -- | Lookup a constructor name in the current module.
 --   Fails if the constructor cannot be found.
-lookupCon :: QName -> ToCoreM (Index, Index)
+lookupCon :: QName -> ToCoreM (Index, Index, (Nat, Nat))
 lookupCon qn = fromMaybeM complain $ asksCon (Map.!? qn)
   where complain = throwError $ "Trying to access an unknown constructor: " <+> pretty qn
 
@@ -194,7 +194,7 @@ instance ToCore I.Term where
         let l  = length (I.conFields ch) - length es
         -- Construct @l@ additional deBruijn indices
         let additionalVars = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
-        (dt , con) <- lookupCon (I.conName ch)
+        (dt , con, _) <- lookupCon (I.conName ch)
 
         t <- TCon dt con . toTermS . (++ additionalVars) <$> toCore (raise l args)
 
@@ -256,32 +256,21 @@ instance ToCore I.Telescope where
 
 clauseToCore :: CC.CompiledClauses -> I.Type -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) ty = toCore body
--- careful here, argNum is the number of the argument in the given function
--- Last thing in here is to check if there are no indices to the datatypes. How can we detect this? The type of the datatype should logically be the argNum'th
 clauseToCore (CC.Case argNum c) ty = do
   let listConstructors = Map.toList (CC.conBranches c)
-  -- assuming there is at least one branch
-  (dt, _) <- lookupCon (fst (listConstructors !! 0))
+  (dt, _, (params, idcs)) <- lookupCon (fst (listConstructors !! 0))
   corety <- toCore ty
   let argLen = numOfArgs corety
-  -- what if here a function is defined as a lambda? example : foo x = \y -> x y. This would then think foo has 2 parameters which it does not. Actually thinking about it I think the behaviour is equivalent, we could desugar to previous notation to foo x y = x y.
   let index = intToIndex (argLen - unArg argNum - 1)
   branchList <- mapM (uncurry (createBranch ty)) listConstructors
   let branches = foldr Core.BsCons Core.BsNil branchList
-  -- First arg: not idea, gotten from first branch but i wish info was available in the outer object , 
-  -- Second: the list of indices of the datatype, which we cannot access, we need to figure out why this is needed. So turns out for our current use it can only be empty, which I hope corresponds to rsingleton
-  -- Third: For now assuming it's alwasy the last argument, later on will have to do a translation from number of the arg to db index (somehow we should know arity of the function)
-  -- Fourth: the branches
-  -- Fifth: the TYPE where from
-  return $ TCase dt rsingleton (TVar index) branches corety
+  return $ TCase dt (iterate rbind [] !! idcs) (TVar index) branches corety
 clauseToCore _ _ = throwError "not supported"
 
 createBranch :: I.Type -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
 createBranch ty name wthAr = do
-  (_, constructor) <- lookupCon name
+  (_, constructor, _) <- lookupCon name
   clause <- clauseToCore (CC.content wthAr) ty
-  -- here we need to figure out what that rscope should be, best guess is that it is as long as the number of arguments-pattern in the given branch
-  -- guess we did not handle that
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 
@@ -311,7 +300,8 @@ toCoreDefn (I.FunctionDefn def) ty =
         corety <- toCore ty
         body <- clauseToCore compiledClauses ty
         let argLen = numOfArgs corety 
-        Core.FunctionDefn <$> pure ((iterate TLam body) !! argLen)
+        let lamNest = numOfLamNest body 
+        Core.FunctionDefn <$> pure ((iterate TLam body) !! (argLen - lamNest))
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , [cl]      <- _funClauses
@@ -350,7 +340,7 @@ toCoreDefn (I.DatatypeDefn dt) ty =
   parsTel <- toCore internalParsTel
   ixsTel <- toCore internalIxsTel
   cons_dt_indexes <- traverse lookupCon cons
-  let cons_indexes = map snd cons_dt_indexes
+  let cons_indexes = map (\(_,c,_) -> c) cons_dt_indexes
   let d = Core.Datatype{  dataSort              = sort',
                           dataParTel            = parsTel,
                           dataIxTel             = ixsTel,

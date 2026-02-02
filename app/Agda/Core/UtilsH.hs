@@ -44,6 +44,10 @@ numOfArgs ty = case unType ty of
     TPi _ dom -> 1 + numOfArgs dom
     _ -> 0
 
+numOfLamNest :: Term -> Int
+numOfLamNest (TLam t) = 1 + numOfLamNest t
+numOfLamNest t = 0
+
 
 -- line of ─
 lineInDoc :: TCM Doc

@@ -208,12 +208,12 @@ agdaCoreCompile env _ _ def = do
       constInfo <- Internal.getConstInfo defName
       let ntcg_datas  = Map.insert defName (index, (dataPars, dataIxs)) tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
-          tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
+          tcg_data_cons = Map.fromList (zip dataCons (map (\(x, y) -> (x, y, (dataPars, dataIxs))) ((map (index,) (iterate Suc Zero))) ))
           ntcg_cons = Map.union tcg_cons tcg_data_cons
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
       pure (ToCoreGlobal tcg_defs ntcg_datas ntcg_cons, NameMap nameDefs nnames_datas nameCons)
     Internal.Constructor{} -> do
-      let (dID, cID) = tcg_cons Map.! defName
+      let (dID, cID, _) = tcg_cons Map.! defName
       let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
       pure (ToCoreGlobal tcg_defs tcg_datas tcg_cons, NameMap nameDefs nameData nnames_cons)
     _ -> do
@@ -261,7 +261,7 @@ agdaCoreCompile env _ _ def = do
         Core.ConstructorDefn cons -> do
           -- (diode-lang): Why is the "old" tcg_cons referenced here, 
           -- if it was updated to `ntcg`?
-          let (dID, cID) = tcg_cons Map.! defName
+          let (dID, cID, _) = tcg_cons Map.! defName
           liftIO $ writeIORef ioPreSig $
             PreSignature
               {  preSigDefs = preSigDefs
