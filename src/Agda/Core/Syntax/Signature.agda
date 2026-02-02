@@ -73,6 +73,23 @@ record Datatype (@0 d : NameData) : Set where
 open Datatype public
 {-# COMPILE AGDA2HS Datatype #-}
 
+
+---------------------------------------------------------------------------------------------------
+                                          {- Record -}
+---------------------------------------------------------------------------------------------------
+record Record (@0 r : NameRec) : Set where
+  no-eta-equality
+  private
+    @0 pars : RScope Name
+    pars = recParScope r
+  field 
+    recParTel       : Telescope mempty pars
+    recConstructor  : Maybe Name 
+
+
+open Record public
+{-# COMPILE AGDA2HS Record #-}
+
 ---------------------------------------------------------------------------------------------------
                                           {- Signature -}
 ---------------------------------------------------------------------------------------------------
@@ -119,8 +136,7 @@ data Defn : Set where
   FunctionDefn : (funBody : Term mempty) → Defn
   DatatypeDefn :  (@0 d : NameData) → Datatype d → Defn
   ConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → Constructor c → Defn
-  -- TODO (diode-lang) : add record defn
-  -- RecordDefn : (@0 d : NameData) → {!!} → Defn
+  RecordDefn : (@0 r : NameRec) → Record r → Defn
 {-# COMPILE AGDA2HS Defn #-}
 
 

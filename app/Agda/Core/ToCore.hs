@@ -61,11 +61,13 @@ tApp t (e:es) = TApp t e `tApp` es
 
 -- | Global definitions are represented as a mapping from @QName@s
 --   to proofs of global def scope membership.
---   Datatypes are stored in a different structure
---   Constructors are stored with their datatype
-data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
-                                   globalDatas :: Map QName (Index, (Nat, Nat)),
-                                   globalCons  :: Map QName (Index, Index)}
+--   Datatypes are stored with their amount of parameters/indices
+--   Record types are stored with their amount of parameters
+--   Datatype constructors are stored with their datatype index
+data ToCoreGlobal = ToCoreGlobal { globalDefs      :: Map QName Index,
+                                   globalDatas     :: Map QName (Index, (Nat, Nat)),
+                                   globalRecs      :: Map QName (Index, Nat),
+                                   globalConsData  :: Map QName (Index, Index)}
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
@@ -81,7 +83,7 @@ asksData :: (Map QName (Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
 asksCon :: (Map QName (Index, Index) -> a) -> ToCoreM a
-asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
+asksCon = asks . (. \ToCoreGlobal{globalConsData} -> globalConsData)
 
 -- | Lookup a definition name in the current module.
 lookupDef :: QName -> ToCoreM (Maybe Index)
@@ -167,7 +169,7 @@ instance ToCore I.Term where
   toCore (I.Con ch _ es)
     | Just args <- allApplyElims es
     = lookupCon (I.conName ch) >>= \case
-        Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty (I.conName ch)
+        Nothing -> throwError $ "[When compiling a Con] Trying to access an unknown constructor: " <+> pretty (I.conName ch)
         Just (dt , con) -> do
           -- @l@ is the amount of arguments missing from the application.
           -- we need to eta-expand manually @l@ times to fully-apply the constructor.
@@ -291,7 +293,7 @@ toCoreDefn (I.DatatypeDefn dt) ty =
   parsTel <- toCore internalParsTel
   ixsTel <- toCore internalIxsTel
   cons_dt_indexes <- traverse (\qn -> lookupCon qn >>= \case
-    Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty qn
+    Nothing -> throwError $ "[When compiling a DataTypeDefn] Trying to access an unknown constructor: " <+> pretty qn
     Just result -> pure result
     ) cons
   let cons_indexes = map snd cons_dt_indexes
@@ -302,7 +304,16 @@ toCoreDefn (I.DatatypeDefn dt) ty =
   return $ Core.DatatypeDefn d
 
 toCoreDefn (I.RecordDefn rd) ty =
-    throwError "records are not supported"
+  withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
+    let I.RecordData{
+      _recPars = pars,
+      _recFields = fields
+    } = rd
+    let I.TelV{theTel = internalParsTel} = I.telView'UpTo pars ty
+    parsTel <- toCore internalParsTel
+
+    throwError "TODO: add support record definitions"
+    
 
 toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do

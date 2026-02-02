@@ -24,6 +24,7 @@ data AboveCoreTerm =
 data NameMap = NameMap {
   nameDefs      :: Map Natural String,
   nameData      :: Map Natural String,
+  nameRecs      :: Map Natural String,
   nameCons      :: Map (Natural, Natural) String
 }
 class PrettyCore a where

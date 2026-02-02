@@ -69,6 +69,7 @@ import Agda.TypeChecking.SizedTypes.WarshallSolver (Error)
 import qualified Agda.TypeChecking.Primitive as I
 import Agda.Benchmarking (Phase(Definition))
 import Agda.Compiler.JS.Compiler (global)
+
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 -- main function
 
@@ -146,8 +147,8 @@ data ACEnv = ACEnv {
 
 agdaCorePreCompile :: AgdaCoreOptions -> TCM ACEnv
 agdaCorePreCompile Options{optTypecheck} = do
-  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty
-  names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty
+  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty Map.empty
+  names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty Map.empty
   preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty
   i       <- liftIO $ newIORef Zero
   pure $ ACEnv { toCoreGlobal          = tcg
@@ -196,12 +197,14 @@ agdaCoreCompile env _ _ def = do
   let name = show $ Pretty.pretty $ last $ Internal.qnameToList0 defName            -- name of term that we are compiling
   reportSDoc "agda-core.check" 2 $ text $ "Compilation of " <> name <> " :"
 
-  ToCoreGlobal {globalDefs = tcg_defs, globalDatas = tcg_datas, globalCons = tcg_cons}  <- liftIO $ readIORef ioTcg
-  NameMap {nameDefs, nameData, nameCons}                              <- liftIO $ readIORef ioNames
+  ToCoreGlobal {
+    globalDefs = tcg_defs, globalDatas = tcg_datas, globalRecs = tcg_recs,
+    globalConsData = tcg_cons}                                        <- liftIO $ readIORef ioTcg
+  NameMap {nameDefs, nameData, nameRecs, nameCons}                    <- liftIO $ readIORef ioNames
   PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
-    -- if a datatype is encountered, add all constructors to the environement
+    -- if a datatype or record is encountered, add all constructors to the environement
     -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataPars, dataIxs, dataCons} -> do
@@ -212,6 +215,13 @@ agdaCoreCompile env _ _ def = do
           ntcg_cons = Map.union tcg_cons tcg_data_cons
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
       pure (ToCoreGlobal tcg_defs ntcg_datas ntcg_cons, NameMap nameDefs nnames_datas nameCons)
+    Internal.Record{recPars, recConHead} -> do
+      let conName = Internal.conName recConHead
+      reportSDoc "agda-core.check" 3 $ text "  Constructor:" <+> prettyTCM conName
+
+      let ntcg_recs = Map.insert defName (index, recPars) tcg_recs
+          nnames_recs = Map.insert (indexToNat index) name nameRecs
+      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_cons, NameMap nnames_defs nameData nameCons)
     Internal.Constructor{} -> do
       let (dID, cID) = tcg_cons Map.! defName
       let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
@@ -259,8 +269,8 @@ agdaCoreCompile env _ _ def = do
             , preSigCons = preSigCons
             }
         Core.ConstructorDefn cons -> do
-          -- It should not matter here whether one uses `tcg_cons` (old one) or `globalCons ntcg` (new one), but let's use the new one to be safe
-          let (dID, cID) = globalCons ntcg Map.! defName
+          -- It should not matter here whether one uses `tcg_cons` (old one) or `globalConsData ntcg` (new one), but let's use the new one to be safe
+          let (dID, cID) = globalConsData ntcg Map.! defName
           liftIO $ writeIORef ioPreSig $
             PreSignature
               {  preSigDefs = preSigDefs
