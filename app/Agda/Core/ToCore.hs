@@ -30,6 +30,7 @@ import Agda.TypeChecking.Monad  qualified as I
 import Agda.Syntax.Internal     qualified as I
 import Agda.TypeChecking.Substitute qualified as I
 import Agda.TypeChecking.Telescope qualified as I
+import Agda.TypeChecking.CompiledClause qualified as CC
 
 
 import Agda.Core.Syntax.Term (Term(..), Sort(..))
@@ -37,7 +38,7 @@ import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt)
+import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, intToIndex, numOfArgs)
 
 
 import Scope.In (Index)
@@ -47,6 +48,7 @@ import qualified Agda.Syntax.Common.Pretty as Pretty
 import System.IO (withBinaryFile)
 import Agda.Compiler.Backend (Definition(defType))
 import Control.Exception (throw)
+import Scope.Core (rsingleton, rbind)
 
 import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
@@ -252,6 +254,36 @@ instance ToCore I.Telescope where
   toCore I.EmptyTel = pure Core.EmptyTel
   toCore (I.ExtendTel ty t) = Core.ExtendTel <$> toCore ty <*> toCore t
 
+clauseToCore :: CC.CompiledClauses -> I.Type -> ToCoreM Core.Term
+clauseToCore (CC.Done args body) ty = toCore body
+-- careful here, argNum is the number of the argument in the given function
+-- Last thing in here is to check if there are no indices to the datatypes. How can we detect this? The type of the datatype should logically be the argNum'th
+clauseToCore (CC.Case argNum c) ty = do
+  let listConstructors = Map.toList (CC.conBranches c)
+  -- assuming there is at least one branch
+  (dt, _) <- lookupCon (fst (listConstructors !! 0))
+  corety <- toCore ty
+  let argLen = numOfArgs corety
+  -- what if here a function is defined as a lambda? example : foo x = \y -> x y. This would then think foo has 2 parameters which it does not. Actually thinking about it I think the behaviour is equivalent, we could desugar to previous notation to foo x y = x y.
+  let index = intToIndex (argLen - unArg argNum - 1)
+  branchList <- mapM (uncurry (createBranch ty)) listConstructors
+  let branches = foldr Core.BsCons Core.BsNil branchList
+  -- First arg: not idea, gotten from first branch but i wish info was available in the outer object , 
+  -- Second: the list of indices of the datatype, which we cannot access, we need to figure out why this is needed. So turns out for our current use it can only be empty, which I hope corresponds to rsingleton
+  -- Third: For now assuming it's alwasy the last argument, later on will have to do a translation from number of the arg to db index (somehow we should know arity of the function)
+  -- Fourth: the branches
+  -- Fifth: the TYPE where from
+  return $ TCase dt rsingleton (TVar index) branches corety
+clauseToCore _ _ = throwError "not supported"
+
+createBranch :: I.Type -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
+createBranch ty name wthAr = do
+  (_, constructor) <- lookupCon name
+  clause <- clauseToCore (CC.content wthAr) ty
+  -- here we need to figure out what that rscope should be, best guess is that it is as long as the number of arguments-pattern in the given branch
+  -- guess we did not handle that
+  return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
+
 
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
 -- Defn (helper for Definition below)
@@ -268,10 +300,18 @@ toCoreDefn (I.GeneralizableVar _) _ =
 toCoreDefn (I.AbstractDefn _) _ =
   throwError "abstract definition are not supported"
 
-toCoreDefn (I.FunctionDefn def) _ =
+toCoreDefn (I.FunctionDefn def) ty =
   withError (\e -> multiLineText $ "function definition failure: \n" <> Pretty.render (nest 1 e)) $ do
   case def of
     -- case where you use lambda
+    I.FunctionData{..}
+      | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
+      , Just compiledClauses      <- _funCompiled
+      -> do
+        corety <- toCore ty
+        body <- clauseToCore compiledClauses ty
+        let argLen = numOfArgs corety 
+        Core.FunctionDefn <$> pure ((iterate TLam body) !! argLen)
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , [cl]      <- _funClauses

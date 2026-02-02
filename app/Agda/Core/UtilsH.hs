@@ -3,6 +3,7 @@ module Agda.Core.UtilsH where
 
 import Scope.In (Index(..))
 import Agda.TypeChecking.Pretty (text, prettyTCM, (<+>), Doc)
+import Agda.Core.Syntax.Term
 
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Agda.Compiler.Backend (TCM, reportSDoc, MonadDebug)
@@ -27,9 +28,21 @@ indexToNat (Suc n) = indexToNat n + 1
 indexToInt :: Index -> Int
 indexToInt = integerToInt . naturalToInteger . indexToNat
 
+natToIndex :: Natural -> Index
+natToIndex 0 = Zero
+natToIndex n = Suc (natToIndex (n - 1))
+
+intToIndex :: Int -> Index
+intToIndex = natToIndex . fromInteger . toInteger
+
 listToUnitList :: [ a ] -> [()]
 listToUnitList [] = []
 listToUnitList (_ : q) = () : listToUnitList q
+
+numOfArgs :: Type -> Int
+numOfArgs ty = case unType ty of
+    TPi _ dom -> 1 + numOfArgs dom
+    _ -> 0
 
 
 -- line of ─
