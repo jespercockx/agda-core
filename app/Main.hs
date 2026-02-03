@@ -174,7 +174,7 @@ agdaCorePreModule _ _ tlm _ =
     _ -> do
       reportSDoc "agda-core.check" 2 lineInDoc
       liftIO $ setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta ]
-      reportSDoc "agda-core.check" 1 . boxInDoc $ "Compilating module " <> show (Pretty.pretty tlm)
+      reportSDoc "agda-core.check" 1 . boxInDoc $ "Compiling module " <> show (Pretty.pretty tlm)
       liftIO $ setSGR []
       reportSDoc "agda-core.check" 2 lineInDoc
       pure $ Recompile ()
@@ -301,7 +301,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
   reportSDocWarning "agda-core.check" 1 $ text "__IMPOSSIBLE__ will be called if terms for which compilation failed are called"
   for_ defs \def -> do
     case def of
-      Left n -> reportSDocFailure "agda-core.check" $ text $ "Skiped " <> n <> " :  term not compiled"
+      Left n -> reportSDocFailure "agda-core.check" $ text $ "Skipped " <> n <> " :  term not compiled"
       Right Core.Definition{ defName, theDef = Core.FunctionDefn funBody, defType } -> do
         reportSDoc "agda-core.check" 2 $ text $ "Typechecking of " <> defName <> " :"
         preSig <- liftIO $ readIORef ioPreSig
@@ -312,7 +312,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
               Left err -> reportSDoc "agda-core.check" 3 $ text $ "  Type checking error: " ++ err
               Right ok -> reportSDoc "agda-core.check" 3 $ text "  Type checking success"
       Right Core.Definition{ defName } ->
-        reportSDocWarning "agda-core.check" 2 $ text $ "Skiped " <> defName <> " : not a function"
+        reportSDocWarning "agda-core.check" 2 $ text $ "Skipped " <> defName <> " : not a function"
 
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
