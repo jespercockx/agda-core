@@ -119,6 +119,8 @@ data Defn : Set where
   FunctionDefn : (funBody : Term mempty) → Defn
   DatatypeDefn :  (@0 d : NameData) → Datatype d → Defn
   ConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → Constructor c → Defn
+  -- TODO (diode-lang) : add record defn
+  -- RecordDefn : (@0 d : NameData) → {!!} → Defn
 {-# COMPILE AGDA2HS Defn #-}
 
 

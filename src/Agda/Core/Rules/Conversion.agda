@@ -83,12 +83,22 @@ data Conv {α} where
            {@0 us vs : TermS α (fieldScope c)}
          → us ⇔ vs
          → TCon c us ≅ TCon c vs
+  CEtaFunctionsLeft : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
+    let subsetProof = subWeaken subRefl in
+      b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
+      → f ≅ (TLam x b)
+  CEtaFunctionsRight : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
+    let subsetProof = subWeaken subRefl in
+      b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
+      → (TLam x b) ≅ f 
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v
   CRedR  : @0 ReducesTo v v'
          → u  ≅ v'
          → u  ≅ v
+  
+  
 
 data ConvBranch {α = α} {c = c} where
   CBBranch :  (cr1 cr2 : Singleton c) (r1 r2 : Singleton (fieldScope c))

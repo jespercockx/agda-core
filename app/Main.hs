@@ -1,5 +1,7 @@
 module Main where
 
+import Debug.Trace
+
 import Data.Either (partitionEithers)
 import Data.Foldable (for_, foldl')
 import Data.Map.Strict (Map)
@@ -67,7 +69,6 @@ import Agda.TypeChecking.SizedTypes.WarshallSolver (Error)
 import qualified Agda.TypeChecking.Primitive as I
 import Agda.Benchmarking (Phase(Definition))
 import Agda.Compiler.JS.Compiler (global)
-
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 -- main function
 
@@ -186,6 +187,7 @@ agdaCorePreModule _ _ tlm _ =
 
 type ACSyntax = Either String Core.Definition
 
+
 agdaCoreCompile :: ACEnv -> ACMEnv -> IsMain -> Internal.Definition -> TCM ACSyntax
 agdaCoreCompile env _ _ def = do
   let ACEnv{toCoreGlobal = ioTcg, toCoreCounterID = ioIndex, toCoreNames = ioNames, toCorePreSignature = ioPreSig } = env
@@ -199,11 +201,12 @@ agdaCoreCompile env _ _ def = do
   PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
-    -- if a datatype is encontered, add all constructors to the environement
-    -- if a constructor is encontered, skip it to avoid conflict
+    -- if a datatype is encountered, add all constructors to the environement
+    -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
-    Internal.Datatype{dataCons} -> do
-      let ntcg_datas  = Map.insert defName index tcg_datas
+    Internal.Datatype{dataPars, dataIxs, dataCons} -> do
+      constInfo <- Internal.getConstInfo defName
+      let ntcg_datas  = Map.insert defName (index, (dataPars, dataIxs)) tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
           tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
           ntcg_cons = Map.union tcg_cons tcg_data_cons
@@ -222,20 +225,26 @@ agdaCoreCompile env _ _ def = do
   liftIO $ writeIORef ioNames nnames
   liftIO $ writeIORef ioIndex (Suc index)
 
+  defTypeDoc <- prettyTCM defType
   reportSDoc "agda-core.check" 4 $ text "  Agda type: " <> prettyTCM defType
   reportSDoc "agda-core.check" 5 $ text "  Agda definition: " <> text (show $ Pretty.pretty theDef)
-
+  -- reportSDoc "agda-core.check" 5 $ text "  Agda definition: " <> text (show theDef)
 
 
   case convert ntcg def of
+    -- Failed to convert `def` with the ToCoreGlobal `ntcg`
     Left e     -> do
       reportSDocFailure "agda-core.check"   $ text $ "  Failed to convert '" <> name <> "' to core syntax:"
       reportSDocFailure "agda-core.check"   $ text "    " <> pure e
       return $ throwError name
     Right def'-> do
       let Core.Definition{defType = ty', theDef = defn'} = def'
-      reportSDoc "agda-core.check" 4 $ text $ "  Type: " <> prettyCore nnames ty'
-      reportSDoc "agda-core.check" 4 $ text $ "  Definition: " <> prettyCore nnames defn'
+      reportSDoc "agda-core.check" 4 $ text $ "  Agda Core Type: " <> prettyCore nnames ty'
+      reportSDoc "agda-core.check" 4 $ text $ "  Agda Core Definition: " <> prettyCore nnames defn'
+
+      reportSDoc "agda-core.debug" 10 $ text ("Index of definition being translated: " <> show (indexToNat index))
+      reportSDoc "agda-core.debug" 10 $ text ""
+
       case defn' of
         Core.FunctionDefn _  -> liftIO $ writeIORef ioPreSig $
           PreSignature
@@ -250,7 +259,8 @@ agdaCoreCompile env _ _ def = do
             , preSigCons = preSigCons
             }
         Core.ConstructorDefn cons -> do
-          let (dID, cID) = tcg_cons Map.! defName
+          -- It should not matter here whether one uses `tcg_cons` (old one) or `globalCons ntcg` (new one), but let's use the new one to be safe
+          let (dID, cID) = globalCons ntcg Map.! defName
           liftIO $ writeIORef ioPreSig $
             PreSignature
               {  preSigDefs = preSigDefs
@@ -268,9 +278,11 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
   let datas i  = case preSigData Map.!? indexToNat i of
         Just dt -> dt
         _ -> __IMPOSSIBLE__
+
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
         _ -> __IMPOSSIBLE__
+
   let cons d c = case preSigCons Map.!? (indexToNat d, indexToNat c) of
         Just ct -> ct
         _ -> __IMPOSSIBLE__

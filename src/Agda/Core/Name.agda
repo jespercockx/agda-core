@@ -113,5 +113,6 @@ instance
 pattern Vsuc n p = ⟨ _ ⟩ (Suc n ⟨ IsSuc p ⟩)
 pattern V2suc n p = ⟨ _ ⟩ (Suc (Suc n) ⟨ IsSuc (IsSuc p) ⟩)
 pattern Vzero = ⟨ _ ⟩ Zero ⟨ IsZero refl ⟩
+pattern VZero x = ⟨ x ⟩ Zero ⟨ IsZero refl ⟩
 pattern Vone = ⟨ _ ⟩ (Suc Zero) ⟨ IsSuc (IsZero refl) ⟩
 -------------------------------------------------------------------------------

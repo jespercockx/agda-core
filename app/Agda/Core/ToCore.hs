@@ -10,19 +10,20 @@ module Agda.Core.ToCore
 
 import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
-import Control.Monad.Except (MonadError(throwError, catchError), withError)
+import Control.Monad.Except (MonadError(throwError), withError)
 import Data.Functor ((<&>))
 import Data.Map.Strict (Map)
 import Numeric.Natural (Natural)
 
 import Agda.Syntax.Common ( Arg(unArg) )
-import Agda.Syntax.Abstract.Name (QName)
+import Agda.Syntax.Abstract.Name (QName, showQNameId, uglyShowName, qnameName)
 import Agda.Syntax.Internal (lensSort, unDom, unEl)
 import Agda.Syntax.Internal.Elim (allApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
 import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe)
+import Agda.Syntax.Common ( Nat )
 
 import Data.Map.Strict qualified as Map
 import Agda.TypeChecking.Monad  qualified as I
@@ -47,6 +48,11 @@ import System.IO (withBinaryFile)
 import Agda.Compiler.Backend (Definition(defType))
 import Control.Exception (throw)
 
+import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
+
+import Agda.Syntax.Common.Pretty(text, render)
+
+
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
 tApp :: Term -> [Term] -> Term
@@ -58,7 +64,7 @@ tApp t (e:es) = TApp t e `tApp` es
 --   Datatypes are stored in a different structure
 --   Constructors are stored with their datatype
 data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
-                                   globalDatas :: Map QName Index,
+                                   globalDatas :: Map QName (Index, (Nat, Nat)),
                                    globalCons  :: Map QName (Index, Index)}
 
 -- | Custom monad used for translating to core syntax.
@@ -71,33 +77,23 @@ newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either Doc) a }
 asksDef :: (Map QName Index -> a) -> ToCoreM a
 asksDef = asks . (.  \ToCoreGlobal{globalDefs} -> globalDefs)
 
-asksData :: (Map QName Index -> a) -> ToCoreM a
+asksData :: (Map QName (Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
 asksCon :: (Map QName (Index, Index) -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
 -- | Lookup a definition name in the current module.
---   Fails if the definition cannot be found.
-lookupDef :: QName -> ToCoreM Index
-lookupDef qn = fromMaybeM complain $ asksDef (Map.!? qn)
-  where complain = throwError $ "Trying to access an unknown definition: " <+> pretty qn
+lookupDef :: QName -> ToCoreM (Maybe Index)
+lookupDef qn = asksDef (Map.!? qn)
 
 -- | Lookup a datatype name in the current module.
---   Fails if the datatype cannot be found.
-lookupData :: QName -> ToCoreM Index
-lookupData qn = fromMaybeM complain $ asksData (Map.!? qn)
-  where complain = throwError $ "Trying to access an unknown datatype: " <+> pretty qn
-
-lookupDefOrData :: QName -> ToCoreM Index
-lookupDefOrData qn = catchError (catchError (lookupDef qn) (\_ -> lookupData qn))
-  (\_ -> throwError $ "Trying to access an unknown definition/datatype: " <+> pretty qn)
+lookupData :: QName -> ToCoreM (Maybe (Index, (Nat, Nat)))
+lookupData qn = asksData (Map.!? qn)
 
 -- | Lookup a constructor name in the current module.
---   Fails if the constructor cannot be found.
-lookupCon :: QName -> ToCoreM (Index, Index)
-lookupCon qn = fromMaybeM complain $ asksCon (Map.!? qn)
-  where complain = throwError $ "Trying to access an unknown constructor: " <+> pretty qn
+lookupCon :: QName -> ToCoreM (Maybe (Index, Index))
+lookupCon qn = asksCon (Map.!? qn)
 
 
 -- | Class for things that can be converted to core syntax
@@ -108,7 +104,7 @@ class ToCore a where
 
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
-convert defs t = runReaderT (runToCore $ toCore t) defs
+convert tcg t = runReaderT (runToCore $ toCore t) tcg
 
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
@@ -133,21 +129,56 @@ instance ToCore I.Term where
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
 
-  toCore (I.Def qn es) = tApp <$> (TDef <$> lookupDefOrData qn) <*> toCore es
-
-  toCore (I.Con ch ci es)
+  toCore (I.Def qn es)
     | Just args <- allApplyElims es
     = do
-        -- @l@ is the amount of arguments missing from the application.
-        -- we need to eta-expand manually @l@ times to fully-apply the constructor.
-        let l  = length (I.conFields ch) - length es
-        let vs = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
-        (dt , con) <- lookupCon (I.conName ch)
+        -- Try looking up as definition first
+        maybe_idx <- lookupDef qn
+        case maybe_idx of
+          Just idx -> do
+            let def = TDef idx
+            coreEs <- toCore es
+            return (tApp def coreEs)
+          --Otherwise, try looking up as datatype (must succeed, else fail with error message)
+          Nothing -> do
+            lookupData qn >>= \case
+              Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
 
-        t <- TCon dt con . toTermS . (++ vs) <$> toCore (raise l args)
+              Just (idx, (amountOfParams, amountOfIndices)) -> do
+                --always take all parameters
+                paramTermS <- toTermS <$> toCore (take amountOfParams args)
 
-        -- in the end, we bind @l@ fresh variables
-        pure (iterate TLam t !! l)
+                -- @m@ is the amount of arguments to the index list which are missing
+                let indexListGiven = drop amountOfParams args
+                let m = amountOfIndices - length indexListGiven
+
+                -- Construct @m@ additional deBruijn indices
+                -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
+                let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
+
+                indexTermS <- toTermS . (++ additionalVars) <$> toCore (raise m indexListGiven)
+                let tdata = TData idx paramTermS indexTermS
+
+                -- in the end, we have (TLam (TLam (TLam ...))) of depth m
+                return (iterate TLam tdata !! m)
+
+  toCore I.Def{} = throwError "cubical endpoint application to definitions/datatypes not supported"
+
+  toCore (I.Con ch _ es)
+    | Just args <- allApplyElims es
+    = lookupCon (I.conName ch) >>= \case
+        Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty (I.conName ch)
+        Just (dt , con) -> do
+          -- @l@ is the amount of arguments missing from the application.
+          -- we need to eta-expand manually @l@ times to fully-apply the constructor.
+          let l  = length (I.conFields ch) - length es
+          -- Construct @l@ additional deBruijn indices
+          let additionalVars = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
+
+          t <- TCon dt con . toTermS . (++ additionalVars) <$> toCore (raise l args)
+
+          -- in the end, we bind @l@ fresh deBruijn indices
+          pure (iterate TLam t !! l)
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
@@ -246,7 +277,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       | isJust (maybeRight _funProjection >>= I.projProper) -- record projections case
       -> throwError "record projections aren't supported"
     I.FunctionData{}
-      -> throwError "unsupported case (shouldn't happens)"
+      -> throwError "unsupported case (shouldn't happen)"
 
 toCoreDefn (I.DatatypeDefn dt) ty =
   withError (\e -> multiLineText $ "datatype definition failure: \n" <> Pretty.render (nest 1 e)) $ do
@@ -259,7 +290,10 @@ toCoreDefn (I.DatatypeDefn dt) ty =
   let I.TelV{theTel = internalIxsTel}                 = I.telView'UpTo ixs  ty1
   parsTel <- toCore internalParsTel
   ixsTel <- toCore internalIxsTel
-  cons_dt_indexes <- traverse lookupCon cons
+  cons_dt_indexes <- traverse (\qn -> lookupCon qn >>= \case
+    Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty qn
+    Just result -> pure result
+    ) cons
   let cons_indexes = map snd cons_dt_indexes
   let d = Core.Datatype{  dataSort              = sort',
                           dataParTel            = parsTel,
@@ -267,8 +301,8 @@ toCoreDefn (I.DatatypeDefn dt) ty =
                           dataConstructors      = cons_indexes}
   return $ Core.DatatypeDefn d
 
-toCoreDefn (I.RecordDefn _) _ =
-  throwError "records are not supported"
+toCoreDefn (I.RecordDefn rd) ty =
+    throwError "records are not supported"
 
 toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
@@ -315,6 +349,7 @@ instance ToCore I.Definition where
 -- Others
 instance (Subst a, ToCore a) => ToCore (I.Abs a) where
   type CoreOf (I.Abs a) = CoreOf a
+  toCore :: (Subst a, ToCore a) => I.Abs a -> ToCoreM (CoreOf (I.Abs a))
   toCore = toCore . absBody
 
 
@@ -327,6 +362,7 @@ instance ToCore a => ToCore (Arg a) where
 -- TODO(flupe): enforce that there are no weird modalities in the arg (e.g: disallow irrelevance)
 instance ToCore a => ToCore (I.Dom a) where
   type CoreOf (I.Dom a) = CoreOf a
+  toCore :: ToCore a => I.Dom a -> ToCoreM (CoreOf (I.Dom a))
   toCore = toCore . unDom
 
 
@@ -334,7 +370,9 @@ instance ToCore I.Elim where
   type CoreOf I.Elim = Term
   toCore :: I.Elim -> ToCoreM Term
   toCore (I.Apply x)   = toCore x
-  toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
+  --TODO (diode-lang) : Support projection as an Elim
+  -- toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
+  toCore (I.Proj _ qn) = throwError "record projection not supported"
   toCore I.IApply{}    = throwError "cubical endpoint application not supported"
 
 

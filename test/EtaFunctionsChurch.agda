@@ -1,0 +1,43 @@
+module EtaFunctionsChurch where
+
+data Nat : Set where
+  Zero : Nat
+  Suc : Nat → Nat
+
+
+Id : (A : Set) (x : A) → A → Set₁
+Id = λ A x y → (P : A → Set) → P x → P y
+
+refl : (A : Set) (x : A) → Id A x x
+refl = λ A x P p → p
+
+const : (A : Set) → A → A → A
+const = λ A → λ x → λ y → x
+
+eta-functions_expl : (A B : Set) (f : A → B) → (Id (A → B) f (λ x → (f (const A x x))))
+eta-functions_expl = λ A B → λ f → refl (A → B) f
+
+eta-functions_expl_reversed : (A B : Set) (f : A → B) → (Id (A → B) (λ x → (f (const A x x))) f)
+eta-functions_expl_reversed = λ A B → λ f → refl (A → B) f
+
+eta-functions_two : (A B : Set) (f : A → B) → 
+    (Id (A → B) (λ x → (f (const A x x))) (λ v → (λ w → (f w)) v) )
+eta-functions_two = λ A B → λ f → refl (A → B) f
+
+eta-functions_three : (A B : Set) (f : A → B) → 
+    (Id (A → B) (λ v → (λ w → (f w)) v) (λ x → (f (const A x x))) )
+eta-functions_three = λ A B → λ f → refl (A → B) f
+
+eta-functions_four : (A B : Set) (f : A → B) → 
+    (Id (A → B) (λ v → (λ w → (f (const A w w))) (const A v v)) f)
+eta-functions_four = λ A B → λ f → refl (A → B) f
+
+
+-- f 0 =?= \x -> f 0 x
+-- f : Nat -> Nat -> Nat
+
+eta-app-1 : (f : Nat -> Nat -> Nat) -> Id (Nat -> Nat) (f Zero) (\x -> (f Zero (const Nat x x)))
+eta-app-1 = λ f → refl (Nat → Nat) (f Zero)
+
+eta-app-1-alt-proof : (f : Nat -> Nat -> Nat) -> Id (Nat -> Nat) (f Zero) (\x -> (f Zero (const Nat x x)))
+eta-app-1-alt-proof = λ f → eta-functions_expl Nat Nat (f Zero)

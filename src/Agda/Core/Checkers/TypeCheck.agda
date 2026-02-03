@@ -87,7 +87,7 @@ inferCase {α = α} ctx d rixs u bs rt = do
 
   El s tu , gtu ← inferType ctx u
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
-    "can't typecheck a constrctor with a type that isn't a def application"
+    "can't typecheck a constructor with a type that isn't a def application"
   Erased refl ← convNamesIn d d'
   df ⟨ deq ⟩ ← tcmGetDatatype d
   let ds : Sort α
@@ -198,7 +198,7 @@ checkCon : ∀ Γ
 checkCon ctx {d = d} c cargs (El s ty) = do
   let r = singScope ctx
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
-    "can't typecheck a constructor with a type that isn't a def application"
+    "can't typecheck a constructor TCon with a type that isn't a def application"
   ifDec (decIn (proj₂ d) (proj₂ d'))
     (λ where {{refl}} → do
         dt ⟨ dteq ⟩ ← tcmGetDatatype d

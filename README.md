@@ -14,7 +14,7 @@ Something is slowly growing here. It is still fragile so better not disturb it, 
 
 ## Build instructions
 
-### 1. Determine your Agda application directory
+### 1. Determine your `$AGDA_DIR` directory
 
 Run the following command and note the output location:
 
@@ -57,7 +57,7 @@ cabal build
 
 ### 4. Typecheck Agda files using agda-core
 
-Invoke the custom Agda frontend like this:
+Invoke the custom Agda backend like this:
 ```bash
 cabal run exe:agda-core -- FILE.agda
 ```
