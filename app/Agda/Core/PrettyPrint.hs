@@ -148,6 +148,10 @@ instance PrettyCore Core.Constructor where
   prettyCore :: NameMap -> Core.Constructor -> String
   prettyCore m d = "Is a constructor"
 
+instance PrettyCore Core.Record where
+  prettyCore :: NameMap -> Core.Record -> String
+  prettyCore _ _ = "Is a record"
+
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 instance PrettyCore Core.Defn where
   prettyCore :: NameMap -> Core.Defn -> String
@@ -157,6 +161,8 @@ instance PrettyCore Core.Defn where
     prettyCore m d
   prettyCore m (Core.ConstructorDefn c) =
     prettyCore m c
+  prettyCore m (Core.RecordDefn r) =
+    prettyCore m r
 
 instance PrettyCore Core.Definition where
   prettyCore :: NameMap -> Core.Definition -> String

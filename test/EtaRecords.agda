@@ -26,14 +26,21 @@ record PairNoEta (A B : Set) : Set where
     no-eta-equality
     pattern
     field
-        fst : A
-        snd : B
+        fstnoE : A
+        sndnoE : B
 
 record PairExplCon (A B : Set) : Set where 
     constructor _,_
     field
-      fst : A
-      snd : B
+      fstE : A
+      sndE : B
+
+--example0 and example1 are both valid Agda epxressions
+example0 : (A B : Set) → Set
+example0 = Pair
+
+example1 : (B : Set) → Set
+example1 = Pair Nat
 
 x : Pair Nat Nat
 x = record { fst = Zero; snd = Suc Zero }
@@ -58,7 +65,7 @@ eta-R-two : (A B : Set) (x : Pair A B) →
 eta-R-two = λ A B → λ x → refl
 
 eta-R-two-expl-con : (A B : Set) (x : PairExplCon A B) → 
-  x ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fst PairExplCon.fst x) (PairExplCon.snd x))
+  x ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fstE PairExplCon.fstE x) (PairExplCon.sndE x))
 eta-R-two-expl-con = λ A B → λ x → refl
 
 -- eta-R-two : (A B : Set) (x : Pair A B) → 

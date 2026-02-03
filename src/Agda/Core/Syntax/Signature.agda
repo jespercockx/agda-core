@@ -84,7 +84,6 @@ record Record (@0 r : NameRec) : Set where
     pars = recParScope r
   field 
     recParTel       : Telescope mempty pars
-    recConstructor  : Maybe Name 
 
 
 open Record public

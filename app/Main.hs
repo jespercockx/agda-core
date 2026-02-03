@@ -199,37 +199,45 @@ agdaCoreCompile env _ _ def = do
 
   ToCoreGlobal {
     globalDefs = tcg_defs, globalDatas = tcg_datas, globalRecs = tcg_recs,
-    globalConsData = tcg_cons}                                        <- liftIO $ readIORef ioTcg
+    globalCons = tcg_cons}                                        <- liftIO $ readIORef ioTcg
   NameMap {nameDefs, nameData, nameRecs, nameCons}                    <- liftIO $ readIORef ioNames
   PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
-    -- if a datatype or record is encountered, add all constructors to the environement
+    -- if a datatype or record is encountered, add all constructors to the tcg environement
     -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataPars, dataIxs, dataCons} -> do
-      constInfo <- Internal.getConstInfo defName
       let ntcg_datas  = Map.insert defName (index, (dataPars, dataIxs)) tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
           tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
           ntcg_cons = Map.union tcg_cons tcg_data_cons
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
-      pure (ToCoreGlobal tcg_defs ntcg_datas ntcg_cons, NameMap nameDefs nnames_datas nameCons)
+      pure (ToCoreGlobal tcg_defs ntcg_datas tcg_recs ntcg_cons, 
+        NameMap nameDefs nnames_datas nameRecs nameCons)
     Internal.Record{recPars, recConHead} -> do
       let conName = Internal.conName recConHead
-      reportSDoc "agda-core.check" 3 $ text "  Constructor:" <+> prettyTCM conName
-
       let ntcg_recs = Map.insert defName (index, recPars) tcg_recs
           nnames_recs = Map.insert (indexToNat index) name nameRecs
-      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_cons, NameMap nnames_defs nameData nameCons)
+          --A record always has exactly one constructor, so we just insert the mapping (index, Zero)
+          ntcg_cons = Map.insert conName (index, Zero) tcg_cons 
+      reportSDoc "agda-core.check" 3 $ text "  Constructor:" <+> prettyTCM conName
+      pure (ToCoreGlobal tcg_defs tcg_datas ntcg_recs ntcg_cons, 
+        NameMap nameDefs nameData nnames_recs nameCons)
     Internal.Constructor{} -> do
+      -- (diode-lang) BADBADBAD: It seems that this will also match record constructor 
+      -- and then it will be the case that `name=constructor`. 
+      -- One almost certainly does not want to add `name` to `nnames_cons` in that case
+      reportSDoc "agda-core.check" 3 $ text "  Internal.Constructor name:" <+> prettyTCM name
       let (dID, cID) = tcg_cons Map.! defName
       let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
-      pure (ToCoreGlobal tcg_defs tcg_datas tcg_cons, NameMap nameDefs nameData nnames_cons)
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons, 
+        NameMap nameDefs nameData nameRecs nnames_cons)
     _ -> do
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
       let ntcg_defs = Map.insert defName index tcg_defs
-      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_cons, NameMap nnames_defs nameData nameCons)
+      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_recs tcg_cons, 
+        NameMap nnames_defs nameData nameRecs nameCons)
 
   liftIO $ writeIORef ioTcg   ntcg
   liftIO $ writeIORef ioNames nnames
@@ -270,13 +278,21 @@ agdaCoreCompile env _ _ def = do
             }
         Core.ConstructorDefn cons -> do
           -- It should not matter here whether one uses `tcg_cons` (old one) or `globalConsData ntcg` (new one), but let's use the new one to be safe
-          let (dID, cID) = globalConsData ntcg Map.! defName
+          let (dID, cID) = globalCons ntcg Map.! defName
           liftIO $ writeIORef ioPreSig $
             PreSignature
               {  preSigDefs = preSigDefs
               , preSigData = preSigData
               , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
               }
+        Core.RecordDefn _ -> do
+          -- leave presignature unchanged for now
+          liftIO $ writeIORef ioPreSig $
+            PreSignature
+                {  preSigDefs = preSigDefs
+                , preSigData = preSigData
+                , preSigCons = preSigCons
+                }
       return $ pure def'
 
 

@@ -63,11 +63,11 @@ tApp t (e:es) = TApp t e `tApp` es
 --   to proofs of global def scope membership.
 --   Datatypes are stored with their amount of parameters/indices
 --   Record types are stored with their amount of parameters
---   Datatype constructors are stored with their datatype index
+--   Datatype/record constructors are stored with their datatype/record index
 data ToCoreGlobal = ToCoreGlobal { globalDefs      :: Map QName Index,
                                    globalDatas     :: Map QName (Index, (Nat, Nat)),
                                    globalRecs      :: Map QName (Index, Nat),
-                                   globalConsData  :: Map QName (Index, Index)}
+                                   globalCons      :: Map QName (Index, Index)}
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
@@ -82,8 +82,11 @@ asksDef = asks . (.  \ToCoreGlobal{globalDefs} -> globalDefs)
 asksData :: (Map QName (Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
+asksRec :: (Map QName (Index, Nat) -> a) -> ToCoreM a
+asksRec = asks . (. \ToCoreGlobal{globalRecs} -> globalRecs)
+
 asksCon :: (Map QName (Index, Index) -> a) -> ToCoreM a
-asksCon = asks . (. \ToCoreGlobal{globalConsData} -> globalConsData)
+asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
 -- | Lookup a definition name in the current module.
 lookupDef :: QName -> ToCoreM (Maybe Index)
@@ -92,6 +95,10 @@ lookupDef qn = asksDef (Map.!? qn)
 -- | Lookup a datatype name in the current module.
 lookupData :: QName -> ToCoreM (Maybe (Index, (Nat, Nat)))
 lookupData qn = asksData (Map.!? qn)
+
+-- | Lookup a record name in the current module.
+lookupRec :: QName -> ToCoreM (Maybe (Index, Nat))
+lookupRec qn = asksRec (Map.!? qn)
 
 -- | Lookup a constructor name in the current module.
 lookupCon :: QName -> ToCoreM (Maybe (Index, Index))
@@ -141,28 +148,35 @@ instance ToCore I.Term where
             let def = TDef idx
             coreEs <- toCore es
             return (tApp def coreEs)
-          --Otherwise, try looking up as datatype (must succeed, else fail with error message)
+          --Try looking up as datatype
           Nothing -> do
             lookupData qn >>= \case
-              Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
-
+              -- Try looking up as a record (must succeed, else fail with error message)
+              Nothing -> lookupRec qn >>= \case
+                Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
+                Just (idx, amountOfParams) -> compileTData args idx amountOfParams 0
               Just (idx, (amountOfParams, amountOfIndices)) -> do
-                --always take all parameters
-                paramTermS <- toTermS <$> toCore (take amountOfParams args)
+                compileTData args idx amountOfParams amountOfIndices
+    where
+      -- Helper for toCore (I.Def)
+      compileTData :: [Arg I.Term] -> Index -> Int -> Int -> ToCoreM Term
+      compileTData args idx amountOfParams amountOfIndices = do
+        --always take all parameters
+        paramTermS <- toTermS <$> toCore (take amountOfParams args)
 
-                -- @m@ is the amount of arguments to the index list which are missing
-                let indexListGiven = drop amountOfParams args
-                let m = amountOfIndices - length indexListGiven
+        -- @m@ is the amount of arguments to the index list which are missing
+        let indexListGiven = drop amountOfParams args
+        let m = amountOfIndices - length indexListGiven
 
-                -- Construct @m@ additional deBruijn indices
-                -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
-                let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
+        -- Construct @m@ additional deBruijn indices
+        -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
+        let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
 
-                indexTermS <- toTermS . (++ additionalVars) <$> toCore (raise m indexListGiven)
-                let tdata = TData idx paramTermS indexTermS
+        indexTermS <- toTermS . (++ additionalVars) <$> toCore (raise m indexListGiven)
+        let tdata = TData idx paramTermS indexTermS
 
-                -- in the end, we have (TLam (TLam (TLam ...))) of depth m
-                return (iterate TLam tdata !! m)
+        -- in the end, we have (TLam (TLam (TLam ...))) of depth m
+        return (iterate TLam tdata !! m)
 
   toCore I.Def{} = throwError "cubical endpoint application to definitions/datatypes not supported"
 
@@ -307,13 +321,19 @@ toCoreDefn (I.RecordDefn rd) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
     let I.RecordData{
       _recPars = pars,
+      _recConHead = ch,
       _recFields = fields
     } = rd
     let I.TelV{theTel = internalParsTel} = I.telView'UpTo pars ty
     parsTel <- toCore internalParsTel
+    let qn = I.conName ch
+    recConIndex <- lookupCon qn >>= \case
+            Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown constructor: " <+> pretty qn
+            Just result -> pure (snd result)
 
-    throwError "TODO: add support record definitions"
-    
+    let r = Core.Record{ recParTel = parsTel }
+
+    return $ Core.RecordDefn r
 
 toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do

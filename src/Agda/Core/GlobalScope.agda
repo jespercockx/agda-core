@@ -13,9 +13,7 @@ record Globals : Set where
     dataConstructors  : NameIn dataScope → RScope Name                                          -- TODO: change RScope for an erased list
     fieldScope        : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name
     recScope          : Scope Name
-    dataRecScope      : NameIn recScope → RScope Name
     recParScope       : NameIn recScope → RScope Name
-    recCon            : NameIn recScope → Maybe Name -- A record has at most one constructor
   NameData : Set
   NameData = NameIn dataScope
   NameCon : NameData → Set
