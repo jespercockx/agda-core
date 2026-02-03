@@ -8,16 +8,17 @@ lib: src/Agda/Core.agda
 	mkdir lib
 	$(AGDA2HS) $(FLAGS) $(LIBRARIES) $< -o lib
 
-clean: clean-lib clean-agdai
+clean: clean-lib clean-agdai clean-hs
 
 clean-lib:
 	rm -rf lib
 
 clean-agdai:
-	find src -iname *.agdai -delete
+	find src -iname '*.agdai' -delete
 	rm -rf _build
 
 clean-hs:
+	find src -iname '*.hs' -delete
 	rm -rf dist-newstyle
 
 app: lib
