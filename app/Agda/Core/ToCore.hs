@@ -289,9 +289,15 @@ toCoreDefn (I.FunctionDefn def) _ =
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , l      <- _funClauses
       -> throwError "pattern matching isn't supported"
-    I.FunctionData{..}
-      | isJust (maybeRight _funProjection >>= I.projProper) -- record projections case
-      -> throwError "record projections aren't supported"
+    I.FunctionData{_funProjection = Right p} -- the FunctionDefn being declared is a record projection
+      | Just qn <- I.projProper p
+        -> do
+            --Looking up as a record must succeed
+            recordIdx <- lookupRec qn >>= \case
+                  Nothing -> throwError $ "Trying to access an unknown record definition: " <+> pretty qn
+                  Just (recordIndex, _) -> pure recordIndex
+            
+            throwError "TODO: Add support for compiling record projections"
     I.FunctionData{}
       -> throwError "unsupported case (shouldn't happen)"
 

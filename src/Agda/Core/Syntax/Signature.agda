@@ -102,7 +102,9 @@ record Signature : Set where
     sigData : (d : NameData) → Datatype d
     sigDefs : (f : NameIn defScope)  → Type mempty × SigDefinition
     sigCons : (d : NameData) (c : NameCon d) → Constructor c
+    sigRecs : (recordName : NameRec) → Record recordName
     -- Do not erase d, (d,c) is needed to find the constructor
+    
 
 open Signature public
 {-# COMPILE AGDA2HS Signature #-}

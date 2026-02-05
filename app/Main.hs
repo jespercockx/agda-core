@@ -134,7 +134,8 @@ backend = Backend'
 data PreSignature = PreSignature {
   preSigDefs      :: Map Natural Core.Definition,
   preSigData      :: Map Natural Core.Datatype,
-  preSigCons      :: Map (Natural, Natural) Core.Constructor
+  preSigCons      :: Map (Natural, Natural) Core.Constructor,
+  preSigRecs      :: Map Natural Core.Record
 }
 
 data ACEnv = ACEnv {
@@ -149,7 +150,7 @@ agdaCorePreCompile :: AgdaCoreOptions -> TCM ACEnv
 agdaCorePreCompile Options{optTypecheck} = do
   tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty Map.empty
   names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty Map.empty
-  preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty
+  preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty Map.empty
   i       <- liftIO $ newIORef Zero
   pure $ ACEnv { toCoreGlobal          = tcg
                , toCoreNames           = names
@@ -201,7 +202,7 @@ agdaCoreCompile env _ _ def = do
     globalDefs = tcg_defs, globalDatas = tcg_datas, globalRecs = tcg_recs,
     globalCons = tcg_cons}                                        <- liftIO $ readIORef ioTcg
   NameMap {nameDefs, nameData, nameRecs, nameCons}                    <- liftIO $ readIORef ioNames
-  PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
+  PreSignature {preSigDefs, preSigData, preSigCons, preSigRecs}       <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
     -- if a datatype or record is encountered, add all constructors to the tcg environement
@@ -269,12 +270,14 @@ agdaCoreCompile env _ _ def = do
             { preSigDefs = Map.insert (indexToNat index) def' preSigDefs
             , preSigData = preSigData
             , preSigCons = preSigCons
+            , preSigRecs = preSigRecs
             }
         Core.DatatypeDefn dt -> liftIO $ writeIORef ioPreSig $
           PreSignature
             { preSigDefs = preSigDefs
             , preSigData = Map.insert (indexToNat index) dt preSigData
             , preSigCons = preSigCons
+            , preSigRecs = preSigRecs
             }
         Core.ConstructorDefn cons -> do
           -- It should not matter here whether one uses `tcg_cons` (old one) or `globalConsData ntcg` (new one), but let's use the new one to be safe
@@ -284,6 +287,7 @@ agdaCoreCompile env _ _ def = do
               {  preSigDefs = preSigDefs
               , preSigData = preSigData
               , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
+              , preSigRecs = preSigRecs
               }
         Core.RecordDefn _ -> do
           -- leave presignature unchanged for now
@@ -292,6 +296,7 @@ agdaCoreCompile env _ _ def = do
                 {  preSigDefs = preSigDefs
                 , preSigData = preSigData
                 , preSigCons = preSigCons
+                , preSigRecs = preSigRecs
                 }
       return $ pure def'
 
@@ -300,7 +305,7 @@ agdaCoreCompile env _ _ def = do
 -- PostModule
 -- do the typechecking
 preSignatureToSignature :: PreSignature -> Core.Signature
-preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
+preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons, preSigRecs}  =  do
   let datas i  = case preSigData Map.!? indexToNat i of
         Just dt -> dt
         _ -> __IMPOSSIBLE__
@@ -312,7 +317,11 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
   let cons d c = case preSigCons Map.!? (indexToNat d, indexToNat c) of
         Just ct -> ct
         _ -> __IMPOSSIBLE__
-  Core.Signature datas defns cons
+
+  let recs r = case preSigRecs Map.!? indexToNat r of
+        Just record -> record
+        _ -> __IMPOSSIBLE__
+  Core.Signature datas defns cons recs
 
 
 agdaCorePostModule :: ACEnv -> ACMEnv -> IsMain -> TopLevelModuleName -> [ACSyntax] -> TCM ACMod
