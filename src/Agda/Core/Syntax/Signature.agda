@@ -141,6 +141,7 @@ data Defn : Set where
   DatatypeDefn :  (@0 d : NameData) → Datatype d → Defn
   ConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → Constructor c → Defn
   RecordDefn : (@0 r : NameRec) → Record r → Defn
+  ProjDefn : Defn
 {-# COMPILE AGDA2HS Defn #-}
 
 

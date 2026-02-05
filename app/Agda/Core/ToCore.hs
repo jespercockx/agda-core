@@ -296,8 +296,8 @@ toCoreDefn (I.FunctionDefn def) _ =
             recordIdx <- lookupRec qn >>= \case
                   Nothing -> throwError $ "Trying to access an unknown record definition: " <+> pretty qn
                   Just (recordIndex, _) -> pure recordIndex
-            
-            throwError "TODO: Add support for compiling record projections"
+            -- a dummy Defn object which simply communicates that this Defn is a record projection
+            return Core.ProjDefn
     I.FunctionData{}
       -> throwError "unsupported case (shouldn't happen)"
 
@@ -409,7 +409,7 @@ instance ToCore I.Elim where
   toCore (I.Apply x)   = toCore x
   --TODO (diode-lang) : Support projection as an Elim
   -- toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
-  toCore (I.Proj _ qn) = throwError "record projection not supported"
+  toCore (I.Proj _ qn) = throwError "TODO: Support record projections"
   toCore I.IApply{}    = throwError "cubical endpoint application not supported"
 
 

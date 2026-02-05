@@ -297,6 +297,14 @@ agdaCoreCompile env _ _ def = do
                 , preSigCons = preSigCons
                 , preSigRecs = Map.insert (indexToNat index) recTyp preSigRecs
                 }
+        Core.ProjDefn ->
+          liftIO $ writeIORef ioPreSig $
+            PreSignature
+                {  preSigDefs = preSigDefs
+                , preSigData = preSigData
+                , preSigCons = preSigCons
+                , preSigRecs = preSigRecs
+                }
       return $ pure def'
 
 

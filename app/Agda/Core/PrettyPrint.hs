@@ -163,6 +163,8 @@ instance PrettyCore Core.Defn where
     prettyCore m c
   prettyCore m (Core.RecordDefn r) =
     prettyCore m r
+  prettyCore m (Core.ProjDefn) = 
+    "Is a Projection"
 
 instance PrettyCore Core.Definition where
   prettyCore :: NameMap -> Core.Definition -> String
