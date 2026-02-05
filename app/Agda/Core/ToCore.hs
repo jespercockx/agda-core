@@ -52,6 +52,7 @@ import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 import Agda.Syntax.Common.Pretty(text, render)
 
+import Agda.Core.UtilsH(traceMagenta)
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
@@ -409,8 +410,12 @@ instance ToCore I.Elim where
   toCore (I.Apply x)   = toCore x
   --TODO (diode-lang) : Support projection as an Elim
   -- toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
-  toCore (I.Proj _ qn) = throwError "TODO: Support record projections"
-  toCore I.IApply{}    = throwError "cubical endpoint application not supported"
+  toCore (I.Proj _ qn) = do
+    let m_idx = traceMagenta ("qn: " ++ show (pretty qn)) $ lookupDef qn >>= \case
+          Nothing -> throwError $ "[When translating an Elim] Trying to access an unknown definition: " <+> pretty qn
+          Just ident -> pure ident
+    TDef <$> m_idx
+  toCore I.IApply{}    = throwError "[When translating an Elim] cubical endpoint application not supported"
 
 
 instance ToCore a => ToCore [a] where

@@ -1,8 +1,5 @@
 module EtaRecords where
-
-data ⊥ : Set where
-  --no constructor
-
+  
 data Nat : Set where
   Zero : Nat
   Suc : Nat → Nat
@@ -51,23 +48,19 @@ x' = Pair.constructor Zero (Suc Zero)
 proj_example : Nat
 proj_example = Pair.fst x
 
--- y : Pair Nat Bool
--- y = record { fst = Pair.fst x; snd = False }
+y : Pair Nat Bool
+y = record { fst = Pair.fst x; snd = False }
 
--- z : PairExplCon Nat Nat
--- z = _,_ Zero (Suc Zero)
+z : PairExplCon Nat Nat
+z = _,_ Zero (Suc Zero)
 
--- eta-R-two : (A B : Set) (x : Pair A B) → 
---   x ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) x ; snd = Pair.snd x }
--- eta-R-two = λ A B → λ x → refl
+eta-R-two : (A B : Set) (x : Pair A B) → 
+  x ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) x ; snd = Pair.snd x }
+eta-R-two = λ A B → λ x → refl
 
--- eta-R-two-expl-con : (A B : Set) (x : PairExplCon A B) → 
---   x ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fstE PairExplCon.fstE x) (PairExplCon.sndE x))
--- eta-R-two-expl-con = λ A B → λ x → refl
-
--- eta-R-two : (A B : Set) (x : Pair A B) → 
---   x ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) x ; snd = Pair.snd x }
--- eta-R-two = λ A B → λ x → {!!}
+eta-R-two-expl-con : (A B : Set) (x : PairExplCon A B) → 
+  x ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fstE PairExplCon.fstE x) (PairExplCon.sndE x))
+eta-R-two-expl-con = λ A B → λ x → refl
 
 -- (diode-lang): I don't think this statement is actually provable, because we have turned off eta-equality
 -- eta-R-two_expl : (A B : Set) (x : PairNoEta A B) →
