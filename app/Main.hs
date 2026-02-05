@@ -318,10 +318,13 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons, preSig
         Just ct -> ct
         _ -> __IMPOSSIBLE__
 
+
   let recs r = case preSigRecs Map.!? indexToNat r of
         Just record -> record
         _ -> __IMPOSSIBLE__
-  Core.Signature datas defns cons recs
+  --TODO: add `recs` to value being returned, once the agda2hs problem with `Signature` is resolved
+  Core.Signature datas defns cons
+
 
 
 agdaCorePostModule :: ACEnv -> ACMEnv -> IsMain -> TopLevelModuleName -> [ACSyntax] -> TCM ACMod

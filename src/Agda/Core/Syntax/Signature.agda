@@ -102,7 +102,9 @@ record Signature : Set where
     sigData : (d : NameData) → Datatype d
     sigDefs : (f : NameIn defScope)  → Type mempty × SigDefinition
     sigCons : (d : NameData) (c : NameCon d) → Constructor c
-    sigRecs : (recordName : NameRec) → Record recordName
+    -- For some reason, adding below line triggers an error in agda2hs:
+    -- agda2hs: Type-level term argument not supported: (r : Globals)
+    -- sigRecs : (recordName : NameRec) → Record recordName
     -- Do not erase d, (d,c) is needed to find the constructor
     
 
