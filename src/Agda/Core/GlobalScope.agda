@@ -28,4 +28,5 @@ open Globals public
 
 {-# COMPILE AGDA2HS NameData inline #-}
 {-# COMPILE AGDA2HS NameCon inline #-}
+{-# COMPILE AGDA2HS NameRec inline #-}
 {-# COMPILE AGDA2HS Globals #-}

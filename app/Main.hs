@@ -289,14 +289,13 @@ agdaCoreCompile env _ _ def = do
               , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
               , preSigRecs = preSigRecs
               }
-        Core.RecordDefn _ -> do
-          -- leave presignature unchanged for now
+        Core.RecordDefn recTyp -> do
           liftIO $ writeIORef ioPreSig $
             PreSignature
                 {  preSigDefs = preSigDefs
                 , preSigData = preSigData
                 , preSigCons = preSigCons
-                , preSigRecs = preSigRecs
+                , preSigRecs = Map.insert (indexToNat index) recTyp preSigRecs
                 }
       return $ pure def'
 
@@ -318,12 +317,11 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons, preSig
         Just ct -> ct
         _ -> __IMPOSSIBLE__
 
-
   let recs r = case preSigRecs Map.!? indexToNat r of
         Just record -> record
         _ -> __IMPOSSIBLE__
-  --TODO: add `recs` to value being returned, once the agda2hs problem with `Signature` is resolved
-  Core.Signature datas defns cons
+
+  Core.Signature datas defns cons recs
 
 
 
@@ -335,7 +333,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
   reportSDoc "agda-core.check" 1 . boxInDoc $ "Typechecking module " <> show (Pretty.pretty tlm)
   liftIO $ setSGR []
   reportSDoc "agda-core.check" 2 lineInDoc
-  reportSDocWarning "agda-core.check" 1 $ text "Warning : Typechecking backend is in developpement"
+  reportSDocWarning "agda-core.check" 1 $ text "Warning : Typechecking backend is in development"
   reportSDocWarning "agda-core.check" 1 $ text "__IMPOSSIBLE__ will be called if terms for which compilation failed are called"
   for_ defs \def -> do
     case def of
