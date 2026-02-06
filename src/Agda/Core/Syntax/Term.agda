@@ -31,8 +31,6 @@ data Term α where
         → (TermS α (fieldScope c)) → Term α
   TLam  : (@0 x : Name) (v : Term (α ▸ x)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
-  -- TODO (diode-lang) : Add record terms
-  -- TRec : (d : NameData) → {!!} → Term α
   TProj : (u : Term α) (x : NameIn defScope) → Term α
   TCase : {@0 x : Name}
         → (d : NameData)                                  -- Datatype of the variable we are splitting on

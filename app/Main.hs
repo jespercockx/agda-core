@@ -300,7 +300,8 @@ agdaCoreCompile env _ _ def = do
         Core.ProjDefn ->
           liftIO $ writeIORef ioPreSig $
             PreSignature
-                {  preSigDefs = preSigDefs
+                -- For now, we just save the projection function in preSigDefs
+                {  preSigDefs = Map.insert (indexToNat index) def' preSigDefs
                 , preSigData = preSigData
                 , preSigCons = preSigCons
                 , preSigRecs = preSigRecs

@@ -18,7 +18,7 @@ import Numeric.Natural (Natural)
 import Agda.Syntax.Common ( Arg(unArg) )
 import Agda.Syntax.Abstract.Name (QName, showQNameId, uglyShowName, qnameName)
 import Agda.Syntax.Internal (lensSort, unDom, unEl)
-import Agda.Syntax.Internal.Elim (allApplyElims)
+import Agda.Syntax.Internal.Elim (allApplyElims, splitApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
@@ -52,7 +52,7 @@ import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 import Agda.Syntax.Common.Pretty(text, render)
 
-import Agda.Core.UtilsH(traceMagenta)
+import Agda.Core.UtilsH(traceMagenta, traceGreen, traceCyan)
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
@@ -119,6 +119,45 @@ convert tcg t = runReaderT (runToCore $ toCore t) tcg
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
 
+-- Helper for toCore (I.Def)
+compileTData :: [Arg I.Term] -> Index -> Int -> Int -> ToCoreM Term
+compileTData args idx amountOfParams amountOfIndices = do
+  --always take all parameters
+  paramTermS <- toTermS <$> toCore (take amountOfParams args)
+
+  -- @m@ is the amount of arguments to the index list which are missing
+  let indexListGiven = drop amountOfParams args
+  let m = amountOfIndices - length indexListGiven
+
+  -- Construct @m@ additional deBruijn indices
+  -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
+  let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
+
+  indexTermS <- toTermS . (++ additionalVars) <$> toCore (raise m indexListGiven)
+  let tdata = TData idx paramTermS indexTermS
+
+  -- in the end, we have (TLam (TLam (TLam ...))) of depth m
+  return (iterate TLam tdata !! m)
+
+
+compileDef :: QName -> [Arg I.Term] -> ToCoreM Term
+compileDef qn args = do
+      -- Try looking up as definition first
+      lookupDef qn >>= \case
+        Just idx -> do
+          let def = TDef idx
+          coreEs <- toCore args
+          return (tApp def coreEs)
+        --Try looking up as datatype
+        Nothing -> do
+          lookupData qn >>= \case
+            -- Try looking up as a record (must succeed, else fail with error message)
+            Nothing -> lookupRec qn >>= \case
+              Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
+              Just (idx, amountOfParams) -> compileTData args idx amountOfParams 0
+            Just (idx, (amountOfParams, amountOfIndices)) -> do
+              compileTData args idx amountOfParams amountOfIndices
+
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
 {-                                      Instances of ToCore                                       -}
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
@@ -139,47 +178,51 @@ instance ToCore I.Term where
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
 
-  toCore (I.Def qn es)
-    | Just args <- allApplyElims es
+  -- -- Case where none of the Elims are projection
+  -- toCore (I.Def qn es)
+  --   | Just args <- allApplyElims es
+  --   = do
+  --     -- Try looking up as definition first
+  --     lookupDef qn >>= \case
+  --       Just idx -> do
+  --         let def = TDef idx
+  --         coreEs <- toCore es
+  --         return (tApp def coreEs)
+  --       --Try looking up as datatype
+  --       Nothing -> do
+  --         lookupData qn >>= \case
+  --           -- Try looking up as a record (must succeed, else fail with error message)
+  --           Nothing -> lookupRec qn >>= \case
+  --             Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
+  --             Just (idx, amountOfParams) -> compileTData args idx amountOfParams 0
+  --           Just (idx, (amountOfParams, amountOfIndices)) -> do
+  --             compileTData args idx amountOfParams amountOfIndices
+
+  toCore (I.Def qn es) 
     = do
-        -- Try looking up as definition first
-        maybe_idx <- lookupDef qn
-        case maybe_idx of
-          Just idx -> do
-            let def = TDef idx
-            coreEs <- toCore es
-            return (tApp def coreEs)
-          --Try looking up as datatype
-          Nothing -> do
-            lookupData qn >>= \case
-              -- Try looking up as a record (must succeed, else fail with error message)
-              Nothing -> lookupRec qn >>= \case
-                Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
-                Just (idx, amountOfParams) -> compileTData args idx amountOfParams 0
-              Just (idx, (amountOfParams, amountOfIndices)) -> do
-                compileTData args idx amountOfParams amountOfIndices
-    where
-      -- Helper for toCore (I.Def)
-      compileTData :: [Arg I.Term] -> Index -> Int -> Int -> ToCoreM Term
-      compileTData args idx amountOfParams amountOfIndices = do
-        --always take all parameters
-        paramTermS <- toTermS <$> toCore (take amountOfParams args)
+        let (args, elimsWithProj) = splitApplyElims es
+        let compiledDef_m = compileDef qn args -- compile qn with args as normal
+        
+        case elimsWithProj of
+          [] -> compiledDef_m
+          (projElim : otherElims) -> do
+            projIdx <- toCore projElim >>= \case
+              TDef idx -> pure idx
+              _ -> error "This code is unreachable: the error in toCore (I.IApply) should be thrown instead"
 
-        -- @m@ is the amount of arguments to the index list which are missing
-        let indexListGiven = drop amountOfParams args
-        let m = amountOfIndices - length indexListGiven
+            compiledDef <- compiledDef_m
+            let recordProjTerm = TProj compiledDef projIdx
+            traceCyan ("qn in non-allApplyElims case: " ++ show (pretty qn) ++ "; length of es: " ++ show (length es)) throwError "TODO: Translate record projections"
 
-        -- Construct @m@ additional deBruijn indices
-        -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
-        let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
 
-        indexTermS <- toTermS . (++ additionalVars) <$> toCore (raise m indexListGiven)
-        let tdata = TData idx paramTermS indexTermS
+        -- -- then, we take projElim, and take the compiled index of it
+        -- let (projElim, otherElims) = (head elimsWithProj, tail elimsWithProj)
+        -- projIdx <- toCore projElim >>= \case
+        --   TDef idx -> pure idx
+        --   _ -> error "This code is unreachable: the error in toCore (I.IApply) should be thrown instead"
+      
+        -- traceCyan ("qn in non-allApplyElims case: " ++ show (pretty qn) ++ "; length of es: " ++ show (length es)) throwError "TODO: Translate record projections"
 
-        -- in the end, we have (TLam (TLam (TLam ...))) of depth m
-        return (iterate TLam tdata !! m)
-
-  toCore I.Def{} = throwError "cubical endpoint application to definitions/datatypes not supported"
 
   toCore (I.Con ch _ es)
     | Just args <- allApplyElims es
@@ -290,6 +333,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , l      <- _funClauses
       -> throwError "pattern matching isn't supported"
+
     I.FunctionData{_funProjection = Right p} -- the FunctionDefn being declared is a record projection
       | Just qn <- I.projProper p
         -> do
@@ -408,14 +452,12 @@ instance ToCore I.Elim where
   type CoreOf I.Elim = Term
   toCore :: I.Elim -> ToCoreM Term
   toCore (I.Apply x)   = toCore x
-  --TODO (diode-lang) : Support projection as an Elim
-  -- toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
   toCore (I.Proj _ qn) = do
-    let m_idx = traceMagenta ("qn: " ++ show (pretty qn)) $ lookupDef qn >>= \case
+    let m_idx = lookupDef qn >>= \case
           Nothing -> throwError $ "[When translating an Elim] Trying to access an unknown definition: " <+> pretty qn
           Just ident -> pure ident
     TDef <$> m_idx
-  toCore I.IApply{}    = throwError "[When translating an Elim] cubical endpoint application not supported"
+  toCore I.IApply{} = throwError "[When translating an Elim] cubical endpoint application not supported"
 
 
 instance ToCore a => ToCore [a] where
