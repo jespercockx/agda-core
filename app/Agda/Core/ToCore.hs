@@ -119,15 +119,41 @@ convert tcg t = runReaderT (runToCore $ toCore t) tcg
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
 
+
+-- | Constructs a 'Core.TermS' from a list of eliminations and the total number of arguments.
+--
+-- @elims@: A list of eliminations (e.g., function applications or projections).
+--          The length of @elims@ represents the number of arguments that are actually applied
+--
+-- @fullAmount@: The total number of arguments expected for a fully applied term.
+--               If @fullAmount@ is greater than the length of @elims@, the remaining arguments
+--               are filled with de Bruijn indices (e.g., @TVar 0, TVar 1, ...@).
+mkTermS :: I.Elims -> Int -> ToCoreM Core.TermS
+mkTermS elims fullAmount = do
+  -- @m@ is the amount of arguments which are missing from full application
+  let m = fullAmount - length elims
+  -- Construct @m@ additional deBruijn indices
+  -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
+  let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
+  listOfCoreTerms <- fmap (++ additionalVars) (toCore (raise m elims))
+  return (foldr Core.TSCons Core.TSNil listOfCoreTerms)
+
 -- Helper for toCore (I.Def)
-compileTData :: [Arg I.Term] -> Index -> Int -> Int -> ToCoreM Term
-compileTData args idx amountOfParams amountOfIndices = do
-  --always take all parameters
-  paramTermS <- toTermS <$> toCore (take amountOfParams args)
+compileToTData :: [Arg I.Term] -> Index -> Int -> Int -> ToCoreM Term
+compileToTData args idx fullAmountOfParams fullAmountOfIndices = do
+
+  -- TODO: uncomment `paramTermS` line once this function actually receives Elims 
+  let parameterListGiven = take fullAmountOfParams args
+  -- paramTermSnew <- mkTermS parameterListGiven fullAmountOfParams
+
+  paramTermS <- toTermS <$> toCore (take fullAmountOfParams args)
 
   -- @m@ is the amount of arguments to the index list which are missing
-  let indexListGiven = drop amountOfParams args
-  let m = amountOfIndices - length indexListGiven
+  let indexListGiven = drop fullAmountOfParams args
+  -- indexTermSnew <- mkTermS indexListGiven
+
+  let m = fullAmountOfIndices - length indexListGiven
+
 
   -- Construct @m@ additional deBruijn indices
   -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
@@ -154,9 +180,9 @@ compileDef qn args = do
             -- Try looking up as a record (must succeed, else fail with error message)
             Nothing -> lookupRec qn >>= \case
               Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
-              Just (idx, amountOfParams) -> compileTData args idx amountOfParams 0
+              Just (idx, amountOfParams) -> compileToTData args idx amountOfParams 0
             Just (idx, (amountOfParams, amountOfIndices)) -> do
-              compileTData args idx amountOfParams amountOfIndices
+              compileToTData args idx amountOfParams amountOfIndices
 
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
 {-                                      Instances of ToCore                                       -}
@@ -197,6 +223,9 @@ instance ToCore I.Term where
   --             Just (idx, amountOfParams) -> compileTData args idx amountOfParams 0
   --           Just (idx, (amountOfParams, amountOfIndices)) -> do
   --             compileTData args idx amountOfParams amountOfIndices
+
+
+  
 
   toCore (I.Def qn es) 
     = do
@@ -338,7 +367,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       | Just qn <- I.projProper p
         -> do
             --Looking up as a record must succeed
-            recordIdx <- lookupRec qn >>= \case
+            _ <- lookupRec qn >>= \case
                   Nothing -> throwError $ "Trying to access an unknown record definition: " <+> pretty qn
                   Just (recordIndex, _) -> pure recordIndex
             -- a dummy Defn object which simply communicates that this Defn is a record projection
