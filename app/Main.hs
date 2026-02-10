@@ -320,6 +320,8 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons, preSig
 
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
+        Just  Core.Definition{defType = ty, theDef = Core.ProjDefn} -> 
+          error "TODO: We have to account when a lookup of a projection function happens in the typechecker"
         _ -> __IMPOSSIBLE__
 
   let cons d c = case preSigCons Map.!? (indexToNat d, indexToNat c) of

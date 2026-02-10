@@ -203,7 +203,7 @@ instance ToCore I.Term where
               Just (idx, (fullAmountOfParams, fullAmountOfIndices)) -> 
                 compileToTData es idx fullAmountOfParams fullAmountOfIndices
               Nothing -> lookupRec qn >>= \case
-                Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
+                Nothing -> throwError $ "[When compiling an I.Def] Trying to access an unknown definition: " <+> pretty qn
                 Just (idx, amountOfParams) ->
                   compileToTData es idx amountOfParams 0
 
