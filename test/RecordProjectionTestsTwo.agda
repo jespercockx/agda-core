@@ -44,10 +44,6 @@ proj_exampleDef1 = x .Pair.fst
 proj_exampleData1 : _≡_ (Pair.fst {Nat}{Nat}) (Pair.fst {Nat}{Nat})
 proj_exampleData1 = refl
 
--- example for record where first argumnt is a record projection
-proj_exampleRec1 : Pair (Pair Nat Nat → Nat) Bool
-proj_exampleRec1 = record { fst = Pair.fst {Nat}{Nat}; snd = False}
-
 universe_example : _≡₁_ (pair_of_types .Pair₁.fst₁) Nat
 universe_example = refl₁
 

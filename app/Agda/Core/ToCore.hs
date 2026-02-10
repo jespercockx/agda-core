@@ -60,6 +60,21 @@ tApp :: Term -> [Term] -> Term
 tApp t []     = t
 tApp t (e:es) = TApp t e `tApp` es
 
+createTAppAndTProj :: Term -> [(I.Elim, Term)] -> Term
+createTAppAndTProj t [] = t
+createTAppAndTProj t ((I.Apply _, compiledElim):elims) =
+  TApp t compiledElim `createTAppAndTProj` elims
+-- When compiling an I.Proj _ _, the result must be a TDef `id`
+createTAppAndTProj t ((I.Proj _ _, TDef projFuncId):elims) = 
+  let finalTerm = createTAppAndTProj t elims in 
+  TProj finalTerm projFuncId
+createTAppAndTProj t _ = 
+  error ("This case is impossible: either compiling an I.Proj _ _ did not " ++
+         "return a TDef, which is impossible, or the error '[When translating " ++
+         "an Elim] cubical endpoint application not supported' should be " ++
+         "thrown earlier instead")
+
+
 -- | Global definitions are represented as a mapping from @QName@s
 --   to proofs of global def scope membership.
 --   Datatypes are stored with their amount of parameters/indices
@@ -125,64 +140,36 @@ toTermS = foldr Core.TSCons Core.TSNil
 -- @elims@: A list of eliminations (e.g., function applications or projections).
 --          The length of @elims@ represents the number of arguments that are actually applied
 --
--- @fullAmount@: The total number of arguments expected for a fully applied term.
---               If @fullAmount@ is greater than the length of @elims@, the remaining arguments
---               are filled with de Bruijn indices (e.g., @TVar 0, TVar 1, ...@).
+-- @missing@: The number of arguments missing for a fully applied term.
+--               We construct @missing@ amount of extra arguments 
+--               as deBruijn indices (e.g., @TVar 0, TVar 1, ...@).
 mkTermS :: I.Elims -> Int -> ToCoreM Core.TermS
-mkTermS elims fullAmount = do
-  -- @m@ is the amount of arguments which are missing from full application
-  let m = fullAmount - length elims
-  -- Construct @m@ additional deBruijn indices
-  -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
-  let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
-  listOfCoreTerms <- fmap (++ additionalVars) (toCore (raise m elims))
+mkTermS elims missing = do
+  -- we get [TVar 2, TVar 1, TVar 0, ...] of length @missing@
+  let additionalVars = reverse $ take missing $ TVar <$> iterate Scope.inThere Scope.inHere
+  listOfCoreTerms <- fmap (++ additionalVars) (toCore (raise missing elims))
   return (foldr Core.TSCons Core.TSNil listOfCoreTerms)
 
 -- Helper for toCore (I.Def)
-compileToTData :: [Arg I.Term] -> Index -> Int -> Int -> ToCoreM Term
-compileToTData args idx fullAmountOfParams fullAmountOfIndices = do
+compileToTData :: [I.Elim] -> Index -> Int -> Int -> ToCoreM Term
+compileToTData elims idx fullAmountOfParams fullAmountOfIndices = do
 
-  -- TODO: uncomment `paramTermS` line once this function actually receives Elims 
-  let parameterListGiven = take fullAmountOfParams args
-  -- paramTermSnew <- mkTermS parameterListGiven fullAmountOfParams
+  let parameterListGiven = take fullAmountOfParams elims
+  -- @missingAmountOfParams@ is the arguments which are missing from full application
+  -- TODO (atejandev): make this such that it actually accounts for when parameters are missing
+  let missingAmountOfParams = 0
+  paramTermS <- mkTermS parameterListGiven missingAmountOfParams
 
-  paramTermS <- toTermS <$> toCore (take fullAmountOfParams args)
+  let indexListGiven = drop fullAmountOfParams elims
+  -- @missingAmountOfIndices@ is the amount of indices missing from full application
+  let missingAmountOfIndices = fullAmountOfIndices - length indexListGiven
+  indexTermS <- mkTermS indexListGiven missingAmountOfIndices
 
-  -- @m@ is the amount of arguments to the index list which are missing
-  let indexListGiven = drop fullAmountOfParams args
-  -- indexTermSnew <- mkTermS indexListGiven
-
-  let m = fullAmountOfIndices - length indexListGiven
-
-
-  -- Construct @m@ additional deBruijn indices
-  -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
-  let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
-
-  indexTermS <- toTermS . (++ additionalVars) <$> toCore (raise m indexListGiven)
   let tdata = TData idx paramTermS indexTermS
+  let totalMissing = missingAmountOfParams + missingAmountOfIndices
 
-  -- in the end, we have (TLam (TLam (TLam ...))) of depth m
-  return (iterate TLam tdata !! m)
-
-
-compileDef :: QName -> [Arg I.Term] -> ToCoreM Term
-compileDef qn args = do
-      -- Try looking up as definition first
-      lookupDef qn >>= \case
-        Just idx -> do
-          let def = TDef idx
-          coreEs <- toCore args
-          return (tApp def coreEs)
-        --Try looking up as datatype
-        Nothing -> do
-          lookupData qn >>= \case
-            -- Try looking up as a record (must succeed, else fail with error message)
-            Nothing -> lookupRec qn >>= \case
-              Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
-              Just (idx, amountOfParams) -> compileToTData args idx amountOfParams 0
-            Just (idx, (amountOfParams, amountOfIndices)) -> do
-              compileToTData args idx amountOfParams amountOfIndices
+  -- in the end, we have (TLam (TLam (TLam ...))) of depth `totalMissing`
+  return (iterate TLam tdata !! totalMissing)
 
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
 {-                                      Instances of ToCore                                       -}
@@ -204,54 +191,21 @@ instance ToCore I.Term where
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
 
-  -- -- Case where none of the Elims are projection
-  -- toCore (I.Def qn es)
-  --   | Just args <- allApplyElims es
-  --   = do
-  --     -- Try looking up as definition first
-  --     lookupDef qn >>= \case
-  --       Just idx -> do
-  --         let def = TDef idx
-  --         coreEs <- toCore es
-  --         return (tApp def coreEs)
-  --       --Try looking up as datatype
-  --       Nothing -> do
-  --         lookupData qn >>= \case
-  --           -- Try looking up as a record (must succeed, else fail with error message)
-  --           Nothing -> lookupRec qn >>= \case
-  --             Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
-  --             Just (idx, amountOfParams) -> compileTData args idx amountOfParams 0
-  --           Just (idx, (amountOfParams, amountOfIndices)) -> do
-  --             compileTData args idx amountOfParams amountOfIndices
-
-
-  
-
-  toCore (I.Def qn es) 
+  toCore (I.Def qn es)
     = do
-        let (args, elimsWithProj) = splitApplyElims es
-        let compiledDef_m = compileDef qn args -- compile qn with args as normal
-        
-        case elimsWithProj of
-          [] -> compiledDef_m
-          (projElim : otherElims) -> do
-            projIdx <- toCore projElim >>= \case
-              TDef idx -> pure idx
-              _ -> error "This code is unreachable: the error in toCore (I.IApply) should be thrown instead"
-
-            compiledDef <- compiledDef_m
-            let recordProjTerm = TProj compiledDef projIdx
-            traceCyan ("qn in non-allApplyElims case: " ++ show (pretty qn) ++ "; length of es: " ++ show (length es)) throwError "TODO: Translate record projections"
-
-
-        -- -- then, we take projElim, and take the compiled index of it
-        -- let (projElim, otherElims) = (head elimsWithProj, tail elimsWithProj)
-        -- projIdx <- toCore projElim >>= \case
-        --   TDef idx -> pure idx
-        --   _ -> error "This code is unreachable: the error in toCore (I.IApply) should be thrown instead"
-      
-        -- traceCyan ("qn in non-allApplyElims case: " ++ show (pretty qn) ++ "; length of es: " ++ show (length es)) throwError "TODO: Translate record projections"
-
+        lookupDef qn >>= \case
+          Just idx -> do
+            let def = TDef idx
+            coreEs <- toCore es
+            return (createTAppAndTProj def (zip es coreEs))
+          Nothing -> do
+            lookupData qn >>= \case
+              Just (idx, (fullAmountOfParams, fullAmountOfIndices)) -> 
+                compileToTData es idx fullAmountOfParams fullAmountOfIndices
+              Nothing -> lookupRec qn >>= \case
+                Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
+                Just (idx, amountOfParams) ->
+                  compileToTData es idx amountOfParams 0
 
   toCore (I.Con ch _ es)
     | Just args <- allApplyElims es
