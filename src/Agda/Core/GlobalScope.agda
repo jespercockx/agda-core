@@ -14,6 +14,7 @@ record Globals : Set where
     fieldScope        : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name
     recScope          : Scope Name
     recParScope       : NameIn recScope → RScope Name
+    recProjFuncScope  : NameIn recScope -> Scope Name -- projection functions
   NameData : Set
   NameData = NameIn dataScope
   NameCon : NameData → Set

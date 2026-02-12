@@ -36,6 +36,12 @@ pair_of_types = record { fst₁ = Nat; snd₁ = Bool }
 x : Pair Nat Nat
 x = record { fst = Zero; snd = Suc Zero }
 
+const : (A : Set) → A → A → A
+const = λ A → λ x → λ y → x
+
+Pair_fst_alias : {A B : Set} → Pair A B → A
+Pair_fst_alias = Pair.fst
+
 -- example for def where first argument is a projection function
 proj_exampleDef1 : Nat
 proj_exampleDef1 = x .Pair.fst
