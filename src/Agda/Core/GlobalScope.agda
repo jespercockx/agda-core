@@ -14,13 +14,15 @@ record Globals : Set where
     fieldScope        : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name
     recScope          : Scope Name
     recParScope       : NameIn recScope → RScope Name
-    recProjFuncScope  : NameIn recScope -> Scope Name -- projection functions
+    recProjFuncs      : NameIn recScope -> RScope Name -- projection functions
   NameData : Set
   NameData = NameIn dataScope
   NameCon : NameData → Set
   NameCon d = NameInR (dataConstructors d)
   NameRec : Set
   NameRec = NameIn recScope
+  NameProj : NameRec → Set
+  NameProj r = NameInR (recProjFuncs r)
   opaque
     unfolding RScope
     AllNameCon : (d : NameData) → RScope (NameCon d)
@@ -30,4 +32,5 @@ open Globals public
 {-# COMPILE AGDA2HS NameData inline #-}
 {-# COMPILE AGDA2HS NameCon inline #-}
 {-# COMPILE AGDA2HS NameRec inline #-}
+{-# COMPILE AGDA2HS NameProj inline #-}
 {-# COMPILE AGDA2HS Globals #-}
