@@ -23,7 +23,7 @@ data Branches (@0 α : Scope Name) (@0 d : NameData) : @0 RScope (NameCon d) →
 data Term α where
   TVar  : (x : NameIn α) → Term α
   TDef  : (d : NameIn defScope) → Term α
-  -- TProjFunDef : (d : NameIn recScope) → 
+  -- TProjFunDef : {r : NameRec} (p : NameProj r) →  
   TData : (d : NameData)
         → (TermS α (dataParScope d))
         → (TermS α (dataIxScope d))
