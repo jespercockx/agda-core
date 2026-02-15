@@ -33,11 +33,11 @@ record PairExplCon (A B : Set) : Set where
       sndE : B
 
 --example0 and example1 are both valid Agda epxressions
-example0 : (A B : Set) → Set
-example0 = Pair
+-- example0 : (A B : Set) → Set
+-- example0 = Pair
 
-example1 : (B : Set) → Set
-example1 = Pair Nat
+-- example1 : (B : Set) → Set
+-- example1 = Pair Nat
 
 x : Pair Nat Nat
 x = record { fst = Zero; snd = Suc Zero }

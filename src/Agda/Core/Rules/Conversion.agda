@@ -91,6 +91,10 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
+  -- CEtaRecords : (r : Term α) ()
+
+  --   → r ≅ (TCon {!!} {!!})
+
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v
