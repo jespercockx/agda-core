@@ -18,7 +18,7 @@ data AboveCoreTerm =
     Something
   | IsForall
   | IsLeftApp
-  | IsRigthApp
+  | IsRightApp
   | IsLambda Natural
 
 data NameMap = NameMap {
@@ -49,7 +49,7 @@ requiresParentheses _ (Core.TSort _)  = False
 requiresParentheses _ (Core.TAnn {})  = False
 requiresParentheses _ (Core.TCase {}) = False
 requiresParentheses IsLeftApp    _ = True
-requiresParentheses IsRigthApp   _ = True
+requiresParentheses IsRightApp   _ = True
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 instance PrettyCore Core.Term where
@@ -59,13 +59,13 @@ instance PrettyCore Core.Term where
   prettyCore ma = prettyCoreTermAux ma Something
 
 prettyCoreTermAux :: NameMap -> AboveCoreTerm -> Core.Term -> String
-prettyCoreTermAux m IsRigthApp term = -- to avoid parenthesis
-  if requiresParentheses IsRigthApp term then
+prettyCoreTermAux m IsRightApp term = -- to avoid parenthesis
+  if requiresParentheses IsRightApp term then
     "(" <> prettyCoreTermAux m Something term <> ")"
   else
     prettyCoreTermAux m Something term
 prettyCoreTermAux m IsLeftApp (Core.TApp u v) =
-  prettyCoreTermAux m IsLeftApp u <> " • " <> prettyCoreTermAux m IsRigthApp v
+  prettyCoreTermAux m IsLeftApp u <> " • " <> prettyCoreTermAux m IsRightApp v
 prettyCoreTermAux m IsLeftApp term = -- to avoid parenthesis
     if requiresParentheses IsLeftApp term then
     "(" <> prettyCoreTermAux m Something term <> ")"
@@ -78,8 +78,9 @@ prettyCoreTermAux m Something term =
     Core.TDef n -> printDef m n
     Core.TPi (Core.El _ a) (Core.El _ b) -> "∀(" <> prettyCoreTermAux m Something a <> ")" <> prettyCoreTermAux m IsForall b
     Core.TLam t -> prettyCoreTermAux m (IsLambda 1) t
-    Core.TApp u v -> prettyCoreTermAux m IsLeftApp u <> " • " <> prettyCoreTermAux m IsRigthApp v
-    Core.TCon d c trms -> printNameCon m d c <> "[ " <> prettyCore m trms <>"]"
+    Core.TApp u v -> prettyCoreTermAux m IsLeftApp u <> " • " <> prettyCoreTermAux m IsRightApp v
+    Core.TDataCon d c trms -> printNameCon m d c <> "[ " <> prettyCore m trms <>"]"
+    Core.TRecCon c trms -> "RecordConstructor" <> "[ " <> prettyCore m trms <>"]"
     Core.TData d pars ixs -> printNameData m d <> prettyCore m pars <> prettyCore m ixs
     Core.TProj _ _ -> "projection not implemented"
     Core.TCase d r u bs ty -> "Case" <> printNameData m d <> prettyCore m u <> "of" <> prettyCoreBranches m d bs <> ":" <> prettyCore m ty
@@ -98,7 +99,7 @@ prettyCoreTermAux m (IsLambda n) term = -- when we have several λ
 instance PrettyCore Core.TermS where
   prettyCore :: NameMap -> Core.TermS -> String
   prettyCore m Core.TSNil = ""
-  prettyCore m (Core.TSCons t ts) = prettyCoreTermAux m IsRigthApp t <> " " <> prettyCore m ts
+  prettyCore m (Core.TSCons t ts) = prettyCoreTermAux m IsRightApp t <> " " <> prettyCore m ts
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 instance PrettyCore Core.Sort where

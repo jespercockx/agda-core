@@ -22,7 +22,7 @@ import Agda.Syntax.Internal.Elim (allApplyElims, splitApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
-import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe)
+import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe, fromMaybe)
 import Agda.Syntax.Common ( Nat )
 
 import Data.Map.Strict qualified as Map
@@ -83,7 +83,9 @@ createTAppAndTProj t _ =
 data ToCoreGlobal = ToCoreGlobal { globalDefs      :: Map QName Index,
                                    globalDatas     :: Map QName (Index, (Nat, Nat)),
                                    globalRecs      :: Map QName (Index, Nat),
-                                   globalCons      :: Map QName (Index, Index)}
+                                   -- Nothing if it is a record constructor
+                                   -- (Just i) if it is a datatype constructor
+                                   globalCons      :: Map QName (Index, Maybe Index)}
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
@@ -101,7 +103,7 @@ asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 asksRec :: (Map QName (Index, Nat) -> a) -> ToCoreM a
 asksRec = asks . (. \ToCoreGlobal{globalRecs} -> globalRecs)
 
-asksCon :: (Map QName (Index, Index) -> a) -> ToCoreM a
+asksCon :: (Map QName (Index, Maybe Index) -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
 -- | Lookup a definition name in the current module.
@@ -117,7 +119,7 @@ lookupRec :: QName -> ToCoreM (Maybe (Index, Nat))
 lookupRec qn = asksRec (Map.!? qn)
 
 -- | Lookup a constructor name in the current module.
-lookupCon :: QName -> ToCoreM (Maybe (Index, Index))
+lookupCon :: QName -> ToCoreM (Maybe (Index, Maybe Index))
 lookupCon qn = asksCon (Map.!? qn)
 
 
@@ -218,9 +220,8 @@ instance ToCore I.Term where
           -- Construct @l@ additional deBruijn indices
           let additionalVars = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
 
-          t <- TCon dt con . toTermS . (++ additionalVars) <$> toCore (raise l args)
-
-          -- in the end, we bind @l@ fresh deBruijn indices
+          let constructor = maybe (TRecCon dt) (TDataCon dt) con
+          t <- constructor . toTermS . (++ additionalVars) <$> toCore (raise l args)
           pure (iterate TLam t !! l)
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
@@ -344,7 +345,7 @@ toCoreDefn (I.DatatypeDefn dt) ty =
     Nothing -> throwError $ "[When compiling a DataTypeDefn] Trying to access an unknown constructor: " <+> pretty qn
     Just result -> pure result
     ) cons
-  let cons_indexes = map snd cons_dt_indexes
+  let cons_indexes = map (fromMaybe Scope.Zero . snd) cons_dt_indexes
   let d = Core.Datatype{  dataSort              = sort',
                           dataParTel            = parsTel,
                           dataIxTel             = ixsTel,

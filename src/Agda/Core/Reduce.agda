@@ -113,8 +113,8 @@ unState r (MkState e v s) = subst (envToSubst r e) (unStack s v)
 {-# COMPILE AGDA2HS unState #-}
 
 lookupBranch : {@0 cs : RScope (NameCon d)} → Branches α d cs → (c : NameCon d)
-             → Maybe ( Singleton (fieldScope c)
-                     × Term (α ◂▸ fieldScope c))
+             → Maybe ( Singleton (dataFieldScope c)
+                     × Term (α ◂▸ dataFieldScope c))
 lookupBranch BsNil c = Nothing
 lookupBranch {d = d} (BsCons (BBranch (sing c') aty u) bs) c =
     case decNamesInR c' c of λ where
@@ -165,7 +165,7 @@ step rsig (MkState e (TLet x v w) s) =
 step (sing sig) (MkState e (TDef d) s) =
   case getBody sig d of λ where
     v → Just (MkState e (weaken subEmpty v) s)
-step rsig (MkState e (TCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
+step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
   case decNamesIn d' d of λ where
       (True  ⟨ refl ⟩) → case lookupBranch bs c of λ where
         (Just (r , v)) → Just (MkState
@@ -174,9 +174,10 @@ step rsig (MkState e (TCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
           (weakenStack (subExtScope r subRefl) s))
         Nothing  → Nothing
       (False  ⟨ _ ⟩) → Nothing
+step rsig (MkState e (TRecCon rc vs) s) = Nothing --TODO: Reduce record constructor application
 step rsig (MkState e (TData d ps is) s) = Nothing
-step rsig (MkState e (TCon c vs) (FProj f ∷ s)) = Nothing -- TODO
-step rsig (MkState e (TCon c x) s) = Nothing
+step rsig (MkState e (TDataCon c vs) (FProj f ∷ s)) = Nothing -- TODO
+step rsig (MkState e (TDataCon c x) s) = Nothing
 step rsig (MkState e (TLam x v) s) = Nothing
 step rsig (MkState e (TPi x a b) s) = Nothing
 step rsig (MkState e (TSort n) s) = Nothing

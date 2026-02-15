@@ -23,7 +23,7 @@ constructorType : {d : NameData}
                 → {c : NameCon d}
                 → (con : Constructor c)
                 → (pars : TermS α (dataParScope d))
-                → TermS α (fieldScope c)
+                → TermS α (dataFieldScope c)
                 → Type α
 constructorType {d = d} dt con pars us =
   dataType d (instDataSort dt pars) pars (instConIx con pars us)
@@ -70,11 +70,11 @@ data TyTerm {α} Γ where
     ----------------------------------------------
     → Γ ⊢ TData d pars ixs ∶ sortType (instDataSort dt pars)
 
-  TyCon :
+  TyDataCon :
       {d : NameData}
       {c : NameCon d}
       {@0 pars : TermS α (dataParScope d)}
-      {@0 us  : TermS α (fieldScope c)}
+      {@0 us  : TermS α (dataFieldScope c)}
       (let dt  : Datatype d
            dt  = sigData sig d
            con : Constructor c
@@ -82,7 +82,7 @@ data TyTerm {α} Γ where
 
     → Γ ⊢ˢ us ∶ instConIndTel con pars
     -----------------------------------------------------------
-    → Γ ⊢ TCon c us ∶ constructorType dt con pars us
+    → Γ ⊢ TDataCon c us ∶ constructorType dt con pars us
 
   TyLam :
       Γ , x ∶ a ⊢ u ∶ b
@@ -172,7 +172,7 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
   TyBBranch : (c : NameCon d)
               (let con : Constructor c
                    con = sigCons sig d c
-                   fields = fieldScope c
+                   fields = dataFieldScope c
                    α' = α ◂▸ fields
                    r = sing fields)
               (rhs : Term α')
@@ -192,7 +192,8 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
                    asubst = weaken (subExtScope r subRefl) (idSubst (singScope Γ))
 
                    bsubst : α ◂▸ dataIxScope d ▸ x ⇒ α'
-                   bsubst = (extSubst asubst ixs' ▹ x ↦ TCon c cargs)
+                   -- (atejandev): Not sure why a TDataCon is used here
+                   bsubst = (extSubst asubst ixs' ▹ x ↦ TDataCon c cargs)
 
                    return' : Type α'
                    return' = subst bsubst return)
@@ -237,16 +238,16 @@ tyData' dt refl typars tyixs = TyData typars tyixs
 {-# COMPILE AGDA2HS tyData' #-}
 
 
-tyCon' : {@0 Γ : Context α}
+tyDataCon' : {@0 Γ : Context α}
   {d : NameData} → (@0 dt : Datatype d) → @0 sigData sig d ≡ dt
   → {c : NameCon d} (@0 con : Constructor c) → @0 sigCons sig d c ≡ con
   → {@0 pars : TermS α (dataParScope d)}
-  → {@0 us : TermS α (fieldScope c)}
+  → {@0 us : TermS α (dataFieldScope c)}
   → Γ ⊢ˢ us ∶ instConIndTel con pars
   ----------------------------------------------
-  → Γ ⊢ TCon c us ∶ constructorType dt con pars us
-tyCon' dt refl con refl tySubst = TyCon tySubst
-{-# COMPILE AGDA2HS tyCon' #-}
+  → Γ ⊢ TDataCon c us ∶ constructorType dt con pars us
+tyDataCon' dt refl con refl tySubst = TyDataCon tySubst
+{-# COMPILE AGDA2HS tyDataCon' #-}
 
 tyCase' : {@0 Γ : Context α}
   {d : NameData}
@@ -280,7 +281,7 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
             {@0 ps : TermS α (dataParScope d)}
             {@0 return : Type (α ◂▸ dataIxScope d ▸ x)}
             (c : NameCon d)
-            (let fields = fieldScope c
+            (let fields = dataFieldScope c
                  β = α ◂▸ fields)
             (@0 con : Constructor c)
             → @0 sigCons sig d c ≡ con
@@ -302,7 +303,7 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
                  idsubst = weakenSubst (subExtScope r subRefl) (idSubst (singScope Γ))
 
                  bsubst : α ◂▸ dataIxScope d ▸ x ⇒ β
-                 bsubst = extSubst idsubst ixsubst ▹ x ↦ TCon c cargs
+                 bsubst = extSubst idsubst ixsubst ▹ x ↦ TDataCon c cargs
 
                  return' : Type β
                  return' = subst bsubst return)

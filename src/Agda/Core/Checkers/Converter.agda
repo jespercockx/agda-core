@@ -115,24 +115,24 @@ convDatas r d e ps qs is ks = do
 
 {-# COMPILE AGDA2HS convDatas #-}
 
-convCons : {{fl : Fuel}} → Singleton α →
+convDataCons : {{fl : Fuel}} → Singleton α →
            {d d' : NameData}
            (f : NameCon d)
            (g : NameCon d')
-           (lp : TermS α (fieldScope f))
-           (lq : TermS α (fieldScope g))
-         → TCM (Conv (TCon f lp) (TCon g lq))
-convCons r {d} {d'} f g lp lq = do
+           (lp : TermS α (dataFieldScope f))
+           (lq : TermS α (dataFieldScope g))
+         → TCM (Conv (TDataCon f lp) (TDataCon g lq))
+convDataCons r {d} {d'} f g lp lq = do
   ifDec (decNamesIn d d')
     (λ where {{refl}} → do
       ifDec (decNamesInR f g)
         (λ where {{refl}} → do
           csp ← convertTermSs r lp lq
-          return $ CCon f csp)
+          return $ CDataCon f csp)
         (tcError "constructors not convertible"))
     (tcError "constructors are from not convertible datatypes")
 
-{-# COMPILE AGDA2HS convCons #-}
+{-# COMPILE AGDA2HS convDataCons #-}
 
 convLams : {{fl : Fuel}}
          → Singleton α
@@ -236,7 +236,8 @@ convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t 
 convertWhnf r (TVar x) (TVar y) = convVars x y
 convertWhnf r (TDef x) (TDef y) = convDefs x y
 convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
-convertWhnf r (TCon {d = d} c lc) (TCon {d = d'} c' ld) = convCons r c c' lc ld
+convertWhnf r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r c c' lc ld
+convertWhnf r (TRecCon rec lc) (TRecCon rec' ld) = tcError "not implemented: conversion of record constructor application"
 convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
 convertWhnf r (TApp u e) (TApp v f) = convApps r u v e f
 convertWhnf r (TProj u f) (TProj v g) = tcError "not implemented: conversion of projections"

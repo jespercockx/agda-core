@@ -275,12 +275,12 @@ module UnificationStepAndStop where
       (c : NameCon d)                      -- c is a constructor of d
       (let con = sigCons sig d c
            rγ : RScope Name
-           rγ = fieldScope c)                                                     -- name of the arguments of c
+           rγ = dataFieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : TermS α rγ}
       (let Σ : Telescope α rγ
            Σ = instConIndTel con pSubst                                   -- type of the arguments of c
            σe : TermS (α ◂▸ rγ) (e₀ ◂ mempty)
-           σe = e₀ ↦ TCon c (termSrepeat (sing rγ)) ◂ ⌈⌉           -- names of the new equalities to replace e₀
+           σe = e₀ ↦ TDataCon c (termSrepeat (sing rγ)) ◂ ⌈⌉           -- names of the new equalities to replace e₀
            τ₀ : α ◂▸ (e₀ ◂ mempty) ⇒ (α ◂▸ rγ)
            τ₀ = extSubst (substExtScope (sing rγ) (idSubst (sing α))) σe
            τ : (α ▸ e₀) ⇒ (α ◂▸ rγ)
@@ -288,7 +288,7 @@ module UnificationStepAndStop where
            Δγ : Telescope (α ◂▸ rγ) rβ                           -- telescope using rγ instead of e₀
            Δγ = substTelescope τ Δe₀)
       -------------------------------------------------------------------
-     → Γ , (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TCon c σ₂ ◂ δ₂) ∶ (e₀ ∶ dataType d ds pSubst iSubst ◂ Δe₀)
+     → Γ , (e₀ ↦ TDataCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TDataCon c σ₂ ◂ δ₂) ∶ (e₀ ∶ dataType d ds pSubst iSubst ◂ Δe₀)
         ↣ᵤ Γ , concatTermS σ₁ δ₁ ≟ concatTermS σ₂ δ₂ ∶ addTel Σ Δγ
 
     {- solve equalities of the form c i = c j for a constructor c of a datatype d -}
@@ -307,7 +307,7 @@ module UnificationStepAndStop where
       {c : NameCon d}                      -- c is a constructor of dt
       (let con = sigCons sig d c
            ind : RScope Name
-           ind = fieldScope c)                                                     -- name of the arguments of c
+           ind = dataFieldScope c)                                                     -- name of the arguments of c
       {σ₁ σ₂ : TermS α ind}
       (let Σ : Telescope α ind
            Σ = instConIndTel con pSubst                                    -- type of the arguments of c
@@ -323,7 +323,7 @@ module UnificationStepAndStop where
            weakenαind : α ⇒ (α ◂▸ ind)
            weakenαind = substExtScope (sing ind) (idSubst (sing α))
            σe : TermS (α ◂▸ ind) (e₀ ◂ mempty)
-           σe = e₀ ↦ TCon c (termSrepeat(sing ind)) ◂ ⌈⌉
+           σe = e₀ ↦ TDataCon c (termSrepeat(sing ind)) ◂ ⌈⌉
            τ₀ : TermS (α ◂▸ ind) ixs
            τ₀ = (instConIx con (weaken (subExtScope (sing ind) subRefl) pSubst) (termSrepeat(sing ind)))
            τ₁ : α ◂▸ ixs ⇒ (α ◂▸ ind)
@@ -335,7 +335,7 @@ module UnificationStepAndStop where
            Δγ : Telescope (α ◂▸ ind) rβ₀
            Δγ = subst τ Δe₀ixs)
      -------------------------------------------------------------------
-     → Γ , concatTermS iSubst₁ (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ concatTermS iSubst₂ (e₀ ↦ TCon c σ₂ ◂ δ₂)
+     → Γ , concatTermS iSubst₁ (e₀ ↦ TDataCon c σ₁ ◂ δ₁) ≟ concatTermS iSubst₂ (e₀ ↦ TDataCon c σ₂ ◂ δ₂)
            ∶ addTel iTel (e₀ ∶ dataType d ds (subst weakenαixs pSubst) iSubste ◂ Δe₀ixs)
        ↣ᵤ Γ , concatTermS σ₁ δ₁ ≟ concatTermS σ₂ δ₂ ∶ addTel Σ Δγ
     {- TODO: replace Injectivity and InjectivityDep by better rule from article proof relevant Unification (2018) J. Cockx & D. Devriese -}
@@ -357,38 +357,38 @@ module UnificationStepAndStop where
     BasicCycle :
       {d : NameData}
       {c : NameCon d}
-      {σ : TermS α (fieldScope c)}
+      {σ : TermS α (dataFieldScope c)}
       → InTermS (TVar x) σ
-      → CycleProof x (TCon c σ)
+      → CycleProof x (TDataCon c σ)
     SubCycle :
       {u v : Term α}
       {d : NameData}
       {c : NameCon d}
-      {σ : TermS α (fieldScope c)}
+      {σ : TermS α (dataFieldScope c)}
       → CycleProof x v
       → InTermS v σ
-      → CycleProof x (TCon c σ)
+      → CycleProof x (TDataCon c σ)
 
   data UnificationStop {α = α} Γ where
     ConflictData :
       {d d' : NameData}
       {c : NameCon d} {c' : NameCon d'}
-      {σ₁ : TermS α (fieldScope c)}
-      {σ₂ : TermS α (fieldScope c')}
+      {σ₁ : TermS α (dataFieldScope c)}
+      {σ₂ : TermS α (dataFieldScope c')}
       {Ξ : Telescope α (e₀ ◂ rβ)}
       → d ≠ d'
       ------------------------------------------------------------
-      → Γ , (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TCon c' σ₂ ◂ δ₂) ∶ Ξ ↣ᵤ⊥
+      → Γ , (e₀ ↦ TDataCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TDataCon c' σ₂ ◂ δ₂) ∶ Ξ ↣ᵤ⊥
     ConflictCon :
       {d d' : NameData}
       {c : NameCon d} {c' : NameCon d'}
-      {σ₁ : TermS α (fieldScope c)}
-      {σ₂ : TermS α (fieldScope c')}
+      {σ₁ : TermS α (dataFieldScope c)}
+      {σ₂ : TermS α (dataFieldScope c')}
       {Ξ : Telescope α (e₀ ◂ rβ)}
       (e : d ≡ d')
       → c' ≠ transport NameCon e c
       ------------------------------------------------------------
-      → Γ , (e₀ ↦ TCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TCon c' σ₂ ◂ δ₂) ∶ Ξ ↣ᵤ⊥
+      → Γ , (e₀ ↦ TDataCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TDataCon c' σ₂ ◂ δ₂) ∶ Ξ ↣ᵤ⊥
     {- cycle right now isn't as strict as it should be to correspond to the
        proof where pattern matching is reduced to eliminator in Jesper Cockx thesis
        it would be nice to rewrite it

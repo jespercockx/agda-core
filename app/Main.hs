@@ -211,7 +211,7 @@ agdaCoreCompile env _ _ def = do
     Internal.Datatype{dataPars, dataIxs, dataCons} -> do
       let ntcg_datas  = Map.insert defName (index, (dataPars, dataIxs)) tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
-          tcg_data_cons = Map.fromList (zip dataCons (map (index,) (iterate Suc Zero)))
+          tcg_data_cons = Map.fromList (zip dataCons (map ((index,) . Just) (iterate Suc Zero)))
           ntcg_cons = Map.union tcg_cons tcg_data_cons
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
       pure (ToCoreGlobal tcg_defs ntcg_datas tcg_recs ntcg_cons, 
@@ -220,8 +220,8 @@ agdaCoreCompile env _ _ def = do
       let conName = Internal.conName recConHead
       let ntcg_recs = Map.insert defName (index, recPars) tcg_recs
           nnames_recs = Map.insert (indexToNat index) name nameRecs
-          --A record always has exactly one constructor, so we just insert the mapping (index, Zero)
-          ntcg_cons = Map.insert conName (index, Zero) tcg_cons 
+          --A record always has exactly one constructor, so we insert `Nothing` for the constructor index
+          ntcg_cons = Map.insert conName (index, Nothing) tcg_cons 
       reportSDoc "agda-core.check" 3 $ text "  Constructor:" <+> prettyTCM conName
       pure (ToCoreGlobal tcg_defs tcg_datas ntcg_recs ntcg_cons, 
         NameMap nameDefs nameData nnames_recs nameCons)
@@ -231,7 +231,7 @@ agdaCoreCompile env _ _ def = do
       -- One almost certainly does not want to add `name` to `nnames_cons` in that case
       reportSDoc "agda-core.check" 3 $ text "  Internal.Constructor name:" <+> prettyTCM name
       let (dID, cID) = tcg_cons Map.! defName
-      let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
+      let nnames_cons = Map.insert (indexToNat dID, indexToNat (fromMaybe Zero cID)) name nameCons
       pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons, 
         NameMap nameDefs nameData nameRecs nnames_cons)
     _ -> do
@@ -286,7 +286,7 @@ agdaCoreCompile env _ _ def = do
             PreSignature
               {  preSigDefs = preSigDefs
               , preSigData = preSigData
-              , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
+              , preSigCons = Map.insert (indexToNat dID, indexToNat (fromMaybe Zero cID)) cons preSigCons
               , preSigRecs = preSigRecs
               }
         Core.RecordDefn recTyp -> do

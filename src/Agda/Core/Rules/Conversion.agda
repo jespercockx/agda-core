@@ -79,10 +79,10 @@ data Conv {α} where
          → ps ⇔ qs
          → is ⇔ ks
          → TData d ps is ≅ TData d qs ks
-  CCon   : {@0 d : NameData} (c : NameCon d)
-           {@0 us vs : TermS α (fieldScope c)}
+  CDataCon : {@0 d : NameData} (c : NameCon d)
+           {@0 us vs : TermS α (dataFieldScope c)}
          → us ⇔ vs
-         → TCon c us ≅ TCon c vs
+         → TDataCon c us ≅ TDataCon c vs
   CEtaFunctionsLeft : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
@@ -93,7 +93,7 @@ data Conv {α} where
       → (TLam x b) ≅ f 
   -- CEtaRecords : (r : Term α) ()
 
-  --   → r ≅ (TCon {!!} {!!})
+  --   → r ≅ (TRecCon {!!} {!!})
 
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
@@ -105,8 +105,8 @@ data Conv {α} where
   
 
 data ConvBranch {α = α} {c = c} where
-  CBBranch :  (cr1 cr2 : Singleton c) (r1 r2 : Singleton (fieldScope c))
-             (t1 : Term (α ◂▸ fieldScope c)) (t2 : Term (α ◂▸ fieldScope c))
+  CBBranch :  (cr1 cr2 : Singleton c) (r1 r2 : Singleton (dataFieldScope c))
+             (t1 : Term (α ◂▸ dataFieldScope c)) (t2 : Term (α ◂▸ dataFieldScope c))
            → t1 ≅ t2
            → ConvBranch (BBranch cr1 r1 t1) (BBranch cr2 r2 t2)
 

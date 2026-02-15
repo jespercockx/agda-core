@@ -36,7 +36,7 @@ instance
     ; dataParScope = λ _ → mempty
     ; dataIxScope = λ _ → mempty
     ; dataConstructors = λ _ → boolConsSC
-    ; fieldScope = λ _ → mempty
+    ; dataFieldScope = λ _ → mempty
     }
 open module @0 G = Globals globals
 
@@ -85,9 +85,9 @@ opaque
   nameFalse = ⟨ "false" ⟩ inRThere inRHere
 
   `true : Term α
-  `true = TCon {d = nameBool} nameTrue TSNil
+  `true = TDataCon {d = nameBool} nameTrue TSNil
   `false : Term α
-  `false = TCon {d = nameBool} nameFalse TSNil
+  `false = TDataCon {d = nameBool} nameFalse TSNil
 
 module TestReduce (@0 x y z : Name) where
 

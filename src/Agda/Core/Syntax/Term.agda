@@ -28,8 +28,9 @@ data Term α where
         → (TermS α (dataParScope d))
         → (TermS α (dataIxScope d))
         → Term α
-  TCon  : {d : NameData} (c : NameCon d)
-        → (TermS α (fieldScope c)) → Term α
+  TDataCon  : {d : NameData} (c : NameCon d)
+        → (TermS α (dataFieldScope c)) → Term α
+  TRecCon : (r : NameRec) → (TermS α (recFieldScope r)) → Term α
   TLam  : (@0 x : Name) (v : Term (α ▸ x)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
   TProj : (u : Term α) (x : NameIn defScope) → Term α
@@ -67,8 +68,8 @@ data Sort α where
   -- TODO: universe polymorphism
 
 data Branch α c where
-  BBranch : Singleton c → Singleton (fieldScope c)
-          → Term (α ◂▸ fieldScope c) → Branch α c
+  BBranch : Singleton c → Singleton (dataFieldScope c)
+          → Term (α ◂▸ dataFieldScope c) → Branch α c
 
 data Branches α d where
   BsNil  : Branches α d mempty
@@ -188,7 +189,8 @@ unAppsView (TApp t es)
 unAppsView (TVar _)          = refl
 unAppsView (TDef _)          = refl
 unAppsView (TData _ _ _)     = refl
-unAppsView (TCon _ _)        = refl
+unAppsView (TDataCon _ _)        = refl
+unAppsView (TRecCon _ _)        = refl
 unAppsView (TProj _ _)       = refl
 unAppsView (TCase _ _ _ _ _) = refl
 unAppsView (TLam _ _)        = refl

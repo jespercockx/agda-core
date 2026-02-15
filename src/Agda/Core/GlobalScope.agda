@@ -11,9 +11,10 @@ record Globals : Set where
     dataParScope      : NameIn dataScope → RScope Name
     dataIxScope       : NameIn dataScope → RScope Name
     dataConstructors  : NameIn dataScope → RScope Name                                          -- TODO: change RScope for an erased list
-    fieldScope        : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name
+    dataFieldScope        : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name 
     recScope          : Scope Name
-    recParScope       : NameIn recScope → RScope Name
+    recParScope       : NameIn recScope → RScope Name -- scope of the record's parameter list
+    recFieldScope     : NameIn recScope → RScope Name -- scope of the record constructor
     recProjFuncs      : NameIn recScope -> RScope Name -- projection functions
   NameData : Set
   NameData = NameIn dataScope

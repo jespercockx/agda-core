@@ -26,7 +26,8 @@ weakenBranches : α ⊆ β → Branches α d cs → Branches β d cs
 weakenTerm p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
 weakenTerm p (TDef d)          = TDef d
 weakenTerm p (TData d ps is)   = TData d (weakenTermS p ps) (weakenTermS p is)
-weakenTerm p (TCon c vs)       = TCon c (weakenTermS p vs)
+weakenTerm p (TDataCon c vs)       = TDataCon c (weakenTermS p vs)
+weakenTerm p (TRecCon rc vs)       = TRecCon rc (weakenTermS p vs)
 weakenTerm p (TLam x v)        = TLam x (weakenTerm (subBindKeep p) v)
 weakenTerm p (TApp u e)        = TApp (weakenTerm p u) (weakenTerm p e)
 weakenTerm p (TProj u x)       = TProj (weakenTerm p u) x

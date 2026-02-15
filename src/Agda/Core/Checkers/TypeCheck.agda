@@ -163,8 +163,8 @@ checkBranch {α = α} {d = d} ctx (BBranch (sing c) r rhs) dt ps rt = do
   con ⟨ ceq ⟩ ← tcmGetConstructor c
   let ra = singScope ctx
       @0 β : Scope Name
-      β = α ◂▸ fieldScope c
-      cargs : TermS β (fieldScope c)
+      β = α ◂▸ dataFieldScope c
+      cargs : TermS β (dataFieldScope c)
       cargs = termSrepeat r
       parssubst : TermS β (dataParScope d)
       parssubst = weaken (subExtScope r subRefl) ps
@@ -173,7 +173,7 @@ checkBranch {α = α} {d = d} ctx (BBranch (sing c) r rhs) dt ps rt = do
       idsubst : α ⇒ β
       idsubst = weaken (subExtScope r subRefl) (idSubst ra)
       bsubst : α ◂▸ dataIxScope d ▸ x ⇒ β
-      bsubst = extSubst idsubst ixsubst ▹ _ ↦ TCon c cargs
+      bsubst = extSubst idsubst ixsubst ▹ _ ↦ TDataCon c cargs
       rt' :  Type β
       rt' = subst bsubst rt
   crhs ← checkType _ rhs rt'
@@ -189,16 +189,16 @@ checkBranches {d = d} ctx (sing cons) bs dt ps rt =
                             <*> checkBranches ctx (singBranches bt) bt dt ps rt))
 {-# COMPILE AGDA2HS checkBranches #-}
 
-checkCon : ∀ Γ
+checkDataCon : ∀ Γ
            {d : NameData}
            (c : NameCon d)
-           (cargs : TermS α (fieldScope c))
+           (cargs : TermS α (dataFieldScope c))
            (ty : Type α)
-         → TCM (Γ ⊢ TCon c cargs ∶ ty)
-checkCon ctx {d = d} c cargs (El s ty) = do
+         → TCM (Γ ⊢ TDataCon c cargs ∶ ty)
+checkDataCon ctx {d = d} c cargs (El s ty) = do
   let r = singScope ctx
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
-    "can't typecheck a constructor TCon with a type that isn't a def application"
+    "can't typecheck a constructor TDataCon with a type that isn't a def application"
   ifDec (decIn (proj₂ d) (proj₂ d'))
     (λ where {{refl}} → do
         dt ⟨ dteq ⟩ ← tcmGetDatatype d
@@ -208,10 +208,10 @@ checkCon ctx {d = d} c cargs (El s ty) = do
         let ctel = instConIndTel con params
             ctype = constructorType dt con params cargs
         tySubst ← checkTermS ctx ctel cargs
-        checkCoerce ctx (TCon c cargs) (ctype , tyCon' dt dteq con ceq tySubst) (El s ty))
+        checkCoerce ctx (TDataCon c cargs) (ctype , tyDataCon' dt dteq con ceq tySubst) (El s ty))
     (tcError "datatypes not convertible")
 
-{-# COMPILE AGDA2HS checkCon #-}
+{-# COMPILE AGDA2HS checkDataCon #-}
 
 checkLambda : ∀ Γ (@0 x : Name)
               (u : Term  (α ▸ x))
@@ -254,7 +254,8 @@ checkType ctx (TDef d) ty = do
 checkType ctx (TData d ps is) ty = do
   tdef ← inferData ctx d ps is
   checkCoerce ctx (TData d ps is) tdef ty
-checkType ctx (TCon c x) ty = checkCon ctx c x ty
+checkType ctx (TDataCon c x) ty = checkDataCon ctx c x ty
+checkType ctx (TRecCon rec x) ty = tcError "TODO: implement type checking for record constructors"
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
 checkType ctx (TApp u e) ty = do
   tapp ← inferApp ctx u e
@@ -279,7 +280,8 @@ checkType ctx (TAnn u t) ty = do
 inferType ctx (TVar x) = inferVar ctx x
 inferType ctx (TDef d) = inferDef ctx d
 inferType ctx (TData d ps is) = inferData ctx d ps is
-inferType ctx (TCon c x) = tcError "non inferrable: can't infer the type of a constructor"
+inferType ctx (TDataCon c x) = tcError "non inferrable: can't infer the type of a data constructor"
+inferType ctx (TRecCon rec x) = tcError "TODO: infer type of record constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt

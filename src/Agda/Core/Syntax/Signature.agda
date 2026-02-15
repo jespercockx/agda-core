@@ -25,12 +25,12 @@ record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
     @0 ixs : RScope Name
     ixs  = dataIxScope d
   field
-    conIndTel : Telescope (mempty ◂▸ pars) (fieldScope c)
+    conIndTel : Telescope (mempty ◂▸ pars) (dataFieldScope c)
     -- the TypeS of the indexes of c
-    conIx     :  TermS (mempty ◂▸ pars ◂▸ fieldScope c) ixs
+    conIx     :  TermS (mempty ◂▸ pars ◂▸ dataFieldScope c) ixs
     -- how the indexes are constructred given parameters and c indices
 
-  instConIndTel : TermS α (dataParScope d) → Telescope α (fieldScope c)
+  instConIndTel : TermS α (dataParScope d) → Telescope α (dataFieldScope c)
   instConIndTel tPars = subst (extSubst ⌈⌉ tPars) conIndTel
   {-# COMPILE AGDA2HS instConIndTel inline #-}
 
@@ -38,7 +38,7 @@ open Constructor public
 {-# COMPILE AGDA2HS Constructor #-}
 
 instConIx : {@0 c : NameCon d} (con : Constructor c)
-  → TermS α (dataParScope d) → TermS α (fieldScope c) → TermS α (dataIxScope d)
+  → TermS α (dataParScope d) → TermS α (dataFieldScope c) → TermS α (dataIxScope d)
 instConIx con tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) (conIx con)
 {-# COMPILE AGDA2HS instConIx #-}
 
