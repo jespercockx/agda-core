@@ -26,9 +26,9 @@ record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
     ixs  = dataIxScope d
   field
     conIndTel : Telescope (mempty ◂▸ pars) (dataFieldScope c)
-    -- the TypeS of the indexes of c
+    -- the TypeS of the indices of c
     conIx     :  TermS (mempty ◂▸ pars ◂▸ dataFieldScope c) ixs
-    -- how the indexes are constructred given parameters and c indices
+    -- how the indices are constructred given parameters and c indices
 
   instConIndTel : TermS α (dataParScope d) → Telescope α (dataFieldScope c)
   instConIndTel tPars = subst (extSubst ⌈⌉ tPars) conIndTel
@@ -137,6 +137,8 @@ getBody sig x = case getDefinition sig x of λ where
 data Defn : Set where
   FunctionDefn : (funBody : Term mempty) → Defn
   DatatypeDefn :  (@0 d : NameData) → Datatype d → Defn
+  -- (atejandev): Stricly speaking, the type of `ConstructorDefn` is not correct on the Haskell side, 
+  -- because `d` can also be a `NameRec`
   ConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → Constructor c → Defn
   RecordDefn : (@0 r : NameRec) → Record r → Defn
   ProjDefn : Defn

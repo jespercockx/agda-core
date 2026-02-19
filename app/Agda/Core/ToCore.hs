@@ -373,8 +373,7 @@ toCoreDefn (I.RecordDefn rd) ty =
 toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
   let I.ConstructorData{  _conPars  = pars,
-                          _conArity = arity,
-                          _conData  = dname}  = cs
+                          _conArity = arity}  = cs
       I.TelV{ theCore = tyInd}                = I.telView'UpTo pars ty
       I.TelV{ theTel = internalIndTel,
               theCore = I.El{unEl = tyCon}}   = I.telView'UpTo arity tyInd

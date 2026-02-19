@@ -281,12 +281,14 @@ agdaCoreCompile env _ _ def = do
             }
         Core.ConstructorDefn cons -> do
           -- It should not matter here whether one uses `tcg_cons` (old one) or `globalConsData ntcg` (new one), but let's use the new one to be safe
-          let (dID, cID) = globalCons ntcg Map.! defName
+          let (dID, cID_m) = globalCons ntcg Map.! defName
+          -- if there is no constructor index (it is a record), the constructor index must be Zero
+          let constructorIndex = fromMaybe Zero cID_m
           liftIO $ writeIORef ioPreSig $
             PreSignature
               {  preSigDefs = preSigDefs
               , preSigData = preSigData
-              , preSigCons = Map.insert (indexToNat dID, indexToNat (fromMaybe Zero cID)) cons preSigCons
+              , preSigCons = Map.insert (indexToNat dID, indexToNat constructorIndex) cons preSigCons
               , preSigRecs = preSigRecs
               }
         Core.RecordDefn recTyp -> do
