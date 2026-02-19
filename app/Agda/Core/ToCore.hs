@@ -10,7 +10,7 @@ module Agda.Core.ToCore
 
 import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
-import Control.Monad.Except (MonadError(throwError, catchError), withError)
+import Control.Monad.Except (MonadError(throwError), withError)
 import Data.Functor ((<&>))
 import Data.Map.Strict (Map)
 import Numeric.Natural (Natural)
@@ -54,20 +54,6 @@ import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 import Agda.Syntax.Common.Pretty(text, render)
 
-import Debug.Trace
-
--- Helper to add color
-traceColor :: String -> String -> a -> a
-traceColor color msg = trace (color ++ msg ++ "\x1b[0m")
-
-traceRed, traceGreen, traceYellow, traceBlue, traceMagenta, traceCyan :: String -> a -> a
-traceRed     = traceColor "\x1b[31m"
-traceGreen   = traceColor "\x1b[32m"
-traceYellow  = traceColor "\x1b[33m"
-traceBlue    = traceColor "\x1b[34m"
-traceMagenta = traceColor "\x1b[35m"
-traceCyan    = traceColor "\x1b[36m"
-
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
@@ -100,10 +86,8 @@ asksCon :: (Map QName (Index, Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
 -- | Lookup a definition name in the current module.
---   Fails if the definition cannot be found.
-lookupDef :: QName -> ToCoreM Index
-lookupDef qn = fromMaybeM complain $ asksDef (Map.!? qn)
-  where complain = throwError $ "Trying to access an unknown definition: " <+> pretty qn
+lookupDef :: QName -> ToCoreM (Maybe Index)
+lookupDef qn = asksDef (Map.!? qn)
 
 -- | Lookup a datatype name in the current module.
 --   Fails if the datatype cannot be found.
@@ -196,10 +180,10 @@ instance ToCore I.Term where
         let additionalVars = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
         (dt , con, _) <- lookupCon (I.conName ch)
 
-        t <- TCon dt con . toTermS . (++ additionalVars) <$> toCore (raise l args)
+          t <- TCon dt con . toTermS . (++ additionalVars) <$> toCore (raise l args)
 
-        -- in the end, we bind @l@ fresh deBruijn indices
-        traceMagenta "Constructed TLam" pure (iterate TLam t !! l)
+          -- in the end, we bind @l@ fresh deBruijn indices
+          pure (iterate TLam t !! l)
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
@@ -307,7 +291,7 @@ toCoreDefn (I.FunctionDefn def) ty =
       , [cl]      <- _funClauses
       , []        <- I.clausePats cl
       , Just body <- I.clauseBody cl
-      -> Core.FunctionDefn <$> traceMagenta ("calling toCore with body=" <> (render $ pretty body)) toCore body
+      -> Core.FunctionDefn <$> toCore body
     -- case with no pattern matching
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
@@ -315,7 +299,7 @@ toCoreDefn (I.FunctionDefn def) ty =
       , vars      <- I.clausePats cl
       , Just body <- I.clauseBody cl
       -- -> Core.FunctionDefn <$> toCore body
-      -> (throwError "only definitions via λ are supported")
+      -> throwError "only definitions via λ are supported"
 
     -- case with pattern matching variables
     I.FunctionData{..}

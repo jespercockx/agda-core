@@ -1,4 +1,4 @@
-module EtaFunctions where
+module EtaFunctionsExplDefArg where
 
 data _≡_ {A : Set} (x : A) : A → Set where
  refl : x ≡ x
@@ -18,7 +18,7 @@ comp = λ (A B C : Set) → λ f → λ g → λ x → f (g x)
 const : (A : Set) → A → A → A
 const = λ A → λ x → λ y → x
 
-addOne : Nat → Nat
+addOne : Nat -> Nat
 addOne = suc
 
 addTwo : Nat → Nat
@@ -32,4 +32,3 @@ eta-higher = λ A B C → λ f → refl
 
 eta-counterexample-simple : addOne ≡ (λ x → (suc (const Nat x x)))
 eta-counterexample-simple = refl
-

@@ -3,7 +3,6 @@ module UnitTypeChurch where
 data Nat : Set where
     Zero : Nat
     Suc : Nat → Nat
-{-# BUILTIN NATURAL Nat #-} --Necessary for Agda to recognize "42" as an element of Nat
 
 data ⊤ : Set where
     * : ⊤
