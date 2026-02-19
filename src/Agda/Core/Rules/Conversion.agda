@@ -91,9 +91,11 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  -- CEtaRecords : (r : Term α) ()
+  CEtaRecordsTwo : (rn : NameRec) (rt : Term α) → 
 
-  --   → r ≅ (TRecCon {!!} {!!})
+    -- The arguments that we give for the construction of the record, have to be
+      -- Exactly the arguments that were given to construct `rt`
+    rt ≅ (TRecCon rn {!!})
 
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
