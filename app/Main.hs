@@ -228,9 +228,6 @@ agdaCoreCompile env _ _ def = do
   defTypeDoc <- prettyTCM defType
   reportSDoc "agda-core.check" 4 $ text "  Agda type: " <> prettyTCM defType
   reportSDoc "agda-core.check" 5 $ text "  Agda definition: " <> text (show $ Pretty.pretty theDef)
-  -- reportSDoc "agda-core.check" 5 $ text "  Agda definition: " <> text (show theDef)
-
-
   case convert ntcg def of
     -- Failed to convert `def` with the ToCoreGlobal `ntcg`
     Left e     -> do
@@ -310,7 +307,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
         let fl  = Core.More fl
             env = Core.MkTCEnv sig fl
         case Core.runTCM (checkType CtxEmpty funBody defType) env of
-              Left err -> reportSDoc "agda-core.check" 3 $ text $ "  Type checking error: " ++ err
+              Left err -> reportSDocFailure "agda-core.check" $ text $ "  Type checking error: " ++ err
               Right ok -> reportSDoc "agda-core.check" 3 $ text "  Type checking success"
       Right Core.Definition{ defName } ->
         reportSDocWarning "agda-core.check" 2 $ text $ "Skipped " <> defName <> " : not a function"
