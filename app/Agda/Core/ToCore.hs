@@ -381,11 +381,11 @@ toCoreDefn (I.ConstructorDefn cs) ty =
   indTel <- toCore internalIndTel
   case tyCon of
     I.Def _ elims ->  do
-      caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs -> do
-          ixs' <- toCore ixs
-          let conIxs = foldr Core.TSCons Core.TSNil ixs'
+      caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs_m -> do
+          ixs <- toCore ixs_m
+          let ixsTermS = toTermS ixs
           let c = Core.Constructor{ conIndTel = indTel,
-                                    conIx     = conIxs}
+                                    conIx     = ixsTermS}
           return $ Core.ConstructorDefn c
     _ -> do
       throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
