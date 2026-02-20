@@ -299,7 +299,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
     case def of
       Left n -> reportSDocFailure "agda-core.check" $ text $ "Skipped " <> n <> " :  term not compiled"
       Right Core.Definition{ defName, theDef = Core.FunctionDefn funBody, defType } -> do
-        reportSDoc "agda-core.check" 1 $ text $ "Typechecking of " <> defName <> ",\n body :" ++ show funBody ++ ",\n and type: " ++ show defType
+        reportSDoc "agda-core.check" 1 $ text $ "Typechecking of " <> defName <> " :"
         preSig <- liftIO $ readIORef ioPreSig
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl

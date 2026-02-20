@@ -171,7 +171,7 @@ instance ToCore I.Term where
     | Just args <- allApplyElims es
     = lookupCon (I.conName ch) >>= \case
         Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty (I.conName ch)
-        Just (dt , con, (a, b)) -> do
+        Just (dt , con, _) -> do
           -- @l@ is the amount of arguments missing from the application.
           -- we need to eta-expand manually @l@ times to fully-apply the constructor.
           let l  = length (I.conFields ch) - length es
@@ -237,15 +237,18 @@ instance ToCore I.Telescope where
   toCore I.EmptyTel = pure Core.EmptyTel
   toCore (I.ExtendTel ty t) = Core.ExtendTel <$> toCore ty <*> toCore t
 
-getLHSSide :: I.FunctionData -> Int
-getLHSSide f = I.size $ (I.namedClausePats ((I._funClauses f) !! 0))
+-- Gets how many parameters were placed on the left
+getLHSCount :: I.FunctionData -> Int
+getLHSCount f = I.size $ (I.namedClausePats ((I._funClauses f) !! 0))
 
+-- Unnest Pi type
 unnestPi :: Int -> Core.Type -> ToCoreM Core.Type
 unnestPi 0 ty = return ty
 unnestPi n ty = case Core.unType ty of
   TPi _ dom -> unnestPi (n - 1) dom
   _ -> throwError "Incorrect Type"
 
+-- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) (Both have case tree format instead of clause list format)
 clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) _ _ = toCore body
 clauseToCore (CC.Case argNum c) ty argLen = do
@@ -294,12 +297,12 @@ toCoreDefn (I.FunctionDefn def) ty =
       -> do
         -- translate the type of the function
         coretywithpi <- toCore ty
-        -- gets the amount of variable in each clause
-        let lhscount = getLHSSide def 
+        -- gets the amount of variable on the LHS of each clause
+        let lhscount = getLHSCount def 
         -- the type of the body of the function (which may need to be set as the type of a TCase) needs to be "pi unnested" as many times as variables have been put on the LHS
         corety <- unnestPi lhscount coretywithpi
         body <- clauseToCore compiledClauses corety lhscount
-        Core.FunctionDefn <$> pure ((iterate TLam body) !! (lhscount))
+        Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , [cl]      <- _funClauses
