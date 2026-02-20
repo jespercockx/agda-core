@@ -345,12 +345,7 @@ toCoreDefn (I.DatatypeDefn dt) ty =
                           dataConstructors      = cons_indexes}
   return $ Core.DatatypeDefn d
 
-toCoreDefn (I.RecordDefn rd) ty =
-  withError (\e -> multiLineText $ "record definition failure \n" <> Pretty.render (nest 1 e)) $ do
-    let I.RecordData{
-      _recPars = pars,
-      _recFields = fields} = rd
-    throwError "records are not supported"
+toCoreDefn (I.RecordDefn rd) ty = throwError "records are not supported"
 
 toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do

@@ -256,8 +256,6 @@ agdaCoreCompile env _ _ def = do
             , preSigCons = preSigCons
             }
         Core.ConstructorDefn cons -> do
-          -- (diode-lang): Why is the "old" tcg_cons referenced here, 
-          -- if it was updated to `ntcg`?
           let (dID, cID, _) = tcg_cons Map.! defName
           liftIO $ writeIORef ioPreSig $
             PreSignature
