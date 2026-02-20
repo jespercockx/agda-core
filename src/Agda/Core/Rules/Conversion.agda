@@ -50,6 +50,10 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
+desiredTermS : {rn : NameRec} → TermS α (recFieldScope rn) → RScope Name → 
+  TermS α (recFieldScope rn)
+desiredTermS {α} {rn} termS rscope = {!!}
+
 data Conv {α} where
   CRefl  : u ≅ u
   CLam   : {@0 r : Singleton α}
@@ -91,12 +95,11 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  -- CEtaRecordsTwo : (rn : NameRec) (rt : Term α) 
-  --   (fstProj : NameIn defScope) (sndProj : NameIn defScope)
-  --   → let
-  --     termS = TSCons (TProj rt fstProj) (TSCons (TProj rt sndProj) TSNil)
-  --     in
-  --     rt ≅ (TRecCon rn termS)
+  CEtaRecordsTwo : (rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
+    -- termSToConvertInto should look like 
+    → let termSToConvertInto = desiredTermS termS (recProjFuncs rn) in
+      termS ⇔ termSToConvertInto
+    → rt ≅ (TRecCon rn termS)
 
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
