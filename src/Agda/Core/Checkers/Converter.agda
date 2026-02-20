@@ -247,9 +247,12 @@ convertWhnf r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
 convertWhnf r functionTerm (TLam x b) = 
   do
-    conversionProof <- convertCheck newScope b term
-    return (CEtaFunctions x functionTerm b conversionProof)
-convertWhnf r (TLam x v) (TVar x') = tcError "implement eta-functions 2"
+    conversionProof <- convertEtaGeneric r x functionTerm b
+    return (CEtaFunctionsLeft x functionTerm b conversionProof)
+convertWhnf r (TLam x b) functionTerm = 
+  do
+    conversionProof <- convertEtaGeneric r x functionTerm b
+    return (CEtaFunctionsRight x functionTerm b conversionProof)
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}
