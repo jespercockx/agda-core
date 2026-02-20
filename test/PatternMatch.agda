@@ -13,24 +13,20 @@ countdown : ℕ → ℕ
 countdown zero = zero
 countdown (suc n) = countdown n
 
--- fun : ℕ → ℕ → ℕ
--- fun (suc a) (suc b) = 
+babyackermann : ℕ → ℕ → ℕ
+babyackermann zero n = suc n
+babyackermann (suc m) zero = babyackermann m (suc zero)
+babyackermann (suc m) (suc n) = babyackermann m (babyackermann zero n)
 
--- babyackermann : ℕ → ℕ → ℕ
--- babyackermann zero n = suc n
--- babyackermann (suc m) zero = babyackermann m (suc zero)
--- babyackermann (suc m) (suc n) = babyackermann m (babyackermann zero n)
-
--- ackermann : ℕ → ℕ → ℕ
--- ackermann zero n = suc n
--- ackermann (suc m) zero = ackermann m (suc zero)
--- ackermann (suc m) (suc n) = ackermann m (ackermann (suc m) n)
+ackermann : ℕ → ℕ → ℕ
+ackermann zero n = suc n
+ackermann (suc m) zero = ackermann m (suc zero)
+ackermann (suc m) (suc n) = ackermann m (ackermann (suc m) n)
 --
 -- -- NEGATIVE TEST: Should fail termination checker
--- -- Uncomment to test - this will be rejected by Agda
--- {-# NON_TERMINATING #-}
--- loop : ℕ → ℕ
--- loop n = loop n
+{-# NON_TERMINATING #-}
+loop : ℕ → ℕ
+loop n = loop n
 
 -- -- Helper: addition
 -- _+_ : ℕ → ℕ → ℕ

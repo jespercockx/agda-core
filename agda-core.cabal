@@ -9,24 +9,26 @@ build-type:    Simple
 
 library
     exposed-modules:
-        Agda.Core.Syntax.Term
-        Agda.Core.Syntax.Weakening
-        Agda.Core.Syntax.Strengthening
-        Agda.Core.Syntax.VarInTerm
-        Agda.Core.Syntax.Substitute
-        Agda.Core.Syntax.Signature
-        Agda.Core.Syntax.Context
+        -- this should stay in sync with the modules defined in src/Agda/Core.agda
+        Agda.Core.Checkers.Converter
+        Agda.Core.Checkers.TypeCheck
         Agda.Core.GlobalScope
-        Agda.Core.TCM.TCM
-        Agda.Core.TCM.Instances
+        Agda.Core.Prelude
         Agda.Core.Reduce
         Agda.Core.Rules.Conversion
-        Agda.Core.Checkers.Converter
         Agda.Core.Rules.Typing
         Agda.Core.Checkers.TypeCheck
         Agda.Core.Checkers.Terminate
         Agda.Core.Prelude
         Agda.Core.Name
+        Agda.Core.Syntax.Context
+        Agda.Core.Syntax.Term
+        Agda.Core.Syntax.Signature
+        Agda.Core.Syntax.Strengthening
+        Agda.Core.Syntax.Substitute
+        Agda.Core.Syntax.Weakening
+        Agda.Core.TCM.Instances
+        Agda.Core.TCM.TCM
         Scope.All
         Scope.Core
         Scope.Diff

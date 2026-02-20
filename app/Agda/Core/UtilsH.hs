@@ -20,6 +20,8 @@ import System.Console.ANSI
 import GHC.Natural (Natural, naturalToInteger)
 import GHC.Num (integerToInt)
 
+import Debug.Trace
+
 
 indexToNat :: Index -> Natural
 indexToNat  Zero = 0
@@ -38,16 +40,6 @@ intToIndex = natToIndex . fromInteger . toInteger
 listToUnitList :: [ a ] -> [()]
 listToUnitList [] = []
 listToUnitList (_ : q) = () : listToUnitList q
-
-numOfArgs :: Type -> Int
-numOfArgs ty = case unType ty of
-    TPi _ dom -> 1 + numOfArgs dom
-    _ -> 0
-
-numOfLamNest :: Term -> Int
-numOfLamNest (TLam t) = 1 + numOfLamNest t
-numOfLamNest t = 0
-
 
 -- line of ─
 lineInDoc :: TCM Doc
@@ -79,3 +71,16 @@ reportSDocWarning s k m = do
     liftIO $ setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Yellow ]
     reportSDoc s k m
     liftIO $ setSGR []
+
+
+-- Helper to add color to Debug.trace output
+traceColor :: String -> String -> a -> a
+traceColor color msg = trace (color ++ msg ++ "\x1b[0m")
+
+traceRed, traceGreen, traceYellow, traceBlue, traceMagenta, traceCyan :: String -> a -> a
+traceRed     = traceColor "\x1b[31m"
+traceGreen   = traceColor "\x1b[32m"
+traceYellow  = traceColor "\x1b[33m"
+traceBlue    = traceColor "\x1b[34m"
+traceMagenta = traceColor "\x1b[35m"
+traceCyan    = traceColor "\x1b[36m"

@@ -175,7 +175,7 @@ agdaCorePreModule _ _ tlm _ =
     _ -> do
       reportSDoc "agda-core.check" 2 lineInDoc
       liftIO $ setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Magenta ]
-      reportSDoc "agda-core.check" 1 . boxInDoc $ "Compilating module " <> show (Pretty.pretty tlm)
+      reportSDoc "agda-core.check" 1 . boxInDoc $ "Compiling module " <> show (Pretty.pretty tlm)
       liftIO $ setSGR []
       reportSDoc "agda-core.check" 2 lineInDoc
       pure $ Recompile ()
@@ -229,9 +229,6 @@ agdaCoreCompile env _ _ def = do
   defTypeDoc <- prettyTCM defType
   reportSDoc "agda-core.check" 4 $ text "  Agda type: " <> prettyTCM defType
   reportSDoc "agda-core.check" 5 $ text "  Agda definition: " <> text (show $ Pretty.pretty theDef)
-  -- reportSDoc "agda-core.check" 5 $ text "  Agda definition: " <> text (show theDef)
-
-
   case convert ntcg def of
     -- Failed to convert `def` with the ToCoreGlobal `ntcg`
     Left e     -> do
@@ -260,8 +257,6 @@ agdaCoreCompile env _ _ def = do
             , preSigCons = preSigCons
             }
         Core.ConstructorDefn cons -> do
-          -- (diode-lang): Why is the "old" tcg_cons referenced here, 
-          -- if it was updated to `ntcg`?
           let (dID, cID, _) = tcg_cons Map.! defName
           liftIO $ writeIORef ioPreSig $
             PreSignature
@@ -269,10 +264,6 @@ agdaCoreCompile env _ _ def = do
               , preSigData = preSigData
               , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
               }
-
-      PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
-
-      -- (diode-lang): Health check signature here
       return $ pure def'
 
 
@@ -285,8 +276,6 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
         Just dt -> dt
         _ -> __IMPOSSIBLE__
 
-  let preSigDefsAsList = Map.toList preSigDefs
-  let strPreSigDefs = foldr (\(k, def) acc -> "Key: " ++ show k ++ ", Def: " ++ "<def>" ++ "\n" ++ acc) "" preSigDefsAsList
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
         _ -> __IMPOSSIBLE__
@@ -299,7 +288,7 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
 
 agdaCorePostModule :: ACEnv -> ACMEnv -> IsMain -> TopLevelModuleName -> [ACSyntax] -> TCM ACMod
 agdaCorePostModule ACEnv{toCoreIsTypechecking = False} _ _ _ _ = pure ()
-agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} nameMap _ tlm defs = do
+agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
   reportSDoc "agda-core.check" 2 lineInDoc
   liftIO $ setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid Cyan ]
   reportSDoc "agda-core.check" 1 . boxInDoc $ "Typechecking module " <> show (Pretty.pretty tlm)
@@ -309,9 +298,9 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} nameMap _ tlm defs = do
   reportSDocWarning "agda-core.check" 1 $ text "__IMPOSSIBLE__ will be called if terms for which compilation failed are called"
   for_ (zip (iterate Scope.inThere Scope.inHere) defs) $ \(i, def) -> do
     case def of
-      Left n -> reportSDocFailure "agda-core.check" $ text $ "Skiped " <> n <> " :  term not compiled"
+      Left n -> reportSDocFailure "agda-core.check" $ text $ "Skipped " <> n <> " :  term not compiled"
       Right Core.Definition{ defName, theDef = Core.FunctionDefn funBody, defType } -> do
-        reportSDoc "agda-core.check" 1 $ text $ "Typechecking of " <> defName <> ",\n body :" ++ show funBody ++ ",\n and type: " ++ show defType
+        reportSDoc "agda-core.check" 1 $ text $ "Typechecking of " <> defName <> " :"
         preSig <- liftIO $ readIORef ioPreSig
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl
@@ -320,10 +309,10 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} nameMap _ tlm defs = do
           False -> reportSDocFailure "agda-core.check" $ text $ "Termination error for: " <> show defName
           True -> reportSDoc "agda-core.check" 1 $ text $ "before TC: " <> show funBody <> " with name: " <> defName <> ", typchecking against: " <> show defType
         case Core.runTCM (checkType CtxEmpty funBody defType) env of
-            Left err -> reportSDoc "agda-core.check" 3 $ text $ "  Type checking error: " ++ err
-            Right ok -> reportSDoc "agda-core.check" 3 $ text "  Type checking success"
+              Left err -> reportSDocFailure "agda-core.check" $ text $ "  Type checking error: " ++ err
+              Right ok -> reportSDoc "agda-core.check" 3 $ text "  Type checking success"
       Right Core.Definition{ defName } ->
-        reportSDocWarning "agda-core.check" 2 $ text $ "Skiped " <> defName <> " : not a function"
+        reportSDocWarning "agda-core.check" 2 $ text $ "Skipped " <> defName <> " : not a function"
 
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}

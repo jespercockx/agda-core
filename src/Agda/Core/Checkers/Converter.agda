@@ -214,8 +214,23 @@ convertBranches r BsNil            bp = return CBranchesNil
 convertBranches r (BsCons bsh bst) bp =
   caseBsCons bp (λ where bph bpt ⦃ refl ⦄ →
                           CBranchesCons <$> convertBranch r bsh bph <*> convertBranches r bst bpt)
-
 {-# COMPILE AGDA2HS convertBranches #-}
+
+convertEtaGeneric : ⦃ fl : Fuel ⦄ 
+                    → Singleton α 
+                    → (@0 x : Name) 
+                    → (f : Term α)
+                    → (b : Term (α ▸ x)) 
+                    → TCM (b ≅ (TApp (weakenTerm _ f) (TVar (VZero x))))
+convertEtaGeneric r x f b = do
+  let
+    subsetProof = subWeaken subRefl
+    newScope    = singBind r
+    term        = TApp (weakenTerm subsetProof f)
+                       (TVar (VZero x))
+  convertCheck newScope b term
+{-# COMPILE AGDA2HS convertEtaGeneric #-}
+
 
 convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
 convertWhnf r (TVar x) (TVar y) = convVars x y
@@ -231,15 +246,13 @@ convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
 convertWhnf r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
 convertWhnf r functionTerm (TLam x b) = 
-  let 
-  subsetProof = (subWeaken subRefl)
-  newScope = singBind r
-  term = TApp (weakenTerm subsetProof functionTerm) (TVar (VZero x))
-  in
   do
-    conversionProof <- convertCheck newScope b term
-    return (CEtaFunctions x functionTerm b conversionProof)
-convertWhnf r (TLam x v) (TVar x') = tcError "implement eta-functions 2"
+    conversionProof <- convertEtaGeneric r x functionTerm b
+    return (CEtaFunctionsLeft x functionTerm b conversionProof)
+convertWhnf r (TLam x b) functionTerm = 
+  do
+    conversionProof <- convertEtaGeneric r x functionTerm b
+    return (CEtaFunctionsRight x functionTerm b conversionProof)
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}

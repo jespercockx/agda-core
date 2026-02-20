@@ -2,7 +2,7 @@ AGDA2HS = agda2hs
 FLAGS =
 LIBRARIES =
 
-.PHONY: app alllib clean clean-lib clean-agdai nix-tc nix-build
+.PHONY: app lib clean clean-lib clean-agdai clean-hs nix-tc nix-build
 
 # this should stay in sync with the modules defined in cabal
 # also the order is silly, we redo a lot of the work because we don't know the dependencies
@@ -25,24 +25,23 @@ alllib: lib \
 
 lib:
 	mkdir lib
-
-lib/%.hs: src/%.agda
 	$(AGDA2HS) $(FLAGS) $(LIBRARIES) $< -o lib
 
-clean: clean-lib clean-agdai
+clean: clean-lib clean-agdai clean-hs
 
 clean-lib:
 	rm -rf lib
 
 clean-agdai:
-	find src -iname *.agdai -delete
+	find src -iname '*.agdai' -delete
 	rm -rf _build
 
-app: alllib
-	cabal build
-
 clean-hs:
+	find src -iname '*.hs' -delete
 	rm -rf dist-newstyle
+
+app: lib
+	cabal build
 
 nix/agda-core.nix: agda-core.cabal
 	cd nix && cabal2nix ../. > ./agda-core.nix # generate agda-core.nix

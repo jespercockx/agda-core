@@ -4,10 +4,10 @@
 > # add an agda2hs argument
 > # change src to ../. instead of ./.
 > # add buildTools = [agda2hs];
-> # add preBuild = ''make alllib'';
+> # add preBuild = ''make lib'';
 > # make ./nix/agda-core.nix might be able to do it for you
 8a16,19
 >   buildTools = [agda2hs];
 >   preBuild = ''
->     make alllib
+>     make lib
 >   '';

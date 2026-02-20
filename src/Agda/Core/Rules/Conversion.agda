@@ -50,15 +50,6 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
-
-membershipExtension0 : (α : Scope Name) (x : Name) → x ∈ (α ▸ x)
-membershipExtension0 _ _ = Zero ⟨ IsZero refl ⟩
-
-membershipExtension1 : (n : NameIn α) → (x : Name) → (proj₁ n) ∈ (α ▸ x)
-membershipExtension1 n _ = 
-  let i ⟨ p ⟩ = proj₂ n
-  in (Suc i) ⟨ IsSuc p ⟩
-
 data Conv {α} where
   CRefl  : u ≅ u
   CLam   : {@0 r : Singleton α}
@@ -92,18 +83,21 @@ data Conv {α} where
            {@0 us vs : TermS α (fieldScope c)}
          → us ⇔ vs
          → TCon c us ≅ TCon c vs
+  CEtaFunctionsLeft : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
+    let subsetProof = subWeaken subRefl in
+      b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
+      → f ≅ (TLam x b)
+  CEtaFunctionsRight : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
+    let subsetProof = subWeaken subRefl in
+      b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
+      → (TLam x b) ≅ f 
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v
   CRedR  : @0 ReducesTo v v'
          → u  ≅ v'
          → u  ≅ v
-  CEtaFunctions : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
-    let 
-    subsetProof = (subWeaken subRefl)
-    in
-    b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
-    → f ≅ (TLam x b)
+  
   
 
 data ConvBranch {α = α} {c = c} where
