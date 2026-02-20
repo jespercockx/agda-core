@@ -67,11 +67,11 @@ indexOf : NthArg α → Nat
 indexOf (Zero _) = zero
 indexOf (Suc _ n) = suc (indexOf n)
 
-
--- I need a datatype for a function, I don't really like the current one:
--- We need: the arity and the body; if we don't end up converting global env to debruijn indices, then we also need to hold the index of the function, in case of recursive call
--- The day we have corecursive functions, we will need a program datatype encompassing all function definitions, for now we do not handle this
--- Now also we need to decide whether we have the arity and lambda-free body, or just the lambda free body, but I believe since we want to make a statement about a specific parameter index, we should have the arity in the function datatype
+opaque
+  unfolding Scope
+  getNthArg : NthArg α → NameIn α
+  getNthArg (Zero x) = ⟨ x ⟩  (Zero ⟨ IsZero refl ⟩)
+  getNthArg {α} (Suc x next)  = weakenNameIn (subWeaken subRefl) (getNthArg next)
 
 record FunDefinition : Set where
   no-eta-equality
@@ -99,82 +99,51 @@ data ListAll {A : Set} (P : A → Set) : List A → Set where
   --          → TyBranches Γ dt ps rt (BsCons b bs)
 
 -- certificate that the body of the function is always decreasing in the given parameter
-data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) : @0 Term α → Set
+data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) : @0 arity f ⊆ α → @0 Term α → Set
 data TerminatingTerm {α} f nthArg ctx where
 
   TerminatingLam :
     {@0 body : Term (bind α x)}
-    → TerminatingTerm f nthArg (StCtxExtend x Nothing ctx) body 
-    → TerminatingTerm f nthArg ctx (TLam x body)
+    {@0 prf : arity f ⊆ α}
+    → TerminatingTerm f nthArg (StCtxExtend x Nothing ctx) (subWeaken prf) body 
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TLam x body)
 
   TerminatingVar :
     {x : NameIn α}
-    → TerminatingTerm f nthArg ctx (TVar x)
+    {@0 prf : arity f ⊆ α}
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TVar x)
 
-  -- TerminatingDef : {def : NameIn defScope}
-  --   → TerminatingTerm f nthArg ctx (TDef def)
-  --
-  -- will match on functions such as lambdas, or functions that are not the current one (all functions that can appear in another should have been declared previously, and as such terminiation-checked before this one, hence they are guaranteed to be terminating). Also, there will be the case below, the inductive definition will "peel" the function until we get to the decreasing argument.
   TerminatingApp :
     {@0 function : Term α}
     {@0 argument : Term α}
-    → TerminatingTerm f nthArg ctx function 
-    → TerminatingTerm f nthArg ctx argument 
-    → TerminatingTerm f nthArg ctx (TApp function argument)
+    {@0 prf : arity f ⊆ α}
+    → TerminatingTerm f nthArg ctx prf function 
+    → TerminatingTerm f nthArg ctx prf argument 
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TApp function argument)
 
-  -- case where the last argument is the decreasing one (match on size of args ig?)
-  -- difference with previous one is that function is not guaranteed to be terminating, since the statement we are making is that it is if it is always decreasing on this argument
-  -- If we keep it simple, we should have that the recursive call can only be done on variable (one declared through a pattern-match)
-  -- One question i guess is, which is it necessary for it to be "peeled off", like why can't we just get nth argument even if there are more than n?
-  -- I guess a good reason is if we want to have the return terminating term to be on a TApp, this way we check that the number of args in the inner function is "ntharg 1"
-  -- DecreasingNthArgApp :
-  --   {@0 function : Term α}
-  --   {@0 x : NameIn α}
-  --   (let (func , args) = unApps function)
-  --
-  --   → @0 func ≡ TDef (index f)
-  --   → @0 lengthNat args ≡ indexOf nthArg
-  --   → @0 lookupSt ctx x ≡ Just (arity)
-  --   -- here we need both a proof that there are the right amount of arguments in args (ntharg - 1), and a proof that x is a subterm of the nth parameters of f
-  --   → TerminatingTerm f nthArg ctx (TApp function (TVar x))
+  DecreasingNthArgApp :
+    {@0 function : Term α}
+    {@0 x : NameIn α} -- The argument is a variable (TVar)
+    {@0 prf : arity f ⊆ α}
+    (let (func , args) = unApps function)
 
+    → @0 func ≡ TDef (index f)
+    → @0 lengthNat args ≡ indexOf nthArg -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
+    → @0 lookupSt ctx x ≡ Just (weakenNameIn (prf) $ getNthArg nthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TApp function (TVar x))
 
-  -- TerminatingOtherFuncApp :
-  --   {term : Term α}
-  --   {@0 def : NameIn defScope}
-  --   -- (let funcargs = unApps term
-  --   --      func = fst funcargs
-  --   --      args = snd funcargs
-  --   (let (func , args) = unApps term)
-  --   → @0 func ≡ TDef def
-  --   → @0 Not (def ≡ index f)
-  --   → @0 ListAll (λ arg → TerminatingTerm f nthArg ctx arg) args
-  --   → TerminatingTerm f nthArg ctx term
-  --
-  -- TerminatingLambdaApp :
-  --   {term : Term α}
-  --   -- {@0 def : NameIn defScope}
-  --   (let funcargs = unApps term
-  --        func = fst funcargs
-  --        args = snd funcargs
-  --   )
-  --   → @0 Not (∃[ def ∈ NameIn defScope ] (func ≡ TDef def))
-  --   → @0 ListAll (λ arg → TerminatingTerm f nthArg ctx arg) args
-  --   → TerminatingTerm f nthArg ctx term
-  --
-  -- TerminatingDecreasingArgApp :
-  --   {term : Term α}
-  --   {@0 def : NameIn defScope}
-  --   (let funcargs = unApps term
-  --        func = fst funcargs
-  --        args = snd funcargs
-  --   )
-  --   → @0 func ≡ TDef def
-  --   → @0 def ≡ index f
-  --   → @0 ListAll (λ arg → TerminatingTerm f nthArg ctx arg) args
-  --   → TerminatingTerm f nthArg ctx term
-
-
+  -- We can use this because we assume all functions defined up to that point have been termination checked themselves, which itself assumes corecursion is not handled, which it isn't yet.
+  TerminatingDef :
+    {@0 functionName : NameIn defScope}
+    {@0 argument : Term α}
+    {@0 prf : arity f ⊆ α}
+    → @0 Not (functionName ≡ index f)
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TApp (TDef functionName) argument)
 {-# COMPILE AGDA2HS TerminatingTerm #-}
 
 
@@ -189,6 +158,7 @@ data Descending f where
      → (TerminatingTerm f nthArg 
          -- subterm context created from the scope of the arity of the function
          (createStCtxFromScope StCtxEmpty (arity f)) 
+         (subst0 (Sub (arity f)) (sym (leftIdentity (f .arity))) subRefl)
          -- body of the function
          (subst0 (λ scope → Term scope) (sym (leftIdentity (f .arity))) (body f))) 
      → Descending f nthArg
