@@ -13,11 +13,10 @@ library
         Agda.Core.Checkers.Converter
         Agda.Core.Checkers.TypeCheck
         Agda.Core.GlobalScope
-        Agda.Core.Prelude
         Agda.Core.Reduce
         Agda.Core.Rules.Conversion
         Agda.Core.Rules.Typing
-        Agda.Core.Checkers.TypeCheck
+        Agda.Core.Rules.Terminating
         Agda.Core.Checkers.Terminate
         Agda.Core.Prelude
         Agda.Core.Name

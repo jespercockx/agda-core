@@ -39,7 +39,8 @@ import Agda.Core.Syntax.Term qualified as Core
 import Agda.Core.TCM.TCM qualified as Core
 import Agda.Core.Prelude qualified as Core
 import Agda.Core.Checkers.TypeCheck (checkType)
-import Agda.Core.Checkers.Terminate (checkTermination, SubTermContext(..))
+import Agda.Core.Checkers.Terminate (checkTermination)
+import Agda.Core.Rules.Terminating (SubTermContext(..))
 
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.Maybe (mapMaybe, isNothing, fromMaybe)

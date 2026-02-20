@@ -6,6 +6,7 @@ open import Agda.Core.Rules.Conversion
 open import Agda.Core.Rules.Typing
 open import Agda.Core.TCM.Instances
 open import Agda.Core.Checkers.Converter
+open import Agda.Core.Rules.Terminating
 
 
 module Agda.Core.Checkers.Terminate
@@ -20,25 +21,6 @@ private variable
   @0 α : Scope Name
   @0 rβ : RScope Name
 
-data SubTermContext : @0 Scope Name → Set where
-  StCtxEmpty  : SubTermContext mempty
-  StCtxExtend : (@0 x : Name) → Maybe (NameIn α) → SubTermContext α → SubTermContext (α ▸ x) -- here x, is a subterm of y.
-{-# COMPILE AGDA2HS SubTermContext #-}
-
-private -- it should use a RScope instead of β and then could be public
-  raiseNameIn : {@0 α β : Scope Name} → Singleton β → NameIn α →  NameIn (α <> β)
-  raiseNameIn r n = weakenNameIn (subJoinDrop r subRefl) n
-  {-# COMPILE AGDA2HS raiseNameIn #-}
-
-
-lookupSt : (Γ : SubTermContext α) (x : NameIn α) → Maybe (NameIn α)
-lookupSt StCtxEmpty x = nameInEmptyCase x
-lookupSt (StCtxExtend namesubterm nameparent c) name = case (nameInBindCase name
-      (λ q → lookupSt c (⟨ _ ⟩ q))
-      (λ _ → nameparent)) of λ where
-        (Just n) → Just (raiseNameIn (sing _) n)
-        Nothing → Nothing
-{-# COMPILE AGDA2HS lookupSt #-}
 
 checkSubtermVar : SubTermContext α → NameIn α → NameIn α → Bool
 checkSubtermVar ctx (⟨ _ ⟩ ( param ⟨ _ ⟩)) arg = case (lookupSt ctx arg) of λ where
@@ -77,6 +59,7 @@ handleBranches {α} con funName params name (BsCons (BBranch (c ⟨ w ⟩ ) (fie
   zipWith (λ x y → x && y)
   (getDecreasingArgs (updateEnv con fields name) funName
     (map (weakenNameIn (subExtScope (sing fields) subRefl)) params)
+    -- clause)
     ( subst0 (λ f → Term (α ◂▸ f)) p clause ))
   (handleBranches con funName params name branches)
 
