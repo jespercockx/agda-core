@@ -30,6 +30,8 @@ import Agda.TypeChecking.Monad  qualified as I
 import Agda.Syntax.Internal     qualified as I
 import Agda.TypeChecking.Substitute qualified as I
 import Agda.TypeChecking.Telescope qualified as I
+import Agda.Utils.Size qualified as I
+import Agda.TypeChecking.CompiledClause qualified as CC
 
 
 import Agda.Core.Syntax.Term (Term(..), Sort(..))
@@ -37,7 +39,7 @@ import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt)
+import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, intToIndex, traceBlue, traceGreen)
 
 
 import Scope.In (Index)
@@ -47,10 +49,13 @@ import qualified Agda.Syntax.Common.Pretty as Pretty
 import System.IO (withBinaryFile)
 import Agda.Compiler.Backend (Definition(defType))
 import Control.Exception (throw)
+import Scope.Core (rsingleton, rbind)
 
 import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 import Agda.Syntax.Common.Pretty(text, render)
+
+import Debug.Trace
 
 
 -- TODO(flupe): move this to Agda.Core.Syntax
@@ -65,7 +70,7 @@ tApp t (e:es) = TApp t e `tApp` es
 --   Constructors are stored with their datatype
 data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
                                    globalDatas :: Map QName (Index, (Nat, Nat)),
-                                   globalCons  :: Map QName (Index, Index)}
+                                   globalCons  :: Map QName (Index, Index, (Nat, Nat))}
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
@@ -80,7 +85,7 @@ asksDef = asks . (.  \ToCoreGlobal{globalDefs} -> globalDefs)
 asksData :: (Map QName (Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
-asksCon :: (Map QName (Index, Index) -> a) -> ToCoreM a
+asksCon :: (Map QName (Index, Index, (Nat, Nat)) -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
 -- | Lookup a definition name in the current module.
@@ -92,15 +97,13 @@ lookupData :: QName -> ToCoreM (Maybe (Index, (Nat, Nat)))
 lookupData qn = asksData (Map.!? qn)
 
 -- | Lookup a constructor name in the current module.
-lookupCon :: QName -> ToCoreM (Maybe (Index, Index))
+lookupCon :: QName -> ToCoreM (Maybe (Index, Index, (Nat, Nat)))
 lookupCon qn = asksCon (Map.!? qn)
-
 
 -- | Class for things that can be converted to core syntax
 class ToCore a where
   type CoreOf a
   toCore :: a -> ToCoreM (CoreOf a)
-
 
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
@@ -168,7 +171,7 @@ instance ToCore I.Term where
     | Just args <- allApplyElims es
     = lookupCon (I.conName ch) >>= \case
         Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty (I.conName ch)
-        Just (dt , con) -> do
+        Just (dt , con, _) -> do
           -- @l@ is the amount of arguments missing from the application.
           -- we need to eta-expand manually @l@ times to fully-apply the constructor.
           let l  = length (I.conFields ch) - length es
@@ -179,6 +182,7 @@ instance ToCore I.Term where
 
           -- in the end, we bind @l@ fresh deBruijn indices
           pure (iterate TLam t !! l)
+
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
@@ -233,6 +237,40 @@ instance ToCore I.Telescope where
   toCore I.EmptyTel = pure Core.EmptyTel
   toCore (I.ExtendTel ty t) = Core.ExtendTel <$> toCore ty <*> toCore t
 
+-- Gets how many parameters were placed on the left
+getLHSCount :: I.FunctionData -> Int
+getLHSCount f = I.size $ (I.namedClausePats ((I._funClauses f) !! 0))
+
+-- Unnest Pi type
+unnestPi :: Int -> Core.Type -> ToCoreM Core.Type
+unnestPi 0 ty = return ty
+unnestPi n ty = case Core.unType ty of
+  TPi _ dom -> unnestPi (n - 1) dom
+  _ -> throwError "Incorrect Type"
+
+-- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) (Both have case tree format instead of clause list format)
+clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
+clauseToCore (CC.Done args body) _ _ = toCore body
+clauseToCore (CC.Case argNum c) ty argLen = do
+  let constructorList = Map.toList (CC.conBranches c)
+  result <- lookupCon (fst (constructorList !! 0))
+  -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
+  (dt, _, (params, idcs)) <- maybe (throwError "constructor not found") return result
+
+  -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
+  let index = intToIndex (argLen - unArg argNum - 1) 
+  branchList <- mapM (uncurry (createBranch ty argLen)) constructorList 
+  let branches = foldr Core.BsCons Core.BsNil branchList
+  return $ TCase dt (iterate rbind [] !! idcs) (TVar index) branches ty
+clauseToCore _ _ _ = throwError "not supported"
+
+createBranch :: Core.Type -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
+createBranch ty argLen name wthAr = do
+  result <- lookupCon name
+  (_, constructor, _) <- maybe (throwError "constructor not found") return result
+  clause <- clauseToCore (CC.content wthAr) ty argLen
+  return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
+
 
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
 -- Defn (helper for Definition below)
@@ -249,10 +287,22 @@ toCoreDefn (I.GeneralizableVar _) _ =
 toCoreDefn (I.AbstractDefn _) _ =
   throwError "abstract definition are not supported"
 
-toCoreDefn (I.FunctionDefn def) _ =
+toCoreDefn (I.FunctionDefn def) ty =
   withError (\e -> multiLineText $ "function definition failure: \n" <> Pretty.render (nest 1 e)) $ do
   case def of
     -- case where you use lambda
+    I.FunctionData{..}
+      | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
+      , Just compiledClauses      <- _funCompiled
+      -> do
+        -- translate the type of the function
+        coretywithpi <- toCore ty
+        -- gets the amount of variable on the LHS of each clause
+        let lhscount = getLHSCount def 
+        -- the type of the body of the function (which may need to be set as the type of a TCase) needs to be "pi unnested" as many times as variables have been put on the LHS
+        corety <- unnestPi lhscount coretywithpi
+        body <- clauseToCore compiledClauses corety lhscount
+        Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , [cl]      <- _funClauses
@@ -290,19 +340,15 @@ toCoreDefn (I.DatatypeDefn dt) ty =
   let I.TelV{theTel = internalIxsTel}                 = I.telView'UpTo ixs  ty1
   parsTel <- toCore internalParsTel
   ixsTel <- toCore internalIxsTel
-  cons_dt_indexes <- traverse (\qn -> lookupCon qn >>= \case
-    Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty qn
-    Just result -> pure result
-    ) cons
-  let cons_indexes = map snd cons_dt_indexes
+  cons_dt_indexes <- mapM (\mc -> maybe (throwError "constructor not found") return mc) =<< traverse lookupCon cons
+  let cons_indexes = map (\(_,c,_) -> c) cons_dt_indexes
   let d = Core.Datatype{  dataSort              = sort',
                           dataParTel            = parsTel,
                           dataIxTel             = ixsTel,
                           dataConstructors      = cons_indexes}
   return $ Core.DatatypeDefn d
 
-toCoreDefn (I.RecordDefn rd) ty =
-    throwError "records are not supported"
+toCoreDefn (I.RecordDefn rd) ty = throwError "records are not supported"
 
 toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
