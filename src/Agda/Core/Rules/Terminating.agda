@@ -31,6 +31,15 @@ private -- it should use a RScope instead of β and then could be public
   raiseNameIn r n = weakenNameIn (subJoinDrop r subRefl) n
   {-# COMPILE AGDA2HS raiseNameIn #-}
 
+opaque
+  unfolding RScope extScope
+  updateEnv : SubTermContext α → (cs : RScope Name) → NameIn α → SubTermContext (extScope α cs)
+  updateEnv env [] _ = env
+  updateEnv env (Erased x ∷ s) name = updateEnv (StCtxExtend x (Just name) env) s (weakenNameIn (subWeaken subRefl) name)
+  {-# COMPILE AGDA2HS updateEnv #-}
+
+
+
 
 lookupSt : (Γ : SubTermContext α) (x : NameIn α) → Maybe (NameIn α)
 lookupSt StCtxEmpty x = nameInEmptyCase x
@@ -89,25 +98,31 @@ data ListAll {A : Set} (P : A → Set) : List A → Set where
   []  : ListAll P []
   _∷_ : {x : A} {xs : List A} → P x → ListAll P xs → ListAll P (x ∷ xs)
 
+data TerminatingBranches {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
+data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) : @0 arity f ⊆ α → @0 Term α → Set
+data TerminatingBranch {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) : {@0 c : NameCon d} → @0 Branch α c → Set
 
--- data ArgumentsAgainstDescendingParam (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) → List (Term α) → @0 nthArg :  NthArg (arity f) where
---   AADPNil : 
+data TerminatingBranches {α = α} {d = d} f nthArg ctx prf var where
+  TerminatingNil : TerminatingBranches f nthArg ctx prf var BsNil
+  TerminatingCons : ∀ {@0 c : NameCon d} {@0 cs : RScope (NameCon d)} {@0 b : Branch α c} {@0 bs : Branches α d cs}
+           → TerminatingBranch f nthArg ctx prf var b
+           → TerminatingBranches f nthArg ctx prf var bs
+           → TerminatingBranches f nthArg ctx prf var (BsCons b bs)
+{-# COMPILE AGDA2HS TerminatingBranches #-}
 
-  -- TyBsCons : ∀ {@0 c : NameCon d} {@0 cs : RScope (NameCon d)} {@0 b : Branch α c} {@0 bs : Branches α d cs}
-  --          → TyBranch Γ dt ps rt b
-  --          → TyBranches Γ dt ps rt bs
-  --          → TyBranches Γ dt ps rt (BsCons b bs)
+data TerminatingBranch {α = α} {d = d} f nthArg ctx prf var where
+  TerminatingBBranch : 
+              (c : NameCon d)
+              (let fields = fieldScope c
+                   α' = α ◂▸ fields
+                   r = sing fields)
+              (rhs : Term α')
+            → TerminatingTerm f nthArg (updateEnv ctx fields var) (subExtScope (sing fields) prf ) rhs -- the rhs of the clause (whose environment got extended) needs to be terminating
+            → TerminatingBranch f nthArg ctx prf var (BBranch (sing c) r rhs)
+{-# COMPILE AGDA2HS TerminatingBranch #-}
 
 -- certificate that the body of the function is always decreasing in the given parameter
-data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) : @0 arity f ⊆ α → @0 Term α → Set
 data TerminatingTerm {α} f nthArg ctx where
-
-  TerminatingLam :
-    {@0 body : Term (bind α x)}
-    {@0 prf : arity f ⊆ α}
-    → TerminatingTerm f nthArg (StCtxExtend x Nothing ctx) (subWeaken prf) body 
-    --------------------------------------------------------------
-    → TerminatingTerm f nthArg ctx prf (TLam x body)
 
   TerminatingVar :
     {x : NameIn α}
@@ -144,6 +159,37 @@ data TerminatingTerm {α} f nthArg ctx where
     → @0 Not (functionName ≡ index f)
     --------------------------------------------------------------
     → TerminatingTerm f nthArg ctx prf (TApp (TDef functionName) argument)
+
+  TerminatingLam :
+    {@0 body : Term (bind α x)}
+    {@0 prf : arity f ⊆ α}
+    → TerminatingTerm f nthArg (StCtxExtend x Nothing ctx) (subWeaken prf) body 
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TLam x body)
+
+  TerminatingCase :
+    {d : NameData}                                                -- the name of a datatype
+    {@0 prf : arity f ⊆ α}
+    {@0 varName : NameIn α}                                       -- name of the variable we are pattern matching on (this only supports cases on variables)
+    (let pScope = dataParScope d                                  -- parameters of d
+         iScope = dataIxScope d                                   -- indexes of d
+         α'     = α ◂▸ iScope                                     -- general scope + indexes
+         dt     = sigData sig d                                   -- the datatype called d
+         iRun   = sing iScope)                                    -- runtime index scope
+    {@0 pars : TermS α pScope}                                    -- parameters of d in Scope α
+    {@0 ixs  : TermS α iScope}                                    -- indexes of d in Scope α
+    {cases : Branches α d (AllNameCon d)}                         -- cases for constructors of dt
+    {return : Type (α' ▸ x)}                                      -- return type
+
+    → TerminatingBranches f nthArg ctx prf varName cases          -- Proof that each branch is terminating
+
+    --------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TCase d iRun (TVar varName) cases return)
+
+
+  -- The case for TCase should be similar in structure to the case for lambda, except it needs to be done for every branch of the case
+  -- getDecreasingArgs con funName params (TCase _ _ (TVar nameVar) branches _) = -- we only accept pattern matching on variable for now.
+  --   handleBranches con funName params nameVar branches
 {-# COMPILE AGDA2HS TerminatingTerm #-}
 
 

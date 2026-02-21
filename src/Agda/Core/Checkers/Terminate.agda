@@ -42,13 +42,6 @@ compareArgsToParams con (param ∷ params) (arg ∷ args) = checkSubterm con par
 compareArgsToParams _ _ _ = []
 {-# COMPILE AGDA2HS compareArgsToParams #-}
 
-opaque
-  unfolding RScope extScope
-  updateEnv : SubTermContext α → (cs : RScope Name) → NameIn α → SubTermContext (extScope α cs)
-  updateEnv env [] _ = env
-  updateEnv env (Erased x ∷ s) name = updateEnv (StCtxExtend x (Just name) env) s (weakenNameIn (subWeaken subRefl) name)
-  {-# COMPILE AGDA2HS updateEnv #-}
-
 {-# NON_TERMINATING #-} -- need to find a way to not need those
 handleBranches : ∀ {@0 d : NameData} {@0 cs : RScope (NameCon d)} → SubTermContext α → NameIn defScope → List (NameIn α) → NameIn α → (bs : Branches α d cs) → List Bool
 
