@@ -49,7 +49,7 @@ envToSubst r (env , x ↦ v) =
 
 data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
-  FProj : (x : NameIn defScope) → Frame α
+  FProj : {rn : NameRec} (x : NameProj rn) → Frame α
   FCase : (d : NameData) (r : Singleton (dataIxScope d))
           (bs : Branches α d (AllNameCon d)) (m : Type (α ◂▸ dataIxScope d ▸ x)) → Frame α
 

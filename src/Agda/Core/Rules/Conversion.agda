@@ -50,9 +50,14 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
-desiredTermS : {rn : NameRec} → TermS α (recFieldScope rn) → RScope Name → 
-  TermS α (recFieldScope rn)
-desiredTermS {α} {rn} termS rscope = {!!}
+
+-- This function takes an `rn : NameRec`, a `recordTerm : Term α` and an `rscope : RScope Name`
+-- It should create a termS : TermS α (recFieldScope rn) which looks like:
+-- `TSCons (TProj recordTerm fstProjFunc) 
+--    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
+-- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`
+desiredTermS : (@0 rn : NameRec) → Term α → TermS α (recFieldScope rn)
+desiredTermS rn recordTerm = {!!}
 
 data Conv {α} where
   CRefl  : u ≅ u
@@ -95,9 +100,8 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  CEtaRecordsTwo : (rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
-    -- termSToConvertInto should look like 
-    → let termSToConvertInto = desiredTermS termS (recProjFuncs rn) in
+  CEtaRecordsTwo : (@0 rn : NameRec) (rt : Term α) (@0 termS : TermS α (recFieldScope rn))
+    → let termSToConvertInto = desiredTermS rn rt in
       termS ⇔ termSToConvertInto
     → rt ≅ (TRecCon rn termS)
 

@@ -15,7 +15,7 @@ record Globals : Set where
     recScope          : Scope Name
     recParScope       : NameIn recScope → RScope Name -- scope of the record's parameter list
     recFieldScope     : NameIn recScope → RScope Name -- scope of the record constructor
-    recProjFuncs      : NameIn recScope -> RScope Name -- projection functions
+    recProjFuncs      : NameIn recScope -> RScope Name -- projection functions of a record name
   NameData : Set
   NameData = NameIn dataScope
   NameCon : NameData → Set

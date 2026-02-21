@@ -32,7 +32,7 @@ data Term α where
   TRecCon : (r : NameRec) → (TermS α (recFieldScope r)) → Term α
   TLam  : (@0 x : Name) (v : Term (α ▸ x)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
-  TProj : (u : Term α) (x : NameIn defScope) → Term α
+  TProj : {r : NameRec} (u : Term α) (x : NameProj r) → Term α
   TCase : {@0 x : Name}
         → (d : NameData)                                  -- Datatype of the variable we are splitting on
         → Singleton (dataIxScope d)                            -- Run-time representation of index scope
