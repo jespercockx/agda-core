@@ -50,21 +50,12 @@ lookupSt (StCtxExtend namesubterm nameparent c) name = case (nameInBindCase name
         Nothing → Nothing
 {-# COMPILE AGDA2HS lookupSt #-}
 
-
--- opaque
---   unfolding Scope
---
---   caseScope : (α : Scope name)
---             → (@0 {{α ≡ mempty}} → c)
---             → ((@0 x : name) (β : Scope name) → @0 {{α ≡ β ▸ x}} → c)
---             → c
---   caseScope [] emptyCase bindCase = emptyCase
---   caseScope (Erased x ∷ β) emptyCase bindCase = bindCase x β
 opaque
   unfolding Scope
   createStCtxFromScope : SubTermContext α → (β : Scope Name)  → SubTermContext (α <> β)
   createStCtxFromScope ctx [] = ctx
   createStCtxFromScope ctx (Erased x ∷ rest) = StCtxExtend x Nothing (createStCtxFromScope ctx rest)
+{-# COMPILE AGDA2HS createStCtxFromScope #-}
 
 -- datatype for arbitrary member of a scope
 data NthArg : @0 Scope Name → Set where
@@ -99,7 +90,7 @@ data ListAll {A : Set} (P : A → Set) : List A → Set where
   _∷_ : {x : A} {xs : List A} → P x → ListAll P xs → ListAll P (x ∷ xs)
 
 data TerminatingBranches {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
-data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) : @0 arity f ⊆ α → @0 Term α → Set
+data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 ctx : SubTermContext α) : @0 arity f ⊆ α → @0 Term α → Set
 data TerminatingBranch {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) : {@0 c : NameCon d} → @0 Branch α c → Set
 
 data TerminatingBranches {α = α} {d = d} f nthArg ctx prf var where
@@ -117,7 +108,7 @@ data TerminatingBranch {α = α} {d = d} f nthArg ctx prf var where
                    α' = α ◂▸ fields
                    r = sing fields)
               (rhs : Term α')
-            → TerminatingTerm f nthArg (updateEnv ctx fields var) (subExtScope (sing fields) prf ) rhs -- the rhs of the clause (whose environment got extended) needs to be terminating
+            → TerminatingTerm f nthArg (updateEnv ctx fields var) (subExtScope (sing fields) prf) rhs -- the rhs of the clause (whose environment got extended) needs to be terminating
             → TerminatingBranch f nthArg ctx prf var (BBranch (sing c) r rhs)
 {-# COMPILE AGDA2HS TerminatingBranch #-}
 
@@ -154,11 +145,10 @@ data TerminatingTerm {α} f nthArg ctx where
   -- We can use this because we assume all functions defined up to that point have been termination checked themselves, which itself assumes corecursion is not handled, which it isn't yet.
   TerminatingDef :
     {@0 functionName : NameIn defScope}
-    {@0 argument : Term α}
     {@0 prf : arity f ⊆ α}
     → @0 Not (functionName ≡ index f)
     --------------------------------------------------------------
-    → TerminatingTerm f nthArg ctx prf (TApp (TDef functionName) argument)
+    → TerminatingTerm f nthArg ctx prf (TDef functionName)
 
   TerminatingLam :
     {@0 body : Term (bind α x)}
@@ -171,13 +161,9 @@ data TerminatingTerm {α} f nthArg ctx where
     {d : NameData}                                                -- the name of a datatype
     {@0 prf : arity f ⊆ α}
     {@0 varName : NameIn α}                                       -- name of the variable we are pattern matching on (this only supports cases on variables)
-    (let pScope = dataParScope d                                  -- parameters of d
-         iScope = dataIxScope d                                   -- indexes of d
+    (let iScope = dataIxScope d                                   -- indexes of d
          α'     = α ◂▸ iScope                                     -- general scope + indexes
-         dt     = sigData sig d                                   -- the datatype called d
          iRun   = sing iScope)                                    -- runtime index scope
-    {@0 pars : TermS α pScope}                                    -- parameters of d in Scope α
-    {@0 ixs  : TermS α iScope}                                    -- indexes of d in Scope α
     {cases : Branches α d (AllNameCon d)}                         -- cases for constructors of dt
     {return : Type (α' ▸ x)}                                      -- return type
 
@@ -186,20 +172,16 @@ data TerminatingTerm {α} f nthArg ctx where
     --------------------------------------------------
     → TerminatingTerm f nthArg ctx prf (TCase d iRun (TVar varName) cases return)
 
-
-  -- The case for TCase should be similar in structure to the case for lambda, except it needs to be done for every branch of the case
-  -- getDecreasingArgs con funName params (TCase _ _ (TVar nameVar) branches _) = -- we only accept pattern matching on variable for now.
-  --   handleBranches con funName params nameVar branches
 {-# COMPILE AGDA2HS TerminatingTerm #-}
 
 
 -- Certificate that a function is decreasing using the guard condition
-data Descending (@0 f : FunDefinition) : @0 NthArg (arity f) → Set
+data Descending (@0 f : FunDefinition) : Set
 data Descending f where
-   -- Only possible constructor: 
+
    DescendingIndex : 
       -- index of the decreasing parameter
-      {nthArg : (NthArg (arity f))}
+     (nthArg : (NthArg (arity f)))
      -- certificate that the body of the function is always decreasing in the given parameter
      → (TerminatingTerm f nthArg 
          -- subterm context created from the scope of the arity of the function
@@ -207,45 +189,5 @@ data Descending f where
          (subst0 (Sub (arity f)) (sym (leftIdentity (f .arity))) subRefl)
          -- body of the function
          (subst0 (λ scope → Term scope) (sym (leftIdentity (f .arity))) (body f))) 
-     → Descending f nthArg
+     → Descending f
 {-# COMPILE AGDA2HS Descending #-}
-
--- Here well need to show that for all recursive calls within body f, the argument corresponding to the NameIn (arity f) will be always decreasing
--- However, it does not really make sense to have it as a nameIn, since we will have to match on index of the argument anyways (itll be under the form : (TApp (... (TDef index) .1. ...) .N.)) where .1. to .N. are the arguments
---
--- So recipe: in Descending we have a nameIn arity, which we need to "pattern match" into its "IsNth" component, to know which argument it is. But then that means decomposing applications in the same way. Maybe it would make more sense to create a new "numbering" datastructure, like "NthArg", which would work in combination with unapps, 
--- Question, is it necessary or even interesting to have NthArg be indexed over a scope? Would be be too arbitrary to have it be just a natural number equivalent
-
-
-
--- data TyTerm {α} Γ where
-
-  -- TyCase :
-  --   {d : NameData}                                                -- the name of a datatype
-  --   (let pScope = dataParScope d                                  -- parameters of d
-  --        iScope = dataIxScope d                                   -- indexes of d
-  --        α'     = α ◂▸ iScope                               -- general scope + indexes
-  --        dt     = sigData sig d                                   -- the datatype called d
-  --        iRun   = sing iScope)                                    -- runtime index scope
-  --   {@0 pars : TermS α pScope}                                    -- parameters of d in Scope α
-  --   {@0 ixs  : TermS α iScope}                                    -- indexes of d in Scope α
-  --   (let ixs' : TermS α' iScope                                   -- indexes of d in Scope α'
-  --        ixs' = weaken (subExtScope iRun subRefl) ixs
-  --        α'Subst : α' ⇒ α                                         -- subst of α' to α
-  --        α'Subst = extSubst (idSubst (singScope Γ)) ixs)
-  --   {cases : Branches α d (AllNameCon d)}                         -- cases for constructors of dt
-  --   {return : Type (α' ▸ x)}                                      -- return type
-  --   (let αInα' : α ⊆ α'
-  --        αInα' = subExtScope iRun subRefl                         -- proof that α is in α'
-  --        Γ' : Context α'                                          -- new context with α and the indexes
-  --        Γ' = addContextTel Γ (instDataIxTel dt pars)
-  --        tx : Type α'
-  --        tx = dataType d (weaken αInα' k) (weaken αInα' pars) ixs'
-  --        return' : Type α
-  --        return' = subst (α'Subst ▹ x ↦ u) return)
-  --
-  --   → Γ' , x ∶ tx ⊢ unType return ∶ sortType (typeSort return)    -- if return is well formed
-  --   → TyBranches Γ dt pars return cases                           -- if each case is well typed
-  --   → Γ ⊢ u ∶ dataType d k pars ixs                               -- if u is well typed
-  --   --------------------------------------------------
-  --   → Γ ⊢ TCase d iRun u cases return ∶ return'                   -- then the branching on u is well typed
