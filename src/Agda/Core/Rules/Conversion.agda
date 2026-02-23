@@ -4,11 +4,11 @@ open import Agda.Core.Syntax
 open import Agda.Core.Reduce
 
 module Agda.Core.Rules.Conversion
-  {{@0 globals : Globals}}
+  {{globals : Globals}}
   {{@0 sig     : Signature}}
   where
 
-private open module @0 G = Globals globals
+private open module G = Globals globals
 
 private variable
   @0 x y z          : Name
@@ -22,19 +22,17 @@ private variable
 opaque
   unfolding RScope
   private
-    go : (s : Singleton rβ) → (NameInR rβ → Term α) → TermS α rβ
-    go (sing [])                  _  = ⌈⌉   -- rβ is free, so this unifies with []
-    go (sing (Erased projName ∷ otherProjs)) f  = 
-      projName ↦ (f {!!})
-        ◂ {!!}
+    go : (rβ : RScope Name) → (NameInR rβ → Term α) → TermS α rβ
+    go []                  _  = TSNil   
+    go (Erased name ∷ names) f  = name ↦ f (⟨ name ⟩ inRHere) ◂ (go names (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))) 
 
 --- This function takes an `rn : NameRec`, an `rscope : RScope Name` and a `recordTerm : Term α`
 --- It should create a termS : TermS α (recFieldScope rn) which looks like:
 --- `TSCons (TProj recordTerm fstProjFunc)
 ---    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
 --- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
-desiredTermS : (@0 rn : NameRec) → Singleton (recFieldScope rn) → Term α → TermS α (recFieldScope rn)
-desiredTermS rn s t = go s (TProj {r = rn} t)
+desiredTermS : (rn : NameRec) → Term α → TermS α (recFieldScope rn)
+desiredTermS rn t = go (recFieldScope rn) (TProj {r = rn} t)
 
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
@@ -109,7 +107,7 @@ data Conv {α} where
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
   CEtaRecordsTwo : (@0 rn : NameRec) (rt : Term α) (@0 termS : TermS α (recFieldScope rn))
-    → let termSToConvertInto = desiredTermS rn (sing (recFieldScope rn)) rt in
+    → let termSToConvertInto = {!!} in
       termS ⇔ termSToConvertInto
     → rt ≅ (TRecCon rn termS)
 
