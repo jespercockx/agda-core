@@ -20,6 +20,14 @@ private variable
   @0 α β : Scope Name
   @0 rβ : RScope Name
 
+opaque
+  unfolding RScope
+  private
+    --Helper for desiredTermS
+    go : (rβ : RScope Name) → (NameInR rβ → Term α) → TermS α rβ
+    go []                  _  = TSNil   
+    go (Erased name ∷ names) f  = name ↦ f (⟨ name ⟩ inRHere) ◂ (go names (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p)))
+
 reduceTo : {@0 α : Scope Name} (r : Singleton α) (v : Term α)
          → TCM (∃[ t ∈ Term α ] (ReducesTo v t))
 reduceTo r v = do
@@ -262,12 +270,10 @@ convertWhnf r (TLam x b) functionTerm =
   do
     conversionProof <- convertEtaFuncsGeneric r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
-convertWhnf r recordTerm (TRecCon rn recTermS) = 
-  -- do
-  -- conv ← convertTermSs r recTermS (desiredTermS rn recordTerm)
-  -- let @0 conv₀ = conv
-  -- return (CEtaRecordsTwo rn recordTerm recTermS conv₀)
-  tcError "TODO: Eta-conversion for records"
+convertWhnf r rt (TRecCon rn recTermS) = 
+  do
+    conv ← convertTermSs r recTermS (go (recFieldScope rn) (TProj {r = rn} rt))
+    return (CEtaRecords rn rt recTermS conv)
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}

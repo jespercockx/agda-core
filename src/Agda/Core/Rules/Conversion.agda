@@ -32,8 +32,8 @@ opaque
 -- `TSCons (TProj recordTerm fstProjFunc)
 --    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
 -- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
-@0 desiredTermS : (@0 rn : NameRec) → Term α → TermS α (recFieldScope rn)
-desiredTermS rn t = go (recFieldScope rn) (TProj {r = rn} t)
+@0 desiredTermS : (rn : NameRec) → Term α → TermS α (recFieldScope rn)
+desiredTermS rn rt = go (recFieldScope rn) (TProj {r = rn} rt)
 
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
@@ -107,9 +107,9 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  CEtaRecords : (@0 rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
-    → let termSToConvertInto = desiredTermS rn rt in
-      @0 (termS ⇔ termSToConvertInto)
+  CEtaRecords : (rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
+    → let termSToConvertInto = go (recFieldScope rn) (TProj {r = rn} rt) in
+      (termS ⇔ termSToConvertInto)
     → rt ≅ (TRecCon rn termS)
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
