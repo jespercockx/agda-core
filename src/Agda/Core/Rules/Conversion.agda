@@ -19,20 +19,21 @@ private variable
   @0 a a' b b' c c' : Type α
   @0 us vs          : TermS α rβ
 
--- opaque
---   unfolding RScope
---   private
---     go : (rβ : RScope Name) → (NameInR rβ → Term α) → TermS α rβ
---     go []                  _  = TSNil   
---     go (Erased name ∷ names) f  = name ↦ f (⟨ name ⟩ inRHere) ◂ (go names (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))) 
+opaque
+  unfolding RScope
+  private
+    --Helper for desiredTermS
+    go : (rβ : RScope Name) → (NameInR rβ → Term α) → TermS α rβ
+    go []                  _  = TSNil   
+    go (Erased name ∷ names) f  = name ↦ f (⟨ name ⟩ inRHere) ◂ (go names (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p)))
 
--- --- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
--- --- It should create a termS : TermS α (recFieldScope rn) which looks like:
--- --- `TSCons (TProj recordTerm fstProjFunc)
--- ---    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
--- --- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
--- desiredTermS : (rn : NameRec) → Term α → TermS α (recFieldScope rn)
--- desiredTermS rn t = go (recFieldScope rn) (TProj {r = rn} t)
+-- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
+-- It should create a termS : TermS α (recFieldScope rn) which looks like:
+-- `TSCons (TProj recordTerm fstProjFunc)
+--    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
+-- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
+@0 desiredTermS : (@0 rn : NameRec) → Term α → TermS α (recFieldScope rn)
+desiredTermS rn t = go (recFieldScope rn) (TProj {r = rn} t)
 
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
@@ -106,11 +107,10 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  -- CEtaRecordsTwo : (@0 rn : NameRec) (rt : Term α) (@0 termS : TermS α (recFieldScope rn))
-  --   → let termSToConvertInto = {!!} in
-  --     termS ⇔ termSToConvertInto
-  --   → rt ≅ (TRecCon rn termS)
-
+  CEtaRecordsTwo : (@0 rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
+    → let termSToConvertInto = desiredTermS rn rt in
+      termS ⇔ termSToConvertInto
+    → rt ≅ (TRecCon rn termS)
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v
