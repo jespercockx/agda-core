@@ -55,7 +55,7 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 -- It should create a termS : TermS α (recFieldScope rn) which looks like:
 -- `TSCons (TProj recordTerm fstProjFunc)
 --    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
--- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`
+-- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
 desiredTermS : (@0 rn : NameRec) → Term α → TermS α (recFieldScope rn)
 desiredTermS rn recordTerm = {!!}
 
