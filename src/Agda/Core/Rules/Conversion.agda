@@ -19,6 +19,22 @@ private variable
   @0 a a' b b' c c' : Type α
   @0 us vs          : TermS α rβ
 
+opaque
+  unfolding RScope
+  private
+    go : (s : Singleton rβ) → (NameInR rβ → Term α) → TermS α rβ
+    go (sing [])                  _  = ⌈⌉   -- rβ is free, so this unifies with []
+    go (sing (Erased projName ∷ otherProjs)) f  = 
+      projName ↦ (f {!!})
+        ◂ {!!}
+
+--- This function takes an `rn : NameRec`, an `rscope : RScope Name` and a `recordTerm : Term α`
+--- It should create a termS : TermS α (recFieldScope rn) which looks like:
+--- `TSCons (TProj recordTerm fstProjFunc)
+---    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
+--- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
+desiredTermS : (@0 rn : NameRec) → Singleton (recFieldScope rn) → Term α → TermS α (recFieldScope rn)
+desiredTermS rn s t = go s (TProj {r = rn} t)
 
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
@@ -50,14 +66,6 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
-
--- This function takes an `rn : NameRec`, a `recordTerm : Term α` and an `rscope : RScope Name`
--- It should create a termS : TermS α (recFieldScope rn) which looks like:
--- `TSCons (TProj recordTerm fstProjFunc)
---    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
--- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
-desiredTermS : (@0 rn : NameRec) → Term α → TermS α (recFieldScope rn)
-desiredTermS rn recordTerm = {!!}
 
 data Conv {α} where
   CRefl  : u ≅ u
@@ -101,7 +109,7 @@ data Conv {α} where
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
   CEtaRecordsTwo : (@0 rn : NameRec) (rt : Term α) (@0 termS : TermS α (recFieldScope rn))
-    → let termSToConvertInto = desiredTermS rn rt in
+    → let termSToConvertInto = desiredTermS rn (sing (recFieldScope rn)) rt in
       termS ⇔ termSToConvertInto
     → rt ≅ (TRecCon rn termS)
 
