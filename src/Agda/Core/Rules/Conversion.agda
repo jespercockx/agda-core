@@ -107,9 +107,9 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  CEtaRecordsTwo : (@0 rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
+  CEtaRecords : (@0 rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
     → let termSToConvertInto = desiredTermS rn rt in
-      termS ⇔ termSToConvertInto
+      @0 (termS ⇔ termSToConvertInto)
     → rt ≅ (TRecCon rn termS)
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v

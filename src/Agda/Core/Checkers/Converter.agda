@@ -95,6 +95,10 @@ convertCheck : {{fl : Fuel}} → Singleton α → (t q : Term α) → TCM (t ≅
 convertTermSs : {{fl : Fuel}} → Singleton α →
                 (s p : TermS α rβ)
               → TCM (s ⇔ p)
+-- convertTermSsErased : {{fl : Fuel}} → Singleton α
+--               → (@0 s : TermS α rβ) 
+--               → (@0 p : TermS α rβ)
+--               → (s ⇔ p)
 convertBranches : {{fl : Fuel}} → Singleton α →
                 ∀ {@0 d : NameData} {@0 cs : RScope (NameCon d)}
                   (bs bp : Branches α d cs)
@@ -200,6 +204,10 @@ convertTermSs r (x ↦ u ◂ s0) t =
 
 {-# COMPILE AGDA2HS convertTermSs #-}
 
+-- I don't think this is going to work because one can't pattern-match on an erased TermS
+-- convertTermSsErased r ⌈⌉ _ = CSNil
+-- convertTermSsErased r t _ = CSNil
+
 convertBranch : ⦃ fl : Fuel ⦄
               → Singleton α
               → {@0 d : NameData} {@0 c : NameCon d}
@@ -254,7 +262,12 @@ convertWhnf r (TLam x b) functionTerm =
   do
     conversionProof <- convertEtaFuncsGeneric r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
-convertWhnf r recordTerm (TRecCon rn recTermS) = tcError "TODO: Eta-conversion for record terms"
+convertWhnf r recordTerm (TRecCon rn recTermS) = 
+  -- do
+  -- conv ← convertTermSs r recTermS (desiredTermS rn recordTerm)
+  -- let @0 conv₀ = conv
+  -- return (CEtaRecordsTwo rn recordTerm recTermS conv₀)
+  tcError "TODO: Eta-conversion for records"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}
