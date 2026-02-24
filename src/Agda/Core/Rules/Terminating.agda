@@ -59,20 +59,20 @@ opaque
 
 -- datatype for arbitrary member of a scope
 data NthArg : @0 Scope Name → Set where
-  Zero : (@0 x : Name) → NthArg (α ▸ x)
-  Suc : (@0 x : Name) → NthArg α → NthArg (α ▸ x)
+  ZeroNA : (@0 x : Name) → NthArg (α ▸ x)
+  SucNA : (@0 x : Name) → NthArg α → NthArg (α ▸ x)
 {-# COMPILE AGDA2HS NthArg deriving Show #-}
 
-indexOf : NthArg α → Nat
-indexOf (Zero _) = zero
-indexOf (Suc _ n) = suc (indexOf n)
+indexOf : NthArg α → Index
+indexOf (ZeroNA _) = Zero
+indexOf (SucNA _ n) = Suc (indexOf n)
 {-# COMPILE AGDA2HS indexOf #-}
 
 opaque
   unfolding Scope
   getNthArg : NthArg α → NameIn α
-  getNthArg (Zero x) = ⟨ x ⟩  (Zero ⟨ IsZero refl ⟩)
-  getNthArg {α} (Suc x next)  = weakenNameIn (subWeaken subRefl) (getNthArg next)
+  getNthArg (ZeroNA x) = ⟨ x ⟩  (Zero ⟨ IsZero refl ⟩)
+  getNthArg {α} (SucNA x next)  = weakenNameIn (subWeaken subRefl) (getNthArg next)
 {-# COMPILE AGDA2HS getNthArg #-}
 
 record FunDefinition : Set where
@@ -87,16 +87,15 @@ open FunDefinition public
 Not : Set → Set
 Not A = A → ⊥
 
--- data ListAll {A : Set} (P : A → Set) : List A → Set where
---   []  : ListAll P []
---   _∷_ : {x : A} {xs : List A} → P x → ListAll P xs → ListAll P (x ∷ xs)
---
--- mapListAll : {A : Set} {P : A → Set} 
---            → (xs : List A) 
---            → ((x : A) → P x)
---            → ListAll P xs
--- mapListAll []       f = []
--- mapListAll (x ∷ xs) f = f x ∷ mapListAll xs f
+lengthI : {a : Set} → List a → Index
+lengthI []       = Zero
+lengthI (_ ∷ xs) = Suc (lengthI xs)
+{-# COMPILE AGDA2HS lengthI #-}
+
+lengthN : {a : Set} → List a → Nat
+lengthN ls = indexToNat $ lengthI ls
+{-# COMPILE AGDA2HS lengthN #-}
+
 
 data TerminatingTermList (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) : @0 List (Term α) → Set
 
@@ -140,7 +139,7 @@ data TerminatingTerm {α} f nthArg ctx prf where
     (let (func , args) = unApps function)
 
     → @0 func ≡ TDef (index f)
-    → @0 lengthNat args ≡ indexOf nthArg -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
+    → @0 (lengthN args) ≡ (indexToNat $ indexOf nthArg) -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
     → @0 lookupSt ctx x ≡ Just (weakenNameIn (prf) $ getNthArg nthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
     → TerminatingTermList f nthArg ctx prf args
     --------------------------------------------------------------

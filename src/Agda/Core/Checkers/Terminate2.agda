@@ -63,7 +63,7 @@ opaque
   unfolding Scope
   iterateNthArg : (α : Scope Name) → List (NthArg α)
   iterateNthArg [] = []
-  iterateNthArg (Erased x ∷ tl) = Zero x ∷ (map (Suc x) (iterateNthArg tl))
+  iterateNthArg (Erased x ∷ tl) = ZeroNA x ∷ (map (SucNA x) (iterateNthArg tl))
 {-# COMPILE AGDA2HS iterateNthArg #-}
 
 
@@ -102,11 +102,11 @@ checkDescendingIndex f nthArg ctx prf (TApp func (TVar x)) = mapEitherPermissive
                                                                 -- case where the function isn't directly terminating: have to check whether we are currently looking at the decreasing argument
                                                   (λ err → case (unApps func) of λ where
                                                       (TDef fname , args) {{ eq }} → case 
-                                                            (mkpair (decNat (lengthNat args) (indexOf (nthArg)))
+                                                            (mkpair (decNat (lengthN args) (indexToNat $ indexOf (nthArg)))
                                                             (mkpair (decNamesIn fname (index f)) 
                                                             (mkpair (decMaybeNameIn (lookupSt ctx x) (Just (weakenNameIn (prf) $ getNthArg nthArg))) 
                                                                     (checkDescendingIndexList f nthArg ctx prf args)))) of λ where
-                                                        (True ⟨ lengthProof ⟩ , (True ⟨ fnameProof ⟩ , (True ⟨ stProof ⟩ , Right awhat))) → Right $ DecreasingNthArgApp (trans (cong fst eq) (cong TDef fnameProof)) (trans (cong lengthNat (cong snd eq)) lengthProof) (stProof) (subst0 (TerminatingTermList f nthArg ctx prf) (sym (cong snd eq)) awhat)
+                                                        (True ⟨ lengthProof ⟩ , (True ⟨ fnameProof ⟩ , (True ⟨ stProof ⟩ , Right awhat))) → Right $ DecreasingNthArgApp (trans (cong fst eq) (cong TDef fnameProof)) (trans (cong lengthN (cong snd eq)) lengthProof) (stProof) (subst0 (TerminatingTermList f nthArg ctx prf) (sym (cong snd eq)) awhat)
                                                         _ → Left "Didn't work"
                                                       _ → Left "Didn't work"
                                                   )
