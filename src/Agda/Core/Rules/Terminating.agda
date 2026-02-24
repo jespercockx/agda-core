@@ -66,12 +66,14 @@ data NthArg : @0 Scope Name → Set where
 indexOf : NthArg α → Nat
 indexOf (Zero _) = zero
 indexOf (Suc _ n) = suc (indexOf n)
+{-# COMPILE AGDA2HS indexOf #-}
 
 opaque
   unfolding Scope
   getNthArg : NthArg α → NameIn α
   getNthArg (Zero x) = ⟨ x ⟩  (Zero ⟨ IsZero refl ⟩)
   getNthArg {α} (Suc x next)  = weakenNameIn (subWeaken subRefl) (getNthArg next)
+{-# COMPILE AGDA2HS getNthArg #-}
 
 record FunDefinition : Set where
   no-eta-equality
@@ -85,13 +87,113 @@ open FunDefinition public
 Not : Set → Set
 Not A = A → ⊥
 
-data ListAll {A : Set} (P : A → Set) : List A → Set where
-  []  : ListAll P []
-  _∷_ : {x : A} {xs : List A} → P x → ListAll P xs → ListAll P (x ∷ xs)
+-- data ListAll {A : Set} (P : A → Set) : List A → Set where
+--   []  : ListAll P []
+--   _∷_ : {x : A} {xs : List A} → P x → ListAll P xs → ListAll P (x ∷ xs)
+--
+-- mapListAll : {A : Set} {P : A → Set} 
+--            → (xs : List A) 
+--            → ((x : A) → P x)
+--            → ListAll P xs
+-- mapListAll []       f = []
+-- mapListAll (x ∷ xs) f = f x ∷ mapListAll xs f
+
+data TerminatingTermList (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) : @0 List (Term α) → Set
 
 data TerminatingBranches {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
-data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 ctx : SubTermContext α) : @0 arity f ⊆ α → @0 Term α → Set
+data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) : @0 Term α → Set
 data TerminatingBranch {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 ctx : SubTermContext α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) : {@0 c : NameCon d} → @0 Branch α c → Set
+
+-- certificate that a term is always decreasing in the given parameter for function f
+data TerminatingTerm {α} f nthArg ctx prf where
+
+  TerminatingVar :
+    {x : NameIn α}
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TVar x)
+
+  TerminatingCon :
+    {d : NameData}
+    {c : NameCon d}
+    {@0 us  : TermS α (fieldScope c)}
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TCon c us)
+
+  TerminatingData :
+    {d : NameData}
+    {@0 pars : TermS α (dataParScope d)}
+    {@0 ixs  : TermS α (dataIxScope  d)}
+    ----------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TData d pars ixs)
+
+  TerminatingApp :
+    {@0 function : Term α}
+    {@0 argument : Term α}
+    → TerminatingTerm f nthArg ctx prf function 
+    → TerminatingTerm f nthArg ctx prf argument 
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TApp function argument)
+
+  DecreasingNthArgApp :
+    {@0 function : Term α}
+    {@0 x : NameIn α} -- The argument is a variable (TVar)
+    (let (func , args) = unApps function)
+
+    → @0 func ≡ TDef (index f)
+    → @0 lengthNat args ≡ indexOf nthArg -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
+    → @0 lookupSt ctx x ≡ Just (weakenNameIn (prf) $ getNthArg nthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
+    → TerminatingTermList f nthArg ctx prf args
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TApp function (TVar x))
+
+  -- We can use this because we assume all functions defined up to that point have been termination checked themselves, which itself assumes corecursion is not handled, which it isn't yet.
+  TerminatingDef :
+    {@0 functionName : NameIn defScope}
+    → @0 Not (functionName ≡ index f)
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TDef functionName)
+
+  TerminatingLam :
+    {@0 body : Term (bind α x)}
+    → TerminatingTerm f nthArg (StCtxExtend x Nothing ctx) (subWeaken prf) body 
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TLam x body)
+
+  TerminatingLet :
+    {@0 body : Term α}
+    {@0 rest : Term (bind α x)}
+    → TerminatingTerm f nthArg ctx prf body 
+    → TerminatingTerm f nthArg (StCtxExtend x Nothing ctx) (subWeaken prf) rest 
+    --------------------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TLet x body rest)
+
+  TerminatingCase :
+    {d : NameData}                                                -- the name of a datatype
+    {@0 varName : NameIn α}                                       -- name of the variable we are pattern matching on (this only supports cases on variables)
+    (let iScope = dataIxScope d                                   -- indexes of d
+         α'     = α ◂▸ iScope                                     -- general scope + indexes
+         iRun   = sing iScope)                                    -- runtime index scope
+    {cases : Branches α d (AllNameCon d)}                         -- cases for constructors of dt
+    {return : Type (α' ▸ x)}                                      -- return type
+
+    → TerminatingBranches f nthArg ctx prf varName cases          -- Proof that each branch is terminating
+
+    --------------------------------------------------
+    → TerminatingTerm f nthArg ctx prf (TCase d iRun (TVar varName) cases return)
+
+  -- Not sure what to do about Annotation, Sort and Pi
+{-# COMPILE AGDA2HS TerminatingTerm #-}
+
+data TerminatingTermList {α} f nthArg ctx prf where
+  TerminatingTermListNil : TerminatingTermList f nthArg ctx prf []
+  TerminatingTermListCons : 
+    {@0 term : Term α}
+    {@0 terml : List (Term α)}
+    → TerminatingTerm f nthArg ctx prf term
+    → TerminatingTermList f nthArg ctx prf terml
+    → TerminatingTermList f nthArg ctx prf (term ∷ terml)
+
+{-# COMPILE AGDA2HS TerminatingTermList #-}
 
 data TerminatingBranches {α = α} {d = d} f nthArg ctx prf var where
   TerminatingNil : TerminatingBranches f nthArg ctx prf var BsNil
@@ -111,69 +213,6 @@ data TerminatingBranch {α = α} {d = d} f nthArg ctx prf var where
             → TerminatingTerm f nthArg (updateEnv ctx fields var) (subExtScope (sing fields) prf) rhs -- the rhs of the clause (whose environment got extended) needs to be terminating
             → TerminatingBranch f nthArg ctx prf var (BBranch (sing c) r rhs)
 {-# COMPILE AGDA2HS TerminatingBranch #-}
-
--- certificate that the body of the function is always decreasing in the given parameter
-data TerminatingTerm {α} f nthArg ctx where
-
-  TerminatingVar :
-    {x : NameIn α}
-    {@0 prf : arity f ⊆ α}
-    --------------------------------------------------------------
-    → TerminatingTerm f nthArg ctx prf (TVar x)
-
-  TerminatingApp :
-    {@0 function : Term α}
-    {@0 argument : Term α}
-    {@0 prf : arity f ⊆ α}
-    → TerminatingTerm f nthArg ctx prf function 
-    → TerminatingTerm f nthArg ctx prf argument 
-    --------------------------------------------------------------
-    → TerminatingTerm f nthArg ctx prf (TApp function argument)
-
-  DecreasingNthArgApp :
-    {@0 function : Term α}
-    {@0 x : NameIn α} -- The argument is a variable (TVar)
-    {@0 prf : arity f ⊆ α}
-    (let (func , args) = unApps function)
-
-    → @0 func ≡ TDef (index f)
-    → @0 lengthNat args ≡ indexOf nthArg -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
-    → @0 lookupSt ctx x ≡ Just (weakenNameIn (prf) $ getNthArg nthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
-    --------------------------------------------------------------
-    → TerminatingTerm f nthArg ctx prf (TApp function (TVar x))
-
-  -- We can use this because we assume all functions defined up to that point have been termination checked themselves, which itself assumes corecursion is not handled, which it isn't yet.
-  TerminatingDef :
-    {@0 functionName : NameIn defScope}
-    {@0 prf : arity f ⊆ α}
-    → @0 Not (functionName ≡ index f)
-    --------------------------------------------------------------
-    → TerminatingTerm f nthArg ctx prf (TDef functionName)
-
-  TerminatingLam :
-    {@0 body : Term (bind α x)}
-    {@0 prf : arity f ⊆ α}
-    → TerminatingTerm f nthArg (StCtxExtend x Nothing ctx) (subWeaken prf) body 
-    --------------------------------------------------------------
-    → TerminatingTerm f nthArg ctx prf (TLam x body)
-
-  TerminatingCase :
-    {d : NameData}                                                -- the name of a datatype
-    {@0 prf : arity f ⊆ α}
-    {@0 varName : NameIn α}                                       -- name of the variable we are pattern matching on (this only supports cases on variables)
-    (let iScope = dataIxScope d                                   -- indexes of d
-         α'     = α ◂▸ iScope                                     -- general scope + indexes
-         iRun   = sing iScope)                                    -- runtime index scope
-    {cases : Branches α d (AllNameCon d)}                         -- cases for constructors of dt
-    {return : Type (α' ▸ x)}                                      -- return type
-
-    → TerminatingBranches f nthArg ctx prf varName cases          -- Proof that each branch is terminating
-
-    --------------------------------------------------
-    → TerminatingTerm f nthArg ctx prf (TCase d iRun (TVar varName) cases return)
-
-{-# COMPILE AGDA2HS TerminatingTerm #-}
-
 
 -- Certificate that a function is decreasing using the guard condition
 data Descending (@0 f : FunDefinition) : Set

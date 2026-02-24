@@ -34,6 +34,10 @@ record Σ (a : Set) (b : @0 a → Set) : Set where
 open Σ public
 {-# COMPILE AGDA2HS Σ tuple #-}
 
+mkpair : a → b → Σ a (λ _ → b)
+mkpair = _,_
+{-# COMPILE AGDA2HS mkpair #-}
+
 -- we provide a shorthand syntax for all 3
 ------------------------------------------
 
