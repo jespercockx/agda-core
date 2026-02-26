@@ -205,7 +205,7 @@ agdaCoreCompile env _ _ def = do
   PreSignature {preSigDefs, preSigData, preSigCons, preSigRecs}       <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
-    -- if a datatype or record is encountered, add all constructors to the tcg environement
+    -- if a datatype or record type is encountered, add all constructors to the tcg environement
     -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataPars, dataIxs, dataCons} -> do
@@ -230,8 +230,8 @@ agdaCoreCompile env _ _ def = do
       -- and then it will be the case that `name=constructor`. 
       -- One almost certainly does not want to add `name` to `nnames_cons` in that case
       reportSDoc "agda-core.check" 3 $ text "  Internal.Constructor name:" <+> prettyTCM name
-      let (dID, cID) = tcg_cons Map.! defName
-      let nnames_cons = Map.insert (indexToNat dID, indexToNat (fromMaybe Zero cID)) name nameCons
+      let (dataOrRecordID, cID) = tcg_cons Map.! defName
+      let nnames_cons = Map.insert (indexToNat dataOrRecordID, indexToNat (fromMaybe Zero cID)) name nameCons
       pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons, 
         NameMap nameDefs nameData nameRecs nnames_cons)
     _ -> do

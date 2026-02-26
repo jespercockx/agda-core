@@ -17,6 +17,8 @@ private variable
 ---------------------------------------------------------------------------------------------------
                                         {- Constructor -}
 ---------------------------------------------------------------------------------------------------
+
+-- (atejandev) Currently, the constructor of a record is also compiled to this `Constructor` type, meaning the translation is ill-scoped. This might need to be fixed some time
 record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
   no-eta-equality
   private
@@ -84,6 +86,7 @@ record Record (@0 r : NameRec) : Set where
     pars = recParScope r
   field 
     recParTel       : Telescope mempty pars
+    recFields       : List (NameProj r)
 
 
 open Record public

@@ -272,8 +272,9 @@ convertWhnf r (TLam x b) functionTerm =
     return (CEtaFunctionsRight x functionTerm b conversionProof)
 convertWhnf r rt (TRecCon rn recTermS) = 
   do
-    conv ← convertTermSs r recTermS (go (recFieldScope rn) (TProj {r = rn} rt))
-    return (CEtaRecords rn rt recTermS conv)
+    -- conv ← convertTermSs r recTermS (go (recFieldScope rn) (TProj {r = rn} rt))
+    -- return (CEtaRecords rn rt recTermS conv)
+    tcError "TODO: eta-conversion for records"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}

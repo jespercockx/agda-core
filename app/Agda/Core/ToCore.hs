@@ -65,10 +65,10 @@ createTAppAndTProj t [] = t
 createTAppAndTProj t ((I.Apply _, compiledElim):elims) =
   TApp t compiledElim `createTAppAndTProj` elims
 -- When compiling an I.Proj _ _, the result must be a TDef `id`
-createTAppAndTProj t ((I.Proj _ _, TDef projFuncId):elims) = 
-  let finalTerm = createTAppAndTProj t elims in 
+createTAppAndTProj t ((I.Proj _ _, TDef projFuncId):elims) =
+  let finalTerm = createTAppAndTProj t elims in
   TProj finalTerm projFuncId
-createTAppAndTProj t _ = 
+createTAppAndTProj t _ =
   error ("This case is impossible: either compiling an I.Proj _ _ did not " ++
          "return a TDef, which is impossible, or the error '[When translating " ++
          "an Elim] cubical endpoint application not supported' should be " ++
@@ -202,7 +202,7 @@ instance ToCore I.Term where
             return (createTAppAndTProj def (zip es coreEs))
           Nothing -> do
             lookupData qn >>= \case
-              Just (idx, (fullAmountOfParams, fullAmountOfIndices)) -> 
+              Just (idx, (fullAmountOfParams, fullAmountOfIndices)) ->
                 compileToTData es idx fullAmountOfParams fullAmountOfIndices
               Nothing -> lookupRec qn >>= \case
                 Nothing -> throwError $ "[When compiling an I.Def] Trying to access an unknown definition: " <+> pretty qn
@@ -356,17 +356,18 @@ toCoreDefn (I.RecordDefn rd) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
     let I.RecordData{
       _recPars = pars,
-      _recConHead = ch,
       _recFields = fields
     } = rd
     let I.TelV{theTel = internalParsTel} = I.telView'UpTo pars ty
     parsTel <- toCore internalParsTel
-    let qn = I.conName ch
-    recConIndex <- lookupCon qn >>= \case
-            Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown constructor: " <+> pretty qn
-            Just result -> pure (snd result)
 
-    let r = Core.Record{ recParTel = parsTel }
+    fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
+            Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
+            Just idx -> pure idx
+          ) . unDom) fields
+
+    let r = Core.Record{ recParTel = parsTel, 
+                         recFields = fieldsIndices}
 
     return $ Core.RecordDefn r
 
