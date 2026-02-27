@@ -4,6 +4,7 @@ open import Agda.Core.Syntax
 open import Agda.Core.Rules.Conversion
 open import Agda.Core.Reduce
 open import Agda.Core.TCM.Instances
+-- open import Agda.Core.Checkers.TypeCheck
 
 module Agda.Core.Checkers.Converter
     {{@0 globals : Globals}}
@@ -23,10 +24,10 @@ private variable
 opaque
   unfolding RScope
   private
-    --Helper for desiredTermS
-    go : (rβ : RScope Name) → (NameInR rβ → Term α) → TermS α rβ
-    go []                  _  = TSNil   
-    go (Erased name ∷ names) f  = name ↦ f (⟨ name ⟩ inRHere) ◂ (go names (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p)))
+    go : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
+    go ([] ⟨ refl ⟩)                   _  = TSNil
+    go ((Erased name ∷ names) ⟨ refl ⟩) f =
+      name ↦ f (⟨ name ⟩ inRHere) ◂ go (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
 
 reduceTo : {@0 α : Scope Name} (r : Singleton α) (v : Term α)
          → TCM (∃[ t ∈ Term α ] (ReducesTo v t))
@@ -68,6 +69,11 @@ reduceToSort r v err = reduceTo r v >>= λ where
   (TSort s ⟨ redv ⟩) → return (s ⟨ redv ⟩)
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToSort #-}
+
+tcmGetRecord : (rn : NameRec) → TCM (Singleton (sigRecs sig rn))
+tcmGetRecord rn = do
+  rsig ← tcmSignature
+  return (singCong ((λ sig → sigRecs sig rn)) rsig)
 
 convNamesIn : (x y : NameIn α) → TCM (Erase (x ≡ y))
 convNamesIn x y =
@@ -272,8 +278,11 @@ convertWhnf r (TLam x b) functionTerm =
     return (CEtaFunctionsRight x functionTerm b conversionProof)
 convertWhnf r rt (TRecCon rn recTermS) = 
   do
-    -- conv ← convertTermSs r recTermS (go (recFieldScope rn) (TProj {r = rn} rt))
-    -- return (CEtaRecords rn rt recTermS conv)
+    let termS = (go {!!} (TProj {r = rn} rt))
+
+    conv ← convertTermSs r recTermS termS
+    return (CEtaRecords rn rt recTermS conv)
+  
     tcError "TODO: eta-conversion for records"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
