@@ -13,6 +13,12 @@ countdown : ℕ → ℕ
 countdown zero = zero
 countdown (suc n) = countdown n
 
+{-# NON_TERMINATING #-}
+countdown2 : ℕ → ℕ → ℕ
+countdown2 m zero = zero
+countdown2 m (suc n) = countdown2 n m
+
+
 babyackermann : ℕ → ℕ → ℕ
 babyackermann zero n = suc n
 babyackermann (suc m) zero = babyackermann m (suc zero)

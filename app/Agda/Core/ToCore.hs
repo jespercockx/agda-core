@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies, OverloadedStrings #-}
+{-# OPTIONS_GHC -Wunused-imports #-}
 
 -- | Conversion from Agda's internal syntax to core representation
 module Agda.Core.ToCore
@@ -8,21 +9,19 @@ module Agda.Core.ToCore
   , convert
   ) where
 
-import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
 import Control.Monad.Except (MonadError(throwError), withError)
-import Data.Functor ((<&>))
 import Data.Map.Strict (Map)
 import Numeric.Natural (Natural)
 
 import Agda.Syntax.Common ( Arg(unArg) )
-import Agda.Syntax.Abstract.Name (QName, showQNameId, uglyShowName, qnameName)
-import Agda.Syntax.Internal (lensSort, unDom, unEl)
+import Agda.Syntax.Abstract.Name (QName)
+import Agda.Syntax.Internal (unDom, unEl)
 import Agda.Syntax.Internal.Elim (allApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
-import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe)
+import Agda.Utils.Maybe (isNothing, isJust, caseMaybe)
 import Agda.Syntax.Common ( Nat )
 
 import Data.Map.Strict qualified as Map
@@ -32,30 +31,25 @@ import Agda.TypeChecking.Substitute qualified as I
 import Agda.TypeChecking.Telescope qualified as I
 import Agda.Utils.Size qualified as I
 import Agda.TypeChecking.CompiledClause qualified as CC
+import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
+import Agda.Compiler.Backend (Definition(defType))
 
-
+import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, intToIndex, traceBlue, traceGreen)
 import Agda.Core.Syntax.Term (Term(..), Sort(..))
 import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, intToIndex, traceBlue, traceGreen)
-
-
 import Scope.In (Index)
 import Scope.In qualified as Scope
 import Agda.Utils.Either (maybeRight)
 import qualified Agda.Syntax.Common.Pretty as Pretty
-import System.IO (withBinaryFile)
-import Agda.Compiler.Backend (Definition(defType))
-import Control.Exception (throw)
 import Scope.Core (rsingleton, rbind)
 
-import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
-import Agda.Syntax.Common.Pretty(text, render)
 
-import Debug.Trace
+import Agda.Utils.Function
+
 
 
 -- TODO(flupe): move this to Agda.Core.Syntax
@@ -261,7 +255,7 @@ clauseToCore (CC.Case argNum c) ty argLen = do
   let index = intToIndex (argLen - unArg argNum - 1) 
   branchList <- mapM (uncurry (createBranch ty argLen)) constructorList 
   let branches = foldr Core.BsCons Core.BsNil branchList
-  return $ TCase dt (iterate rbind [] !! idcs) (TVar index) branches ty
+  return $ TCase dt (iterate' idcs rbind []) (TVar index) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch

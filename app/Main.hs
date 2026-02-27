@@ -39,7 +39,7 @@ import Agda.Core.Syntax.Term qualified as Core
 import Agda.Core.TCM.TCM qualified as Core
 import Agda.Core.Prelude qualified as Core
 import Agda.Core.Checkers.TypeCheck (checkType)
-import Agda.Core.Checkers.Terminate (checkTermination)
+import Agda.Core.Checkers.Terminate2 (checkTermination)
 import Agda.Core.Rules.Terminating (SubTermContext(..))
 
 import Agda.Utils.Either (maybeRight)
@@ -306,9 +306,9 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl
             env = Core.MkTCEnv sig fl
-        case checkTermination StCtxEmpty i [] funBody of
-          False -> reportSDocFailure "agda-core.check" $ text $ "Termination error for: " <> show defName
-          True -> reportSDoc "agda-core.check" 1 $ text $ "before TC: " <> show funBody <> " with name: " <> defName <> ", typchecking against: " <> show defType
+        case checkTermination [] StCtxEmpty i funBody of
+          Left err -> reportSDocFailure "agda-core.check" $ text $ "Termination error for: " <> show defName <> ", says: " <> show err
+          Right msg -> reportSDoc "agda-core.check" 1 $ text $ "termination success:" <> show msg <> "\n Before TC: " <> show funBody <> " with name: " <> defName <> ", typchecking against: " <> show defType
         case Core.runTCM (checkType CtxEmpty funBody defType) env of
               Left err -> reportSDocFailure "agda-core.check" $ text $ "  Type checking error: " ++ err
               Right ok -> reportSDoc "agda-core.check" 3 $ text "  Type checking success"
