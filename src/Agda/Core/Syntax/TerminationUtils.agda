@@ -94,8 +94,11 @@ open FunDefinition public
 botErased : {a : Set} → @0 ⊥ → a
 botErased ()
 
-mapEither' : {a b c d : Set} → (a → Either c d) → (b → Either c d) → Either a b → Either c d
-mapEither' f g = either f g
+-- try the left action, if it fails run the right action with the error
+catchEither : {a : Set} → Either String a → (String → Either String a) → Either String a
+catchEither (Right x) _ = Right x
+catchEither (Left e)  f = f e
+{-# COMPILE AGDA2HS catchEither #-}
 
 eqNatSound : ∀ {x y : Nat} → (x == y) ≡ True → x ≡ y
 eqNatSound {zero} {zero} h = refl
