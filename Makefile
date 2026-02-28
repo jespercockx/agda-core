@@ -12,6 +12,7 @@ alllib: lib \
   lib/Agda/Core/GlobalScope.hs \
   lib/Agda/Core/Syntax/Strengthening.hs \
   lib/Agda/Core/Syntax/VarInTerm.hs \
+  lib/Agda/Core/Syntax/TerminationUtils.hs \
   lib/Agda/Core/Syntax.hs \
   lib/Agda/Core/Reduce.hs \
   lib/Agda/Core/Rules/Conversion.hs \
@@ -22,7 +23,6 @@ alllib: lib \
   lib/Agda/Core/Checkers/Converter.hs \
   lib/Agda/Core/Checkers/TypeCheck.hs \
   lib/Agda/Core/Checkers/Terminate.hs \
-  lib/Agda/Core/Checkers/Terminate2.hs
 
 
 # alllib: lib lib/*.hs

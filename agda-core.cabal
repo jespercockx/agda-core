@@ -18,7 +18,6 @@ library
         Agda.Core.Rules.Typing
         Agda.Core.Rules.Terminating
         Agda.Core.Checkers.Terminate
-        Agda.Core.Checkers.Terminate2
         Agda.Core.Prelude
         Agda.Core.Name
         Agda.Core.Syntax.Context
@@ -27,6 +26,7 @@ library
         Agda.Core.Syntax.Strengthening
         Agda.Core.Syntax.Substitute
         Agda.Core.Syntax.Weakening
+        Agda.Core.Syntax.TerminationUtils
         Agda.Core.TCM.Instances
         Agda.Core.TCM.TCM
         Scope.All

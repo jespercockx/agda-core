@@ -96,3 +96,13 @@ open Equivalence public
 caseMaybe : ∀ {@0 ℓ₁ ℓ₂} {@0 a : Set ℓ₁} {@0 b : Set ℓ₂} → (mb : Maybe a) → ((x : a) → @0 {{Just x ≡ mb}} → b) → (@0 {{Nothing ≡ mb}} → b) → b
 caseMaybe Nothing j n  = n
 caseMaybe (Just x) j n = j x
+
+
+Not : Set → Set
+Not A = A → ⊥
+
+lengthN : {a : Set} → List a → Nat
+lengthN []       = 0
+lengthN (_ ∷ xs) = 1 + (lengthN xs)
+{-# COMPILE AGDA2HS lengthN #-}
+
