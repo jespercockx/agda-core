@@ -109,7 +109,7 @@ data Conv {α} where
   CEtaRecords : (rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
     → let singScope = sing (recFieldScope rn)
           func = (TProj {r = rn} rt)
-          termSToConvertInto = go singScope func 
+          termSToConvertInto = go singScope func
           in
       (termS ⇔ termSToConvertInto)
     → rt ≅ (TRecCon rn termS)

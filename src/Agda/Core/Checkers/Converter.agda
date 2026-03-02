@@ -246,6 +246,17 @@ convertEtaFuncsGeneric r x f b = do
 {-# COMPILE AGDA2HS convertEtaFuncsGeneric #-}
 
 
+
+-- equalsProof
+--   : {rn : NameRec}
+--   → (termS : TermS α (recFieldScope rn))
+--   → singTermS termS ≡ sing (recFieldScope rn)
+
+-- equalsProof (x ↦ u ◂ ts)
+--   rewrite equalsProof ts
+--   = refl
+
+
 convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
 convertWhnf r (TVar x) (TVar y) = convVars x y
 convertWhnf r (TDef x) (TDef y) = convDefs x y
@@ -270,9 +281,10 @@ convertWhnf r (TLam x b) functionTerm =
     return (CEtaFunctionsRight x functionTerm b conversionProof)
 convertWhnf r rt (TRecCon rn recTermS) = 
   do
-    let singScope = {!!}
+    let 
+        singletonScope = singTermS recTermS
         func = (TProj {r = rn} rt)
-        termSToConvertInto = (go {!!} {!!})
+        termSToConvertInto = (go singletonScope func)
 
     conv ← convertTermSs r recTermS termSToConvertInto
     return (CEtaRecords rn rt recTermS conv)
