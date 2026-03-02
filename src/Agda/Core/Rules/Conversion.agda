@@ -107,7 +107,7 @@ data Conv {α} where
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
   CEtaRecords : (rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
-    → let singScope = sing (recFieldScope rn)
+    → let singScope = (singTermS termS)
           func = (TProj {r = rn} rt)
           termSToConvertInto = go singScope func
           in
