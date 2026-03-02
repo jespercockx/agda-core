@@ -240,12 +240,13 @@ unnestPi :: Int -> Core.Type -> ToCoreM Core.Type
 unnestPi 0 ty = return ty
 unnestPi n ty = case Core.unType ty of
   TPi _ dom -> unnestPi (n - 1) dom
-  _ -> throwError "Incorrect Type"
+  _ -> throwError "Incorrect Type, expected Pi"
 
 -- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) (Both have case tree format instead of clause list format)
+-- ty represents the type of the return of the case, and paramCount represents how many parameters have been pattern matched on the left hand side of the function clause
 clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) _ _ = toCore body
-clauseToCore (CC.Case argNum c) ty argLen = do
+clauseToCore (CC.Case argNum c) ty paramCount = do
   let branchList = Map.toList (CC.conBranches c)
   result <- lookupCon (fst (branchList !! 0))
   -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
@@ -257,17 +258,17 @@ clauseToCore (CC.Case argNum c) ty argLen = do
   let iRun = iterate rbind [] !! idcs
 
   -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
-  let index = intToIndex (argLen - unArg argNum - 1) 
-  coreBranchList <- mapM (uncurry (createBranch ty argLen)) branchList
+  let index = intToIndex (paramCount - unArg argNum - 1) 
+  coreBranchList <- mapM (uncurry (createBranch ty paramCount)) branchList
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
   return $ TCase dt iRun (TVar index) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
-createBranch ty argLen name wthAr = do
+createBranch ty paramCount name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
-  clause <- clauseToCore (CC.content wthAr) ty argLen
+  clause <- clauseToCore (CC.content wthAr) ty paramCount 
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 
