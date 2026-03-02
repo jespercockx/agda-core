@@ -21,11 +21,10 @@ private variable
 
 opaque
   unfolding RScope
-  private
-    go : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
-    go ([] ⟨ refl ⟩)                   _  = TSNil
-    go ((Erased name ∷ names) ⟨ refl ⟩) f =
-      name ↦ f (⟨ name ⟩ inRHere) ◂ go (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
+  go : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
+  go ([] ⟨ refl ⟩)                   _  = TSNil
+  go ((Erased name ∷ names) ⟨ refl ⟩) f =
+    name ↦ f (⟨ name ⟩ inRHere) ◂ go (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
 
 -- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
 -- It should create a termS : TermS α (recFieldScope rn) which looks like:
@@ -110,8 +109,7 @@ data Conv {α} where
   CEtaRecords : (rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
     → let singScope = sing (recFieldScope rn)
           func = (TProj {r = rn} rt)
-          termSToConvertInto = {!!}
-          -- termSToConvertInto = go (singScope (TProj {r = rn} rt)) 
+          termSToConvertInto = go singScope func 
           in
       (termS ⇔ termSToConvertInto)
     → rt ≅ (TRecCon rn termS)

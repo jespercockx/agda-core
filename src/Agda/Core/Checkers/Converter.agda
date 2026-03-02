@@ -21,14 +21,6 @@ private variable
   @0 α β : Scope Name
   @0 rβ : RScope Name
 
-opaque
-  unfolding RScope
-  private
-    go : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
-    go ([] ⟨ refl ⟩)                   _  = TSNil
-    go ((Erased name ∷ names) ⟨ refl ⟩) f =
-      name ↦ f (⟨ name ⟩ inRHere) ◂ go (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
-
 reduceTo : {@0 α : Scope Name} (r : Singleton α) (v : Term α)
          → TCM (∃[ t ∈ Term α ] (ReducesTo v t))
 reduceTo r v = do
@@ -278,9 +270,11 @@ convertWhnf r (TLam x b) functionTerm =
     return (CEtaFunctionsRight x functionTerm b conversionProof)
 convertWhnf r rt (TRecCon rn recTermS) = 
   do
-    let termS = (go {!!} (TProj {r = rn} rt))
+    let singScope = {!!}
+        func = (TProj {r = rn} rt)
+        termSToConvertInto = (go {!!} {!!})
 
-    conv ← convertTermSs r recTermS termS
+    conv ← convertTermSs r recTermS termSToConvertInto
     return (CEtaRecords rn rt recTermS conv)
   
     tcError "TODO: eta-conversion for records"
