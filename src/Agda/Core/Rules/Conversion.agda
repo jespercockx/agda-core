@@ -99,6 +99,10 @@ data Conv {α} where
            {@0 us vs : TermS α (dataFieldScope c)}
          → us ⇔ vs
          → TDataCon c us ≅ TDataCon c vs
+  CRecCon : (rn : NameRec) 
+            {@0 args1 args2 : TermS α (recFieldScope rn)}
+          → args1 ⇔ args2
+          → TRecCon rn args1 ≅ TRecCon rn args2
   CEtaFunctionsLeft : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))

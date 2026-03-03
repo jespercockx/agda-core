@@ -140,6 +140,21 @@ convDataCons r {d} {d'} f g lp lq = do
 
 {-# COMPILE AGDA2HS convDataCons #-}
 
+convRecCons : {{fl : Fuel}} → Singleton α → 
+          (rn1 : NameRec)
+          (rn2 : NameRec)
+          (args1 : TermS α (recFieldScope rn1))
+          (args2 : TermS α (recFieldScope rn2))
+        → TCM (Conv (TRecCon rn1 args1) (TRecCon rn2 args2))
+convRecCons r rn1 rn2 args1 args2 = do 
+  ifDec (decNamesIn rn1 rn2) 
+    (λ where {{refl}} → do
+      csp ← convertTermSs r args1 args2
+      return $ CRecCon rn1 csp
+    ) 
+    (tcError "record constructors are from non-convertible record types")
+{-# COMPILE AGDA2HS convRecCons #-}
+
 convLams : {{fl : Fuel}}
          → Singleton α
          → (@0 x y : Name)
@@ -258,7 +273,7 @@ convertWhnf r (TVar x) (TVar y) = convVars x y
 convertWhnf r (TDef x) (TDef y) = convDefs x y
 convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
 convertWhnf r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r c c' lc ld
-convertWhnf r (TRecCon rec lc) (TRecCon rec' ld) = tcError "not implemented: conversion of record constructor application"
+convertWhnf r (TRecCon rn1 args1) (TRecCon rn2 args2) = convRecCons r rn1 rn2 args1 args2
 convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
 convertWhnf r (TApp u e) (TApp v f) = convApps r u v e f
 convertWhnf r (TProj u f) (TProj v g) = tcError "not implemented: conversion of projections"
