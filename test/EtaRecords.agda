@@ -54,13 +54,13 @@ y = record { fst = Pair.fst x; snd = False }
 z : PairExplCon Nat Nat
 z = _,_ Zero (Suc Zero)
 
-eta-R-two : (A B : Set) (x : Pair A B) → 
-  x ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) x ; snd = Pair.snd x }
-eta-R-two = λ A B → λ x → refl
+eta-R-two : (A B : Set) (p : Pair A B) → 
+  p ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) p ; snd = Pair.snd p }
+eta-R-two = λ A B → λ p → refl
 
-eta-R-two-expl-con : (A B : Set) (x : PairExplCon A B) → 
-  x ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fstE PairExplCon.fstE x) (PairExplCon.sndE x))
-eta-R-two-expl-con = λ A B → λ x → refl
+eta-R-two-expl-con : (A B : Set) (p : PairExplCon A B) → 
+  p ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fstE PairExplCon.fstE p) (PairExplCon.sndE p))
+eta-R-two-expl-con = λ A B → λ p → refl
 
 -- (diode-lang): I don't think this statement is actually provable, because we have turned off eta-equality
 -- eta-R-two_expl : (A B : Set) (x : PairNoEta A B) →

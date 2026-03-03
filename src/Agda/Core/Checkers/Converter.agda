@@ -288,6 +288,8 @@ convertWhnf r rt (TRecCon rn recTermS) =
 
     conv ← convertTermSs r recTermS termSToConvertInto
     return (CEtaRecords rn rt recTermS conv)
+convertWhnf r (TRecCon rn recTermS) rt = 
+  tcError "TODO: eta records symmetric case"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}

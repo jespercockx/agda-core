@@ -52,8 +52,6 @@ import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 import Agda.Syntax.Common.Pretty(text, render)
 
-import Agda.Core.UtilsH(traceMagenta, traceGreen, traceCyan)
-
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
 tApp :: Term -> [Term] -> Term
@@ -183,18 +181,18 @@ instance ToCore I.Term where
   type CoreOf I.Term = Term
   toCore :: I.Term -> ToCoreM Term
 
-  toCore (I.Var k es) = traceCyan "compiling an I.Var" (TVar (var k) `tApp`) <$> toCore es
+  toCore (I.Var k es) = (TVar (var k) `tApp`) <$> toCore es
     where var :: Int -> Index
           var !n | n <= 0 = Scope.inHere
           var !n          = Scope.inThere (var (n - 1))
 
-  toCore (I.Lam ai t) = traceCyan "compiling an I.Lam" TLam <$> toCore t
+  toCore (I.Lam ai t) = TLam <$> toCore t
 
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
 
   toCore (I.Def qn es)
-    = traceCyan ("Compiling an I.Def with qn=" ++ show (pretty qn)) do
+    = do
         lookupDef qn >>= \case
           Just idx -> do
             let def = TDef idx
@@ -211,7 +209,7 @@ instance ToCore I.Term where
 
   toCore (I.Con ch _ es)
     | Just args <- allApplyElims es
-    = traceCyan "compiling an I.Con" lookupCon (I.conName ch) >>= \case
+    = lookupCon (I.conName ch) >>= \case
         Nothing -> throwError $ "[When compiling a Con] Trying to access an unknown constructor: " <+> pretty (I.conName ch)
         Just (dt , con) -> do
           -- @l@ is the amount of arguments missing from the application.
@@ -226,9 +224,9 @@ instance ToCore I.Term where
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
-  toCore (I.Pi dom codom) = traceCyan "compiling an I.Pi" TPi <$> toCore dom <*> toCore codom
+  toCore (I.Pi dom codom) = TPi <$> toCore dom <*> toCore codom
 
-  toCore (I.Sort s) = traceCyan "compiling an I.Sort" TSort <$> toCore s
+  toCore (I.Sort s) = TSort <$> toCore s
 
   toCore (I.Level l) = throwError "level expressions not supported"
 
