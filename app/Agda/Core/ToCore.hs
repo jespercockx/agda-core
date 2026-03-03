@@ -361,13 +361,16 @@ toCoreDefn (I.RecordDefn rd) ty =
     let I.TelV{theTel = internalParsTel} = I.telView'UpTo pars ty
     parsTel <- toCore internalParsTel
 
-    fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
-            Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
-            Just idx -> pure idx
-          ) . unDom) fields
+    
+    -- fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
+    --         Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
+    --         Just idx -> pure idx
+    --       ) . unDom) fields
 
+
+    -- TODO (atejandev) actually add field indices to the Core.Record, if we need them in Core
     let r = Core.Record{ recParTel = parsTel, 
-                         recFields = fieldsIndices}
+                         recFields = []}
 
     return $ Core.RecordDefn r
 

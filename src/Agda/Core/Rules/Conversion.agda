@@ -21,10 +21,11 @@ private variable
 
 opaque
   unfolding RScope
-  go : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
-  go ([] ⟨ refl ⟩)                   _  = TSNil
-  go ((Erased name ∷ names) ⟨ refl ⟩) f =
-    name ↦ f (⟨ name ⟩ inRHere) ◂ go (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
+  createDesiredTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
+  createDesiredTermS ([] ⟨ refl ⟩)                   _  = TSNil
+  createDesiredTermS ((Erased name ∷ names) ⟨ refl ⟩) f =
+    name ↦ f (⟨ name ⟩ inRHere) ◂ createDesiredTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
+  {-# COMPILE AGDA2HS createDesiredTermS #-}
 
 -- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
 -- It should create a termS : TermS α (recFieldScope rn) which looks like:
@@ -32,7 +33,7 @@ opaque
 --    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
 -- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
 -- @0 desiredTermS : (rn : NameRec) → Term α → TermS α (recFieldScope rn)
--- desiredTermS rn rt = go (recFieldScope rn) (TProj {r = rn} rt)
+-- desiredTermS rn rt = createDesiredTermS (recFieldScope rn) (TProj {r = rn} rt)
 
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
@@ -109,7 +110,7 @@ data Conv {α} where
   CEtaRecords : (rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
     → let singScope = (singTermS termS)
           func = (TProj {r = rn} rt)
-          termSToConvertInto = go singScope func
+          termSToConvertInto = createDesiredTermS singScope func
           in
       (termS ⇔ termSToConvertInto)
     → rt ≅ (TRecCon rn termS)

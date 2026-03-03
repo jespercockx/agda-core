@@ -284,12 +284,10 @@ convertWhnf r rt (TRecCon rn recTermS) =
     let 
         singletonScope = singTermS recTermS
         func = (TProj {r = rn} rt)
-        termSToConvertInto = (go singletonScope func)
+        termSToConvertInto = (createDesiredTermS singletonScope func)
 
     conv ← convertTermSs r recTermS termSToConvertInto
     return (CEtaRecords rn rt recTermS conv)
-  
-    tcError "TODO: eta-conversion for records"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}
