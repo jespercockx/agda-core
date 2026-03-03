@@ -58,6 +58,7 @@ eta-R-two : (A B : Set) (p : Pair A B) →
   p ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) p ; snd = Pair.snd p }
 eta-R-two = λ A B → λ p → refl
 
+-- (diode-lang) only difference with eta-R-two is that constructor naming is explicit
 eta-R-two-expl-con : (A B : Set) (p : PairExplCon A B) → 
   p ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fstE PairExplCon.fstE p) (PairExplCon.sndE p))
 eta-R-two-expl-con = λ A B → λ p → refl
