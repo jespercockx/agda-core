@@ -107,13 +107,13 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  CEtaRecords : (rn : NameRec) (rt : Term α) (termS : TermS α (recFieldScope rn))
-    → let singScope = (singTermS termS)
+  CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
+    → let singScope = (singTermS argsTermS)
           func = (TProj {r = rn} rt)
           termSToConvertInto = createDesiredTermS singScope func
           in
-      (termS ⇔ termSToConvertInto)
-    → rt ≅ (TRecCon rn termS)
+      (argsTermS ⇔ termSToConvertInto)
+    → rt ≅ (TRecCon rn argsTermS)
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v

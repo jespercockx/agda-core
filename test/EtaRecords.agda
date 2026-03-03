@@ -54,6 +54,12 @@ y = record { fst = Pair.fst x; snd = False }
 z : PairExplCon Nat Nat
 z = _,_ Zero (Suc Zero)
 
+-- (diode-lang):
+-- keeping in mind Converter.agda, 
+-- it should be that:
+-- - rt = p
+-- - rn = Pair
+-- - argsTermS = [(const (Pair A B → A) Pair.fst Pair.fst) p; Pair.snd p]
 eta-R-two : (A B : Set) (p : Pair A B) → 
   p ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) p ; snd = Pair.snd p }
 eta-R-two = λ A B → λ p → refl

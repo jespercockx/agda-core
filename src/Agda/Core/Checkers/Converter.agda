@@ -101,10 +101,6 @@ convertCheck : {{fl : Fuel}} → Singleton α → (t q : Term α) → TCM (t ≅
 convertTermSs : {{fl : Fuel}} → Singleton α →
                 (s p : TermS α rβ)
               → TCM (s ⇔ p)
--- convertTermSsErased : {{fl : Fuel}} → Singleton α
---               → (@0 s : TermS α rβ) 
---               → (@0 p : TermS α rβ)
---               → (s ⇔ p)
 convertBranches : {{fl : Fuel}} → Singleton α →
                 ∀ {@0 d : NameData} {@0 cs : RScope (NameCon d)}
                   (bs bp : Branches α d cs)
@@ -279,17 +275,20 @@ convertWhnf r (TLam x b) functionTerm =
   do
     conversionProof <- convertEtaFuncsGeneric r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
-convertWhnf r rt (TRecCon rn recTermS) = 
+convertWhnf r rt (TRecCon rn argsTermS) = 
   do
     let 
-        singletonScope = singTermS recTermS
+        singletonScope = singTermS argsTermS
         func = (TProj {r = rn} rt)
         termSToConvertInto = (createDesiredTermS singletonScope func)
-
-    conv ← convertTermSs r recTermS termSToConvertInto
-    return (CEtaRecords rn rt recTermS conv)
-convertWhnf r (TRecCon rn recTermS) rt = 
+    -- check whether argsTermS can be converted in the desired termSToConvertInto
+    convProof ← convertTermSs r argsTermS termSToConvertInto
+    --return proof that rt can be converted into (TRecCon rn argsTermS)
+    return (CEtaRecords rn rt argsTermS convProof) 
+convertWhnf r (TRecCon rn argsTermS) rt = 
   tcError "TODO: eta records symmetric case"
+convertWhnf r (TProj _ _) term = tcError "TODO: Tproj generic left case"
+convertWhnf r term (TProj _ _) = tcError "TODO: TProj generic right case"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}
