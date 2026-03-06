@@ -27,6 +27,7 @@ data Term α where
         → (TermS α (dataParScope d))
         → (TermS α (dataIxScope d))
         → Term α
+  TRec : (rn : NameRec) → TermS α (recParScope rn) → Term α
   TDataCon  : {d : NameData} (c : NameCon d)
         → (TermS α (dataFieldScope c)) → Term α
   TRecCon : (r : NameRec) → (TermS α (recFieldScope r)) → Term α
@@ -120,6 +121,12 @@ dataType : (d : NameData)
 dataType d ds pars ixs = El ds (TData d pars ixs)
 {-# COMPILE AGDA2HS dataType #-}
 
+recordType : (rn : NameRec)
+           → Sort α
+           → (pars : TermS α (recParScope rn))
+           → Type α
+recordType rn rsort pars = El rsort (TRec rn pars)
+{-# COMPILE AGDA2HS recordType #-}
 -- case on Terms
 
 opaque
@@ -188,6 +195,7 @@ unAppsView (TApp t es)
 unAppsView (TVar _)          = refl
 unAppsView (TDef _)          = refl
 unAppsView (TData _ _ _)     = refl
+unAppsView (TRec _ _)        = refl
 unAppsView (TDataCon _ _)        = refl
 unAppsView (TRecCon _ _)        = refl
 unAppsView (TProj _ _)       = refl

@@ -79,14 +79,19 @@ open Datatype public
 ---------------------------------------------------------------------------------------------------
                                           {- Record -}
 ---------------------------------------------------------------------------------------------------
-record Record (@0 r : NameRec) : Set where
+record Record (@0 rn : NameRec) : Set where
   no-eta-equality
   private
     @0 pars : RScope Name
-    pars = recParScope r
-  field 
+    pars = recParScope rn
+  field
+    recSort         : Sort (mempty ◂▸ pars)
     recParTel       : Telescope mempty pars
-    recFields       : List (NameProj r)
+    recFields       : List (NameProj rn)
+
+
+  instRecSort : TermS α (recParScope rn) → Sort α
+  instRecSort tPars = subst (extSubst ⌈⌉ tPars) recSort
 
 
 open Record public

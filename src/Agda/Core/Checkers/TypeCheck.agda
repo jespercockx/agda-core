@@ -206,7 +206,7 @@ checkDataCon ctx {d = d} c cargs (El s ty) = do
           -- "can't find a constructor with such a name"
         con ⟨ ceq ⟩ ← tcmGetConstructor c
         let ctel = instConIndTel con params
-            ctype = constructorDataType dt con params cargs
+            ctype = dataConstructorType dt con params cargs
         tySubst ← checkTermS ctx ctel cargs
         checkCoerce ctx (TDataCon c cargs) (ctype , tyDataCon' dt dteq con ceq tySubst) (El s ty))
     (tcError "datatypes not convertible")

@@ -18,16 +18,22 @@ private variable
   @0 a b c  : Type α
   @0 k l    : Sort α
 
-constructorDataType : {d : NameData}
+dataConstructorType : {d : NameData}
                 → (dt : Datatype d)
                 → {c : NameCon d}
                 → (con : Constructor c)
                 → (pars : TermS α (dataParScope d))
                 → TermS α (dataFieldScope c)
                 → Type α
-constructorDataType {d = d} dt con pars us =
+dataConstructorType {d = d} dt con pars us =
   dataType d (instDataSort dt pars) pars (instConIx con pars us)
-{-# COMPILE AGDA2HS constructorDataType #-}
+{-# COMPILE AGDA2HS dataConstructorType #-}
+
+recordConstructorType : (rn : NameRec)
+              → TermS α (recParScope rn)
+              → Type α
+recordConstructorType rn pars = recordType rn {!!} pars
+{-# COMPILE AGDA2HS recordConstructorType #-}
 
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
 
@@ -82,10 +88,13 @@ data TyTerm {α} Γ where
 
     → Γ ⊢ˢ us ∶ instConIndTel con pars
     -----------------------------------------------------------
-    → Γ ⊢ TDataCon c us ∶ constructorDataType dt con pars us
+    → Γ ⊢ TDataCon c us ∶ dataConstructorType dt con pars us
 
-  -- TyRecCon : {!!}
-    
+  TyRecCon : 
+    {rn : NameRec}
+    {@0 args : TermS α (recFieldScope rn)}
+    -----------------------------------------------------------
+    → Γ ⊢ TRecCon rn args ∶ recordConstructorType rn args
 
   TyLam :
       Γ , x ∶ a ⊢ u ∶ b
@@ -247,7 +256,7 @@ tyDataCon' : {@0 Γ : Context α}
   → {@0 us : TermS α (dataFieldScope c)}
   → Γ ⊢ˢ us ∶ instConIndTel con pars
   ----------------------------------------------
-  → Γ ⊢ TDataCon c us ∶ constructorDataType dt con pars us
+  → Γ ⊢ TDataCon c us ∶ dataConstructorType dt con pars us
 tyDataCon' dt refl con refl tySubst = TyDataCon tySubst
 {-# COMPILE AGDA2HS tyDataCon' #-}
 

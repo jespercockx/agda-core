@@ -101,6 +101,7 @@ substTermS   : α ⇒ β → TermS α rγ → TermS β rγ
 substTerm f (TVar (⟨ x ⟩ k))  = lookupSubst f x k
 substTerm f (TDef d)          = TDef d
 substTerm f (TData d ps is)   = TData d (substTermS f ps) (substTermS f is)
+substTerm f (TRec rn pars)    = TRec rn (substTermS f pars)
 substTerm f (TDataCon c vs)       = TDataCon c (substTermS f vs)
 substTerm f (TRecCon r vs)        = TRecCon r (substTermS f vs)
 substTerm f (TLam x v)        = TLam x (substTerm (liftBindSubst f) v)
