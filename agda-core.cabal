@@ -17,6 +17,7 @@ library
         Agda.Core.Rules.Conversion
         Agda.Core.Rules.Typing
         Agda.Core.Rules.Terminating
+        Agda.Core.Rules.Terminating2
         Agda.Core.Checkers.Terminate
         Agda.Core.Prelude
         Agda.Core.Name

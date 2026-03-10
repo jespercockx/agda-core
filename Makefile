@@ -18,6 +18,7 @@ alllib: lib \
   lib/Agda/Core/Rules/Conversion.hs \
   lib/Agda/Core/Rules/Typing.hs \
   lib/Agda/Core/Rules/Terminating.hs \
+  lib/Agda/Core/Rules/Terminating2.hs \
   lib/Agda/Core/TCM/TCM.hs \
   lib/Agda/Core/TCM/Instances.hs \
   lib/Agda/Core/Checkers/Converter.hs \

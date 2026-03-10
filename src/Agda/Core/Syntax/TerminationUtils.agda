@@ -15,6 +15,7 @@ private open module @0 G = Globals globals
 private variable
   @0 x      : Name
   @0 α      : Scope Name
+  @0 dα      : Scope (NameIn defScope)
   @0 rβ     : RScope Name
   @0 u v    : Term α
   @0 a b c  : Type α
@@ -27,6 +28,15 @@ data SubTermEnv : @0 Scope Name → Set where
               → SubTermEnv α
               → SubTermEnv (α ▸ x)
 {-# COMPILE AGDA2HS SubTermEnv #-}
+
+-- data SubTermEnv (@0 otherScope : Scope Name) : @0 Scope Name → Set
+-- data SubTermEnv otherScope where
+--   StEnvEmpty  : SubTermEnv otherScope mempty
+--   StEnvExtend : (@0 x : Name)
+--               → Maybe (NameIn otherScope)   -- x is a sub-term of this variable (if any)
+--               → SubTermEnv otherScope α
+--               → SubTermEnv otherScope (α ▸ x)
+-- {-# COMPILE AGDA2HS SubTermEnv #-}
 
 private -- it should use a RScope instead of β and then could be public
   raiseNameIn : {@0 α β : Scope Name} → Singleton β → NameIn α →  NameIn (α <> β)
@@ -120,6 +130,7 @@ record FunDefinition : Set where
     body : Term arity
 open FunDefinition public
 {-# COMPILE AGDA2HS FunDefinition deriving Show #-}
+
 
 botErased : {a : Set} → @0 ⊥ → a
 botErased ()
