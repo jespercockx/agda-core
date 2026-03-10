@@ -8,31 +8,35 @@ data ℕ : Set where
 -- foo : ℕ → ℕ
 -- foo n = suc n
 
-{-# NON_TERMINATING #-}
-countdown : ℕ → ℕ
-countdown zero = zero
-countdown (suc n) = countdown n
-
+-- {-# NON_TERMINATING #-}
+-- countdown : ℕ → ℕ
+-- countdown zero = zero
+-- countdown (suc n) = countdown n
+--
 {-# NON_TERMINATING #-}
 countdown2 : ℕ → ℕ → ℕ
 countdown2 m zero = zero
-countdown2 m (suc n) = countdown2 n m
+countdown2 m (suc n) = countdown2 m n
 
+-- {-# NON_TERMINATING #-}
+-- countdown3 : ℕ → ℕ → ℕ → ℕ
+-- countdown3 zero k m = zero
+-- countdown3 (suc n) k m = countdown3 n k m 
 
-babyackermann : ℕ → ℕ → ℕ
-babyackermann zero n = suc n
-babyackermann (suc m) zero = babyackermann m (suc zero)
-babyackermann (suc m) (suc n) = babyackermann m (babyackermann zero n)
-
-ackermann : ℕ → ℕ → ℕ
-ackermann zero n = suc n
-ackermann (suc m) zero = ackermann m (suc zero)
-ackermann (suc m) (suc n) = ackermann m (ackermann (suc m) n)
+-- babyackermann : ℕ → ℕ → ℕ
+-- babyackermann zero n = suc n
+-- babyackermann (suc m) zero = babyackermann m (suc zero)
+-- babyackermann (suc m) (suc n) = babyackermann m (babyackermann zero n)
 --
--- -- NEGATIVE TEST: Should fail termination checker
-{-# NON_TERMINATING #-}
-loop : ℕ → ℕ
-loop n = loop n
+-- ackermann : ℕ → ℕ → ℕ
+-- ackermann zero n = suc n
+-- ackermann (suc m) zero = ackermann m (suc zero)
+-- ackermann (suc m) (suc n) = ackermann m (ackermann (suc m) n)
+-- --
+-- -- -- NEGATIVE TEST: Should fail termination checker
+-- {-# NON_TERMINATING #-}
+-- loop : ℕ → ℕ
+-- loop n = loop n
 
 -- -- Helper: addition
 -- _+_ : ℕ → ℕ → ℕ

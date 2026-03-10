@@ -105,7 +105,7 @@ checkDescendingIndex f nthArg env prf (TApp func (TVar x)) = do
   catchEither (checkDescendingIndexApp f nthArg env prf (TApp func (TVar x))) $ λ err →
     case unApps func of λ where
       (TDef fname , args) {{ eq }} → do
-        let lengthOk  = decNat (lengthN args) (indexToNat $ indexOf nthArg)
+        let lengthOk  = decIndex (lengthN args) (indexOf (lengthScope $ arity f) nthArg)
             fnameOk   = decNamesIn fname (index f)
             stOk      = decMaybeNameIn (lookupSt env x) (Just (weakenNameIn prf $ getNthArg nthArg))
         (True ⟨ lengthProof ⟩) ← Right lengthOk
@@ -140,18 +140,18 @@ checkTermination' f = foldr helper (Left "This function is non-terminating") (it
   where
     helper : NthArg (arity f) → Either String (Descending f) → Either String (Descending f)
     helper nthArg (Right res) = Right res
-    helper nthArg (Left _) = 
-      mapRight (DescendingIndex nthArg) 
-        (checkDescendingIndex f nthArg (creatStEnvFromScope StEnvEmpty (arity f)) 
-          (subst0 (Sub (arity f)) (sym (leftIdentity (f .arity))) subRefl) 
-          (subst0 (λ scope → Term scope) (sym (leftIdentity (f .arity))) (body f)))
+    helper nthArg (Left _) = do
+      descBody <- (checkDescendingIndex f nthArg (creatStEnvFromScope StEnvEmpty (arity f)) 
+                    (subst0 (Sub (arity f)) (sym (leftIdentity (f .arity))) subRefl) 
+                    (subst0 (λ scope → Term scope) (sym (leftIdentity (f .arity))) (body f)))
+      Right $ DescendingIndex nthArg descBody
 {-# COMPILE AGDA2HS checkTermination' #-}
 
 checkTermination : {α : Scope Name} → SubTermEnv α → NameIn defScope → Term α → Either String String
 checkTermination c def (TLam x body) = checkTermination (StEnvExtend x Nothing c) def body
 checkTermination {α} c def body = do
-  _ ← checkTermination' (record { index = def; arity = α; body = body })
-  Right ("The function is terminating in its ")
+  DescendingIndex r i ← checkTermination' (record { index = def; arity = α; body = body })
+  Right ("The function is terminating in its " ++ show r)
 {-# COMPILE AGDA2HS checkTermination #-}
 
 

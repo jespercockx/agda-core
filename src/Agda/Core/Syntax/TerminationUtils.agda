@@ -63,16 +63,46 @@ data NthArg : @0 Scope Name → Set where
   SucNA : (@0 x : Name) → NthArg α → NthArg (α ▸ x)
 {-# COMPILE AGDA2HS NthArg deriving Show #-}
 
-indexOf : NthArg α → Index
-indexOf (ZeroNA _) = Zero
-indexOf (SucNA _ n) = Suc (indexOf n)
-{-# COMPILE AGDA2HS indexOf #-}
+instance
+  {-# NON_TERMINATING #-} -- need to find a way to not need those
+  showNthArg : Show (NthArg α)
+  showNthArg .show (ZeroNA x)  = "ZeroNA"
+  showNthArg .show (SucNA x n) = "SucNA (" ++ show n ++ ")"
+  showNthArg .showsPrec _ x s  = show x ++ s
+  showNthArg .showList xs s    = show xs ++ s
+-- {-# COMPILE AGDA2HS showNthArg #-}
 
+-- indexOf : NthArg α → Index
+-- indexOf (ZeroNA _) = Zero
+-- indexOf (SucNA _ n) = Suc (indexOf n)
+-- {-# COMPILE AGDA2HS indexOf #-}
 opaque
   unfolding Scope
-  getNthArg : NthArg α → NameIn α
-  getNthArg (ZeroNA x) = ⟨ x ⟩  (Zero ⟨ IsZero refl ⟩)
-  getNthArg {α} (SucNA x next)  = weakenNameIn (subWeaken subRefl) (getNthArg next)
+  lengthScope : Scope Name → Index
+  lengthScope [] = Zero
+  lengthScope (_ ∷ tl) = Suc $ lengthScope tl
+{-# COMPILE AGDA2HS lengthScope #-}
+
+lengthN : {a : Set} → List a → Index
+lengthN []       = Zero
+lengthN (_ ∷ xs) = Suc (lengthN xs)
+{-# COMPILE AGDA2HS lengthN #-}
+
+indexOf : Index → NthArg α → Index
+indexOf (Suc n) (ZeroNA _) = n
+indexOf (Suc n) (SucNA _ nNa) = indexOf n nNa
+indexOf Zero _ = Zero -- should never be reached
+{-# COMPILE AGDA2HS indexOf #-}
+
+
+-- opaque
+--   unfolding Scope
+--   countLeft : (α : Scope Name) → NameIn α → Nat
+--   countLeft (Erased x ∷ tl) (⟨ name ⟩ prf) = if {!!} then lengthScope tl else countLeft tl (⟨ name ⟩ prf)
+
+getNthArg : NthArg α → NameIn α
+getNthArg (ZeroNA x) = ⟨ x ⟩  (Zero ⟨ IsZero refl ⟩)
+getNthArg {α} (SucNA x next)  = weakenNameIn (subWeaken subRefl) (getNthArg next)
 {-# COMPILE AGDA2HS getNthArg #-}
 
 opaque
@@ -117,6 +147,24 @@ decNat x y = case (x == y) of λ where
   True {{ eq }} → True ⟨ eqNatSound eq ⟩
   False {{ eq }} → False ⟨ eqNatSoundFalse eq ⟩
 {-# COMPILE AGDA2HS decNat #-}
+
+eqIndexSound : ∀ {x y : Index} → (x == y) ≡ True → x ≡ y
+eqIndexSound {Zero}  {Zero}  h = refl
+eqIndexSound {Suc n} {Suc m} h = cong Suc (eqIndexSound h)
+eqIndexSound {Zero}  {Suc _} ()
+eqIndexSound {Suc _} {Zero}  ()
+
+eqIndexSoundFalse : ∀ {x y : Index} → (x == y) ≡ False → (x ≡ y → ⊥)
+eqIndexSoundFalse {Zero}  {Zero}  h _ = case h of λ ()
+eqIndexSoundFalse {Suc n} {Suc m} h refl = eqIndexSoundFalse {n} {m} h refl
+eqIndexSoundFalse {Zero}  {Suc _} h ()
+eqIndexSoundFalse {Suc _} {Zero}  h ()
+
+decIndex : ∀ (x y : Index) → Dec (x ≡ y)
+decIndex x y = case (x == y) of λ where
+  True  {{ eq }} → True  ⟨ eqIndexSound eq ⟩
+  False {{ eq }} → False ⟨ eqIndexSoundFalse eq ⟩
+{-# COMPILE AGDA2HS decIndex #-}
 
 decMaybeNameIn : ∀ (x y : Maybe (NameIn α)) → Dec (x ≡ y)
 decMaybeNameIn (Just a) (Just b) = case decNamesIn a b of λ where

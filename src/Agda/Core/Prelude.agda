@@ -101,8 +101,4 @@ caseMaybe (Just x) j n = j x
 Not : Set → Set
 Not A = A → ⊥
 
-lengthN : {a : Set} → List a → Nat
-lengthN []       = 0
-lengthN (_ ∷ xs) = 1 + (lengthN xs)
-{-# COMPILE AGDA2HS lengthN #-}
 

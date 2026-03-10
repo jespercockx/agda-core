@@ -65,7 +65,7 @@ data TerminatingTerm {α} f nthArg env prf where
     (let (func , args) = unApps function)
 
     → @0 func ≡ TDef (index f)
-    → @0 (lengthN args) ≡ (indexToNat $ indexOf nthArg) -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
+    → @0 (lengthN args) ≡ indexOf (lengthScope (arity f)) nthArg -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
     → @0 lookupSt env x ≡ Just (weakenNameIn prf $ getNthArg nthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
     → TerminatingTermList f nthArg env prf args
     --------------------------------------------------------------
