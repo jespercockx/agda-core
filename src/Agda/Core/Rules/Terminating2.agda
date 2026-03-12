@@ -18,9 +18,9 @@ private variable
   @0 a b c  : Type α
   @0 k l    : Sort α
 
-data FunDefS : @0 Scope (Name) → Set where
+data FunDefS : @0 Scope Name → Set where
   FunDefSEmpty  : FunDefS mempty
-  FunDefSExtend : (@0 def : Name) -- necessary?
+  FunDefSExtend : (@0 def : Name)
               → FunDefinition
               → FunDefS α
               → FunDefS (α ▸ def)
@@ -42,24 +42,24 @@ open Program public
 {-# COMPILE AGDA2HS Program deriving Show #-}
 {-# COMPILE AGDA2HS lookupFunc inline #-}
 
-record FunctionCall {@0 p : Program} : Set where -- we could think about making it independent from program, by having caller and callee already be fundefinition, I am not sure
-  no-eta-equality
-  field
-    caller : NameIn defScope
-    callee : NameIn defScope
-    relations : SubTermEnv (arity (lookupFunc p callee)) -- (arity (lookupFunc p caller)) Okay this is where we modify the SubTermEnv so as to be a mapping
-    steps : List (NameIn defScope)
-open FunctionCall public
-{-# COMPILE AGDA2HS FunctionCall deriving Show #-}
+-- record FunctionCall {@0 p : Program} : Set where -- we could think about making it independent from program, by having caller and callee already be fundefinition, I am not sure
+--   no-eta-equality
+--   field
+--     caller : NameIn defScope
+--     callee : NameIn defScope
+--     relations : SubTermEnv (arity (lookupFunc p callee)) -- (arity (lookupFunc p caller)) Okay this is where we modify the SubTermEnv so as to be a mapping
+--     steps : List (NameIn defScope)
+-- open FunctionCall public
+-- {-# COMPILE AGDA2HS FunctionCall deriving Show #-}
 
-record Cycle {@0 p : Program} : Set where -- we could think about making it independent from program, by having caller and callee already be fundefinition, I am not sure
-  no-eta-equality
-  field
-    function : NameIn defScope
-    relations : SubTermEnv (arity (lookupFunc p function)) -- (arity (lookupFunc p function)) Okay this is where we modify the SubTermEnv so as to be a mapping
-    steps : List (NameIn defScope) -- not really needed anymore, although might be useful to distinguish between cycles?
-open Cycle public
-{-# COMPILE AGDA2HS Cycle deriving Show #-}
+-- record Cycle {@0 p : Program} : Set where -- we could think about making it independent from program, by having caller and callee already be fundefinition, I am not sure
+--   no-eta-equality
+--   field
+--     function : NameIn defScope
+--     relations : SubTermEnv (arity (lookupFunc p function)) -- (arity (lookupFunc p function)) Okay this is where we modify the SubTermEnv so as to be a mapping
+--     steps : List (NameIn defScope) -- not really needed anymore, although might be useful to distinguish between cycles?
+-- open Cycle public
+-- {-# COMPILE AGDA2HS Cycle deriving Show #-}
 
 
 data FragmentTerm : @0 Term α → @0 Term β → Set -- Maybe explore relation between alpha and beta?

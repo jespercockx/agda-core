@@ -12,19 +12,19 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x      : Name
-  @0 α      : Scope Name
+  @0 α β    : Scope Name
   @0 rβ     : RScope Name
   @0 u v    : Term α
   @0 a b c  : Type α
   @0 k l    : Sort α
 
 
-data TerminatingTermList (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv α) (@0 prf : arity f ⊆ α) : @0 List (Term α) → Set
-data TerminatingTermS (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv α) (@0 prf : arity f ⊆ α) : @0 (TermS α rβ) → Set
+data TerminatingTermList (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 List (Term α) → Set
+data TerminatingTermS (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 (TermS α rβ) → Set
 
-data TerminatingBranches {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 env : SubTermEnv α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
-data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv α) (@0 prf : arity f ⊆ α) : @0 Term α → Set
-data TerminatingBranch {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 env : SubTermEnv α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) : {@0 c : NameCon d} → @0 Branch α c → Set
+data TerminatingBranches {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
+data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 Term α → Set
+data TerminatingBranch {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 c : NameCon d} → @0 Branch α c → Set
 
 -- certificate that a term is always decreasing in the given parameter for function f
 data TerminatingTerm {α} f nthArg env prf where
@@ -66,7 +66,7 @@ data TerminatingTerm {α} f nthArg env prf where
 
     → @0 func ≡ TDef (index f)
     → @0 (lengthN args) ≡ indexOf (lengthScope (arity f)) nthArg -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
-    → @0 lookupSt env x ≡ Just (weakenNameIn prf $ getNthArg nthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
+    → @0 lookupSt env x ≡ Decreasing (getNthArg nthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
     → TerminatingTermList f nthArg env prf args
     --------------------------------------------------------------
     → TerminatingTerm f nthArg env prf (TApp function (TVar x))
@@ -80,7 +80,7 @@ data TerminatingTerm {α} f nthArg env prf where
 
   TerminatingLam :
     {@0 body : Term (bind α x)}
-    → TerminatingTerm f nthArg (StEnvExtend x Nothing env) (subWeaken prf) body 
+    → TerminatingTerm f nthArg (StEnvExtend x Unrelated env) (subWeaken prf) body 
     --------------------------------------------------------------
     → TerminatingTerm f nthArg env prf (TLam x body)
 
@@ -88,7 +88,7 @@ data TerminatingTerm {α} f nthArg env prf where
     {@0 body : Term α}
     {@0 rest : Term (bind α x)}
     → TerminatingTerm f nthArg env prf body 
-    → TerminatingTerm f nthArg (StEnvExtend x Nothing env) (subWeaken prf) rest 
+    → TerminatingTerm f nthArg (StEnvExtend x Unrelated env) (subWeaken prf) rest 
     --------------------------------------------------------------
     → TerminatingTerm f nthArg env prf (TLet x body rest)
 
@@ -101,7 +101,7 @@ data TerminatingTerm {α} f nthArg env prf where
     {cases : Branches α d (AllNameCon d)}                         -- cases for constructors of dt
     {return : Type (α' ▸ x)}                                      -- return type
 
-    → TerminatingBranches f nthArg env prf varName cases          -- Proof that each branch is terminating
+    → TerminatingBranches f nthArg env prf varName (descend $ lookupSt env varName) cases          -- Proof that each branch is terminating
 
     --------------------------------------------------
     → TerminatingTerm f nthArg env prf (TCase d iRun (TVar varName) cases return)
@@ -131,20 +131,20 @@ data TerminatingTermS {α} f nthArg env prf where
     → TerminatingTermS f nthArg env prf (TSCons {x = name} term terml)
 {-# COMPILE AGDA2HS TerminatingTermS #-}
 
-data TerminatingBranches {α = α} {d = d} f nthArg env prf var where
-  TerminatingNil : TerminatingBranches f nthArg env prf var BsNil
+data TerminatingBranches {α = α} {d = d} f nthArg env prf var rel where
+  TerminatingNil : TerminatingBranches f nthArg env prf var rel BsNil
   TerminatingCons : ∀ {@0 c : NameCon d} {@0 cs : RScope (NameCon d)} {@0 b : Branch α c} {@0 bs : Branches α d cs}
-           → TerminatingBranch f nthArg env prf var b
-           → TerminatingBranches f nthArg env prf var bs
-           → TerminatingBranches f nthArg env prf var (BsCons b bs)
+           → TerminatingBranch f nthArg env prf var rel b
+           → TerminatingBranches f nthArg env prf var rel bs
+           → TerminatingBranches f nthArg env prf var rel (BsCons b bs)
 {-# COMPILE AGDA2HS TerminatingBranches #-}
 
-data TerminatingBranch {α = α} {d = d} f nthArg env prf var where
+data TerminatingBranch {α = α} {d = d} f nthArg env prf var rel where
   TerminatingBBranch :
               {@0 c : NameCon d}
               {rhs : Term (α ◂▸ (fieldScope c))}
-            → TerminatingTerm f nthArg (updateEnv env (fieldScope c) var) (subExtScope (sing (fieldScope c)) prf) rhs
-            → TerminatingBranch f nthArg env prf var (BBranch (sing c) ((fieldScope c) ⟨ refl ⟩) rhs)
+            → TerminatingTerm f nthArg (updateEnv env (fieldScope c) rel ) (subExtScope (sing (fieldScope c)) prf) rhs
+            → TerminatingBranch f nthArg env prf var rel (BBranch (sing c) ((fieldScope c) ⟨ refl ⟩) rhs)
 {-# COMPILE AGDA2HS TerminatingBranch #-}
 
 
@@ -157,9 +157,9 @@ data Descending f where
      -- certificate that the body of the function is always decreasing in the given parameter
      → (TerminatingTerm f nthArg 
          -- subterm context created from the scope of the arity of the function
-         (creatStEnvFromScope StEnvEmpty (arity f)) 
-         (subst0 (Sub (arity f)) (sym (leftIdentity (f .arity))) subRefl)
+         (createStEnvFromScope (arity f)) 
+         subRefl
          -- body of the function
-         (subst0 (λ scope → Term scope) (sym (leftIdentity (f .arity))) (body f))) 
+         (body f)) 
      → Descending f
 {-# COMPILE AGDA2HS Descending #-}

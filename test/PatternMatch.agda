@@ -8,15 +8,15 @@ data ℕ : Set where
 -- foo : ℕ → ℕ
 -- foo n = suc n
 
--- {-# NON_TERMINATING #-}
--- countdown : ℕ → ℕ
--- countdown zero = zero
--- countdown (suc n) = countdown n
+{-# NON_TERMINATING #-}
+countdown : ℕ → ℕ
+countdown zero = zero
+countdown (suc n) = countdown n
 --
 {-# NON_TERMINATING #-}
 countdown2 : ℕ → ℕ → ℕ
-countdown2 m zero = zero
-countdown2 m (suc n) = countdown2 m n
+countdown2 zero n = zero
+countdown2 (suc m) n = countdown2 m n
 
 -- {-# NON_TERMINATING #-}
 -- countdown3 : ℕ → ℕ → ℕ → ℕ

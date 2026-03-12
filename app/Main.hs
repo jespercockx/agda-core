@@ -306,7 +306,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl
             env = Core.MkTCEnv sig fl
-        case checkTermination [] StEnvEmpty i funBody of
+        case checkTermination [] [] i funBody of
           Left err -> reportSDocFailure "agda-core.check" $ text $ "Termination error for: " <> show defName <> ", says: " <> show err
           Right msg -> reportSDoc "agda-core.check" 1 $ text $ "termination success:" <> show msg <> "\n Before TC: " <> show funBody <> " with name: " <> defName <> ", typchecking against: " <> show defType
         case Core.runTCM (checkType CtxEmpty funBody defType) env of

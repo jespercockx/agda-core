@@ -14,29 +14,47 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x      : Name
-  @0 α      : Scope Name
-  @0 dα      : Scope (NameIn defScope)
+  @0 α β    : Scope Name
+  @0 dα     : Scope (NameIn defScope)
   @0 rβ     : RScope Name
   @0 u v    : Term α
   @0 a b c  : Type α
   @0 k l    : Sort α
 
-data SubTermEnv : @0 Scope Name → Set where
-  StEnvEmpty  : SubTermEnv mempty
-  StEnvExtend : (@0 x : Name)
-              → Maybe (NameIn α)   -- x is a sub-term of this variable (if any)
-              → SubTermEnv α
-              → SubTermEnv (α ▸ x)
-{-# COMPILE AGDA2HS SubTermEnv #-}
-
--- data SubTermEnv (@0 otherScope : Scope Name) : @0 Scope Name → Set
--- data SubTermEnv otherScope where
---   StEnvEmpty  : SubTermEnv otherScope mempty
+-- data SubTermEnv : @0 Scope Name → Set where
+--   StEnvEmpty  : SubTermEnv mempty
 --   StEnvExtend : (@0 x : Name)
---               → Maybe (NameIn otherScope)   -- x is a sub-term of this variable (if any)
---               → SubTermEnv otherScope α
---               → SubTermEnv otherScope (α ▸ x)
+--               → Maybe (NameIn α)   -- x is a sub-term of this variable (if any)
+--               → SubTermEnv α
+--               → SubTermEnv (α ▸ x)
 -- {-# COMPILE AGDA2HS SubTermEnv #-}
+
+data Relation (@0 α : Scope Name) : Set
+data Relation α where
+  Unrelated : Relation α
+  NonIncreasing : NameIn α → Relation α
+  Decreasing : NameIn α → Relation α
+{-# COMPILE AGDA2HS Relation #-}
+
+descend : Relation α → Relation α
+descend (NonIncreasing n) = Decreasing n
+descend other = other
+{-# COMPILE AGDA2HS descend #-}
+
+weakenRelation : α ⊆ β → Relation α → Relation β
+weakenRelation wk Unrelated = Unrelated
+weakenRelation wk (NonIncreasing x) = NonIncreasing (weakenNameIn wk x)
+weakenRelation wk (Decreasing x) = Decreasing (weakenNameIn wk x)
+{-# COMPILE AGDA2HS weakenRelation #-}
+
+data SubTermEnv : @0 Scope Name → @0 Scope Name → Set
+data SubTermEnv where
+  StEnvEmpty  : SubTermEnv α mempty
+  StEnvExtend : (@0 x : Name)
+              → Relation α   -- x is a sub-term of this variable (if any)
+              → SubTermEnv α β
+              → SubTermEnv α (β ▸ x)
+{-# COMPILE AGDA2HS SubTermEnv #-}
 
 private -- it should use a RScope instead of β and then could be public
   raiseNameIn : {@0 α β : Scope Name} → Singleton β → NameIn α →  NameIn (α <> β)
@@ -45,27 +63,49 @@ private -- it should use a RScope instead of β and then could be public
 
 opaque
   unfolding RScope extScope
-  updateEnv : SubTermEnv α → (cs : RScope Name) → NameIn α → SubTermEnv (extScope α cs)
+  updateEnv : SubTermEnv α β → (cs : RScope Name) → Relation α → SubTermEnv α (extScope β cs)
   updateEnv env [] _ = env
-  updateEnv env (Erased x ∷ s) name = updateEnv (StEnvExtend x (Just name) env) s (weakenNameIn (subWeaken subRefl) name)
+  updateEnv env (Erased x ∷ s) rel = updateEnv (StEnvExtend x rel env) s rel
   {-# COMPILE AGDA2HS updateEnv #-}
 
-lookupSt : (Γ : SubTermEnv α) (x : NameIn α) → Maybe (NameIn α)
+lookupSt : (Γ : SubTermEnv α β) (x : NameIn β) → Relation α
 lookupSt StEnvEmpty x = nameInEmptyCase x
-lookupSt (StEnvExtend namesubterm nameparent c) name = 
-  case (nameInBindCase name
-    (λ q → lookupSt c (⟨ _ ⟩ q))
-    (λ _ → nameparent)) of λ where
-      (Just n) → Just (raiseNameIn (sing _) n)
-      Nothing → Nothing
+lookupSt (StEnvExtend {α} namesubterm nameparent c) name = 
+  (nameInBindCase name
+    (λ q → lookupSt {α = α} c (⟨ _ ⟩ q))
+    (λ _ → nameparent))
 {-# COMPILE AGDA2HS lookupSt #-}
 
 opaque
   unfolding Scope
-  creatStEnvFromScope : SubTermEnv α → (β : Scope Name)  → SubTermEnv (α <> β)
-  creatStEnvFromScope env [] = env
-  creatStEnvFromScope env (Erased x ∷ rest) = StEnvExtend x Nothing (creatStEnvFromScope env rest)
-{-# COMPILE AGDA2HS creatStEnvFromScope #-}
+  scopeFromList : List Name → Scope Name
+  scopeFromList (x ∷ xs) = Erased x ∷ scopeFromList xs
+  scopeFromList [] = []
+
+
+weakenEnv : SubTermEnv α β → SubTermEnv (α ▸ x) β
+weakenEnv StEnvEmpty = StEnvEmpty
+weakenEnv (StEnvExtend name rel rest) = StEnvExtend name (weakenRelation (subBindDrop subRefl) rel) (weakenEnv rest)
+{-# COMPILE AGDA2HS weakenEnv #-}
+
+liftEnv : SubTermEnv α β → Relation (α ▸ x) → SubTermEnv (α ▸ x) (β ▸ x)
+liftEnv env rel = StEnvExtend _ rel (weakenEnv env)
+{-# COMPILE AGDA2HS liftEnv #-}
+
+opaque
+  unfolding Scope scopeFromList
+  createStEnvFromScope : (l : Scope Name) → SubTermEnv l l
+  createStEnvFromScope (Erased x ∷ tl) = liftEnv (createStEnvFromScope tl) (NonIncreasing (⟨ x ⟩ (Zero ⟨ IsZero refl ⟩)))
+  createStEnvFromScope [] = StEnvEmpty
+{-# COMPILE AGDA2HS createStEnvFromScope #-}
+
+
+-- opaque
+--   unfolding Scope scopeFromList
+--   creatStEnvFromScope : SubTermEnv α β → (l : List Name) → SubTermEnv α (β <> scopeFromList l)
+--   creatStEnvFromScope env [] = env
+--   creatStEnvFromScope env (x ∷ rest) = StEnvExtend x (NonIncreasing (⟨ x ⟩ (Zero ⟨ IsZero refl ⟩))) {!(creatStEnvFromScope env rest)!}
+-- {-# COMPILE AGDA2HS creatStEnvFromScope #-}
 
 -- datatype for arbitrary member of a scope
 data NthArg : @0 Scope Name → Set where
@@ -185,6 +225,22 @@ decMaybeNameIn Nothing  Nothing  = True ⟨ refl ⟩
 decMaybeNameIn (Just _) Nothing  = False ⟨ (λ ()) ⟩
 decMaybeNameIn Nothing  (Just _) = False ⟨ (λ ()) ⟩
 {-# COMPILE AGDA2HS decMaybeNameIn #-}
+
+decRelation : ∀ (x y : Relation α) → Dec (x ≡ y)
+decRelation (Decreasing a) (Decreasing b) = case decNamesIn a b of λ where
+  (True  ⟨ p ⟩) → True  ⟨ cong Decreasing p ⟩
+  (False ⟨ f ⟩) → False ⟨ (λ where refl → botErased (f refl)) ⟩
+decRelation (NonIncreasing a) (NonIncreasing b) = case decNamesIn a b of λ where
+  (True  ⟨ p ⟩) → True  ⟨ cong NonIncreasing p ⟩
+  (False ⟨ f ⟩) → False ⟨ (λ where refl → botErased (f refl)) ⟩
+decRelation Unrelated Unrelated                 = True  ⟨ refl ⟩
+decRelation (Decreasing _)    (NonIncreasing _) = False ⟨ (λ ()) ⟩
+decRelation (Decreasing _)    Unrelated         = False ⟨ (λ ()) ⟩
+decRelation (NonIncreasing _) (Decreasing _)    = False ⟨ (λ ()) ⟩
+decRelation (NonIncreasing _) Unrelated         = False ⟨ (λ ()) ⟩
+decRelation Unrelated         (Decreasing _)    = False ⟨ (λ ()) ⟩
+decRelation Unrelated         (NonIncreasing _) = False ⟨ (λ ()) ⟩
+{-# COMPILE AGDA2HS decRelation #-}
 
 transSym : {x y : RScope Name} (p : x ≡ y) → (t : Term (α ◂▸ x)) → subst0 (λ (@0 f₁) → Term (α ◂▸ f₁)) (trans p (sym p)) t ≡ t
 transSym refl _ = refl
