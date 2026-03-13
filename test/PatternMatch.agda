@@ -42,28 +42,15 @@ countdown2 (suc m) n = countdown2 m n
 -- _+_ : ℕ → ℕ → ℕ
 -- zero + n = n
 -- suc m + n = suc (m + n)
-
--- -- COMPLEX POSITIVE TEST 2: Mutual recursion with decreasing arguments
--- -- Both functions terminate because they call each other with strictly smaller arguments
--- even : ℕ → ℕ
--- odd  : ℕ → ℕ
-
--- even zero = suc zero  -- true (represented as 1)
--- even (suc n) = odd n
-
--- odd zero = zero  -- false (represented as 0)
--- odd (suc n) = even n
-
+--
 -- -- COMPLEX POSITIVE TEST 3: Multiple recursive calls, both on smaller arguments
 -- fibonacci : ℕ → ℕ
 -- fibonacci zero = zero
 -- fibonacci (suc zero) = suc zero
 -- fibonacci (suc (suc n)) = fibonacci (suc n) + fibonacci n
-
-
-
--- Alternative negative test: recursive call on same-sized argument
--- Uncomment to test - this will be rejected by Agda
+--
+-- -- Alternative negative test: recursive call on same-sized argument
+-- -- Uncomment to test - this will be rejected by Agda
 -- {-# NON_TERMINATING #-}
 -- bad-pred : ℕ → ℕ
 -- bad-pred zero = zero

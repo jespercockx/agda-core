@@ -4,14 +4,22 @@
 -- | Conversion from Agda's internal syntax to core representation
 module Agda.Core.ToCore
   ( ToCore(..)
+  , Data(..)
+  , Constructor(..)
   , ToCoreM
   , ToCoreGlobal(..)
   , convert
   ) where
 
+import Debug.Trace
+
+import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
+import Control.Monad.State.Strict (StateT, runStateT, MonadState, gets, modify, state, lift)
+-- import Control.Monad.State.Strict (StateT, runStateT, gets, modify, state)
 import Control.Monad.Except (MonadError(throwError), withError)
 import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Numeric.Natural (Natural)
 
 import Agda.Syntax.Common ( Arg(unArg) )
@@ -24,12 +32,10 @@ import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
 import Agda.Utils.Maybe (isNothing, isJust, caseMaybe)
 import Agda.Syntax.Common ( Nat )
 
-import Data.Map.Strict qualified as Map
 import Agda.TypeChecking.Monad  qualified as I
 import Agda.Syntax.Internal     qualified as I
+import qualified Agda.Syntax.Common.Pretty as Pretty
 import Agda.TypeChecking.Substitute qualified as I
-import Agda.TypeChecking.Telescope qualified as I
-import Agda.Utils.Size qualified as I
 import Agda.TypeChecking.CompiledClause qualified as CC
 import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 import Agda.Compiler.Backend (Definition(defType))
@@ -39,9 +45,12 @@ import Agda.Core.Syntax.Term (Term(..), Sort(..))
 import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
+import Agda.Core.UtilsH (intToIndex)
 
 import Scope.In (Index)
 import Scope.In qualified as Scope
+import Scope.Core (rbind)
+
 import Agda.Utils.Either (maybeRight)
 import qualified Agda.Syntax.Common.Pretty as Pretty
 import Scope.Core (rsingleton, rbind)
@@ -51,6 +60,8 @@ import Scope.Core (rsingleton, rbind)
 import Agda.Utils.Function
 
 
+import Agda.Utils.Size
+import Agda.Utils.Maybe (isNothing, isJust, caseMaybe)
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
@@ -60,26 +71,37 @@ tApp t (e:es) = TApp t e `tApp` es
 
 -- | Global definitions are represented as a mapping from @QName@s
 --   to proofs of global def scope membership.
---   Datatypes are stored in a different structure
---   Constructors are stored with their datatype
+
+-- Representation of a datatype; stores the index of the datatype, and its parameter list size and index list size
+data Data = Data Index Nat Nat
+
+-- Representation of a constructor; stores its index within its datatype, and its datatype
+data Constructor = Constructor Index Data
+
 data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
-                                   globalDatas :: Map QName (Index, (Nat, Nat)),
-                                   globalCons  :: Map QName (Index, Index, (Nat, Nat))}
+                                   globalDatas :: Map QName Data,
+                                   globalCons  :: Map QName Constructor}
+
+-- keeping track of debruijn indices correspondence from agda syntax to agda core syntax
+type OffsetMap = (Map Int Int, [Int])
+
+instance MonadState OffsetMap ToCoreM where
+  state f = ToCoreM $ lift (state f)
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
 --   Translation may fail.
-newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either Doc) a }
+newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (StateT OffsetMap (Either Doc)) a }
   deriving newtype (Functor, Applicative, Monad, MonadError Doc)
   deriving newtype (MonadReader ToCoreGlobal)
 
 asksDef :: (Map QName Index -> a) -> ToCoreM a
 asksDef = asks . (.  \ToCoreGlobal{globalDefs} -> globalDefs)
 
-asksData :: (Map QName (Index, (Nat, Nat)) -> a) -> ToCoreM a
+asksData :: (Map QName Data -> a) -> ToCoreM a
 asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
-asksCon :: (Map QName (Index, Index, (Nat, Nat)) -> a) -> ToCoreM a
+asksCon :: (Map QName Constructor -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
 -- | Lookup a definition name in the current module.
@@ -87,12 +109,56 @@ lookupDef :: QName -> ToCoreM (Maybe Index)
 lookupDef qn = asksDef (Map.!? qn)
 
 -- | Lookup a datatype name in the current module.
-lookupData :: QName -> ToCoreM (Maybe (Index, (Nat, Nat)))
+lookupData :: QName -> ToCoreM (Maybe Data)
 lookupData qn = asksData (Map.!? qn)
 
 -- | Lookup a constructor name in the current module.
-lookupCon :: QName -> ToCoreM (Maybe (Index, Index, (Nat, Nat)))
+lookupCon :: QName -> ToCoreM (Maybe Constructor)
 lookupCon qn = asksCon (Map.!? qn)
+
+withLocalState :: (OffsetMap -> OffsetMap) -> ToCoreM a -> ToCoreM a
+withLocalState f action = do
+  saved <- gets id
+  modify f
+  result <- action
+  ToCoreM $ lift (state (\_ -> ((), saved)))  -- restore
+  return result
+
+-- Read a value from the map
+lookupOffset :: Int -> ToCoreM (Maybe Int)
+lookupOffset k = gets (Map.lookup k . fst)
+
+-- Insert/update a value
+insertOffset :: Int -> Int -> ToCoreM ()
+insertOffset k v = modify (\(m, l) -> (Map.insert k v m, l))
+
+updateKeys :: (Int -> Int) -> ToCoreM ()
+updateKeys f = modify (\(m, l) -> (Map.mapKeys f m, l))
+
+updateValues :: (Int -> Int -> Int) -> ToCoreM ()
+updateValues f = modify (\(m, l) -> (Map.mapWithKey f m, l))
+
+updateOffSetList :: (Int -> Int) -> ToCoreM ()
+updateOffSetList f = modify (\(m, l) -> (m, fmap f l))
+
+prependToOffSetList :: [Int] -> ToCoreM ()
+prependToOffSetList prep = modify (\(m, l) -> (m, prep ++ l))
+
+getPosition :: Int -> ToCoreM Int
+getPosition index = fmap (!! index) (gets snd)
+
+updateDBMap :: Int -> Int -> ToCoreM ()
+updateDBMap paramIndex constructParamCount = do
+  position <- getPosition paramIndex -- gets the index of the agda param referring to this param
+  updateKeys (\index -> if (index > position) then index + constructParamCount - 1 else index) -- all the keys referring to agda indices get increased to make room for the new constsructors parameters
+  updateValues (\_ value -> value + constructParamCount)
+  updateOffSetList (\index -> if (index > position) then index + constructParamCount - 1 else index)
+  let listConsParamsCore = reverse $ take constructParamCount (iterate (+1) 0)
+      listConsParams     = map (\x -> position + x) listConsParamsCore
+  mapM_ (\(index, indexCore) -> trace ("matching " ++ show index ++ show indexCore) $ insertOffset index indexCore) (zip listConsParams listConsParamsCore) -- for each constructor param, a new variable is bound anew in agda core db context, so it needs to be updated from agda context
+  -- prependToOffSetList listConsParams -- In case of nested patternmatching. Actually looking at it now, we might have an issue, since paramNum in the agda syntax most likely refers to high level parameter (not with pattern matching)
+  state2 <- gets id
+  trace ("updating.. : " ++ show listConsParams ++ " and core was: " ++ show listConsParamsCore ++ " resulted in: " ++ show state2 ++ " index: " ++ show position ++ " parcount: " ++ show constructParamCount) $ return ()
 
 -- | Class for things that can be converted to core syntax
 class ToCore a where
@@ -101,7 +167,8 @@ class ToCore a where
 
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
-convert tcg t = runReaderT (runToCore $ toCore t) tcg
+convert tcg t =
+  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) (Map.empty, [])
 
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
@@ -116,10 +183,13 @@ instance ToCore I.Term where
   type CoreOf I.Term = Term
   toCore :: I.Term -> ToCoreM Term
 
-  toCore (I.Var k es) = (TVar (var k) `tApp`) <$> toCore es
-    where var :: Int -> Index
-          var !n | n <= 0 = Scope.inHere
-          var !n          = Scope.inThere (var (n - 1))
+  toCore (I.Var k es) = do
+      index <- maybe k id <$> lookupOffset k -- should always be found, id should never be hit
+      trace ("looking up: " ++ show k ++ " -> " ++ show index) $ 
+        (TVar (var index) `tApp`) <$> toCore es
+      where var :: Int -> Index
+            var !n | n <= 0 = Scope.inHere
+            var !n          = Scope.inThere (var (n - 1))
 
   toCore (I.Lam ai t) = TLam <$> toCore t
 
@@ -141,7 +211,7 @@ instance ToCore I.Term where
             lookupData qn >>= \case
               Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
 
-              Just (idx, (amountOfParams, amountOfIndices)) -> do
+              Just (Data idx amountOfParams amountOfIndices) -> do
                 --always take all parameters
                 paramTermS <- toTermS <$> toCore (take amountOfParams args)
 
@@ -165,7 +235,7 @@ instance ToCore I.Term where
     | Just args <- allApplyElims es
     = lookupCon (I.conName ch) >>= \case
         Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty (I.conName ch)
-        Just (dt , con, _) -> do
+        Just (Constructor con (Data dt _ _)) -> do
           -- @l@ is the amount of arguments missing from the application.
           -- we need to eta-expand manually @l@ times to fully-apply the constructor.
           let l  = length (I.conFields ch) - length es
@@ -233,36 +303,44 @@ instance ToCore I.Telescope where
 
 -- Gets how many parameters were placed on the left
 getLHSCount :: I.FunctionData -> Int
-getLHSCount f = I.size $ (I.namedClausePats ((I._funClauses f) !! 0))
+getLHSCount f = size $ (I.namedClausePats ((I._funClauses f) !! 0))
 
 -- Unnest Pi type
 unnestPi :: Int -> Core.Type -> ToCoreM Core.Type
 unnestPi 0 ty = return ty
 unnestPi n ty = case Core.unType ty of
   TPi _ dom -> unnestPi (n - 1) dom
-  _ -> throwError "Incorrect Type"
+  _ -> throwError "Incorrect Type, expected Pi"
 
 -- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) (Both have case tree format instead of clause list format)
+-- ty represents the type of the return of the case, and paramCount represents how many parameters have been pattern matched on the left hand side of the function clause
 clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) _ _ = toCore body
-clauseToCore (CC.Case argNum c) ty argLen = do
-  let constructorList = Map.toList (CC.conBranches c)
-  result <- lookupCon (fst (constructorList !! 0))
+clauseToCore (CC.Case paramNum c) ty paramCount = do
+  let branchList = Map.toList (CC.conBranches c)
+  result <- lookupCon (fst (branchList !! 0))
   -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
-  (dt, _, (params, idcs)) <- maybe (throwError "constructor not found") return result
+  Constructor _ (Data dt params idcs) <- maybe (throwError "constructor not found") return result
+
+  when (idcs > 0) $ throwError "Indexed datatypes are not yet supported"
+
+  -- iRun is the run-time representation of the index scope. The result will always be `[]`, however, once indexed datatypes are supported this will be important.
+  let iRun = iterate rbind [] !! idcs
 
   -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
-  let index = intToIndex (argLen - unArg argNum - 1) 
-  branchList <- mapM (uncurry (createBranch ty argLen)) constructorList 
-  let branches = foldr Core.BsCons Core.BsNil branchList
-  return $ TCase dt (iterate' idcs rbind []) (TVar index) branches ty
+  let index = (paramCount - unArg paramNum - 1) -- I believe here paramNum refers to the index of the param, independently of the  pattern matching between done on the lhs
+  coreBranchList <- (mapM (uncurry (createBranch ty paramCount index)) branchList)
+  let branches = foldr Core.BsCons Core.BsNil coreBranchList
+  return $ TCase dt iRun (TVar $ intToIndex index) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
-createBranch :: Core.Type -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
-createBranch ty argLen name wthAr = do
+createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
+createBranch ty paramCount paramIndex name wthAr = do
   result <- lookupCon name
-  (_, constructor, _) <- maybe (throwError "constructor not found") return result
-  clause <- clauseToCore (CC.content wthAr) ty argLen
+  Constructor constructor _ <- maybe (throwError "constructor not found") return result
+  clause <- withLocalState id $ do -- do the update locally so changes in one branch do not causes changes in others
+    updateDBMap paramIndex (CC.arity wthAr) -- update the state, which contains a map of the correspondence between agda and agda core indices
+    clauseToCore (CC.content wthAr) ty paramCount 
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 
@@ -295,7 +373,10 @@ toCoreDefn (I.FunctionDefn def) ty =
         let lhscount = getLHSCount def 
         -- the type of the body of the function (which may need to be set as the type of a TCase) needs to be "pi unnested" as many times as variables have been put on the LHS
         corety <- unnestPi lhscount coretywithpi
-        body <- clauseToCore compiledClauses corety lhscount
+        body <- withLocalState id $ do
+          let nums = take lhscount (iterate (+1) 0)
+          trace ("new func: " ++ show (Map.fromList $ map (\x -> (x, x)) nums, nums)) $ modify (\_ -> (Map.fromList $ map (\x -> (x, x)) nums, nums)) -- update the state, which contains a map of the correspondence between agda and agda core indices
+          clauseToCore compiledClauses corety lhscount
         Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
@@ -335,7 +416,7 @@ toCoreDefn (I.DatatypeDefn dt) ty =
   parsTel <- toCore internalParsTel
   ixsTel <- toCore internalIxsTel
   cons_dt_indexes <- mapM (\mc -> maybe (throwError "constructor not found") return mc) =<< traverse lookupCon cons
-  let cons_indexes = map (\(_,c,_) -> c) cons_dt_indexes
+  let cons_indexes = map (\(Constructor c _) -> c) cons_dt_indexes
   let d = Core.Datatype{  dataSort              = sort',
                           dataParTel            = parsTel,
                           dataIxTel             = ixsTel,
