@@ -133,20 +133,23 @@ prependToOffSetList :: [Int] -> ToCoreM ()
 prependToOffSetList prep = modify (\(m, l) -> (m, prep ++ l))
 
 getPosition :: Int -> ToCoreM Int
-getPosition index = fmap (!! index) (gets snd)
+getPosition index = do
+  fmap (!! index) (gets snd)
 
 updateDBMap :: Int -> Int -> ToCoreM ()
 updateDBMap paramIndex constructParamCount = do
   position <- getPosition paramIndex -- gets the index of the agda param referring to this param
+
   updateKeys (\index -> if (index > position) then index + constructParamCount - 1 else index) -- all the keys referring to agda indices get increased to make room for the new constsructors parameters
   updateValues (\_ value -> value + constructParamCount)
   updateOffSetList (\index -> if (index > position) then index + constructParamCount - 1 else index)
+
   let listConsParamsCore = reverse $ take constructParamCount (iterate (+1) 0)
       listConsParams     = map (\x -> position + x) listConsParamsCore
   mapM_ (\(index, indexCore) -> trace ("matching " ++ show index ++ show indexCore) $ insertOffset index indexCore) (zip listConsParams listConsParamsCore) -- for each constructor param, a new variable is bound anew in agda core db context, so it needs to be updated from agda context
-  -- prependToOffSetList listConsParams -- In case of nested patternmatching. Actually looking at it now, we might have an issue, since paramNum in the agda syntax most likely refers to high level parameter (not with pattern matching)
+  prependToOffSetList $ reverse listConsParams -- In case of nested patternmatching. Actually looking at it now, we might have an issue, since paramNum in the agda syntax most likely refers to high level parameter (not with pattern matching)
   state2 <- gets id
-  trace ("updating.. : " ++ show listConsParams ++ " and core was: " ++ show listConsParamsCore ++ " resulted in: " ++ show state2 ++ " index: " ++ show position ++ " parcount: " ++ show constructParamCount) $ return ()
+  trace ("updating.. : " ++ show listConsParams ++ " and core was: " ++ show listConsParamsCore ++ " resulted in: " ++ show state2 ++ " position: " ++ show position ++ " from index: " ++ show paramIndex ++ " parcount: " ++ show constructParamCount) $ return ()
 
 -- | Class for things that can be converted to core syntax
 class ToCore a where
@@ -304,7 +307,7 @@ unnestPi n ty = case Core.unType ty of
 -- ty represents the type of the return of the case, and paramCount represents how many parameters have been pattern matched on the left hand side of the function clause
 clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) _ _ = toCore body
-clauseToCore (CC.Case paramNum c) ty paramCount = do
+clauseToCore (CC.Case paramNum c) ty paramCount = trace ("Dealing with a case at: " ++ show (unArg paramNum)) $ do
   let branchList = Map.toList (CC.conBranches c)
   result <- lookupCon (fst (branchList !! 0))
   -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
@@ -316,7 +319,7 @@ clauseToCore (CC.Case paramNum c) ty paramCount = do
   let iRun = iterate rbind [] !! idcs
 
   -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
-  let index = (paramCount - unArg paramNum - 1) -- I believe here paramNum refers to the index of the param, independently of the  pattern matching between done on the lhs
+  let index = trace ("index calculated from count: " ++ show paramCount ++ " and paramNum is " ++ show (unArg paramNum) ++ " - 1") $ paramCount - unArg paramNum - 1 -- I believe here paramNum refers to the index of the param, independently of the  pattern matching between done on the lhs
   coreBranchList <- (mapM (uncurry (createBranch ty paramCount index)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
   return $ TCase dt iRun (TVar $ intToIndex index) branches ty
@@ -328,7 +331,7 @@ createBranch ty paramCount paramIndex name wthAr = do
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
   clause <- withLocalState id $ do -- do the update locally so changes in one branch do not causes changes in others
     updateDBMap paramIndex (CC.arity wthAr) -- update the state, which contains a map of the correspondence between agda and agda core indices
-    clauseToCore (CC.content wthAr) ty paramCount 
+    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount)
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 

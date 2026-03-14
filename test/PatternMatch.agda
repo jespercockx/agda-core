@@ -3,15 +3,17 @@ module PatternMatch where
 -- Basic natural numbers
 data ℕ : Set where
   zero : ℕ
-  suc  : ℕ → ℕ
+  suc  : ℕ → ℕ → ℕ
 
 -- foo : ℕ → ℕ
 -- foo n = suc n
 
 {-# NON_TERMINATING #-}
-countdown : ℕ → ℕ → ℕ → ℕ
-countdown zero m l = countdown zero m l
-countdown (suc n) m l = countdown n m l
+countdown : ℕ → ℕ → ℕ
+countdown k zero = zero
+countdown zero k = zero
+countdown (suc (suc m l) other) (suc h n) = countdown l n
+countdown (suc zero a) (suc h n) = countdown zero n
 
 -- babyackermann : ℕ → ℕ → ℕ
 -- babyackermann zero n = suc n
