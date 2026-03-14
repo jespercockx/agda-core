@@ -9,9 +9,11 @@ foo : ℕ → ℕ
 foo n = suc n
 
 {-# NON_TERMINATING #-}
-countdown : ℕ → ℕ
-countdown zero = zero
-countdown (suc n) = countdown n
+countdown : ℕ → ℕ → ℕ
+countdown k zero = zero
+countdown zero k = zero
+countdown (suc (suc b)) (suc a) = countdown b a
+countdown (suc zero) (suc a) = countdown a zero
 
 babyackermann : ℕ → ℕ → ℕ
 babyackermann zero n = suc n

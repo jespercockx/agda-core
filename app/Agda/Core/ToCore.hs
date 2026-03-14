@@ -13,6 +13,8 @@ module Agda.Core.ToCore
 
 import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
+import Control.Monad.State.Strict (StateT, runStateT, MonadState, gets, modify, state, lift)
+-- import Control.Monad.State.Strict (StateT, runStateT, gets, modify, state)
 import Control.Monad.Except (MonadError(throwError), withError)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -66,10 +68,16 @@ data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
                                    globalDatas :: Map QName Data,
                                    globalCons  :: Map QName Constructor}
 
+-- list keeping track of debruijn indices translation from agda syntax to agda core syntax. index of the element is agda debruijn index, and element is corresponding agda core index
+type OffsetList = [Int]
+
+instance MonadState OffsetList ToCoreM where
+  state f = ToCoreM $ lift (state f)
+
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
 --   Translation may fail.
-newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either Doc) a }
+newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (StateT OffsetList (Either Doc)) a }
   deriving newtype (Functor, Applicative, Monad, MonadError Doc)
   deriving newtype (MonadReader ToCoreGlobal)
 
@@ -94,6 +102,35 @@ lookupData qn = asksData (Map.!? qn)
 lookupCon :: QName -> ToCoreM (Maybe Constructor)
 lookupCon qn = asksCon (Map.!? qn)
 
+withLocalState :: (OffsetList -> OffsetList) -> ToCoreM a -> ToCoreM a
+withLocalState f action = do
+  saved <- gets id
+  modify f
+  result <- action
+  ToCoreM $ lift (state (\_ -> ((), saved)))  -- restore
+  return result
+
+-- Read a value from the map
+lookupOffset :: Int -> ToCoreM Int
+lookupOffset k = gets (!! k) -- unsafe
+
+-- Insert/update a value, specialized to drop the value of the old variable
+insertOffsets :: Int -> [Int] -> ToCoreM ()
+insertOffsets pos inserted = modify (\xs -> take pos xs ++ inserted ++ drop (pos + 1) xs) -- (pos + 1) because we drop the old variable, the one being pattern-matched on.
+
+updateValues :: (Int -> Int) -> ToCoreM ()
+updateValues f = modify (map f)
+
+-- updates the list of offsets to reflect a pattern match from a case expression
+updateDBMap :: Int -> Int -> ToCoreM ()
+updateDBMap paramIndexAgda constructParamCount = do
+
+  updateValues (\value -> value + constructParamCount) -- because of the introduction of new variables, the agda indices will all refer to a pushed version of the agda core indices
+
+  let listConsParamsCore = take constructParamCount (iterate (+1) 0) -- the new variables introduced
+  insertOffsets paramIndexAgda listConsParamsCore -- insert those references at the index of the agda variable being pattern matched
+  return ()
+
 -- | Class for things that can be converted to core syntax
 class ToCore a where
   type CoreOf a
@@ -101,7 +138,8 @@ class ToCore a where
 
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
-convert tcg t = runReaderT (runToCore $ toCore t) tcg
+convert tcg t =
+  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) []
 
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
@@ -116,10 +154,12 @@ instance ToCore I.Term where
   type CoreOf I.Term = Term
   toCore :: I.Term -> ToCoreM Term
 
-  toCore (I.Var k es) = (TVar (var k) `tApp`) <$> toCore es
-    where var :: Int -> Index
-          var !n | n <= 0 = Scope.inHere
-          var !n          = Scope.inThere (var (n - 1))
+  toCore (I.Var k es) = do
+      index <- lookupOffset k -- translate from Agda to Agda-core Debruijn index
+      (TVar (var index) `tApp`) <$> toCore es
+      where var :: Int -> Index
+            var !n | n <= 0 = Scope.inHere
+            var !n          = Scope.inThere (var (n - 1))
 
   toCore (I.Lam ai t) = TLam <$> toCore t
 
@@ -246,7 +286,7 @@ unnestPi n ty = case Core.unType ty of
 -- ty represents the type of the return of the case, and paramCount represents how many parameters have been pattern matched on the left hand side of the function clause
 clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) _ _ = toCore body
-clauseToCore (CC.Case argNum c) ty paramCount = do
+clauseToCore (CC.Case paramNum c) ty paramCount = do
   let branchList = Map.toList (CC.conBranches c)
   result <- lookupCon (fst (branchList !! 0))
   -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
@@ -257,18 +297,21 @@ clauseToCore (CC.Case argNum c) ty paramCount = do
   -- iRun is the run-time representation of the index scope. The result will always be `[]`, however, once indexed datatypes are supported this will be important.
   let iRun = iterate rbind [] !! idcs
 
-  -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
-  let index = intToIndex (paramCount - unArg argNum - 1) 
-  coreBranchList <- mapM (uncurry (createBranch ty paramCount)) branchList
+  let indexAgda = paramCount - unArg paramNum - 1 -- debruijn index in the Agda syntax (paramNum is the number of the parameter, starting from the left)
+  indexAgdaCore <- lookupOffset indexAgda -- getting corresponding agda core db index
+
+  coreBranchList <- (mapM (uncurry (createBranch ty paramCount indexAgda)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
-  return $ TCase dt iRun (TVar index) branches ty
+  return $ TCase dt iRun (TVar $ intToIndex indexAgdaCore) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
-createBranch :: Core.Type -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
-createBranch ty paramCount name wthAr = do
+createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
+createBranch ty paramCount paramIndexAgda name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
-  clause <- clauseToCore (CC.content wthAr) ty paramCount 
+  clause <- withLocalState id $ do 
+    updateDBMap paramIndexAgda (CC.arity wthAr) -- update the state according to the pattern matched parameter and the arity of its constructor
+    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1) -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 
@@ -295,13 +338,12 @@ toCoreDefn (I.FunctionDefn def) ty =
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , Just compiledClauses      <- _funCompiled
       -> do
-        -- translate the type of the function
-        coretywithpi <- toCore ty
-        -- gets the amount of variable on the LHS of each clause
-        let lhscount = getLHSCount def 
-        -- the type of the body of the function (which may need to be set as the type of a TCase) needs to be "pi unnested" as many times as variables have been put on the LHS
-        corety <- unnestPi lhscount coretywithpi
-        body <- clauseToCore compiledClauses corety lhscount
+        coretywithpi <- toCore ty                 -- translate the type of the function
+        let lhscount = getLHSCount def            -- gets the amount of variable on the LHS of each clause
+        corety <- unnestPi lhscount coretywithpi  -- type of the body of the function (unnest pi as many times as there are variables on lhs)
+        body <- withLocalState id $ do
+          modify (\_ -> take lhscount (iterate (+1) 0)) -- initial state before processing the case tree, in which the db indices are the same for agda and agda-core
+          clauseToCore compiledClauses corety lhscount
         Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
