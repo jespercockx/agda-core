@@ -71,7 +71,7 @@ data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
                                    globalCons  :: Map QName Constructor}
 
 -- keeping track of debruijn indices correspondence from agda syntax to agda core syntax
-type OffsetMap = (Map Int Int, [Int])
+type OffsetMap = Map Int Int
 
 instance MonadState OffsetMap ToCoreM where
   state f = ToCoreM $ lift (state f)
@@ -114,42 +114,28 @@ withLocalState f action = do
 
 -- Read a value from the map
 lookupOffset :: Int -> ToCoreM (Maybe Int)
-lookupOffset k = gets (Map.lookup k . fst)
+lookupOffset k = gets (Map.lookup k)
 
 -- Insert/update a value
 insertOffset :: Int -> Int -> ToCoreM ()
-insertOffset k v = modify (\(m, l) -> (Map.insert k v m, l))
+insertOffset k v = modify (Map.insert k v)
 
 updateKeys :: (Int -> Int) -> ToCoreM ()
-updateKeys f = modify (\(m, l) -> (Map.mapKeys f m, l))
+updateKeys f = modify (Map.mapKeys f)
 
 updateValues :: (Int -> Int -> Int) -> ToCoreM ()
-updateValues f = modify (\(m, l) -> (Map.mapWithKey f m, l))
-
-updateOffSetList :: (Int -> Int) -> ToCoreM ()
-updateOffSetList f = modify (\(m, l) -> (m, fmap f l))
-
-prependToOffSetList :: [Int] -> ToCoreM ()
-prependToOffSetList prep = modify (\(m, l) -> (m, prep ++ l))
-
-getPosition :: Int -> ToCoreM Int
-getPosition index = do
-  fmap (!! index) (gets snd)
+updateValues f = modify (Map.mapWithKey f)
 
 updateDBMap :: Int -> Int -> ToCoreM ()
-updateDBMap paramIndex constructParamCount = do
-  let position = paramIndex -- gets the index of the agda param referring to this param
+updateDBMap paramIndexAgda constructParamCount = do
 
-  updateKeys (\index -> if (index > position) then index + constructParamCount - 1 else index) -- all the keys referring to agda indices get increased to make room for the new constsructors parameters
+  updateKeys (\index -> if (index > paramIndexAgda) then index + constructParamCount - 1 else index) -- all the keys referring to agda indices get increased to make room for the new constsructors parameters
   updateValues (\_ value -> value + constructParamCount)
-  updateOffSetList (\index -> if (index > position) then index + constructParamCount - 1 else index)
 
   let listConsParamsCore = reverse $ take constructParamCount (iterate (+1) 0)
-      listConsParams     = map (\x -> position + x) listConsParamsCore
-  mapM_ (\(index, indexCore) -> trace ("matching " ++ show index ++ show indexCore) $ insertOffset index indexCore) (zip listConsParams listConsParamsCore) -- for each constructor param, a new variable is bound anew in agda core db context, so it needs to be updated from agda context
-  prependToOffSetList $ reverse listConsParams -- In case of nested patternmatching. Actually looking at it now, we might have an issue, since paramNum in the agda syntax most likely refers to high level parameter (not with pattern matching)
-  state2 <- gets id
-  trace ("updating.. : " ++ show listConsParams ++ " and core was: " ++ show listConsParamsCore ++ " resulted in: " ++ show state2 ++ " position: " ++ show position ++ " from index: " ++ show paramIndex ++ " parcount: " ++ show constructParamCount) $ return ()
+      listConsParams     = map (\x -> paramIndexAgda + x) listConsParamsCore
+  mapM_ (\(index, indexCore) -> insertOffset index indexCore) (zip listConsParams listConsParamsCore) -- for each constructor param, a new variable is bound anew in agda core db context, so it needs to be updated from agda context
+  return ()
 
 -- | Class for things that can be converted to core syntax
 class ToCore a where
@@ -159,7 +145,7 @@ class ToCore a where
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
 convert tcg t =
-  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) (Map.empty, [])
+  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) Map.empty
 
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
@@ -176,8 +162,7 @@ instance ToCore I.Term where
 
   toCore (I.Var k es) = do
       index <- maybe k id <$> lookupOffset k -- should always be found, id should never be hit
-      trace ("looking up: " ++ show k ++ " -> " ++ show index) $ 
-        (TVar (var index) `tApp`) <$> toCore es
+      (TVar (var index) `tApp`) <$> toCore es
       where var :: Int -> Index
             var !n | n <= 0 = Scope.inHere
             var !n          = Scope.inThere (var (n - 1))
@@ -307,7 +292,7 @@ unnestPi n ty = case Core.unType ty of
 -- ty represents the type of the return of the case, and paramCount represents how many parameters have been pattern matched on the left hand side of the function clause
 clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) _ _ = toCore body
-clauseToCore (CC.Case paramNum c) ty paramCount = trace ("Dealing with a case at: " ++ show (unArg paramNum)) $ do
+clauseToCore (CC.Case paramNum c) ty paramCount = do
   let branchList = Map.toList (CC.conBranches c)
   result <- lookupCon (fst (branchList !! 0))
   -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
@@ -318,21 +303,20 @@ clauseToCore (CC.Case paramNum c) ty paramCount = trace ("Dealing with a case at
   -- iRun is the run-time representation of the index scope. The result will always be `[]`, however, once indexed datatypes are supported this will be important.
   let iRun = iterate rbind [] !! idcs
 
-  -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
-  let indexAgda = trace ("index calculated from count: " ++ show paramCount ++ " and paramNum is " ++ show (unArg paramNum) ++ " - 1") $ paramCount - unArg paramNum - 1 -- I believe here paramNum refers to the index of the param, independently of the  pattern matching between done on the lhs
-  mbIAC <- lookupOffset indexAgda
-  indexAgdaCore <- maybe (throwError "no mapping found") return (mbIAC)
+  let indexAgda = paramCount - unArg paramNum - 1 -- debruijn index in the Agda syntax (paramNum is the number of the parameter, starting from the left)
+  indexAgdaCore <- maybe (throwError "no mapping found") return =<< lookupOffset indexAgda -- getting corresponding agda core db index
+
   coreBranchList <- (mapM (uncurry (createBranch ty paramCount indexAgda)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
   return $ TCase dt iRun (TVar $ intToIndex indexAgdaCore) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
-createBranch ty paramCount paramIndex name wthAr = do
+createBranch ty paramCount paramIndexAgda name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
   clause <- withLocalState id $ do -- do the update locally so changes in one branch do not causes changes in others
-    updateDBMap paramIndex (CC.arity wthAr) -- update the state, which contains a map of the correspondence between agda and agda core indices
+    updateDBMap paramIndexAgda (CC.arity wthAr) -- update the state, which contains a map of the correspondence between agda and agda core indices
     clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1)
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
@@ -368,7 +352,7 @@ toCoreDefn (I.FunctionDefn def) ty =
         corety <- unnestPi lhscount coretywithpi
         body <- withLocalState id $ do
           let nums = take lhscount (iterate (+1) 0)
-          trace ("new func: " ++ show (Map.fromList $ map (\x -> (x, x)) nums, nums)) $ modify (\_ -> (Map.fromList $ map (\x -> (x, x)) nums, nums)) -- update the state, which contains a map of the correspondence between agda and agda core indices
+          modify (\_ -> Map.fromList $ map (\x -> (x, x)) nums) -- update the state, which contains a map of the correspondence between agda and agda core indices
           clauseToCore compiledClauses corety lhscount
         Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}
