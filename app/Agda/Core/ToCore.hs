@@ -11,8 +11,6 @@ module Agda.Core.ToCore
   , convert
   ) where
 
-import Debug.Trace
-
 import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
 import Control.Monad.State.Strict (StateT, runStateT, MonadState, gets, modify, state, lift)
@@ -71,15 +69,15 @@ data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
                                    globalCons  :: Map QName Constructor}
 
 -- keeping track of debruijn indices correspondence from agda syntax to agda core syntax
-type OffsetMap = Map Int Int
+type OffsetList = [Int]
 
-instance MonadState OffsetMap ToCoreM where
+instance MonadState OffsetList ToCoreM where
   state f = ToCoreM $ lift (state f)
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
 --   Translation may fail.
-newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (StateT OffsetMap (Either Doc)) a }
+newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (StateT OffsetList (Either Doc)) a }
   deriving newtype (Functor, Applicative, Monad, MonadError Doc)
   deriving newtype (MonadReader ToCoreGlobal)
 
@@ -104,7 +102,7 @@ lookupData qn = asksData (Map.!? qn)
 lookupCon :: QName -> ToCoreM (Maybe Constructor)
 lookupCon qn = asksCon (Map.!? qn)
 
-withLocalState :: (OffsetMap -> OffsetMap) -> ToCoreM a -> ToCoreM a
+withLocalState :: (OffsetList -> OffsetList) -> ToCoreM a -> ToCoreM a
 withLocalState f action = do
   saved <- gets id
   modify f
@@ -113,28 +111,24 @@ withLocalState f action = do
   return result
 
 -- Read a value from the map
-lookupOffset :: Int -> ToCoreM (Maybe Int)
-lookupOffset k = gets (Map.lookup k)
+lookupOffset :: Int -> ToCoreM Int
+lookupOffset k = gets (!! k) -- unsafe
 
--- Insert/update a value
-insertOffset :: Int -> Int -> ToCoreM ()
-insertOffset k v = modify (Map.insert k v)
+-- Insert/update a value, specialized to drop the value of the old variable
+insertOffsets :: Int -> [Int] -> ToCoreM ()
+insertOffsets pos inserted = modify (\xs -> take pos xs ++ inserted ++ drop (pos + 1) xs) -- (pos + 1) because we drop the old variable, the one being pattern-matched on.
 
-updateKeys :: (Int -> Int) -> ToCoreM ()
-updateKeys f = modify (Map.mapKeys f)
+updateValues :: (Int -> Int) -> ToCoreM ()
+updateValues f = modify (map f)
 
-updateValues :: (Int -> Int -> Int) -> ToCoreM ()
-updateValues f = modify (Map.mapWithKey f)
-
+-- updates the list of offsets to reflect a pattern match from a case expression
 updateDBMap :: Int -> Int -> ToCoreM ()
 updateDBMap paramIndexAgda constructParamCount = do
 
-  updateKeys (\index -> if (index > paramIndexAgda) then index + constructParamCount - 1 else index) -- all the keys referring to agda indices get increased to make room for the new constsructors parameters
-  updateValues (\_ value -> value + constructParamCount)
+  updateValues (\value -> value + constructParamCount) -- because of the introduction of new variables, the agda indices will all refer to a pushed version of the agda core indices
 
-  let listConsParamsCore = reverse $ take constructParamCount (iterate (+1) 0)
-      listConsParams     = map (\x -> paramIndexAgda + x) listConsParamsCore
-  mapM_ (\(index, indexCore) -> insertOffset index indexCore) (zip listConsParams listConsParamsCore) -- for each constructor param, a new variable is bound anew in agda core db context, so it needs to be updated from agda context
+  let listConsParamsCore = take constructParamCount (iterate (+1) 0) -- the new variables introduced
+  insertOffsets paramIndexAgda listConsParamsCore -- insert those references at the index of the agda variable being pattern matched
   return ()
 
 -- | Class for things that can be converted to core syntax
@@ -145,7 +139,7 @@ class ToCore a where
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
 convert tcg t =
-  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) Map.empty
+  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) []
 
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
@@ -161,7 +155,7 @@ instance ToCore I.Term where
   toCore :: I.Term -> ToCoreM Term
 
   toCore (I.Var k es) = do
-      index <- maybe k id <$> lookupOffset k -- should always be found, id should never be hit
+      index <- lookupOffset k -- should always be found, id should never be hit
       (TVar (var index) `tApp`) <$> toCore es
       where var :: Int -> Index
             var !n | n <= 0 = Scope.inHere
@@ -304,7 +298,7 @@ clauseToCore (CC.Case paramNum c) ty paramCount = do
   let iRun = iterate rbind [] !! idcs
 
   let indexAgda = paramCount - unArg paramNum - 1 -- debruijn index in the Agda syntax (paramNum is the number of the parameter, starting from the left)
-  indexAgdaCore <- maybe (throwError "no mapping found") return =<< lookupOffset indexAgda -- getting corresponding agda core db index
+  indexAgdaCore <- lookupOffset indexAgda -- getting corresponding agda core db index
 
   coreBranchList <- (mapM (uncurry (createBranch ty paramCount indexAgda)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
@@ -351,8 +345,7 @@ toCoreDefn (I.FunctionDefn def) ty =
         -- the type of the body of the function (which may need to be set as the type of a TCase) needs to be "pi unnested" as many times as variables have been put on the LHS
         corety <- unnestPi lhscount coretywithpi
         body <- withLocalState id $ do
-          let nums = take lhscount (iterate (+1) 0)
-          modify (\_ -> Map.fromList $ map (\x -> (x, x)) nums) -- update the state, which contains a map of the correspondence between agda and agda core indices
+          modify (\_ -> take lhscount (iterate (+1) 0)) -- update the state, which contains a map of the correspondence between agda and agda core indices
           clauseToCore compiledClauses corety lhscount
         Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}
