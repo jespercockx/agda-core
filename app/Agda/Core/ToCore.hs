@@ -138,7 +138,7 @@ getPosition index = do
 
 updateDBMap :: Int -> Int -> ToCoreM ()
 updateDBMap paramIndex constructParamCount = do
-  position <- getPosition paramIndex -- gets the index of the agda param referring to this param
+  let position = paramIndex -- gets the index of the agda param referring to this param
 
   updateKeys (\index -> if (index > position) then index + constructParamCount - 1 else index) -- all the keys referring to agda indices get increased to make room for the new constsructors parameters
   updateValues (\_ value -> value + constructParamCount)
@@ -319,10 +319,12 @@ clauseToCore (CC.Case paramNum c) ty paramCount = trace ("Dealing with a case at
   let iRun = iterate rbind [] !! idcs
 
   -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
-  let index = trace ("index calculated from count: " ++ show paramCount ++ " and paramNum is " ++ show (unArg paramNum) ++ " - 1") $ paramCount - unArg paramNum - 1 -- I believe here paramNum refers to the index of the param, independently of the  pattern matching between done on the lhs
-  coreBranchList <- (mapM (uncurry (createBranch ty paramCount index)) branchList)
+  let indexAgda = trace ("index calculated from count: " ++ show paramCount ++ " and paramNum is " ++ show (unArg paramNum) ++ " - 1") $ paramCount - unArg paramNum - 1 -- I believe here paramNum refers to the index of the param, independently of the  pattern matching between done on the lhs
+  mbIAC <- lookupOffset indexAgda
+  indexAgdaCore <- maybe (throwError "no mapping found") return (mbIAC)
+  coreBranchList <- (mapM (uncurry (createBranch ty paramCount indexAgda)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
-  return $ TCase dt iRun (TVar $ intToIndex index) branches ty
+  return $ TCase dt iRun (TVar $ intToIndex indexAgdaCore) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
@@ -331,7 +333,7 @@ createBranch ty paramCount paramIndex name wthAr = do
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
   clause <- withLocalState id $ do -- do the update locally so changes in one branch do not causes changes in others
     updateDBMap paramIndex (CC.arity wthAr) -- update the state, which contains a map of the correspondence between agda and agda core indices
-    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount)
+    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1)
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 

@@ -12,8 +12,8 @@ data ℕ : Set where
 countdown : ℕ → ℕ → ℕ
 countdown k zero = zero
 countdown zero k = zero
-countdown (suc (suc m l) other) (suc h n) = countdown l n
-countdown (suc zero a) (suc h n) = countdown zero n
+countdown (suc a other) (suc n (suc b c)) = countdown other c
+countdown (suc a other) (suc n zero) = countdown other zero
 
 -- babyackermann : ℕ → ℕ → ℕ
 -- babyackermann zero n = suc n
