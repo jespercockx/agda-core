@@ -304,7 +304,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl
             env = Core.MkTCEnv sig fl
-        trace ("Typeching for: " ++ show funBody) $ case Core.runTCM (checkType CtxEmpty funBody defType) env of
+        case Core.runTCM (checkType CtxEmpty funBody defType) env of
               Left err -> reportSDocFailure "agda-core.check" $ text $ "  Type checking error: " ++ err
               Right ok -> reportSDoc "agda-core.check" 1 $ text "  Type checking success"
       Right Core.Definition{ defName } ->

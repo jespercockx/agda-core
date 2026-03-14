@@ -68,7 +68,7 @@ data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
                                    globalDatas :: Map QName Data,
                                    globalCons  :: Map QName Constructor}
 
--- keeping track of debruijn indices correspondence from agda syntax to agda core syntax
+-- list keeping track of debruijn indices translation from agda syntax to agda core syntax. index of the element is agda debruijn index, and element is corresponding agda core index
 type OffsetList = [Int]
 
 instance MonadState OffsetList ToCoreM where
@@ -155,7 +155,7 @@ instance ToCore I.Term where
   toCore :: I.Term -> ToCoreM Term
 
   toCore (I.Var k es) = do
-      index <- lookupOffset k -- should always be found, id should never be hit
+      index <- lookupOffset k -- translate from Agda to Agda-core Debruijn index
       (TVar (var index) `tApp`) <$> toCore es
       where var :: Int -> Index
             var !n | n <= 0 = Scope.inHere
@@ -309,9 +309,9 @@ createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClau
 createBranch ty paramCount paramIndexAgda name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
-  clause <- withLocalState id $ do -- do the update locally so changes in one branch do not causes changes in others
-    updateDBMap paramIndexAgda (CC.arity wthAr) -- update the state, which contains a map of the correspondence between agda and agda core indices
-    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1)
+  clause <- withLocalState id $ do 
+    updateDBMap paramIndexAgda (CC.arity wthAr) -- update the state according to the pattern matched parameter and the arity of its constructor
+    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1) -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 
@@ -338,14 +338,11 @@ toCoreDefn (I.FunctionDefn def) ty =
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , Just compiledClauses      <- _funCompiled
       -> do
-        -- translate the type of the function
-        coretywithpi <- toCore ty
-        -- gets the amount of variable on the LHS of each clause
-        let lhscount = getLHSCount def 
-        -- the type of the body of the function (which may need to be set as the type of a TCase) needs to be "pi unnested" as many times as variables have been put on the LHS
-        corety <- unnestPi lhscount coretywithpi
+        coretywithpi <- toCore ty                 -- translate the type of the function
+        let lhscount = getLHSCount def            -- gets the amount of variable on the LHS of each clause
+        corety <- unnestPi lhscount coretywithpi  -- type of the body of the function (unnest pi as many times as there are variables on lhs)
         body <- withLocalState id $ do
-          modify (\_ -> take lhscount (iterate (+1) 0)) -- update the state, which contains a map of the correspondence between agda and agda core indices
+          modify (\_ -> take lhscount (iterate (+1) 0)) -- initial state before processing the case tree, in which the db indices are the same for agda and agda-core
           clauseToCore compiledClauses corety lhscount
         Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}
