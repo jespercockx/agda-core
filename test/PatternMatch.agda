@@ -5,8 +5,8 @@ data ℕ : Set where
   zero : ℕ
   suc  : ℕ → ℕ
 
--- foo : ℕ → ℕ
--- foo n = suc n
+foo : ℕ → ℕ
+foo n = suc n
 
 {-# NON_TERMINATING #-}
 countdown : ℕ → ℕ
@@ -23,10 +23,15 @@ countdown2 (suc m) n = countdown2 m n
 -- countdown3 zero k m = zero
 -- countdown3 (suc n) k m = countdown3 n k m 
 
--- babyackermann : ℕ → ℕ → ℕ
--- babyackermann zero n = suc n
--- babyackermann (suc m) zero = babyackermann m (suc zero)
--- babyackermann (suc m) (suc n) = babyackermann m (babyackermann zero n)
+babyackermann : ℕ → ℕ → ℕ
+babyackermann zero n = suc n
+babyackermann (suc m) zero = babyackermann m (suc zero)
+babyackermann (suc m) (suc n) = babyackermann m (babyackermann zero n)
+
+ackermann : ℕ → ℕ → ℕ
+ackermann zero n = suc n
+ackermann (suc m) zero = ackermann m (suc zero)
+ackermann (suc m) (suc n) = ackermann m (ackermann (suc m) n)
 --
 -- ackermann : ℕ → ℕ → ℕ
 -- ackermann zero n = suc n

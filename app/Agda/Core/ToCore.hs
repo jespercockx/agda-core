@@ -11,8 +11,6 @@ module Agda.Core.ToCore
   , convert
   ) where
 
-import Debug.Trace
-
 import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
 import Control.Monad.State.Strict (StateT, runStateT, MonadState, gets, modify, state, lift)
@@ -82,16 +80,16 @@ data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
                                    globalDatas :: Map QName Data,
                                    globalCons  :: Map QName Constructor}
 
--- keeping track of debruijn indices correspondence from agda syntax to agda core syntax
-type OffsetMap = (Map Int Int, [Int])
+-- list keeping track of debruijn indices translation from agda syntax to agda core syntax. index of the element is agda debruijn index, and element is corresponding agda core index
+type OffsetList = [Int]
 
-instance MonadState OffsetMap ToCoreM where
+instance MonadState OffsetList ToCoreM where
   state f = ToCoreM $ lift (state f)
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
 --   Translation may fail.
-newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (StateT OffsetMap (Either Doc)) a }
+newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (StateT OffsetList (Either Doc)) a }
   deriving newtype (Functor, Applicative, Monad, MonadError Doc)
   deriving newtype (MonadReader ToCoreGlobal)
 
@@ -116,7 +114,7 @@ lookupData qn = asksData (Map.!? qn)
 lookupCon :: QName -> ToCoreM (Maybe Constructor)
 lookupCon qn = asksCon (Map.!? qn)
 
-withLocalState :: (OffsetMap -> OffsetMap) -> ToCoreM a -> ToCoreM a
+withLocalState :: (OffsetList -> OffsetList) -> ToCoreM a -> ToCoreM a
 withLocalState f action = do
   saved <- gets id
   modify f
@@ -125,40 +123,25 @@ withLocalState f action = do
   return result
 
 -- Read a value from the map
-lookupOffset :: Int -> ToCoreM (Maybe Int)
-lookupOffset k = gets (Map.lookup k . fst)
+lookupOffset :: Int -> ToCoreM Int
+lookupOffset k = gets (!! k) -- unsafe
 
--- Insert/update a value
-insertOffset :: Int -> Int -> ToCoreM ()
-insertOffset k v = modify (\(m, l) -> (Map.insert k v m, l))
+-- Insert/update a value, specialized to drop the value of the old variable
+insertOffsets :: Int -> [Int] -> ToCoreM ()
+insertOffsets pos inserted = modify (\xs -> take pos xs ++ inserted ++ drop (pos + 1) xs) -- (pos + 1) because we drop the old variable, the one being pattern-matched on.
 
-updateKeys :: (Int -> Int) -> ToCoreM ()
-updateKeys f = modify (\(m, l) -> (Map.mapKeys f m, l))
+updateValues :: (Int -> Int) -> ToCoreM ()
+updateValues f = modify (map f)
 
-updateValues :: (Int -> Int -> Int) -> ToCoreM ()
-updateValues f = modify (\(m, l) -> (Map.mapWithKey f m, l))
-
-updateOffSetList :: (Int -> Int) -> ToCoreM ()
-updateOffSetList f = modify (\(m, l) -> (m, fmap f l))
-
-prependToOffSetList :: [Int] -> ToCoreM ()
-prependToOffSetList prep = modify (\(m, l) -> (m, prep ++ l))
-
-getPosition :: Int -> ToCoreM Int
-getPosition index = fmap (!! index) (gets snd)
-
+-- updates the list of offsets to reflect a pattern match from a case expression
 updateDBMap :: Int -> Int -> ToCoreM ()
-updateDBMap paramIndex constructParamCount = do
-  position <- getPosition paramIndex -- gets the index of the agda param referring to this param
-  updateKeys (\index -> if (index > position) then index + constructParamCount - 1 else index) -- all the keys referring to agda indices get increased to make room for the new constsructors parameters
-  updateValues (\_ value -> value + constructParamCount)
-  updateOffSetList (\index -> if (index > position) then index + constructParamCount - 1 else index)
-  let listConsParamsCore = reverse $ take constructParamCount (iterate (+1) 0)
-      listConsParams     = map (\x -> position + x) listConsParamsCore
-  mapM_ (\(index, indexCore) -> trace ("matching " ++ show index ++ show indexCore) $ insertOffset index indexCore) (zip listConsParams listConsParamsCore) -- for each constructor param, a new variable is bound anew in agda core db context, so it needs to be updated from agda context
-  -- prependToOffSetList listConsParams -- In case of nested patternmatching. Actually looking at it now, we might have an issue, since paramNum in the agda syntax most likely refers to high level parameter (not with pattern matching)
-  state2 <- gets id
-  trace ("updating.. : " ++ show listConsParams ++ " and core was: " ++ show listConsParamsCore ++ " resulted in: " ++ show state2 ++ " index: " ++ show position ++ " parcount: " ++ show constructParamCount) $ return ()
+updateDBMap paramIndexAgda constructParamCount = do
+
+  updateValues (\value -> value + constructParamCount) -- because of the introduction of new variables, the agda indices will all refer to a pushed version of the agda core indices
+
+  let listConsParamsCore = take constructParamCount (iterate (+1) 0) -- the new variables introduced
+  insertOffsets paramIndexAgda listConsParamsCore -- insert those references at the index of the agda variable being pattern matched
+  return ()
 
 -- | Class for things that can be converted to core syntax
 class ToCore a where
@@ -168,7 +151,7 @@ class ToCore a where
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
 convert tcg t =
-  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) (Map.empty, [])
+  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) []
 
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
@@ -184,9 +167,8 @@ instance ToCore I.Term where
   toCore :: I.Term -> ToCoreM Term
 
   toCore (I.Var k es) = do
-      index <- maybe k id <$> lookupOffset k -- should always be found, id should never be hit
-      trace ("looking up: " ++ show k ++ " -> " ++ show index) $ 
-        (TVar (var index) `tApp`) <$> toCore es
+      index <- lookupOffset k -- translate from Agda to Agda-core Debruijn index
+      (TVar (var index) `tApp`) <$> toCore es
       where var :: Int -> Index
             var !n | n <= 0 = Scope.inHere
             var !n          = Scope.inThere (var (n - 1))
@@ -327,20 +309,21 @@ clauseToCore (CC.Case paramNum c) ty paramCount = do
   -- iRun is the run-time representation of the index scope. The result will always be `[]`, however, once indexed datatypes are supported this will be important.
   let iRun = iterate rbind [] !! idcs
 
-  -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
-  let index = (paramCount - unArg paramNum - 1) -- I believe here paramNum refers to the index of the param, independently of the  pattern matching between done on the lhs
-  coreBranchList <- (mapM (uncurry (createBranch ty paramCount index)) branchList)
+  let indexAgda = paramCount - unArg paramNum - 1 -- debruijn index in the Agda syntax (paramNum is the number of the parameter, starting from the left)
+  indexAgdaCore <- lookupOffset indexAgda -- getting corresponding agda core db index
+
+  coreBranchList <- (mapM (uncurry (createBranch ty paramCount indexAgda)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
-  return $ TCase dt iRun (TVar $ intToIndex index) branches ty
+  return $ TCase dt iRun (TVar $ intToIndex indexAgdaCore) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
-createBranch ty paramCount paramIndex name wthAr = do
+createBranch ty paramCount paramIndexAgda name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
-  clause <- withLocalState id $ do -- do the update locally so changes in one branch do not causes changes in others
-    updateDBMap paramIndex (CC.arity wthAr) -- update the state, which contains a map of the correspondence between agda and agda core indices
-    clauseToCore (CC.content wthAr) ty paramCount 
+  clause <- withLocalState id $ do 
+    updateDBMap paramIndexAgda (CC.arity wthAr) -- update the state according to the pattern matched parameter and the arity of its constructor
+    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1) -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 
@@ -367,15 +350,11 @@ toCoreDefn (I.FunctionDefn def) ty =
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , Just compiledClauses      <- _funCompiled
       -> do
-        -- translate the type of the function
-        coretywithpi <- toCore ty
-        -- gets the amount of variable on the LHS of each clause
-        let lhscount = getLHSCount def 
-        -- the type of the body of the function (which may need to be set as the type of a TCase) needs to be "pi unnested" as many times as variables have been put on the LHS
-        corety <- unnestPi lhscount coretywithpi
+        coretywithpi <- toCore ty                 -- translate the type of the function
+        let lhscount = getLHSCount def            -- gets the amount of variable on the LHS of each clause
+        corety <- unnestPi lhscount coretywithpi  -- type of the body of the function (unnest pi as many times as there are variables on lhs)
         body <- withLocalState id $ do
-          let nums = take lhscount (iterate (+1) 0)
-          trace ("new func: " ++ show (Map.fromList $ map (\x -> (x, x)) nums, nums)) $ modify (\_ -> (Map.fromList $ map (\x -> (x, x)) nums, nums)) -- update the state, which contains a map of the correspondence between agda and agda core indices
+          modify (\_ -> take lhscount (iterate (+1) 0)) -- initial state before processing the case tree, in which the db indices are the same for agda and agda-core
           clauseToCore compiledClauses corety lhscount
         Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}
