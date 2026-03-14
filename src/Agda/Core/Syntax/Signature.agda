@@ -92,6 +92,7 @@ record Record (@0 rn : NameRec) : Set where
 
   instRecSort : TermS α (recParScope rn) → Sort α
   instRecSort tPars = subst (extSubst ⌈⌉ tPars) recSort
+  {-# COMPILE AGDA2HS instRecSort inline #-}
 
 
 open Record public

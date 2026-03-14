@@ -261,6 +261,7 @@ checkType ctx (TDef d) ty = do
 checkType ctx (TData d ps is) ty = do
   tdef ← inferData ctx d ps is
   checkCoerce ctx (TData d ps is) tdef ty
+checkType ctx (TRec rn pars) ty = tcError "TODO: Implement type checkign for TRec"
 checkType ctx (TDataCon c x) ty = checkDataCon ctx c x ty
 checkType ctx (TRecCon rec x) ty = tcError "TODO: implement type checking for record constructors"
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
@@ -287,6 +288,7 @@ checkType ctx (TAnn u t) ty = do
 inferType ctx (TVar x) = inferVar ctx x
 inferType ctx (TDef d) = inferDef ctx d
 inferType ctx (TData d ps is) = inferData ctx d ps is
+inferType ctx (TRec rn pars) = tcError "TODO: infer type of TRec"
 inferType ctx (TDataCon c x) = tcError "non inferrable: can't infer the type of a data constructor"
 inferType ctx (TRecCon rec x) = tcError "TODO: infer type of record constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"

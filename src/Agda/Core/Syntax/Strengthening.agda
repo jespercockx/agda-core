@@ -25,6 +25,7 @@ strengthenBranches  : α ⊆ β → Branches β d cs → Maybe (Branches α d cs
 strengthenTerm p (TVar (⟨ x ⟩ q)) = diffCase p q (λ q → Just (TVar (⟨ x ⟩ q))) (λ _ → Nothing)
 strengthenTerm p (TDef d) = Just (TDef d)
 strengthenTerm p (TData d ps is) = TData d <$> strengthenTermS p ps <*> strengthenTermS p is
+strengthenTerm p (TRec rn pars) = TRec rn <$> strengthenTermS p pars
 strengthenTerm p (TDataCon c vs) = TDataCon c <$> strengthenTermS p vs
 strengthenTerm p (TRecCon r vs) = TRecCon r <$> strengthenTermS p vs
 strengthenTerm p (TLam x v) = TLam x <$> strengthenTerm (subBindKeep p) v
