@@ -49,9 +49,19 @@ reduceToData : {@0 α : Scope Name} (r : Singleton α)
                   ∃[ (pars , ixs) ∈ (TermS α (dataParScope d)) × (TermS α (dataIxScope d)) ]
                   ReducesTo v (TData d pars ixs))
 reduceToData r v err = reduceTo r v >>= λ where
-  (TData d pars ixs ⟨ redv ⟩) → return ((d , (pars , ixs) ⟨ redv ⟩))
+  (TData d pars ixs ⟨ redv ⟩) → return (d , (pars , ixs) ⟨ redv ⟩)
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToData #-}
+
+reduceToRec : {@0 α : Scope Name} (r : Singleton α)
+          → (v : Term α)
+          → String
+          → TCM (Σ[ rn ∈ NameIn recScope ]
+                 ∃[ pars ∈ TermS α (recParScope rn) ]
+                 ReducesTo v (TRec rn pars))
+reduceToRec r v err = reduceTo r v >>= λ where
+  (TRec rn pars ⟨ redv ⟩) → return (rn , pars ⟨ redv ⟩)
+  _ → tcError err
 
 reduceToSort : {@0 α : Scope Name} (r : Singleton α)
            → (v : Term α)
@@ -62,10 +72,7 @@ reduceToSort r v err = reduceTo r v >>= λ where
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToSort #-}
 
-tcmGetRecord : (rn : NameRec) → TCM (Singleton (sigRecs sig rn))
-tcmGetRecord rn = do
-  rsig ← tcmSignature
-  return (singCong ((λ sig → sigRecs sig rn)) rsig)
+
 
 convNamesIn : (x y : NameIn α) → TCM (Erase (x ≡ y))
 convNamesIn x y =

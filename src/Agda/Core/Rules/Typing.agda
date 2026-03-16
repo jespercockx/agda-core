@@ -29,12 +29,12 @@ dataConstructorType {d = d} dt con pars us =
   dataType d (instDataSort dt pars) pars (instConIx con pars us)
 {-# COMPILE AGDA2HS dataConstructorType #-}
 
-recordConstructorType : (rn : NameRec)
+recordConstructorType : {rn : NameRec}
               → (recTyp : Record rn)
               → TermS α (recParScope rn)
               → TermS α (recFieldScope rn)
               → Type α
-recordConstructorType rn recTyp pars fields = recordType rn (instRecSort recTyp pars) pars
+recordConstructorType {rn = rn} recTyp pars fields = recordType rn (instRecSort recTyp pars) pars
 {-# COMPILE AGDA2HS recordConstructorType #-}
 
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
@@ -99,7 +99,7 @@ data TyTerm {α} Γ where
     (let recTyp : Record rn
          recTyp = sigRecs sig rn)
     -----------------------------------------------------------
-    → Γ ⊢ TRecCon rn args ∶ recordConstructorType rn recTyp pars args
+    → Γ ⊢ TRecCon rn args ∶ recordConstructorType recTyp pars args
 
   TyLam :
       Γ , x ∶ a ⊢ u ∶ b
@@ -265,7 +265,14 @@ tyDataCon' : {@0 Γ : Context α}
 tyDataCon' dt refl con refl tySubst = TyDataCon tySubst
 {-# COMPILE AGDA2HS tyDataCon' #-}
 
--- tyRecCon' : {@0 Γ : Context α} 
+tyRecCon' : {@0 Γ : Context α}
+  {rn : NameRec} → (@0 rec : Record rn) → @0 sigRecs sig rn ≡ rec
+  → {@0 pars : TermS α (recParScope rn)}
+  → {@0 args : TermS α (recFieldScope rn)}
+  ----------------------------------------------
+  → Γ ⊢ TRecCon rn args ∶ recordConstructorType rec pars args
+tyRecCon' rec refl = TyRecCon
+{-# COMPILE AGDA2HS tyRecCon' #-}
 
 tyCase' : {@0 Γ : Context α}
   {d : NameData}

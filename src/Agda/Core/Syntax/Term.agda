@@ -127,8 +127,8 @@ recordType : (rn : NameRec)
            → Type α
 recordType rn rsort pars = El rsort (TRec rn pars)
 {-# COMPILE AGDA2HS recordType #-}
--- case on Terms
 
+-- case on Terms
 opaque
   unfolding RScope
   caseBsNil : (bs : Branches α d mempty)

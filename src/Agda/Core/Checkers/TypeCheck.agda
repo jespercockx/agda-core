@@ -46,6 +46,12 @@ tcmGetDatatype d = do
   return (singCong (λ sig → sigData sig d) rsig)
 {-# COMPILE AGDA2HS tcmGetDatatype #-}
 
+tcmGetRecord : (rn : NameRec) → TCM (Singleton (sigRecs sig rn))
+tcmGetRecord rn = do
+  rsig ← tcmSignature
+  return (singCong (λ sig → sigRecs sig rn) rsig)
+{-# COMPILE AGDA2HS tcmGetRecord #-}
+
 tcmGetConstructor : {d : NameData} (c : NameCon d) → TCM (Singleton (sigCons sig d c))
 tcmGetConstructor {d = d} c = do
   rsig ← tcmSignature
@@ -210,15 +216,26 @@ checkDataCon ctx {d = d} c cargs (El s ty) = do
         tySubst ← checkTermS ctx ctel cargs
         checkCoerce ctx (TDataCon c cargs) (ctype , tyDataCon' dt dteq con ceq tySubst) (El s ty))
     (tcError "datatypes not convertible")
-
 {-# COMPILE AGDA2HS checkDataCon #-}
 
 -- checkRecCon : ∀ Γ 
---           (r : NameRec)
---           (cargs : TermS α (recFieldScope r))
+--           (rn : NameRec)
+--           (cargs : TermS α (recFieldScope rn))
 --           (ty : Type α)
---         → TCM (Γ ⊢ (TRecCon r cargs) ∶ ty)
--- checkRecCon ctx r cargs (El s ty) = {!!}
+--         → TCM (Γ ⊢ (TRecCon rn cargs) ∶ ty)
+-- checkRecCon ctx rn cargs (El s ty) = do
+--   let r = singScope ctx
+--   rn' , params ⟨ rp ⟩ ← reduceToRec r ty 
+--     "can't typecheck a constructor TRecCon with a type that isn't a rec application"
+--   ifDec (decIn (proj₂ rn) (proj₂ rn'))
+--     (λ where {{refl}} → do
+--       rec ⟨ receq ⟩ ← tcmGetRecord rn
+
+--       checkCoerce ctx (TRecCon rn cargs) {!!} (El s ty)
+--     )
+--     (tcError "record types not convertible")
+-- {-# COMPILE AGDA2HS checkRecCon #-}
+
 
 checkLambda : ∀ Γ (@0 x : Name)
               (u : Term  (α ▸ x))
@@ -261,9 +278,10 @@ checkType ctx (TDef d) ty = do
 checkType ctx (TData d ps is) ty = do
   tdef ← inferData ctx d ps is
   checkCoerce ctx (TData d ps is) tdef ty
-checkType ctx (TRec rn pars) ty = tcError "TODO: Implement type checkign for TRec"
+checkType ctx (TRec rn pars) ty = tcError "TODO: Implement type checking for TRec"
 checkType ctx (TDataCon c x) ty = checkDataCon ctx c x ty
-checkType ctx (TRecCon rec x) ty = tcError "TODO: implement type checking for record constructors"
+checkType ctx (TRecCon rec x) ty = tcError "TODO: type checking for TRecCon"
+  -- checkRecCon ctx rec x ty
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
 checkType ctx (TApp u e) ty = do
   tapp ← inferApp ctx u e

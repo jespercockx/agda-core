@@ -30,7 +30,7 @@ record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
     conIndTel : Telescope (mempty ◂▸ pars) (dataFieldScope c)
     -- the TypeS of the indices of c
     conIx     :  TermS (mempty ◂▸ pars ◂▸ dataFieldScope c) ixs
-    -- how the indices are constructred given parameters and c indices
+    -- how the indices are constructed given parameters and c indices
 
   instConIndTel : TermS α (dataParScope d) → Telescope α (dataFieldScope c)
   instConIndTel tPars = subst (extSubst ⌈⌉ tPars) conIndTel
