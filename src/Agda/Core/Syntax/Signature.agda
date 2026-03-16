@@ -94,6 +94,10 @@ record Record (@0 rn : NameRec) : Set where
   instRecSort tPars = subst (extSubst ⌈⌉ tPars) recSort
   {-# COMPILE AGDA2HS instRecSort inline #-}
 
+  instRecParTel : TermS α (recParScope rn)
+  instRecParTel = subst ⌈⌉ recParTel
+  {-# COMPILE AGDA2HS instRecParTel inline #-}
+
 
 open Record public
 {-# COMPILE AGDA2HS Record #-}

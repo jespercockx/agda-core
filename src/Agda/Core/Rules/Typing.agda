@@ -77,6 +77,15 @@ data TyTerm {α} Γ where
     → Γ ⊢ˢ ixs  ∶ instDataIxTel dt pars
     ----------------------------------------------
     → Γ ⊢ TData d pars ixs ∶ sortType (instDataSort dt pars)
+  
+  TyRec : 
+    {rn : NameRec}
+    {@0 pars : TermS α (recParScope rn)}
+    (let rt : Record rn
+         rt = sigRecs sig rn)
+    -- → Γ ⊢ˢ pars ∶ instRecParTel rt
+    ----------------------------------------------
+    → Γ ⊢ TRec rn pars ∶ sortType (instRecSort rt pars)
 
   TyDataCon :
       {d : NameData}
