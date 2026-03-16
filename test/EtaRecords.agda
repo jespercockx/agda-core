@@ -4,6 +4,10 @@ data Nat : Set where
   Zero : Nat
   Suc : Nat → Nat
 
+data Vector (A : Set) : Nat → Set where
+  Nil : Vector A Zero
+  Cons : (n : Nat) → Vector A n → Vector A (Suc n)
+
 data Bool : Set where
   True : Bool
   False : Bool
@@ -32,18 +36,18 @@ record PairExplCon (A B : Set) : Set where
       fstE : A
       sndE : B
 
---example0 and example1 are both valid Agda epxressions
--- example0 : (A B : Set) → Set
--- example0 = Pair
-
--- example1 : (B : Set) → Set
--- example1 = Pair Nat
-
 x : Pair Nat Nat
 x = record { fst = Zero; snd = Suc Zero }
 
 x' : Pair Nat Nat
 x' = Pair.constructor Zero (Suc Zero)
+
+--example0 and example1 are both valid Agda epxressions
+example0 : (A B : Set) → Set
+example0 = Pair
+
+example1 : (B : Set) → Set
+example1 = Pair Nat
 
 proj_example : Nat
 proj_example = Pair.fst x

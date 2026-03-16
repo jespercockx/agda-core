@@ -35,7 +35,9 @@ class PrettyCore a where
 printDef :: NameMap -> Index -> String
 printDef m n = let k = indexToNat n in fromMaybe ("F" <> show k) (Map.lookup k (nameDefs m))
 printNameData :: NameMap -> Index -> String
-printNameData m d = let k = indexToNat d in fromMaybe ("D" <> show k) (Map.lookup k (nameDefs m))
+printNameData m d = let k = indexToNat d in fromMaybe ("D" <> show k) (Map.lookup k (nameData m))
+printNameRec :: NameMap -> Index -> String 
+printNameRec m rn = let k = indexToNat rn in fromMaybe ("R" <> show k) (Map.lookup k (nameRecs m))
 printNameCon :: NameMap -> Index -> Index -> String
 printNameCon m d c = let k = (indexToNat d, indexToNat c) in fromMaybe ("C" <> show k) (Map.lookup k (nameCons m))
 
@@ -82,6 +84,7 @@ prettyCoreTermAux m Something term =
     Core.TDataCon d c trms -> printNameCon m d c <> "[ " <> prettyCore m trms <>"]"
     Core.TRecCon c trms -> "RecordConstructor" <> "[ " <> prettyCore m trms <>"]"
     Core.TData d pars ixs -> printNameData m d <> prettyCore m pars <> prettyCore m ixs
+    Core.TRec rn pars -> printNameRec m rn <> prettyCore m pars
     Core.TProj _ _ -> "projection not implemented"
     Core.TCase d r u bs ty -> "Case" <> printNameData m d <> prettyCore m u <> "of" <> prettyCoreBranches m d bs <> ":" <> prettyCore m ty
     Core.TLet _ _  -> "let binding not implemented"

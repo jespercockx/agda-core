@@ -143,34 +143,35 @@ toTermS = foldr Core.TSCons Core.TSNil
 -- @missing@: The number of arguments missing for a fully applied term.
 --               We construct @missing@ amount of extra arguments 
 --               as deBruijn indices (e.g., @TVar 0, TVar 1, ...@).
-mkTermS :: I.Elims -> Int -> ToCoreM Core.TermS
-mkTermS elims missing = do
-  -- we get [TVar 2, TVar 1, TVar 0, ...] of length @missing@
-  let additionalVars = reverse $ take missing $ TVar <$> iterate Scope.inThere Scope.inHere
-  listOfCoreTerms <- fmap (++ additionalVars) (toCore (raise missing elims))
-  return (foldr Core.TSCons Core.TSNil listOfCoreTerms)
+-- mkTermS :: I.Elims -> Int -> ToCoreM Core.TermS
+-- mkTermS elims missing = do
+--   listOfCoreTerms <- fmap (++ additionalVars) (toCore (raise missing elims))
+--   return (foldr Core.TSCons Core.TSNil listOfCoreTerms)
 
 -- Helper for toCore (I.Def)
-compileToTData :: [I.Elim] -> Index -> Int -> Int -> ToCoreM Term
-compileToTData elims idx fullAmountOfParams fullAmountOfIndices = do
+compileToTDataOrTRec :: [I.Elim] -> Index -> Int -> Int -> Bool -> ToCoreM Term
+compileToTDataOrTRec elims idx fullAmountOfParams fullAmountOfIndices toTData = do
 
-  let parameterListGiven = take fullAmountOfParams elims
-  -- @missingAmountOfParams@ is the arguments which are missing from full application
-  -- TODO (atejandev): make this such that it actually accounts for when parameters are missing
-  let missingAmountOfParams = 0
-  paramTermS <- mkTermS parameterListGiven missingAmountOfParams
+  let givenParameterList = take fullAmountOfParams elims
+  let givenIndexList = drop fullAmountOfParams elims -- has length 0 if any parameters are missing
 
-  let indexListGiven = drop fullAmountOfParams elims
-  -- @missingAmountOfIndices@ is the amount of indices missing from full application
-  let missingAmountOfIndices = fullAmountOfIndices - length indexListGiven
-  indexTermS <- mkTermS indexListGiven missingAmountOfIndices
+  let missingParams = fullAmountOfParams - length givenParameterList
+  let missingIndices = fullAmountOfIndices - length givenIndexList
+  let totalMissing = missingParams + missingIndices
 
-  let tdata = TData idx paramTermS indexTermS
-  let totalMissing = missingAmountOfParams + missingAmountOfIndices
+  -- we get [TVar 2, TVar 1, TVar 0, ...] of length @totalMissing@
+  let additionalVars = reverse $ take totalMissing $ TVar <$> iterate Scope.inThere Scope.inHere
+  compiledArgs <- fmap (++ additionalVars) (toCore (raise totalMissing elims))
 
+  let paramTermS = toTermS (take fullAmountOfParams compiledArgs)
+  let idxTermS = toTermS (drop fullAmountOfParams compiledArgs)
+
+  let baseTerm = 
+        if toTData
+        then TData idx paramTermS idxTermS
+        else TRec idx paramTermS
   -- in the end, we have (TLam (TLam (TLam ...))) of depth `totalMissing`
-  return (iterate TLam tdata !! totalMissing)
-
+  return (iterate TLam baseTerm !! totalMissing)
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
 {-                                      Instances of ToCore                                       -}
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
@@ -201,11 +202,11 @@ instance ToCore I.Term where
           Nothing -> do
             lookupData qn >>= \case
               Just (idx, (fullAmountOfParams, fullAmountOfIndices)) ->
-                compileToTData es idx fullAmountOfParams fullAmountOfIndices
+                compileToTDataOrTRec es idx fullAmountOfParams fullAmountOfIndices True
               Nothing -> lookupRec qn >>= \case
                 Nothing -> throwError $ "[When compiling an I.Def] Trying to access an unknown definition: " <+> pretty qn
-                Just (idx, amountOfParams) ->
-                  compileToTData es idx amountOfParams 0
+                Just (idx, fullAmountOfParams) ->
+                  compileToTDataOrTRec es idx fullAmountOfParams 0 False
 
   toCore (I.Con ch _ es)
     | Just args <- allApplyElims es

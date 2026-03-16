@@ -307,7 +307,7 @@ convertWhnf r rt (TRecCon rn argsTermS) =
     -- check whether argsTermS can be converted in the desired termSToConvertInto
     convProof ← convertTermSs r argsTermS termSToConvertInto
     --return proof that rt can be converted into (TRecCon rn argsTermS)
-    return (CEtaRecords rn rt argsTermS convProof) 
+    return (CEtaRecords rn rt argsTermS convProof)
 convertWhnf r (TRecCon rn argsTermS) rt = 
   tcError "TODO: eta records symmetric case"
 convertWhnf r (TProj _ _) term = tcError "TODO: Tproj generic left case"
