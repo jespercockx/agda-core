@@ -95,6 +95,10 @@ data Conv {α} where
          → ps ⇔ qs
          → is ⇔ ks
          → TData d ps is ≅ TData d qs ks
+  CRec : (@0 rn : NameRec)
+         (@0 pars1 pars2 : TermS α (recParScope rn))
+         → pars1 ⇔ pars2
+         → TRec rn pars1 ≅ TRec rn pars2 
   CDataCon : {@0 d : NameData} (c : NameCon d)
            {@0 us vs : TermS α (dataFieldScope c)}
          → us ⇔ vs

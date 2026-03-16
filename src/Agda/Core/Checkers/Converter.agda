@@ -129,6 +129,18 @@ convDatas r d e ps qs is ks = do
 
 {-# COMPILE AGDA2HS convDatas #-}
 
+convRecs : {{fl : Fuel}} → Singleton α → (rn1 rn2 : NameRec)
+            (pars1 : TermS α (recParScope rn1)) (pars2 : TermS α (recParScope rn2))
+          → TCM (Conv (TRec rn1 pars1) (TRec rn2 pars2))
+convRecs r rn1 rn2 pars1 pars2 = do
+  ifDec (decIn (proj₂ rn1) (proj₂ rn2))
+    (λ where {{refl}} → do
+      cps ← convertTermSs r pars1 pars2
+      return $ (CRec rn1 pars1 pars2 cps)
+    )
+    (tcError "record types not convertible")
+{-# COMPILE AGDA2HS convRecs #-}
+
 convDataCons : {{fl : Fuel}} → Singleton α →
            {d d' : NameData}
            (f : NameCon d)
@@ -280,6 +292,7 @@ convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t 
 convertWhnf r (TVar x) (TVar y) = convVars x y
 convertWhnf r (TDef x) (TDef y) = convDefs x y
 convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
+convertWhnf r (TRec rn1 pars1) (TRec rn2 pars2) = convRecs r rn1 rn2 pars1 pars2
 convertWhnf r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r c c' lc ld
 convertWhnf r (TRecCon rn1 args1) (TRecCon rn2 args2) = convRecCons r rn1 rn2 args1 args2
 convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
