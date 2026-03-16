@@ -62,6 +62,7 @@ reduceToRec : {@0 α : Scope Name} (r : Singleton α)
 reduceToRec r v err = reduceTo r v >>= λ where
   (TRec rn pars ⟨ redv ⟩) → return (rn , pars ⟨ redv ⟩)
   _ → tcError err
+{-# COMPILE AGDA2HS reduceToRec #-}
 
 reduceToSort : {@0 α : Scope Name} (r : Singleton α)
            → (v : Term α)
