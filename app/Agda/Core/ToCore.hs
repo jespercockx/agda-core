@@ -22,7 +22,6 @@ import Agda.Syntax.Internal.Elim (allApplyElims, splitApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
-import Agda.TypeChecking.Reduce (reduce)
 import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe, fromMaybe)
 import Agda.Syntax.Common ( Nat )
 
