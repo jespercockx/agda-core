@@ -83,7 +83,7 @@ data TyTerm {α} Γ where
     {@0 pars : TermS α (recParScope rn)}
     (let rt : Record rn
          rt = sigRecs sig rn)
-    -- → Γ ⊢ˢ pars ∶ instRecParTel rt
+    → Γ ⊢ˢ pars ∶ instRecParTel rt
     ----------------------------------------------
     → Γ ⊢ TRec rn pars ∶ sortType (instRecSort rt pars)
 
