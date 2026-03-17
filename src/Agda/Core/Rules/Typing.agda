@@ -263,6 +263,16 @@ tyData' : {@0 Γ : Context α}
 tyData' dt refl typars tyixs = TyData typars tyixs
 {-# COMPILE AGDA2HS tyData' #-}
 
+tyRec' : {@0 Γ : Context α}
+  {rn : NameRec}
+  (@0 rt : Record rn) → @0 sigRecs sig rn ≡ rt
+  → {@0 pars : TermS α (recParScope rn)}
+  → Γ ⊢ˢ pars ∶ instRecParTel rt
+  ----------------------------------------------
+  → Γ ⊢ TRec rn pars ∶ sortType (instRecSort rt pars)
+tyRec' rt refl typars = TyRec typars
+{-# COMPILE AGDA2HS tyRec' #-}
+
 tyDataCon' : {@0 Γ : Context α}
   {d : NameData} → (@0 dt : Datatype d) → @0 sigData sig d ≡ dt
   → {c : NameCon d} (@0 con : Constructor c) → @0 sigCons sig d c ≡ con

@@ -157,6 +157,15 @@ inferData ctx d pars ixs = do
   return (sortType (instDataSort dt pars) , tyData' dt deq typars tyixs)
 {-# COMPILE AGDA2HS inferData #-}
 
+inferRec : (Γ : Context α) (rn : NameRec)
+          → (pars : TermS α (recParScope rn))
+          → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TRec rn pars ∶ ty)
+inferRec ctx rn pars = do
+  rt ⟨ defeq ⟩ ← tcmGetRecord rn
+  typars ← checkTermS ctx (instRecParTel rt) pars
+  return (sortType (instRecSort rt pars) , tyRec' rt defeq typars)
+{-# COMPILE AGDA2HS inferRec #-}
+
 checkBranch : ∀ {d : NameData} {@0 con : NameCon d} (Γ : Context α)
                 (bs : Branch α con)
                 (dt : Datatype d)
@@ -284,7 +293,9 @@ checkType ctx (TDef d) ty = do
 checkType ctx (TData d ps is) ty = do
   tdef ← inferData ctx d ps is
   checkCoerce ctx (TData d ps is) tdef ty
-checkType ctx (TRec rn pars) ty = tcError "TODO: Implement type checking for TRec"
+checkType ctx (TRec rn pars) ty = do
+  trec ← inferRec ctx rn pars
+  checkCoerce ctx (TRec rn pars) trec ty
 checkType ctx (TDataCon c x) ty = checkDataCon ctx c x ty
 checkType ctx (TRecCon rec x) ty = checkRecCon ctx rec x ty
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
@@ -311,13 +322,13 @@ checkType ctx (TAnn u t) ty = do
 inferType ctx (TVar x) = inferVar ctx x
 inferType ctx (TDef d) = inferDef ctx d
 inferType ctx (TData d ps is) = inferData ctx d ps is
-inferType ctx (TRec rn pars) = tcError "TODO: infer type of TRec"
+inferType ctx (TRec rn pars) = inferRec ctx rn pars
 inferType ctx (TDataCon c x) = tcError "non inferrable: can't infer the type of a data constructor"
 inferType ctx (TRecCon rec x) = tcError "TODO: infer type of record constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
-inferType ctx (TProj u f) = tcError "not implemented: projections"
+inferType ctx (TProj u f) = tcError "TODO: infer type of projections"
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s
 inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"

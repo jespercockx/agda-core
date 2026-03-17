@@ -22,6 +22,7 @@ import Agda.Syntax.Internal.Elim (allApplyElims, splitApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
+import Agda.TypeChecking.Reduce (reduce)
 import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe, fromMaybe)
 import Agda.Syntax.Common ( Nat )
 
@@ -166,7 +167,7 @@ compileToTDataOrTRec elims idx fullAmountOfParams fullAmountOfIndices toTData = 
   let paramTermS = toTermS (take fullAmountOfParams compiledArgs)
   let idxTermS = toTermS (drop fullAmountOfParams compiledArgs)
 
-  let baseTerm = 
+  let baseTerm =
         if toTData
         then TData idx paramTermS idxTermS
         else TRec idx paramTermS
@@ -360,15 +361,23 @@ toCoreDefn (I.RecordDefn rd) ty =
     let I.TelV{theTel = internalParsTel} = I.telView'UpTo pars ty
     parsTel <- toCore internalParsTel
 
-    
+
+    -- TODO (atejandev): Change this sort of Set_0 to Sort which is actually correct with regards to the record
+    -- let univLevel = I.Univ I.UType (I.Max 0 [])
+
     -- fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
     --         Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
     --         Just idx -> pure idx
     --       ) . unDom) fields
 
+    -- TODO: (atejandev) Verify that this is actually the sort of the record being compiled
+    sort <- do
+          case ty of 
+            I.El s _ -> toCore s
 
     -- TODO (atejandev) actually add field indices to the Core.Record, if we need them in Core
-    let r = Core.Record{ recParTel = parsTel, 
+    let r = Core.Record{ recSort = sort,
+                         recParTel = parsTel,
                          recFields = []}
 
     return $ Core.RecordDefn r
