@@ -110,6 +110,11 @@ inferCase {α = α} ctx d rixs u bs rt = do
 
 {-# COMPILE AGDA2HS inferCase #-}
 
+-- inferProj : {rn : NameRec} (Γ : Context α) (rt : Term α) (projFunc : NameProj rn) →
+--   TCM (Σ[ t ∈ Type α ] Γ ⊢ TProj rt projFunc ∶ t)
+-- inferProj ctx rt projFunc = {!!}
+-- {-# COMPILE AGDA2HS inferProj #-}
+
 inferPi
   : ∀ Γ (@0 x : Name)
   (a : Type α)
@@ -328,7 +333,8 @@ inferType ctx (TRecCon rec x) = tcError "TODO: infer type of record constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
-inferType ctx (TProj u f) = tcError "TODO: infer type of projections"
+inferType ctx (TProj rt projFunc) = --inferProj ctx rt projFunc
+    tcError "TODO: Type checking of projection"
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s
 inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"

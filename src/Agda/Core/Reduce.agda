@@ -174,7 +174,7 @@ step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
           (weakenStack (subExtScope r subRefl) s))
         Nothing  → Nothing
       (False  ⟨ _ ⟩) → Nothing
-step rsig (MkState e (TRecCon rc vs) s) = Nothing --TODO: Reduce record constructor application
+step rsig (MkState e (TRecCon rn args) s) = Nothing --TODO: Reduce record constructor application
 step rsig (MkState e (TData d ps is) s) = Nothing
 step rsig (MkState e (TRec rn pars) s) = Nothing
 step rsig (MkState e (TDataCon c vs) (FProj f ∷ s)) = Nothing -- TODO
