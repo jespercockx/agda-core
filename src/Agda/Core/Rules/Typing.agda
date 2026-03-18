@@ -152,17 +152,17 @@ data TyTerm {α} Γ where
     --------------------------------------------------
     → Γ ⊢ TCase d iRun u cases return ∶ return'                   -- then the branching on u is well typed
 
-  TyProj : 
-    {rn : NameRec}
-    {projFunc : NameProj rn} 
-    {pars : TermS α (recParScope rn)} 
-    {rt : Term α}
-    {rsort : Sort α} 
-    → Γ ⊢ rt ∶ (El rsort (TRec rn pars))
-    -- TODO : Check that projname is actually a projection function of rn
-    ------------------------------------
-    -- TODO: Substitute the part after ∶ with a type that is actually correct
-    → Γ ⊢ TProj rt projFunc ∶ (El rsort (TRec rn pars))
+  -- TyProj : 
+  --   {rn : NameRec}
+  --   {projFunc : NameProj rn} 
+  --   {pars : TermS α (recParScope rn)} 
+  --   {rt : Term α}
+  --   {rsort : Sort α} 
+  --   → Γ ⊢ rt ∶ (El rsort (TRec rn pars))
+  --   -- TODO : Check that projname is actually a projection function of rn
+  --   ------------------------------------
+  --   -- TODO: Substitute the part after ∶ with a type that is actually correct
+  --   → Γ ⊢ TProj rt projFunc ∶ (El rsort (TRec rn pars))
 
   TyPi :
       Γ ⊢ u ∶ sortType k
