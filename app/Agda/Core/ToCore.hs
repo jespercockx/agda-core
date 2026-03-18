@@ -357,12 +357,8 @@ toCoreDefn (I.RecordDefn rd) ty =
       _recPars = pars,
       _recFields = fields
     } = rd
-    let I.TelV{theTel = internalParsTel} = I.telView'UpTo pars ty
+    let I.TelV{theTel = internalParsTel, theCore = returnType} = I.telView'UpTo pars ty
     parsTel <- toCore internalParsTel
-
-
-    -- TODO (atejandev): Change this sort of Set_0 to Sort which is actually correct with regards to the record
-    -- let univLevel = I.Univ I.UType (I.Max 0 [])
 
     -- fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
     --         Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
@@ -371,13 +367,12 @@ toCoreDefn (I.RecordDefn rd) ty =
 
     -- TODO: (atejandev) Verify that this is actually the sort of the record being compiled
     sort <- do
-          case ty of 
+          case returnType of 
             I.El s _ -> toCore s
 
-    -- TODO (atejandev) actually add field indices to the Core.Record, if we need them in Core
     let r = Core.Record{ recSort = sort,
                          recParTel = parsTel,
-                         recFields = []}
+                         recFields = []} -- TODO (atejandev) actually add field indices to the Core.Record, if we need them in Core
 
     return $ Core.RecordDefn r
 
