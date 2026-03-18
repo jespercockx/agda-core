@@ -21,14 +21,6 @@ private variable
   @0 a b c  : Type α
   @0 k l    : Sort α
 
--- data SubTermEnv : @0 Scope Name → Set where
---   StEnvEmpty  : SubTermEnv mempty
---   StEnvExtend : (@0 x : Name)
---               → Maybe (NameIn α)   -- x is a sub-term of this variable (if any)
---               → SubTermEnv α
---               → SubTermEnv (α ▸ x)
--- {-# COMPILE AGDA2HS SubTermEnv #-}
-
 data Relation (@0 α : Scope Name) : Set
 data Relation α where
   Unrelated : Relation α
@@ -244,4 +236,7 @@ decRelation Unrelated         (NonIncreasing _) = False ⟨ (λ ()) ⟩
 
 transSym : {x y : RScope Name} (p : x ≡ y) → (t : Term (α ◂▸ x)) → subst0 (λ (@0 f₁) → Term (α ◂▸ f₁)) (trans p (sym p)) t ≡ t
 transSym refl _ = refl
+
+postulate
+  subWeaken' : α ▸ x ⊆ β → α ⊆ β
 

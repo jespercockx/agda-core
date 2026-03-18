@@ -19,6 +19,7 @@ library
         Agda.Core.Rules.Terminating
         Agda.Core.Rules.Terminating2
         Agda.Core.Checkers.Terminate
+        Agda.Core.Checkers.Terminate2
         Agda.Core.Prelude
         Agda.Core.Name
         Agda.Core.Syntax.Context

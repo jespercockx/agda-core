@@ -24,6 +24,7 @@ alllib: lib \
   lib/Agda/Core/Checkers/Converter.hs \
   lib/Agda/Core/Checkers/TypeCheck.hs \
   lib/Agda/Core/Checkers/Terminate.hs \
+  lib/Agda/Core/Checkers/Terminate2.hs \
 
 
 # alllib: lib lib/*.hs
