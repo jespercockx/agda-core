@@ -77,5 +77,3 @@ eta-R-two-expl-con = λ A B → λ p → refl
 -- eta-R-two_expl : (A B : Set) (x : PairNoEta A B) →
 --   x ≡ record { fst = PairNoEta.fst x ; snd = PairNoEta.snd x }
 -- eta-R-two_expl = λ A B → λ x → {!!}
-
-
