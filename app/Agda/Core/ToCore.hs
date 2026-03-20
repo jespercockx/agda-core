@@ -340,7 +340,8 @@ toCoreDefn (I.DatatypeDefn dt) ty =
                       _dataCons  = cons,
                       _dataSort  = sort} = dt
   -- let univLevel = universeLevelFromSort sort
-  -- sort' <- traceMagenta ("datatypedefn universe level from _dataSort " ++ show univLevel) toCore sort
+  -- traceMagenta ("datatypedefn universe level from _dataSort " ++ show univLevel)
+  sort' <- toCore sort
   let I.TelV{theTel = internalParsTel, theCore = ty1} = I.telView'UpTo pars ty
   let I.TelV{theTel = internalIxsTel}                 = I.telView'UpTo ixs  ty1
   parsTel <- toCore internalParsTel
