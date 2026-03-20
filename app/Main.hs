@@ -197,6 +197,10 @@ agdaCoreCompile env _ _ def = do
 
   let name = show $ Pretty.pretty $ last $ Internal.qnameToList0 defName            -- name of term that we are compiling
   reportSDoc "agda-core.check" 2 $ text $ "Compilation of " <> name <> " :"
+  univLevel <- case defType of
+        (Internal.El (Internal.Univ Internal.UType (Internal.Max i [])) _) -> 
+          reportSDoc "agda-core.check" 2 $ text $ "Universe level: " <> show i
+        _ -> error "Unsupported universe level"
 
   ToCoreGlobal {
     globalDefs = tcg_defs, globalDatas = tcg_datas, globalRecs = tcg_recs,

@@ -37,7 +37,7 @@ import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt)
+import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, traceMagenta)
 
 
 import Scope.In (Index)
@@ -51,6 +51,10 @@ import Control.Exception (throw)
 import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 import Agda.Syntax.Common.Pretty(text, render)
+
+universeLevelFromSort :: I.Sort -> Integer
+universeLevelFromSort (I.Univ I.UType (I.Max i [])) = i
+universeLevelFromSort _ = error "unsupported universe level"
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
@@ -335,7 +339,8 @@ toCoreDefn (I.DatatypeDefn dt) ty =
                       _dataIxs   = ixs,
                       _dataCons  = cons,
                       _dataSort  = sort} = dt
-  sort' <- toCore sort
+  let univLevel = universeLevelFromSort sort
+  sort' <- traceMagenta ("datatypedefn universe level " ++ show univLevel) toCore sort
   let I.TelV{theTel = internalParsTel, theCore = ty1} = I.telView'UpTo pars ty
   let I.TelV{theTel = internalIxsTel}                 = I.telView'UpTo ixs  ty1
   parsTel <- toCore internalParsTel
