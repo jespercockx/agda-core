@@ -177,10 +177,10 @@ data TyTerm {α} Γ where
   --   {rt : Term α}
   --   {projFunc : NameProj rn}
   --   {rsort : Sort α}
-  --   {pars : TermS α (recParScope rn)}    
+  --   {instPars : TermS α (recParScope rn)}    
   --   (let recTyp : Record rn
   --        recTyp = sigRecs sig rn)
-  --   → Γ ⊢ rt ∶ (El rsort (TRec rn pars))
+  --   → Γ ⊢ rt ∶ (El rsort (TRec rn instPars))
   --   ------------------------------------
   --   -- let ty = 
   --   -- TODO: Substitute the part after ∶ with a type that is actually correct

@@ -321,7 +321,7 @@ toCoreDefn (I.FunctionDefn def) _ =
       , l      <- _funClauses
       -> throwError "pattern matching isn't supported"
 
-    I.FunctionData{_funProjection = Right p} -- the FunctionDefn being declared is a record projection
+    I.FunctionData{_funProjection = Right p} -- the FunctionDefn being declared is a record projection function
       | Just qn <- I.projProper p
         -> do
             --Looking up as a record must succeed
