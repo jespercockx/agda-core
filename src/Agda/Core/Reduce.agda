@@ -159,12 +159,12 @@ step rsig (MkState e (TLet x v w) s) =
     (e , x ↦ v)
     w
     (weakenStack (subBindDrop subRefl) s))
--- TODO (atejandev): The reducer currently assumes that a TDef always has a body
--- But: Projection functions are currently compiled to a `TDef`, and only have a type, not a body
--- So this function either needs modification, or we need to create a separate term for projection function lookups
 step (sing sig) (MkState e (TDef d) s) =
   case getBody sig d of λ where
-    v → Just (MkState e (weaken subEmpty v) s)
+    -- d points to a FunctionDef
+    (Just v) → Just (MkState e (weaken subEmpty v) s)
+    -- d points to a ProjFunDef
+    Nothing → Nothing --TODO (atejandev): I don't understand whether we need to reduce further in this case
 step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
   case decNamesIn d' d of λ where
       (True  ⟨ refl ⟩) → case lookupBranch bs c of λ where

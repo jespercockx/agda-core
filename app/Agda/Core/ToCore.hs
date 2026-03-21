@@ -37,7 +37,7 @@ import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, traceMagenta)
+import Agda.Core.UtilsH (listToUnitList, indexToNat, indexToInt, traceCyan)
 
 
 import Scope.In (Index)

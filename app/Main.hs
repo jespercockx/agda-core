@@ -326,8 +326,7 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons, preSig
 
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
-        Just  Core.Definition{defType = ty, theDef = Core.ProjDefn} -> 
-          error "TODO: We need to handle the case when a projection function is looked up in the signature"
+        Just  Core.Definition{defType = ty, theDef = Core.ProjDefn} -> (ty, Core.ProjFunDef)
         _ -> __IMPOSSIBLE__
 
   let cons d c = case preSigCons Map.!? (indexToNat d, indexToNat c) of

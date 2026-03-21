@@ -18,7 +18,7 @@ private variable
                                         {- Constructor -}
 ---------------------------------------------------------------------------------------------------
 
--- (atejandev) Currently, the constructor of a record is also compiled to this `Constructor` type, meaning the translation is ill-scoped. This might need to be fixed some time
+-- TODO (atejandev) Currently, the constructor of a record is also compiled to this `Constructor` type, meaning the translation is ill-scoped. This might need to be fixed some time
 record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
   no-eta-equality
   private
@@ -107,6 +107,7 @@ open Record public
 ---------------------------------------------------------------------------------------------------
 data SigDefinition : Set where
   FunctionDef : (funBody : Term mempty) → SigDefinition
+  ProjFunDef : SigDefinition
 {-# COMPILE AGDA2HS SigDefinition #-}
 
 record Signature : Set where
@@ -138,9 +139,10 @@ getDefinition sig x = snd defs
     defs = sigDefs sig x
 {-# COMPILE AGDA2HS getDefinition #-}
 
-getBody : Signature → (x : NameIn defScope) → Term mempty
+getBody : Signature → (x : NameIn defScope) → Maybe (Term mempty)
 getBody sig x = case getDefinition sig x of λ where
-  (FunctionDef body) → body
+  (FunctionDef body) → Just body
+  ProjFunDef → Nothing
 {-# COMPILE AGDA2HS getBody #-}
 
 ---------------------------------------------------------------------------------------------------

@@ -172,19 +172,22 @@ data TyTerm {α} Γ where
     --------------------------------------------------
     → Γ ⊢ TCase d iRun u cases return ∶ return'                   -- then the branching on u is well typed
 
-  -- TyProj : 
-  --   {rn : NameRec}
-  --   {rt : Term α}
-  --   {projFunc : NameProj rn}
-  --   {rsort : Sort α}
-  --   {instPars : TermS α (recParScope rn)}    
-  --   (let recTyp : Record rn
-  --        recTyp = sigRecs sig rn)
-  --   → Γ ⊢ rt ∶ (El rsort (TRec rn instPars))
-  --   ------------------------------------
-  --   -- let ty = 
-  --   -- TODO: Substitute the part after ∶ with a type that is actually correct
-  --   → Γ ⊢ TProj rt projFunc ∶ {!!}
+  TyProj : 
+    {rn : NameRec}
+    {rt : Term α}
+    {projFunc : NameProj rn}
+    {rsort : Sort α}
+    {instPars : TermS α (recParScope rn)}    
+    (let recTyp : Record rn
+         recTyp = sigRecs sig rn)
+    (let fieldTypeFull : Type α
+         fieldTypeFull = sigDefs sig projFunc) 
+
+    → Γ ⊢ rt ∶ (El rsort (TRec rn instPars))
+    ------------------------------------
+    -- let ty = 
+    -- TODO: Substitute the part after ∶ with a type that is actually correct
+    → Γ ⊢ TProj rt projFunc ∶ {!!}
 
   TyPi :
       Γ ⊢ u ∶ sortType k
