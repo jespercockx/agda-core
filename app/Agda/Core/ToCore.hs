@@ -378,7 +378,7 @@ toCoreDefn (I.RecordDefn rd) ty =
 
     let r = Core.Record{ recSort = sort,
                          recParTel = parsTel,
-                         recFields = fieldsIndices} -- TODO (atejandev) actually add field indices to the Core.Record, if we need them in Core
+                         recFields = fieldsIndices}
 
     return $ Core.RecordDefn r
 
