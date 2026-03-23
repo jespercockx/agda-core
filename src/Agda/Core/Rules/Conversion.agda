@@ -19,13 +19,19 @@ private variable
   @0 a a' b b' c c' : Type α
   @0 us vs          : TermS α rβ
 
-opaque
-  unfolding RScope
-  createDesiredTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
-  createDesiredTermS ([] ⟨ refl ⟩)                   _  = TSNil
-  createDesiredTermS ((Erased name ∷ names) ⟨ refl ⟩) f =
-    name ↦ f (⟨ name ⟩ inRHere) ◂ createDesiredTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
-  {-# COMPILE AGDA2HS createDesiredTermS #-}
+-- opaque
+--   unfolding RScope
+--   createDesiredTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
+--   createDesiredTermS ([] ⟨ refl ⟩)                   _  = TSNil
+--   createDesiredTermS ((Erased name ∷ names) ⟨ refl ⟩) f =
+--     name ↦ f (⟨ name ⟩ inRHere) ◂ createDesiredTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
+--   {-# COMPILE AGDA2HS createDesiredTermS #-}
+
+  -- createDesiredTermSrefactor : {@0 rscope : RScope Name} → Singleton rscope → (Name → Term α) → TermS α rscope
+  -- createDesiredTermSrefactor ([] ⟨ refl ⟩)                    _  = TSNil
+  -- createDesiredTermSrefactor ((Erased name ∷ names) ⟨ refl ⟩) f  =
+  --   TSCons {x = name} (f name) (createDesiredTermSrefactor ({!!}))
+  -- {-# COMPILE AGDA2HS createDesiredTermSrefactor #-}
 
 -- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
 -- It should create a termS : TermS α (recFieldScope rn) which looks like:
@@ -115,13 +121,13 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
-    → let singScope = (singTermS argsTermS)
-          func = (TProj {r = rn} rt)
-          termSToConvertInto = createDesiredTermS singScope func
-          in
-      (argsTermS ⇔ termSToConvertInto)
-    → rt ≅ (TRecCon rn argsTermS)
+  -- CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
+  --   → let singScope = (singTermS argsTermS)
+  --         func = λ projFuncName → (TProj {r = rn} rt projFuncName)
+  --         termSToConvertInto = createDesiredTermS singScope {!!}
+  --         in
+  --     (argsTermS ⇔ termSToConvertInto)
+  --   → rt ≅ (TRecCon rn argsTermS)
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v

@@ -21,8 +21,9 @@ record Globals : Set where
   NameCon d = NameInR (dataConstructors d)
   NameRec : Set
   NameRec = NameIn recScope
+  -- If n : NameProj r, then it is also a NameIn defScope
   NameProj : NameRec → Set
-  NameProj r = NameInR (recFieldScope r)
+  NameProj r = Σ0 (NameIn defScope) λ n → NameInR (recFieldScope r)
   opaque
     unfolding RScope
     AllNameCon : (d : NameData) → RScope (NameCon d)

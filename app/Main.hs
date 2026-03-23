@@ -18,7 +18,7 @@ import Agda.TypeChecking.Pretty (text, prettyTCM, (<+>), Doc)
 import Agda.Compiler.Backend (Flag, IsMain(..), Backend', Backend_boot(Backend), Backend'_boot(Backend'),
  TCM, Recompile(Recompile, Skip), reportSDoc)
 import Agda.Compiler.Backend qualified as Internal
-import Agda.Syntax.Internal ( clausePats, Clause(clauseBody), Abs (unAbs) )
+import Agda.Syntax.Internal ( clausePats, Clause(clauseBody), Abs (unAbs) , unDom )
 import Agda.Syntax.Internal qualified as Internal
 import Agda.TypeChecking.Telescope qualified as Internal
 import Agda.TypeChecking.Substitute qualified as Internal
@@ -209,7 +209,7 @@ agdaCoreCompile env _ _ def = do
   PreSignature {preSigDefs, preSigData, preSigCons, preSigRecs}       <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
-    -- if a datatype or record type is encountered, add all constructors to the tcg environement
+    -- if a datatype is encountered, add all constructors to the tcg environement
     -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataPars, dataIxs, dataCons} -> do
@@ -220,14 +220,22 @@ agdaCoreCompile env _ _ def = do
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
       pure (ToCoreGlobal tcg_defs ntcg_datas tcg_recs ntcg_cons, 
         NameMap nameDefs nnames_datas nameRecs nameCons)
-    Internal.Record{recPars, recConHead} -> do
+    -- if a record type is encountered, 
+      -- first add its index to globalRecs
+      -- then add all of its fields to the tcg environment,
+      -- then add its constructor to the tcg environment, as this seems to be the compilation order that Agda is doing
+    -- if a record projection definition or constructor is encountered, skip it to avoid conflict
+    Internal.Record{recPars, recFields, recConHead} -> do
       let conName = Internal.conName recConHead
       let ntcg_recs = Map.insert defName (index, recPars) tcg_recs
           nnames_recs = Map.insert (indexToNat index) name nameRecs
+          tcg_proj_funcs = Map.fromList (zip (map unDom recFields) (iterate Suc (Suc index)))
+          ntcg_defs = Map.union tcg_defs tcg_proj_funcs
           --A record always has exactly one constructor, so we insert `Nothing` for the constructor index
-          ntcg_cons = Map.insert conName (index, Nothing) tcg_cons 
+          ntcg_cons = Map.insert conName (index, Nothing) tcg_cons
+      reportSDoc "agda-core.check" 3 $ text "  Projection functions:" <+> prettyTCM (map unDom recFields)
       reportSDoc "agda-core.check" 3 $ text "  Constructor:" <+> prettyTCM conName
-      pure (ToCoreGlobal tcg_defs tcg_datas ntcg_recs ntcg_cons, 
+      pure (ToCoreGlobal ntcg_defs tcg_datas ntcg_recs ntcg_cons, 
         NameMap nameDefs nameData nnames_recs nameCons)
     Internal.Constructor{} -> do
       -- (diode-lang) BADBADBAD: It seems that this will also match record constructor 
@@ -238,6 +246,12 @@ agdaCoreCompile env _ _ def = do
       let nnames_cons = Map.insert (indexToNat dataOrRecordID, indexToNat (fromMaybe Zero cID)) name nameCons
       pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons, 
         NameMap nameDefs nameData nameRecs nnames_cons)
+    -- if we encounter a  record projection function, skip adding it to tcg, since we already added it when processing `Internal.Record`
+    Internal.Function{} | Map.member defName tcg_defs -> do
+      reportSDoc "agda-core.check" 3 $ text "  Projection function name:" <+> prettyTCM name
+      -- TODO (atejandev): Add name of projection function to nameMap
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons, 
+        NameMap nameDefs nameData nameRecs nameCons)
     _ -> do
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
       let ntcg_defs = Map.insert defName index tcg_defs
