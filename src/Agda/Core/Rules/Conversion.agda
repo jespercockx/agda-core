@@ -35,7 +35,9 @@ opaque
     name ↦ f (⟨ name ⟩ inRHere) ◂ createDesiredTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
   {-# COMPILE AGDA2HS createDesiredTermS #-}
 
-
+  -- TODO (atejandev): This statement should hold in general, but I just need to fill in the proof 
+  @0 computeFieldMatch : (rn : NameRec) → FieldsMatch (recFields (sigRecs sig rn)) (recFieldScope rn)
+  computeFieldMatch rn = {!!}
 
   createDesiredTermSusingSig : {@0 rn : NameRec} {@0 rscope : RScope Name} 
     → (NameProj rn → Term α) → Singleton rscope → (projs : List (NameProj rn)) 
@@ -135,8 +137,9 @@ data Conv {α} where
       → (TLam x b) ≅ f 
   -- CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
   --   → let singScope = (singTermS argsTermS)
+  --         fieldMatch = computeFieldMatch rn
   --         func = λ projFuncName → (TProj {r = rn} rt projFuncName)
-  --         termSToConvertInto = createDesiredTermSusingSig func singScope (recFields (sigRecs sig rn)) {!!}
+  --         termSToConvertInto = createDesiredTermSusingSig func singScope (recFields (sigRecs sig rn)) fieldMatch
   --         in
   --     (argsTermS ⇔ termSToConvertInto)
   --   → rt ≅ (TRecCon rn argsTermS)
