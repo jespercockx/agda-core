@@ -19,6 +19,14 @@ private variable
   @0 a a' b b' c c' : Type α
   @0 us vs          : TermS α rβ
 
+
+
+data FieldsMatch : {rn : NameRec} → List (NameProj rn) → RScope Name → Set where
+  FMNil : {rn : NameRec} → FieldsMatch {rn = rn} [] mempty
+  FMCons : {rn : NameRec} {ps : List (NameProj rn)} {rscope : RScope Name} (p : NameProj rn)
+    → FieldsMatch ps rscope
+    → FieldsMatch (p ∷ ps) ((proj₁ (proj₁ p) ◂ rscope))
+
 opaque
   unfolding RScope
   createDesiredTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
@@ -27,10 +35,14 @@ opaque
     name ↦ f (⟨ name ⟩ inRHere) ◂ createDesiredTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
   {-# COMPILE AGDA2HS createDesiredTermS #-}
 
-  -- createDesiredTermSusingSig : {@0 rn : NameRec} → (NameProj rn → Term α) → List (NameProj rn) → TermS α (recFieldScope rn)
-  -- createDesiredTermSusingSig {α} {rn} f [] = {!!}
-  -- createDesiredTermSusingSig {α} {rn} f (a:as) = {!!}
 
+
+  createDesiredTermSusingSig : {@0 rn : NameRec} → (NameProj rn → Term α) → (rscope : RScope Name) → (projs : List (NameProj rn)) 
+    → FieldsMatch projs rscope → TermS α rscope
+  createDesiredTermSusingSig {rn} f [] [] FMNil = TSNil
+  createDesiredTermSusingSig {rn} f (Erased name ∷ names) ( _ ∷ ps) (FMCons p proof) = 
+    (proj₁ (proj₁ p)) ↦ (f p) ◂ createDesiredTermSusingSig f names ps proof
+  {-# COMPILE AGDA2HS createDesiredTermSusingSig #-}
 
 -- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
 -- It should create a termS : TermS α (recFieldScope rn) which looks like:
@@ -123,7 +135,7 @@ data Conv {α} where
   -- CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
   --   → let singScope = (singTermS argsTermS)
   --         func = λ projFuncName → (TProj {r = rn} rt projFuncName)
-  --         termSToConvertInto = createDesiredTermSusingSig func (recFields (sigRecs sig rn))
+  --         termSToConvertInto = createDesiredTermSusingSig func singScope (recFields (sigRecs sig rn)) {!!}
   --         in
   --     (argsTermS ⇔ termSToConvertInto)
   --   → rt ≅ (TRecCon rn argsTermS)
