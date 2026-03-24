@@ -37,11 +37,12 @@ opaque
 
 
 
-  createDesiredTermSusingSig : {@0 rn : NameRec} → (NameProj rn → Term α) → (rscope : RScope Name) → (projs : List (NameProj rn)) 
+  createDesiredTermSusingSig : {@0 rn : NameRec} {@0 rscope : RScope Name} 
+    → (NameProj rn → Term α) → Singleton rscope → (projs : List (NameProj rn)) 
     → FieldsMatch projs rscope → TermS α rscope
-  createDesiredTermSusingSig {rn} f [] [] FMNil = TSNil
-  createDesiredTermSusingSig {rn} f (Erased name ∷ names) ( _ ∷ ps) (FMCons p proof) = 
-    (proj₁ (proj₁ p)) ↦ (f p) ◂ createDesiredTermSusingSig f names ps proof
+  createDesiredTermSusingSig {rn} f ([] ⟨ refl ⟩) [] FMNil = TSNil
+  createDesiredTermSusingSig {rn} f ((Erased name ∷ names) ⟨ refl ⟩) ( _ ∷ ps) (FMCons p proof) = 
+    (proj₁ (proj₁ p)) ↦ (f p) ◂ createDesiredTermSusingSig f (names ⟨ refl ⟩) ps proof
   {-# COMPILE AGDA2HS createDesiredTermSusingSig #-}
 
 -- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
