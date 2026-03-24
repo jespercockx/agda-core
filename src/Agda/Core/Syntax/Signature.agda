@@ -14,6 +14,12 @@ private open module @0 G = Globals globals
 private variable
   @0 α  : Scope Name
   @0 d  : NameData
+
+
+
+
+
+
 ---------------------------------------------------------------------------------------------------
                                         {- Constructor -}
 ---------------------------------------------------------------------------------------------------
@@ -75,6 +81,12 @@ record Datatype (@0 d : NameData) : Set where
 open Datatype public
 {-# COMPILE AGDA2HS Datatype #-}
 
+
+
+data Vec (a : Set) : (@0 n : Nat) → Set where
+  Nil : Vec a 0
+  Cons : {@0 n : Nat} → a → Vec a n → Vec a (suc n)
+{-# COMPILE AGDA2HS Vec #-}
 
 ---------------------------------------------------------------------------------------------------
                                           {- Record -}
