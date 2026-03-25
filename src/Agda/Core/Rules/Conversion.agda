@@ -21,11 +21,11 @@ private variable
 
 
 
-data FieldsMatch : {rn : NameRec} → List (NameProj rn) → RScope Name → Set where
-  FMNil : {rn : NameRec} → FieldsMatch {rn = rn} [] mempty
-  FMCons : {rn : NameRec} {ps : List (NameProj rn)} {rscope : RScope Name} (p : NameProj rn)
-    → FieldsMatch ps rscope
-    → FieldsMatch (p ∷ ps) ((proj₁ (proj₁ p) ◂ rscope))
+-- data FieldsMatch : {rn : NameRec} → List (NameProj rn) → RScope Name → Set where
+--   FMNil : {rn : NameRec} → FieldsMatch {rn = rn} [] mempty
+--   FMCons : {rn : NameRec} {ps : List (NameProj rn)} {rscope : RScope Name} (p : NameProj rn)
+--     → FieldsMatch ps rscope
+--     → FieldsMatch (p ∷ ps) ((proj₁ (proj₁ p) ◂ rscope))
 
 opaque
   unfolding RScope
@@ -35,17 +35,17 @@ opaque
     name ↦ f (⟨ name ⟩ inRHere) ◂ createDesiredTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
   {-# COMPILE AGDA2HS createDesiredTermS #-}
 
-  -- TODO (atejandev): This statement should hold in general, but I just need to fill in the proof 
-  @0 computeFieldMatch : (rn : NameRec) → FieldsMatch (recFields (sigRecs sig rn)) (recFieldScope rn)
-  computeFieldMatch rn = {!!}
+  -- -- TODO (atejandev): This statement should hold in general, but I just need to fill in the proof 
+  -- @0 computeFieldMatch : (rn : NameRec) → FieldsMatch (recFields (sigRecs sig rn)) (recFieldScope rn)
+  -- computeFieldMatch rn = {!!}
 
-  createDesiredTermSusingSig : {@0 rn : NameRec} {@0 rscope : RScope Name} 
-    → (NameProj rn → Term α) → Singleton rscope → (projs : List (NameProj rn)) 
-    → FieldsMatch projs rscope → TermS α rscope
-  createDesiredTermSusingSig {rn} f ([] ⟨ refl ⟩) [] FMNil = TSNil
-  createDesiredTermSusingSig {rn} f ((Erased name ∷ names) ⟨ refl ⟩) ( _ ∷ ps) (FMCons p proof) = 
-    (proj₁ (proj₁ p)) ↦ (f p) ◂ createDesiredTermSusingSig f (names ⟨ refl ⟩) ps proof
-  {-# COMPILE AGDA2HS createDesiredTermSusingSig #-}
+  -- createDesiredTermSusingSig : {@0 rn : NameRec} {@0 rscope : RScope Name} 
+  --   → (NameProj rn → Term α) → Singleton rscope → (projs : List (NameProj rn)) 
+  --   → FieldsMatch projs rscope → TermS α rscope
+  -- createDesiredTermSusingSig {rn} f ([] ⟨ refl ⟩) [] FMNil = TSNil
+  -- createDesiredTermSusingSig {rn} f ((Erased name ∷ names) ⟨ refl ⟩) ( _ ∷ ps) (FMCons p proof) = 
+  --   (proj₁ (proj₁ p)) ↦ (f p) ◂ createDesiredTermSusingSig f (names ⟨ refl ⟩) ps proof
+  -- {-# COMPILE AGDA2HS createDesiredTermSusingSig #-}
 
 -- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
 -- It should create a termS : TermS α (recFieldScope rn) which looks like:
@@ -135,14 +135,13 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  -- CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
-  --   → let singScope = (singTermS argsTermS)
-  --         fieldMatch = computeFieldMatch rn
-  --         func = λ projFuncName → (TProj {r = rn} rt projFuncName)
-  --         termSToConvertInto = createDesiredTermSusingSig func singScope (recFields (sigRecs sig rn)) fieldMatch
-  --         in
-  --     (argsTermS ⇔ termSToConvertInto)
-  --   → rt ≅ (TRecCon rn argsTermS)
+  CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
+    → let singScope = (singTermS argsTermS)
+          func = λ projFuncName → (TProj {r = rn} rt projFuncName)
+          termSToConvertInto = createDesiredTermS singScope func
+          in
+      (argsTermS ⇔ termSToConvertInto)
+    → rt ≅ (TRecCon rn argsTermS)
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v

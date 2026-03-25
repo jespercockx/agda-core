@@ -378,7 +378,7 @@ toCoreDefn (I.RecordDefn rd) ty =
 
     let r = Core.Record{ recSort = sort,
                          recParTel = parsTel,
-                         recFields = fieldsIndices}
+                         recProjTypes = \n -> error "TODO (atejandev): implement this"}
 
     return $ Core.RecordDefn r
 

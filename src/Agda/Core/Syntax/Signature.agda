@@ -96,10 +96,12 @@ record Record (@0 rn : NameRec) : Set where
   private
     @0 pars : RScope Name
     pars = recParScope rn
+    @0 fields : RScope Name
+    fields = recFieldScope rn
   field
     recSort         : Sort (mempty ◂▸ pars)
     recParTel       : Telescope mempty pars
-    recFields       : List (NameProj rn)
+    recProjTypes    : NameInR fields → Type α
 
 
   instRecSort : TermS α (recParScope rn) → Sort α
@@ -137,18 +139,25 @@ open Signature public
 {-# COMPILE AGDA2HS Signature #-}
 
 getType : Signature → (x : NameIn defScope) → Type α
-getType sig x = subst ⌈⌉ (fst defs)
+getType sig x = subst ⌈⌉ (fst typeAndSigDef)
   where
     -- inlining this seems to trigger a bug in agda2hs
     -- TODO: investigate further
-    defs = sigDefs sig x
+    typeAndSigDef = sigDefs sig x
 {-# COMPILE AGDA2HS getType #-}
 
+getProjectionType : {rn : NameRec} → Signature → (n : NameProj rn) → Type α
+getProjectionType {rn = rn} sig n = 
+  let rt = sigRecs sig rn in 
+  (recProjTypes rt) n
+{-# COMPILE AGDA2HS getProjectionType #-}
+  
+
 getDefinition : Signature → (x : NameIn defScope) → SigDefinition
-getDefinition sig x = snd defs
+getDefinition sig x = snd typeAndSigDef
   where
     -- see above
-    defs = sigDefs sig x
+    typeAndSigDef = sigDefs sig x
 {-# COMPILE AGDA2HS getDefinition #-}
 
 getBody : Signature → (x : NameIn defScope) → Maybe (Term mempty)

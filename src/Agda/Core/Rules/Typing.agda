@@ -174,17 +174,17 @@ data TyTerm {α} Γ where
 
   TyProj : 
     {rn : NameRec}
-    {rt : Term α}
-    {projFunc : NameProj rn}
+    {recordTerm : Term α}
     {rsort : Sort α}
+    {projFunc : NameProj rn}
     {instPars : TermS α (recParScope rn)}    
     (let recTyp : Record rn
          recTyp = sigRecs sig rn)
     (let projFuncType : Type α
-         projFuncType = getType sig (proj₁ projFunc))
-    → Γ ⊢ rt ∶ (El rsort (TRec rn instPars))
+         projFuncType = getProjectionType sig projFunc)
+    → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
     ------------------------------------
-    → Γ ⊢ TProj rt projFunc ∶ projFuncType
+    → Γ ⊢ TProj recordTerm projFunc ∶ projFuncType
 
   TyPi :
       Γ ⊢ u ∶ sortType k
