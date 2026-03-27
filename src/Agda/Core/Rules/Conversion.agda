@@ -19,14 +19,6 @@ private variable
   @0 a a' b b' c c' : Type α
   @0 us vs          : TermS α rβ
 
-
-
--- data FieldsMatch : {rn : NameRec} → List (NameProj rn) → RScope Name → Set where
---   FMNil : {rn : NameRec} → FieldsMatch {rn = rn} [] mempty
---   FMCons : {rn : NameRec} {ps : List (NameProj rn)} {rscope : RScope Name} (p : NameProj rn)
---     → FieldsMatch ps rscope
---     → FieldsMatch (p ∷ ps) ((proj₁ (proj₁ p) ◂ rscope))
-
 opaque
   unfolding RScope
   createDesiredTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
@@ -35,25 +27,6 @@ opaque
     name ↦ f (⟨ name ⟩ inRHere) ◂ createDesiredTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
   {-# COMPILE AGDA2HS createDesiredTermS #-}
 
-  -- -- TODO (atejandev): This statement should hold in general, but I just need to fill in the proof 
-  -- @0 computeFieldMatch : (rn : NameRec) → FieldsMatch (recFields (sigRecs sig rn)) (recFieldScope rn)
-  -- computeFieldMatch rn = {!!}
-
-  -- createDesiredTermSusingSig : {@0 rn : NameRec} {@0 rscope : RScope Name} 
-  --   → (NameProj rn → Term α) → Singleton rscope → (projs : List (NameProj rn)) 
-  --   → FieldsMatch projs rscope → TermS α rscope
-  -- createDesiredTermSusingSig {rn} f ([] ⟨ refl ⟩) [] FMNil = TSNil
-  -- createDesiredTermSusingSig {rn} f ((Erased name ∷ names) ⟨ refl ⟩) ( _ ∷ ps) (FMCons p proof) = 
-  --   (proj₁ (proj₁ p)) ↦ (f p) ◂ createDesiredTermSusingSig f (names ⟨ refl ⟩) ps proof
-  -- {-# COMPILE AGDA2HS createDesiredTermSusingSig #-}
-
--- This function takes an `rn : NameRec`, and a `recordTerm : Term α`
--- It should create a termS : TermS α (recFieldScope rn) which looks like:
--- `TSCons (TProj recordTerm fstProjFunc)
---    (TSCons (TProj recordTerm sndProjFunc) (... (TSCons (TProj recordTerm lastProjFunc) TSNil)))`
--- where fstProjFunc, sndProjFunc, ..., lastProjFunc are all the projection functions of the Agda record type `rn`, so all the entries in `recFieldScope rn`
--- @0 desiredTermS : (rn : NameRec) → Term α → TermS α (recFieldScope rn)
--- desiredTermS rn rt = createDesiredTermS (recFieldScope rn) (TProj {r = rn} rt)
 
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set

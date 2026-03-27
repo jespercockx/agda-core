@@ -21,7 +21,6 @@ record Globals : Set where
   NameCon d = NameInR (dataConstructors d)
   NameRec : Set
   NameRec = NameIn recScope
-  -- If n : NameProj r, then it is also a NameIn defScope
   NameProj : NameRec → Set
   NameProj r = NameInR (recFieldScope r)
   opaque

@@ -110,10 +110,19 @@ inferCase {α = α} ctx d rixs u bs rt = do
 
 {-# COMPILE AGDA2HS inferCase #-}
 
-inferProj : {@0 rn : NameRec} (Γ : Context α) (rt : Term α) (projFunc : NameProj rn) →
-  TCM (Σ[ t ∈ Type α ] Γ ⊢ TProj rt projFunc ∶ t)
-inferProj ctx rt projFunc = tcError "TODO: type checking for TProj"
-{-# COMPILE AGDA2HS inferProj #-}
+-- inferProj : {rn : NameRec} (Γ : Context α) (recordTerm : Term α) (projFunc : NameProj rn) →
+--   TCM (Σ[ t ∈ Type α ] Γ ⊢ TProj recordTerm projFunc ∶ t)
+-- inferProj {rn = rn} ctx recordTerm projFunc = do
+
+--   El _ typeOfRecordTerm , typDerivRecTerm ← inferType ctx recordTerm
+--   let r = singScope ctx
+--   rn' , params ⟨ rp ⟩  ← reduceToRec r typeOfRecordTerm "cannot type check a projection that is not of a record type"
+--   ifDec (decIn (proj₂ rn) (proj₂ rn'))
+--     (λ where {{refl}} → do
+--       return ({!   !} , TyProj {!!})
+--     )
+--     (tcError "not convertible")
+-- {-# COMPILE AGDA2HS inferProj #-}
 
 inferPi
   : ∀ Γ (@0 x : Name)
@@ -310,9 +319,10 @@ checkType ctx (TApp u e) ty = do
 checkType ctx (TCase d r u bs rt) ty = do
   tapp ← inferCase ctx d r u bs rt
   checkCoerce ctx (TCase d r u bs rt) tapp ty
-checkType ctx (TProj rt projFunc) ty = do
-  tproj ← inferProj ctx rt projFunc
-  checkCoerce ctx (TProj rt projFunc) tproj ty
+checkType ctx (TProj rt projFunc) ty = tcError "TODO"
+  -- do
+  --   tproj ← inferProj ctx rt projFunc
+  --   checkCoerce ctx (TProj rt projFunc) tproj ty
 checkType ctx (TPi x tu tv) ty = do
   tpi ← inferPi ctx x tu tv
   checkCoerce ctx (TPi x tu tv) tpi ty
@@ -335,8 +345,8 @@ inferType ctx (TRecCon rec x) = tcError "TODO: infer type of record constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
-inferType ctx (TProj rt projFunc) = --inferProj ctx rt projFunc
-    tcError "TODO: Type checking of projection"
+inferType ctx (TProj rt projFunc) = tcError "TODO"  
+  -- inferProj ctx rt projFunc
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s
 inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"

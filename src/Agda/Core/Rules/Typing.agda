@@ -37,26 +37,6 @@ recordConstructorType : {rn : NameRec}
 recordConstructorType {rn = rn} recTyp pars fields = recordType rn (instRecSort recTyp pars) pars
 {-# COMPILE AGDA2HS recordConstructorType #-}
 
--- -- Extracts the index of rscope by which we get n 
--- indexOfName : {rn : NameRec}
---                 {@0 rscope : RScope Name}
---                 {@0 n : NameInR rscope}
---                 → Singleton rscope
---                 → Singleton n
---                 → Nat
--- indexOfName sScope sn = {!!}
-
--- -- Gets n-th element of the TermS
--- indexTermS : {@0 rscope : RScope Name} 
---               → TermS α rscope
---               → Nat
---               → Term α
--- indexTermS sScope n = {!!}
-
--- -- Extracts the Term α that was added to the termS with the name n 
--- getTermOfName : {rn : NameRec} (termS : TermS α (recParScope rn)) → (n : NameInR (recParScope rn)) → Term α 
--- getTermOfName termS n = {!!}
-
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
 
 data TyTermS (@0 Γ : Context α) : @0 TermS α rβ → @0 Telescope α rβ → Set
@@ -172,19 +152,21 @@ data TyTerm {α} Γ where
     --------------------------------------------------
     → Γ ⊢ TCase d iRun u cases return ∶ return'                   -- then the branching on u is well typed
 
-  TyProj : 
-    {rn : NameRec}
-    {recordTerm : Term α}
-    {rsort : Sort α}
-    {projFunc : NameProj rn}
-    {instPars : TermS α (recParScope rn)}    
-    (let recTyp : Record rn
-         recTyp = sigRecs sig rn)
-    (let projFuncType : Type α
-         projFuncType = getProjectionType sig projFunc)
-    → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-    ------------------------------------
-    → Γ ⊢ TProj recordTerm projFunc ∶ projFuncType
+    -- TyProj : 
+    --   {rn : NameRec}
+    --   {recordTerm : Term α}
+    --   {rsort : Sort α}
+    --   {projFunc : NameProj rn}
+    --   {instPars : TermS α (recParScope rn)}    
+    --   (let projFuncTypeFull : Type α
+    --        projFuncTypeFull = getProjectionType sig projFunc)
+    --   (let desiredRecordType : Type α
+    --        desiredRecordType = (El rsort (TRec rn instPars)))
+    --   (let resultingType : Type α --"apply" desiredRecordType to projFuncTypeFull
+    --        resultingType = {!!})
+    --   → Γ ⊢ recordTerm ∶ desiredRecordType
+    --   ------------------------------------
+    --   → Γ ⊢ TProj recordTerm projFunc ∶ resultingType
 
   TyPi :
       Γ ⊢ u ∶ sortType k
