@@ -37,6 +37,10 @@ recordConstructorType : {rn : NameRec}
 recordConstructorType {rn = rn} recTyp pars fields = recordType rn (instRecSort recTyp pars) pars
 {-# COMPILE AGDA2HS recordConstructorType #-}
 
+apply : Singleton α → Type α → Term α → Type α
+apply r (El _ (TPi x _ restType)) trm = substTop r trm restType
+apply _ typ _ = typ
+
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
 
 data TyTermS (@0 Γ : Context α) : @0 TermS α rβ → @0 Telescope α rβ → Set
@@ -152,21 +156,20 @@ data TyTerm {α} Γ where
     --------------------------------------------------
     → Γ ⊢ TCase d iRun u cases return ∶ return'                   -- then the branching on u is well typed
 
-    -- TyProj : 
-    --   {rn : NameRec}
-    --   {recordTerm : Term α}
-    --   {rsort : Sort α}
-    --   {projFunc : NameProj rn}
-    --   {instPars : TermS α (recParScope rn)}    
-    --   (let projFuncTypeFull : Type α
-    --        projFuncTypeFull = getProjectionType sig projFunc)
-    --   (let desiredRecordType : Type α
-    --        desiredRecordType = (El rsort (TRec rn instPars)))
-    --   (let resultingType : Type α --"apply" desiredRecordType to projFuncTypeFull
-    --        resultingType = {!!})
-    --   → Γ ⊢ recordTerm ∶ desiredRecordType
-    --   ------------------------------------
-    --   → Γ ⊢ TProj recordTerm projFunc ∶ resultingType
+  -- TyProj : {rn : NameRec}
+  --   {recordTerm : Term α}
+  --   {rsort : Sort α}
+  --   {projFunc : NameProj rn}
+  --   {instPars : TermS α (recParScope rn)}
+  --   (let projFuncTypeFull : Type α
+  --        projFuncTypeFull = getProjectionType sig projFunc)
+  --   (let desiredRecordType : Type α
+  --        desiredRecordType = (El rsort (TRec rn instPars)))
+  --   (let resultingType : Type α --"apply" desiredRecordType to projFuncTypeFull
+  --        resultingType = apply (singScope Γ) projFuncTypeFull recordTerm)
+  --   → Γ ⊢ recordTerm ∶ desiredRecordType
+  --     ------------------------------------
+  --   → Γ ⊢ TProj recordTerm projFunc ∶ resultingType
 
   TyPi :
       Γ ⊢ u ∶ sortType k
