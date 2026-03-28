@@ -156,20 +156,20 @@ data TyTerm {α} Γ where
     --------------------------------------------------
     → Γ ⊢ TCase d iRun u cases return ∶ return'                   -- then the branching on u is well typed
 
-  -- TyProj : {rn : NameRec}
-  --   {recordTerm : Term α}
-  --   {rsort : Sort α}
-  --   {projFunc : NameProj rn}
-  --   {instPars : TermS α (recParScope rn)}
-  --   (let projFuncTypeFull : Type α
-  --        projFuncTypeFull = getProjectionType sig projFunc)
-  --   (let desiredRecordType : Type α
-  --        desiredRecordType = (El rsort (TRec rn instPars)))
-  --   (let resultingType : Type α --"apply" desiredRecordType to projFuncTypeFull
-  --        resultingType = apply (singScope Γ) projFuncTypeFull recordTerm)
-  --   → Γ ⊢ recordTerm ∶ desiredRecordType
-  --     ------------------------------------
-  --   → Γ ⊢ TProj recordTerm projFunc ∶ resultingType
+  TyProj : {rn : NameRec}
+    {recordTerm : Term α}
+    {rsort : Sort α}
+    {projFunc : NameProj rn}
+    {instPars : TermS α (recParScope rn)}
+    (let projFuncTypeFull : Type α
+         projFuncTypeFull = getProjectionType sig projFunc)
+    (let desiredRecordType : Type α
+         desiredRecordType = (El rsort (TRec rn instPars)))
+    (let resultingType : Type α --"apply" desiredRecordType to projFuncTypeFull
+         resultingType = apply (singScope Γ) projFuncTypeFull recordTerm)
+    → Γ ⊢ recordTerm ∶ desiredRecordType
+      ------------------------------------
+    → Γ ⊢ TProj recordTerm projFunc ∶ resultingType
 
   TyPi :
       Γ ⊢ u ∶ sortType k
@@ -337,6 +337,17 @@ tyCase' : {@0 Γ : Context α}
 tyCase' dt refl {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
   TyCase wfReturn tyCases tyu
 {-# COMPILE AGDA2HS tyCase' #-}
+
+tyProj' : {@0 Γ : Context α}
+  {rn : NameRec}
+  {recordTerm : Term α}
+  {projFunc : NameProj rn}
+  (projFuncTypeFull : Type α)
+  (let resultingType : Type α
+       resultingType = apply (singScope Γ) projFuncTypeFull recordTerm)
+  → @0 getProjectionType sig projFunc ≡ projFuncTypeFull
+  → Γ ⊢ TProj recordTerm projFunc ∶ resultingType
+tyProj' projFuncTypeFull a = TyProj {!!}
 
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
             {@0 ps : TermS α (dataParScope d)}

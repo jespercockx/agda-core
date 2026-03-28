@@ -149,10 +149,8 @@ getType sig x = subst ⌈⌉ (fst typeAndSigDef)
     typeAndSigDef = sigDefs sig x
 {-# COMPILE AGDA2HS getType #-}
 
-getProjectionType : {rn : NameRec} → Signature → (n : NameProj rn) → Type α
-getProjectionType {rn = rn} sig n = 
-  let rt = sigRecs sig rn in 
-  (recProjTypes rt) n
+getProjectionType : {rn : NameRec} → Signature → (projFunc : NameProj rn) → Type α
+getProjectionType {rn = rn} sig projFunc = (recProjTypes (sigRecs sig rn)) projFunc
 {-# COMPILE AGDA2HS getProjectionType #-}
   
 

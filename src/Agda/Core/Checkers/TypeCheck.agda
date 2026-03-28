@@ -34,6 +34,11 @@ tcmGetType x = do
   return (singCong (λ sig → getType sig x) rsig)
 {-# COMPILE AGDA2HS tcmGetType #-}
 
+tcmGetProjectionType : {rn : NameRec} (projName : NameProj rn) → TCM (Singleton (getProjectionType {α = α} sig projName))
+tcmGetProjectionType projName = do
+  rsig ← tcmSignature
+  return (singCong (λ sig → getProjectionType sig projName) rsig)
+
 tcmGetDefinition : (x : NameIn defScope) → TCM (Singleton (getDefinition sig x))
 tcmGetDefinition x = do
   rsig ← tcmSignature
@@ -110,19 +115,20 @@ inferCase {α = α} ctx d rixs u bs rt = do
 
 {-# COMPILE AGDA2HS inferCase #-}
 
--- inferProj : {rn : NameRec} (Γ : Context α) (recordTerm : Term α) (projFunc : NameProj rn) →
---   TCM (Σ[ t ∈ Type α ] Γ ⊢ TProj recordTerm projFunc ∶ t)
--- inferProj {rn = rn} ctx recordTerm projFunc = do
+inferProj : {rn : NameRec} (Γ : Context α) (recordTerm : Term α) (projFunc : NameProj rn) →
+  TCM (Σ[ t ∈ Type α ] Γ ⊢ TProj recordTerm projFunc ∶ t)
+inferProj {rn = rn} ctx recordTerm projFunc = do
+  let r = singScope ctx
 
---   El _ typeOfRecordTerm , typDerivRecTerm ← inferType ctx recordTerm
---   let r = singScope ctx
---   rn' , params ⟨ rp ⟩  ← reduceToRec r typeOfRecordTerm "cannot type check a projection that is not of a record type"
---   ifDec (decIn (proj₂ rn) (proj₂ rn'))
---     (λ where {{refl}} → do
---       return ({!   !} , TyProj {!!})
---     )
---     (tcError "not convertible")
--- {-# COMPILE AGDA2HS inferProj #-}
+  El _ typeOfRecordTerm , typDerivRecTerm ← inferType ctx recordTerm
+  rn' , params ⟨ rp ⟩  ← reduceToRec r typeOfRecordTerm "cannot type check a projection that is not of a record type"
+  ifDec (decIn (proj₂ rn) (proj₂ rn'))
+    (λ where {{refl}} → do
+      projFuncType ⟨ proofEq ⟩ ← tcmGetProjectionType projFunc
+      rewrite sym proofEq in {!!}
+    )
+    (tcError "not convertible")
+{-# COMPILE AGDA2HS inferProj #-}
 
 inferPi
   : ∀ Γ (@0 x : Name)
