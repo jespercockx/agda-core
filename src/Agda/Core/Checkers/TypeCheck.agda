@@ -38,6 +38,7 @@ tcmGetProjectionType : {rn : NameRec} (projName : NameProj rn) → TCM (Singleto
 tcmGetProjectionType projName = do
   rsig ← tcmSignature
   return (singCong (λ sig → getProjectionType sig projName) rsig)
+{-# COMPILE AGDA2HS tcmGetProjectionType #-}
 
 tcmGetDefinition : (x : NameIn defScope) → TCM (Singleton (getDefinition sig x))
 tcmGetDefinition x = do
@@ -120,12 +121,14 @@ inferProj : {rn : NameRec} (Γ : Context α) (recordTerm : Term α) (projFunc : 
 inferProj {rn = rn} ctx recordTerm projFunc = do
   let r = singScope ctx
 
-  El _ typeOfRecordTerm , typDerivRecTerm ← inferType ctx recordTerm
+  El rsort typeOfRecordTerm , typDerivRecTerm ← inferType ctx recordTerm
   rn' , params ⟨ rp ⟩  ← reduceToRec r typeOfRecordTerm "cannot type check a projection that is not of a record type"
   ifDec (decIn (proj₂ rn) (proj₂ rn'))
     (λ where {{refl}} → do
-      projFuncType ⟨ proofEq ⟩ ← tcmGetProjectionType projFunc
-      rewrite sym proofEq in {!!}
+      coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
+      projFuncTypeFull ⟨ proofEq ⟩ ← tcmGetProjectionType projFunc
+      let projFuncTypeApplied = (apply r projFuncTypeFull recordTerm)
+      return ( projFuncTypeApplied , tyProj' projFuncTypeFull proofEq coercedTypingDeriv)
     )
     (tcError "not convertible")
 {-# COMPILE AGDA2HS inferProj #-}
@@ -351,7 +354,7 @@ inferType ctx (TRecCon rec x) = tcError "TODO: infer type of record constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
-inferType ctx (TProj rt projFunc) = tcError "TODO"  
+inferType ctx (TProj rt projFunc) = tcError "TODO"
   -- inferProj ctx rt projFunc
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s

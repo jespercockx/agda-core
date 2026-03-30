@@ -40,6 +40,7 @@ recordConstructorType {rn = rn} recTyp pars fields = recordType rn (instRecSort 
 apply : Singleton α → Type α → Term α → Type α
 apply r (El _ (TPi x _ restType)) trm = substTop r trm restType
 apply _ typ _ = typ
+{-# COMPILE AGDA2HS apply #-}
 
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
 
@@ -165,11 +166,9 @@ data TyTerm {α} Γ where
          projFuncTypeFull = getProjectionType sig projFunc)
     (let desiredRecordType : Type α
          desiredRecordType = (El rsort (TRec rn instPars)))
-    (let resultingType : Type α --"apply" desiredRecordType to projFuncTypeFull
-         resultingType = apply (singScope Γ) projFuncTypeFull recordTerm)
     → Γ ⊢ recordTerm ∶ desiredRecordType
       ------------------------------------
-    → Γ ⊢ TProj recordTerm projFunc ∶ resultingType
+    → Γ ⊢ TProj recordTerm projFunc ∶ (apply (singScope Γ) projFuncTypeFull recordTerm)
 
   TyPi :
       Γ ⊢ u ∶ sortType k
@@ -341,13 +340,15 @@ tyCase' dt refl {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
 tyProj' : {@0 Γ : Context α}
   {rn : NameRec}
   {recordTerm : Term α}
+  {rsort : Sort α}
+  {instPars : TermS α (recParScope rn)}
   {projFunc : NameProj rn}
-  (projFuncTypeFull : Type α)
-  (let resultingType : Type α
-       resultingType = apply (singScope Γ) projFuncTypeFull recordTerm)
+  (@0 projFuncTypeFull : Type α)
   → @0 getProjectionType sig projFunc ≡ projFuncTypeFull
-  → Γ ⊢ TProj recordTerm projFunc ∶ resultingType
-tyProj' projFuncTypeFull a = TyProj {!!}
+  → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
+  → Γ ⊢ TProj recordTerm projFunc ∶ (apply (singScope Γ) projFuncTypeFull recordTerm)
+tyProj' _ refl proof = TyProj proof
+{-# COMPILE AGDA2HS tyProj' #-}
 
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
             {@0 ps : TermS α (dataParScope d)}
