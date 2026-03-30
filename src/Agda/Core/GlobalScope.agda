@@ -22,7 +22,7 @@ record Globals : Set where
   NameRec : Set
   NameRec = NameIn recScope
   NameProj : NameRec → Set
-  NameProj r = NameInR (recFieldScope r)
+  NameProj rn = NameInR (recFieldScope rn)
   opaque
     unfolding RScope
     AllNameCon : (d : NameData) → RScope (NameCon d)

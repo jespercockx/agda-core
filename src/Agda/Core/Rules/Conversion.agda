@@ -110,7 +110,7 @@ data Conv {α} where
       → (TLam x b) ≅ f 
   CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
     → let singScope = (singTermS argsTermS)
-          func = λ projFuncName → (TProj {r = rn} rt projFuncName)
+          func = λ projFuncName → (TProj {rn = rn} rt projFuncName)
           termSToConvertInto = createDesiredTermS singScope func
           in
       (argsTermS ⇔ termSToConvertInto)

@@ -315,7 +315,7 @@ convertWhnf r rt (TRecCon rn argsTermS) =
   do
     let 
         singletonScope = singTermS argsTermS
-        func = (TProj {r = rn} rt)
+        func = (TProj {rn = rn} rt)
         termSToConvertInto = (createDesiredTermS singletonScope func)
     -- check whether argsTermS can be converted in the desired termSToConvertInto
     convProof ← convertTermSs r argsTermS termSToConvertInto
