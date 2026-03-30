@@ -11,7 +11,7 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x      : Name
-  @0 α β γ  : Scope Name
+  @0 α β γ ξ : Scope Name
   @0 rγ     : RScope Name
   @0 d      : NameData
   @0 c      : NameCon d

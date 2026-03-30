@@ -25,7 +25,7 @@ addTwo : Nat → Nat
 addTwo = λ x → (suc (suc x))
 
 addTwoAfterAddOne : Nat → Nat
-addTwoAfterAddOne = λ x → (comp Nat Nat Nat addTwo addOne x)
+addTwoAfterAddOne = comp Nat Nat Nat addTwo addOne
 
 eta-higher : (A B C : Set) → (f : A → B → C) → (λ x → λ y → f (const x x) y) ≡ f
 eta-higher = λ A B C → λ f → refl

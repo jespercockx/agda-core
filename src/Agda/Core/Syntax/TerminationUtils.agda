@@ -14,7 +14,7 @@ private open module @0 G = Globals globals
 
 private variable
   @0 x      : Name
-  @0 α β    : Scope Name
+  @0 α β ξ  : Scope Name
   @0 dα     : Scope (NameIn defScope)
   @0 rβ     : RScope Name
   @0 u v    : Term α
@@ -43,7 +43,7 @@ data SubTermEnv : @0 Scope Name → @0 Scope Name → Set
 data SubTermEnv where
   StEnvEmpty  : SubTermEnv α mempty
   StEnvExtend : (@0 x : Name)
-              → Relation α   -- x is a sub-term of this variable (if any)
+              → Relation α   -- x is a subterm of this variable (if any)
               → SubTermEnv α β
               → SubTermEnv α (β ▸ x)
 {-# COMPILE AGDA2HS SubTermEnv #-}
@@ -141,7 +141,6 @@ indexOf Zero _ = Zero -- should never be reached
 --   unfolding Scope
 --   countLeft : (α : Scope Name) → NameIn α → Nat
 --   countLeft (Erased x ∷ tl) (⟨ name ⟩ prf) = if {!!} then lengthScope tl else countLeft tl (⟨ name ⟩ prf)
-
 getNthArg : NthArg α → NameIn α
 getNthArg (ZeroNA x) = ⟨ x ⟩  (Zero ⟨ IsZero refl ⟩)
 getNthArg {α} (SucNA x next)  = weakenNameIn (subWeaken subRefl) (getNthArg next)
@@ -234,9 +233,37 @@ decRelation Unrelated         (Decreasing _)    = False ⟨ (λ ()) ⟩
 decRelation Unrelated         (NonIncreasing _) = False ⟨ (λ ()) ⟩
 {-# COMPILE AGDA2HS decRelation #-}
 
+-- decEqSubTermEnv : {α β : Scope Name} → (e1 e2 : SubTermEnv α β) → Dec (e1 ≡ e2)
+-- decEqSubTermEnv StEnvEmpty StEnvEmpty = True ⟨ refl ⟩
+-- decEqSubTermEnv {α} {β} (StEnvExtend _ r1 rest1) (StEnvExtend _ r2 rest2) = case (mkpair (decRelation r1 r2) (decEqSubTermEnv rest1 rest2)) of λ where
+--   (True refl , True refl) → True refl
+--   with decRelation r1 r2 | decEqSubTermEnv rest1 rest2
+-- ... | True | True refl = True refl
+-- ... | False ¬p    | _        = False (λ { refl → ¬p refl })
+-- ... | _        | False ¬p    = False (λ { refl → ¬p refl })
+
 transSym : {x y : RScope Name} (p : x ≡ y) → (t : Term (α ◂▸ x)) → subst0 (λ (@0 f₁) → Term (α ◂▸ f₁)) (trans p (sym p)) t ≡ t
 transSym refl _ = refl
 
 postulate
   subWeaken' : α ▸ x ⊆ β → α ⊆ β
 
+-- listIn : {A : Set} → (A → Bool) → List A → Bool
+-- listIn f [] = False
+-- listIn f (x ∷ xs) = f x && listIn f xs
+-- {-# COMPILE AGDA2HS listIn #-}
+
+data ListIn {A : Set} (f : A → Bool) : List A → Set where
+  here  : ∀ {x xs} → f x ≡ True → ListIn f (x ∷ xs)
+  there : ∀ {x xs} → ListIn f xs → ListIn f (x ∷ xs)
+
+
+maybeToEitherWithProof : (m : Maybe (NthArg α)) → Either String (∃ (NthArg α) (λ x → m ≡ Just x))
+maybeToEitherWithProof (Just x) = Right (x ⟨ refl ⟩)
+maybeToEitherWithProof Nothing  = Left "no ntharg found even though a recursive call happened"
+{-# COMPILE AGDA2HS maybeToEitherWithProof #-}
+
+
+-- reduceEnv : {α : Scope Name} → ξ ⊆ β → SubTermEnv α β → SubTermEnv α ξ
+-- reduceEnv {α} weakening StEnvEmpty = {!!}
+-- reduceEnv weakening (StEnvExtend x rel rest) = StEnvExtend x (weakenRelation)

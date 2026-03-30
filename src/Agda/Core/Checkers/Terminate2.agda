@@ -9,6 +9,7 @@ module Agda.Core.Checkers.Terminate2
   where
 private variable
   @0 x      : Name
+  @0 p      : Program
   @0 α      : Scope Name
   @0 rβ     : RScope Name
   @0 u v    : Term α
@@ -17,32 +18,32 @@ private variable
 
 private open module @0 G = Globals globals
 
-findCycles : (p : Program) → CycleS p
+findCycles : (@0 g : Graph p) → CycleS p g
 findCycles p = CycleSNil
 {-# COMPILE AGDA2HS findCycles #-}
 
 postulate
-  findCyclesComplete : (@0 p : Program) → @0 (TerminatingCycleS p (findCycles p)) → ((c : Cycle p) → TerminatingCycle p c)
+  findCyclesComplete : (@0 g : Graph p) → @0 (TerminatingCycleS g (findCycles g)) → ((c : Cycle p g) → TerminatingCycle g c)
 {-# COMPILE AGDA2HS findCyclesComplete #-}
 
-checkTerminatingCycle : (p : Program) → (c : Cycle p) → Either String (TerminatingCycle p c)
+checkTerminatingCycle : (g : Graph p) → (c : Cycle p g) → Either String (TerminatingCycle g c)
 checkTerminatingCycle p c = Left "Not yet implemented" 
 
-checkTerminating : (p : Program) → Either String (Terminating p)
-checkTerminating p = mapRight
-  (λ prf →   record {allCycles = (findCyclesComplete p prf)} )
-  (go (findCycles p))
-  where
-    go : (cs : (CycleS p)) → Either String (TerminatingCycleS p cs)
-    go CycleSNil = Right $ TerminatingCycleSNil
-    go (CycleSCons c cs) =
-      case checkTerminatingCycle p c of λ where
-        (Left err) → Left err
-        (Right pc) →
-          case go cs of λ where
-            (Left err) → Left err
-            (Right pcs) → Right (TerminatingCycleSCons pc pcs)
-{-# COMPILE AGDA2HS checkTerminating #-}
+-- checkTerminating : {p : Program} (g : Graph p) → Either String (Terminating p g)
+-- checkTerminating {p} g = mapRight
+--   (λ prf →   record {allCycles = (findCyclesComplete g prf)} )
+--   (go (findCycles g))
+--   where
+--     go : (cs : (CycleS p g)) → Either String (TerminatingCycleS g cs)
+--     go CycleSNil = Right $ TerminatingCycleSNil
+--     go (CycleSCons c cs) =
+--       case checkTerminatingCycle g c of λ where
+--         (Left err) → Left err
+--         (Right pc) →
+--           case go cs of λ where
+--             (Left err) → Left err
+--             (Right pcs) → Right (TerminatingCycleSCons pc pcs)
+-- {-# COMPILE AGDA2HS checkTerminating #-}
 
 -- checkTerminating : (p : Program) (P : Cycle p → Set)
 --                  → ((c : Cycle p) → Either String (P c))

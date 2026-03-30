@@ -21,22 +21,22 @@ private variable
 private open module @0 G = Globals globals
 
 {-# NON_TERMINATING #-} -- need to find a way to not need those
-checkDescendingIndex : (f : FunDefinition) → (nthArg : NthArg (arity f))
+checkDescendingIndex : (f : FunDefinition) → (nthArg : Maybe (NthArg (arity f)))
   → (env : SubTermEnv (arity f) α) → (prf : arity f ⊆ α) → (term : Term α) → Either String (TerminatingTerm f nthArg env prf term)
 
-checkDescendingIndexList : (f : FunDefinition) → (nthArg : NthArg (arity f)) 
+checkDescendingIndexList : (f : FunDefinition) → (nthArg : Maybe (NthArg (arity f)))
   → (env : SubTermEnv (arity f) α) → (prf : arity f ⊆ α) → (terml : List (Term α)) → Either String (TerminatingTermList f nthArg env prf terml)
 
-checkDescendingIndexTermS : (f : FunDefinition) → (nthArg : NthArg (arity f)) 
+checkDescendingIndexTermS : (f : FunDefinition) → (nthArg : Maybe (NthArg (arity f)))
   → (env : SubTermEnv (arity f) α) → (prf : arity f ⊆ α) → (terml : TermS α rβ) → Either String (TerminatingTermS f nthArg env prf terml)
 
-checkDescendingIndexApp : (f : FunDefinition) → (nthArg : NthArg (arity f)) 
+checkDescendingIndexApp : (f : FunDefinition) → (nthArg : Maybe (NthArg (arity f)))
   → (env : SubTermEnv (arity f) α) → (prf : arity f ⊆ α) → (term : Term α) → Either String (TerminatingTerm f nthArg env prf term)
 
-checkDescendingIndexBranches : (f : FunDefinition) → (nthArg : NthArg (arity f)) 
+checkDescendingIndexBranches : (f : FunDefinition) → (nthArg : Maybe (NthArg (arity f)))
   → (env : SubTermEnv (arity f) α) → (prf : arity f ⊆ α) → {d : NameData} → {@0 cs : RScope (NameCon d)} → (var : NameIn α) → (rel : Relation (arity f)) → (bs : Branches α d cs) → Either String (TerminatingBranches f nthArg env prf var rel bs)
 
-checkDescendingIndexBranch : (f : FunDefinition) → (nthArg : NthArg (arity f)) 
+checkDescendingIndexBranch : (f : FunDefinition) → (nthArg : Maybe (NthArg (arity f)))
   → (env : SubTermEnv (arity f) α) → (prf : arity f ⊆ α) → {d : NameData} → (@0 c : NameCon d) → (var : NameIn α) → (rel : Relation (arity f)) → (b : Branch α c) → Either String (TerminatingBranch f nthArg env prf var rel b)
 
 checkDescendingIndexBranches f nthArg env prf var rel BsNil = Right TerminatingNil
@@ -97,6 +97,12 @@ checkDescendingIndexApp f nthArg env prf _ = Left "Not an app"
 {-# COMPILE AGDA2HS checkDescendingIndexApp #-}
 
 checkDescendingIndex f nthArg env prf (TVar x) = Right TerminatingVar
+
+checkDescendingIndex f nthArg env prf (TData d pars ixs) = do
+  parsTerminating ← checkDescendingIndexTermS f nthArg env prf pars
+  ixsTerminating ← checkDescendingIndexTermS f nthArg env prf ixs
+  Right $ TerminatingData parsTerminating ixsTerminating
+
 checkDescendingIndex f nthArg env prf (TCon c us) = do
   tus ← checkDescendingIndexTermS f nthArg env prf us
   Right $ TerminatingCon tus
@@ -105,9 +111,10 @@ checkDescendingIndex f nthArg env prf (TApp func (TVar x)) = do
   catchEither (checkDescendingIndexApp f nthArg env prf (TApp func (TVar x))) $ λ err →
     case unApps func of λ where
       (TDef fname , args) {{ eq }} → do
-        let lengthOk  = decIndex (lengthN args) (indexOf (lengthScope $ arity f) nthArg)
+        realNthArg ⟨ prf2 ⟩ ← maybeToEitherWithProof nthArg
+        let lengthOk  = decIndex (lengthN args) (indexOf (lengthScope $ arity f) realNthArg)
             fnameOk   = decNamesIn fname (index f)
-            stOk      = decRelation (lookupSt env x) (Decreasing (getNthArg nthArg))
+            stOk      = decRelation (lookupSt env x) (Decreasing (getNthArg realNthArg))
         (True ⟨ lengthProof ⟩) ← Right lengthOk
           where _ → Left err
         (True ⟨ fnameProof ⟩)  ← Right fnameOk
@@ -115,7 +122,8 @@ checkDescendingIndex f nthArg env prf (TApp func (TVar x)) = do
         (True ⟨ stProof ⟩)     ← Right stOk
           where _ → Left "The argument corresponding to the descending parameter was not descending"
         argsAllDescending ← checkDescendingIndexList f nthArg env prf args
-        Right $ DecreasingNthArgApp
+        Right $ DecreasingNthArgApp 
+          prf2 
           (trans (cong fst eq) (cong TDef fnameProof))
           (trans (cong lengthN (cong snd eq)) lengthProof)
           stProof
@@ -137,15 +145,22 @@ checkDescendingIndex f nthArg env prf term = Left "Not implemented"
 {-# COMPILE AGDA2HS checkDescendingIndex #-}
 
 checkTermination' : (f : FunDefinition) → Either String (Descending f)
-checkTermination' f = foldr helper (Left "This function is non-terminating") (iterateNthArg (arity f))
+checkTermination' f = 
+  catchEither
+    (
+      do
+        descBodyNoNothArg ← checkDescendingIndex f Nothing (createStEnvFromScope (arity f)) subRefl (body f)
+        Right $ DescendingIndex Nothing descBodyNoNothArg
+    )
+    (λ _ → foldr helper (Left "This function is non-terminating") (iterateNthArg (arity f)))
   where
     helper : NthArg (arity f) → Either String (Descending f) → Either String (Descending f)
     helper nthArg (Right res) = Right res
     helper nthArg (Left _) = do
-      descBody <- (checkDescendingIndex f nthArg (createStEnvFromScope (arity f)) 
+      descBody <- (checkDescendingIndex f (Just nthArg) (createStEnvFromScope (arity f)) 
                     subRefl 
                     (body f))
-      Right $ DescendingIndex nthArg descBody
+      Right $ DescendingIndex (Just nthArg) descBody
 {-# COMPILE AGDA2HS checkTermination' #-}
 
 checkTermination : {α : Scope Name} → Scope Name → NameIn defScope → Term α → Either String String

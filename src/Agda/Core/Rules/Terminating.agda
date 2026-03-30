@@ -19,12 +19,12 @@ private variable
   @0 k l    : Sort α
 
 
-data TerminatingTermList (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 List (Term α) → Set
-data TerminatingTermS (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 (TermS α rβ) → Set
+data TerminatingTermList (@0 f : FunDefinition) (@0 nthArg : Maybe (NthArg (arity f))) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 List (Term α) → Set
+data TerminatingTermS (@0 f : FunDefinition) (@0 nthArg : Maybe (NthArg (arity f))) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 (TermS α rβ) → Set
 
-data TerminatingBranches {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
-data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg : NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 Term α → Set
-data TerminatingBranch {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg :  NthArg (arity f)) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 c : NameCon d} → @0 Branch α c → Set
+data TerminatingBranches {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg : Maybe (NthArg (arity f))) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
+data TerminatingTerm (@0 f : FunDefinition) (@0 nthArg : Maybe (NthArg (arity f))) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) : @0 Term α → Set
+data TerminatingBranch {@0 d : NameData} (@0 f : FunDefinition) (@0 nthArg : Maybe (NthArg (arity f))) (@0 env : SubTermEnv (arity f) α) (@0 prf : arity f ⊆ α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 c : NameCon d} → @0 Branch α c → Set
 
 -- certificate that a term is always decreasing in the given parameter for function f
 data TerminatingTerm {α} f nthArg env prf where
@@ -62,11 +62,13 @@ data TerminatingTerm {α} f nthArg env prf where
   DecreasingNthArgApp :
     {@0 function : Term α}
     {@0 x : NameIn α} -- The argument is a variable (TVar)
+    {@0 realNthArg : NthArg (arity f)}
     (let (func , args) = unApps function)
 
+    → @0 nthArg ≡ (Just realNthArg)
     → @0 func ≡ TDef (index f)
-    → @0 (lengthN args) ≡ indexOf (lengthScope (arity f)) nthArg -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
-    → @0 lookupSt env x ≡ Decreasing (getNthArg nthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
+    → @0 (lengthN args) ≡ indexOf (lengthScope (arity f)) realNthArg -- The number of arguments to the left of that application corresponds to the index of the decreasing parameter
+    → @0 lookupSt env x ≡ Decreasing (getNthArg realNthArg) -- The argument corresponding to the decreasing parameter is indeed a subterm of said parameter
     → TerminatingTermList f nthArg env prf args
     --------------------------------------------------------------
     → TerminatingTerm f nthArg env prf (TApp function (TVar x))
@@ -153,7 +155,7 @@ data Descending (@0 f : FunDefinition) : Set
 data Descending f where
    DescendingIndex : 
       -- index of the decreasing parameter
-     (nthArg : (NthArg (arity f)))
+     (nthArg : Maybe (NthArg (arity f)))
      -- certificate that the body of the function is always decreasing in the given parameter
      → (TerminatingTerm f nthArg 
          -- subterm context created from the scope of the arity of the function
