@@ -35,6 +35,11 @@ ifEqualNamesIn : ∀ {@0 α} (x y : NameIn α)
 ifEqualNamesIn x y = ifDec (decNamesIn x y)
 {-# COMPILE AGDA2HS ifEqualNamesIn inline #-}
 
+ifEqualNamesInR : ∀ {@0 rα} (x y : NameInR rα)
+               → (@0 {{x ≡ y}} → b) → (@0 {{x ≡ y → ⊥}} → b) → b
+ifEqualNamesInR x y = ifDec (decNamesInR x y)
+{-# COMPILE AGDA2HS ifEqualNamesInR inline #-}
+
 nameInEmptyCase : NameIn mempty → a
 nameInEmptyCase x = inEmptyCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInEmptyCase inline #-}

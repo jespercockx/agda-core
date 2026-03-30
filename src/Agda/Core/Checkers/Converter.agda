@@ -82,6 +82,13 @@ convNamesIn x y =
     (tcError "names not equal")
 {-# COMPILE AGDA2HS convNamesIn #-}
 
+convNamesInR : (x y : NameInR rβ) → TCM (Erase (x ≡ y))
+convNamesInR x y = 
+  ifEqualNamesInR x y 
+    (λ where {{refl}} → return (Erased refl))
+    (tcError "names not equal")
+{-# COMPILE AGDA2HS convNamesInR #-}
+
 convVars : (x y : NameIn α)
          → TCM (Conv (TVar x) (TVar y))
 convVars x y = do
@@ -198,6 +205,24 @@ convApps r u u' w w' = do
 
 {-# COMPILE AGDA2HS convApps #-}
 
+convProjs : {{fl : Fuel}}
+          → Singleton α
+          → (rn1 rn2 : NameRec)
+          → (recTerm1 recTerm2 : Term α)
+          → (f : NameProj rn1)
+          → (g : NameProj rn2)
+          → TCM (Conv (TProj recTerm1 f) (TProj recTerm2 g))
+convProjs r rn1 rn2 recTerm1 recTerm2 f g = do
+  ifDec (decNamesIn rn1 rn2)
+    (λ where {{refl}} → do
+      Erased refl ← convNamesInR f g
+      crecTerm ← convertCheck r recTerm1 recTerm2 
+      return (CProj crecTerm)
+    )
+    (tcError "datatypes not convertible")
+
+{-# COMPILE AGDA2HS convProjs #-} 
+
 convertCase : {{fl : Fuel}}
             → Singleton α
             → (d d' : NameData)
@@ -297,7 +322,7 @@ convertWhnf r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r
 convertWhnf r (TRecCon rn1 args1) (TRecCon rn2 args2) = convRecCons r rn1 rn2 args1 args2
 convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
 convertWhnf r (TApp u e) (TApp v f) = convApps r u v e f
-convertWhnf r (TProj u f) (TProj v g) = tcError "not implemented: conversion of projections"
+convertWhnf r (TProj {rn = rn1} recTerm1 f) (TProj {rn = rn2} recTerm2 g) = convProjs r rn1 rn2 recTerm1 recTerm2 f g
 convertWhnf r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
   convertCase r d d' ri ri' u u' bs bs' rt rt'
 convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz

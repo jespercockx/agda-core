@@ -81,7 +81,12 @@ data Conv {α} where
            ≅ renameTop {y = z} (singExtScope r r2) (unType mp)
          → ConvBranches bs bp
          → TCase {x = x} d r1 u bs ms ≅ TCase {x = y} d r2 u' bp mp
-  -- TODO: CProj : {!   !}
+  CProj : 
+          {rn : NameRec}
+          {f : NameProj rn}
+          {recTerm1 recTerm2 : Term α}
+          → recTerm1 ≅ recTerm2
+          → (TProj recTerm1 f) ≅ (TProj recTerm2 f)
   CData  : (@0 d : NameData)
            {@0 ps qs : TermS α (dataParScope d)}
            {@0 is ks : TermS α (dataIxScope d)}
