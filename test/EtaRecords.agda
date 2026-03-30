@@ -52,6 +52,9 @@ example1 = Pair Nat
 proj_example : Nat
 proj_example = Pair.fst x
 
+proj_example_requires_proj_reduction : Pair.fst x ≡ Zero
+proj_example_requires_proj_reduction = refl
+
 y : Pair Nat Bool
 y = record { fst = Pair.fst x; snd = False }
 
