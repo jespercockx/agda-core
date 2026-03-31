@@ -406,7 +406,7 @@ toCoreDefn (I.RecordDefn rd) ty =
 
     -- TODO: (atejandev) The sort should actually be the one from the record, instead of always being 0
     -- (I.Var 0 []) is irrelevant and is just there to make sure that the resulting type is `Sort' I.Term`
-    sort <- toCore (I.Univ I.UProp (I.Max 0 ([] :: [I.PlusLevel' I.Term])))
+    sort <- toCore (I.Univ I.UType (I.Max 0 ([] :: [I.PlusLevel' I.Term])))
     -- sort <- do
     --   case typWithoutParams of 
     --     I.El s _ -> toCore s
