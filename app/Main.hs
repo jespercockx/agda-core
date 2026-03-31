@@ -305,13 +305,13 @@ agdaCoreCompile env _ _ def = do
               , preSigCons = Map.insert (indexToNat dID, indexToNat constructorIndex) cons preSigCons
               , preSigRecs = preSigRecs
               }
-        Core.RecordDefn recTyp -> do
+        Core.RecordDefn coreRecord -> do
           liftIO $ writeIORef ioPreSig $
             PreSignature
                 {  preSigDefs = preSigDefs
                 , preSigData = preSigData
                 , preSigCons = preSigCons
-                , preSigRecs = Map.insert (indexToNat index) recTyp preSigRecs
+                , preSigRecs = Map.insert (indexToNat index) coreRecord preSigRecs
                 }
         Core.ProjDefn ->
           liftIO $ writeIORef ioPreSig $

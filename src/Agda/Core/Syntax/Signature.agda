@@ -101,7 +101,7 @@ record Record (@0 rn : NameRec) : Set where
   field
     recSort         : Sort (mempty ◂▸ pars)
     recParTel       : Telescope mempty pars
-    recProjTypes    : NameInR fields → Type α --gives full type of each projection function
+    recProjTypes    : NameProj rn → Type α --gives full type of each projection function
                                               --for example, for `fst`, this should give:
                                               -- {A B : Set} → Pair A B → A
 

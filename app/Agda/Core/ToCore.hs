@@ -405,10 +405,11 @@ toCoreDefn (I.RecordDefn rd) ty =
     parsTel <- toCore internalParsTel
 
     -- TODO: (atejandev) The sort should actually be the one from the record, instead of always being 0
-    -- let sort = toCore (I.Univ I.UProp (I.Max 0 []))
-    sort <- do
-      case typWithoutParams of 
-        I.El s _ -> toCore s
+    -- (I.Var 0 []) is irrelevant and is just there to make sure that the resulting type is `Sort' I.Term`
+    sort <- toCore (I.Univ I.UProp (I.Max 0 ([] :: [I.PlusLevel' I.Term])))
+    -- sort <- do
+    --   case typWithoutParams of 
+    --     I.El s _ -> toCore s
 
     fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
             Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
