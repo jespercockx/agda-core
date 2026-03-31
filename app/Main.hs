@@ -11,6 +11,7 @@ import Data.Version (showVersion)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
 import Control.DeepSeq ( NFData(..) )
+import Debug.Trace
 
 import Agda.Main (runAgda')
 import Agda.TypeChecking.Pretty (text, prettyTCM, (<+>), Doc)
@@ -147,7 +148,7 @@ data ACEnv = ACEnv {
 
 agdaCorePreCompile :: AgdaCoreOptions -> TCM ACEnv
 agdaCorePreCompile Options{optTypecheck} = do
-  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty
+  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty []
   names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty
   preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty
   i       <- liftIO $ newIORef Zero
@@ -212,15 +213,15 @@ agdaCoreCompile env _ _ def = do
           tcg_data_cons = Map.fromList (zip dataCons (map (\(dt, cons) -> (Constructor cons (Data dt dataPars dataIxs))) ((map (index,) (iterate Suc Zero))) ))
           ntcg_cons = Map.union tcg_cons tcg_data_cons
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
-      pure (ToCoreGlobal tcg_defs ntcg_datas ntcg_cons, NameMap nameDefs nnames_datas nameCons)
+      pure (ToCoreGlobal tcg_defs ntcg_datas ntcg_cons [], NameMap nameDefs nnames_datas nameCons)
     Internal.Constructor{} -> do
       let Constructor cID (Data dID _ _) = tcg_cons Map.! defName
       let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
-      pure (ToCoreGlobal tcg_defs tcg_datas tcg_cons, NameMap nameDefs nameData nnames_cons)
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_cons [], NameMap nameDefs nameData nnames_cons)
     _ -> do
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
       let ntcg_defs = Map.insert defName index tcg_defs
-      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_cons, NameMap nnames_defs nameData nameCons)
+      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_cons [], NameMap nnames_defs nameData nameCons)
 
   liftIO $ writeIORef ioTcg   ntcg
   liftIO $ writeIORef ioNames nnames
