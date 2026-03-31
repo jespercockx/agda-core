@@ -133,7 +133,6 @@ data TerminatingCycleS {@0 p : Program} (@0 g : Graph p) : @0 CycleS p g → Set
 {-# COMPILE AGDA2HS TerminatingCycleS #-}
 
 data GraphCoversCallsInBody {@0 p : Program} (@0 g : Graph p) : Term α → Set where
-  -- Here we need all the cases, which will look a lot like the equivalent for the guard condition
 
 data GraphCoversCalls {@0 p : Program} (@0 g : Graph p) : FunDefS α → Set where
   GraphCoversCallsNil :
@@ -143,6 +142,7 @@ data GraphCoversCalls {@0 p : Program} (@0 g : Graph p) : FunDefS α → Set whe
     {def : FunDefinition}
     {fds : FunDefS α}
     -- here add the actual check
+    → GraphCoversCallsInBody g (body def)
     → GraphCoversCalls g (FunDefSExtend defName def fds)
 
 record Terminating (@0 p : Program) (@0 g : Graph p) : Set where
