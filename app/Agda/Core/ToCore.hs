@@ -12,9 +12,9 @@ module Agda.Core.ToCore
   ) where
 
 import Control.Monad (when)
-import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
+import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks, local)
 import Control.Monad.State.Strict (StateT, runStateT, MonadState, gets, modify, state, lift)
--- import Control.Monad.State.Strict (StateT, runStateT, gets, modify, state)
+import Data.Maybe (fromMaybe, listToMaybe)
 import Control.Monad.Except (MonadError(throwError), withError)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -64,20 +64,18 @@ data Data = Data Index Nat Nat
 -- Representation of a constructor; stores its index within its datatype, and its datatype
 data Constructor = Constructor Index Data
 
-data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
-                                   globalDatas :: Map QName Data,
-                                   globalCons  :: Map QName Constructor}
+type RenamingList = [Int]
 
--- list keeping track of debruijn indices translation from agda syntax to agda core syntax. index of the element is agda debruijn index, and element is corresponding agda core index
-type OffsetList = [Int]
+data ToCoreGlobal = ToCoreGlobal { globalDefs   :: Map QName Index,
+                                   globalDatas  :: Map QName Data,
+                                   globalCons   :: Map QName Constructor,
+                                   renamingList :: RenamingList}
 
-instance MonadState OffsetList ToCoreM where
-  state f = ToCoreM $ lift (state f)
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
 --   Translation may fail.
-newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (StateT OffsetList (Either Doc)) a }
+newtype ToCoreM a = ToCoreM { runToCore :: ReaderT ToCoreGlobal (Either Doc) a }
   deriving newtype (Functor, Applicative, Monad, MonadError Doc)
   deriving newtype (MonadReader ToCoreGlobal)
 
@@ -102,34 +100,40 @@ lookupData qn = asksData (Map.!? qn)
 lookupCon :: QName -> ToCoreM (Maybe Constructor)
 lookupCon qn = asksCon (Map.!? qn)
 
-withLocalState :: (OffsetList -> OffsetList) -> ToCoreM a -> ToCoreM a
-withLocalState f action = do
-  saved <- gets id
-  modify f
-  result <- action
-  ToCoreM $ lift (state (\_ -> ((), saved)))  -- restore
-  return result
+-- withLocalState :: (OffsetList -> OffsetList) -> ToCoreM a -> ToCoreM a
+-- withLocalState f action = do
+--   saved <- gets id
+--   modify f
+--   result <- action
+--   ToCoreM $ lift (state (\_ -> ((), saved)))  -- restore
+--   return result
+
+localRenamings :: (RenamingList -> RenamingList) -> ToCoreM a -> ToCoreM a
+localRenamings f = local (\g -> g { renamingList = f (renamingList g) })
 
 -- Read a value from the map
 lookupOffset :: Int -> ToCoreM Int
-lookupOffset k = gets (!! k) -- unsafe
+lookupOffset k = do 
+  asks (fromMaybe k . listToMaybe . drop k . renamingList) -- here ugly practice; to deal with data's and lambda's (need to figure out how to do properly)
+  -- asks ((!! k) . renamingList) -- in case we fix the system, seems complex though.
 
 -- Insert/update a value, specialized to drop the value of the old variable
-insertOffsets :: Int -> [Int] -> ToCoreM ()
-insertOffsets pos inserted = modify (\xs -> take pos xs ++ inserted ++ drop (pos + 1) xs) -- (pos + 1) because we drop the old variable, the one being pattern-matched on.
+insertOffsets :: Int -> [Int] -> RenamingList -> RenamingList
+insertOffsets pos inserted xs = take pos xs ++ inserted ++ drop (pos + 1) xs
 
-updateValues :: (Int -> Int) -> ToCoreM ()
-updateValues f = modify (map f)
+-- updateValues :: (Int -> Int) -> ToCoreM ()
+-- updateValues f = modify (map f)
 
 -- updates the list of offsets to reflect a pattern match from a case expression
-updateDBMap :: Int -> Int -> ToCoreM ()
-updateDBMap paramIndexAgda constructParamCount = do
+updateDBMapLocal :: Int -> Int -> ToCoreM a -> ToCoreM a
+updateDBMapLocal paramIndexAgda constructParamCount =
+  localRenamings
+    ( insertOffsets paramIndexAgda (take constructParamCount (iterate (+1) 0))
+    . map (+ constructParamCount)
+    )
 
-  updateValues (\value -> value + constructParamCount) -- because of the introduction of new variables, the agda indices will all refer to a pushed version of the agda core indices
-
-  let listConsParamsCore = take constructParamCount (iterate (+1) 0) -- the new variables introduced
-  insertOffsets paramIndexAgda listConsParamsCore -- insert those references at the index of the agda variable being pattern matched
-  return ()
+updateDbMapLocalLam :: ToCoreM a -> ToCoreM a
+updateDbMapLocalLam = localRenamings (\l -> 0 : [] ++ map (+1) l) -- When we deal with a lambda, a new variable is introduced as 0 in both agda and agdacore, and all previous variables refer to 1 higher
 
 -- | Class for things that can be converted to core syntax
 class ToCore a where
@@ -139,7 +143,7 @@ class ToCore a where
 -- | Convert some term to Agda's core representation.
 convert :: ToCore a => ToCoreGlobal -> a -> Either Doc (CoreOf a)
 convert tcg t =
-  fst <$> runStateT (runReaderT (runToCore $ toCore t) tcg) []
+  runReaderT (runToCore $ toCore t) tcg
 
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
@@ -161,7 +165,8 @@ instance ToCore I.Term where
             var !n | n <= 0 = Scope.inHere
             var !n          = Scope.inThere (var (n - 1))
 
-  toCore (I.Lam ai t) = TLam <$> toCore t
+  toCore (I.Lam ai t) =
+    TLam <$> updateDbMapLocalLam (toCore t)
 
   -- TODO(flupe): add literals once they're added to core
   toCore (I.Lit l) = throwError "literals not supported"
@@ -176,7 +181,7 @@ instance ToCore I.Term where
             let def = TDef idx
             coreEs <- toCore es
             return (tApp def coreEs)
-          --Otherwise, try looking up as datatype (must succeed, else fail with error message)
+          -- Otherwise, try looking up as datatype (must succeed, else fail with error message)
           Nothing -> do
             lookupData qn >>= \case
               Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
@@ -309,8 +314,7 @@ createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClau
 createBranch ty paramCount paramIndexAgda name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
-  clause <- withLocalState id $ do 
-    updateDBMap paramIndexAgda (CC.arity wthAr) -- update the state according to the pattern matched parameter and the arity of its constructor
+  clause <- updateDBMapLocal paramIndexAgda (CC.arity wthAr) $ -- update the state according to the pattern matched parameter and the arity of its constructor
     clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1) -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
@@ -341,8 +345,7 @@ toCoreDefn (I.FunctionDefn def) ty =
         coretywithpi <- toCore ty                 -- translate the type of the function
         let lhscount = getLHSCount def            -- gets the amount of variable on the LHS of each clause
         corety <- unnestPi lhscount coretywithpi  -- type of the body of the function (unnest pi as many times as there are variables on lhs)
-        body <- withLocalState id $ do
-          modify (\_ -> take lhscount (iterate (+1) 0)) -- initial state before processing the case tree, in which the db indices are the same for agda and agda-core
+        body <- localRenamings (\_ -> take lhscount (iterate (+1) 0)) $ do
           clauseToCore compiledClauses corety lhscount
         Core.FunctionDefn <$> pure ((iterate TLam body) !! lhscount)
     I.FunctionData{..}

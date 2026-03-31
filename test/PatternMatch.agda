@@ -10,10 +10,8 @@ foo n = suc n
 
 {-# NON_TERMINATING #-}
 countdown : ℕ → ℕ → ℕ
-countdown k zero = zero
-countdown zero k = zero
-countdown (suc (suc b)) (suc a) = countdown b a
-countdown (suc zero) (suc a) = countdown a zero
+countdown (suc b) = λ a → countdown a b
+countdown zero = λ a → zero
 
 babyackermann : ℕ → ℕ → ℕ
 babyackermann zero n = suc n
