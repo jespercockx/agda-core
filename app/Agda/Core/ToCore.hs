@@ -404,40 +404,42 @@ toCoreDefn (I.RecordDefn rd) ty =
     let I.TelV{theTel = internalParsTel, theCore = typWithoutParams} = I.telView'UpTo pars ty
     parsTel <- toCore internalParsTel
 
-    fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
-            Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
-            Just idx -> pure idx
-          ) . unDom) fields
-
     -- TODO: (atejandev) The sort should actually be the one from the record, instead of always being 0
     -- let sort = toCore (I.Univ I.UProp (I.Max 0 []))
     sort <- do
       case typWithoutParams of 
         I.El s _ -> toCore s
 
+    fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
+            Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
+            Just idx -> pure idx
+          ) . unDom) fields
 
     -- Construct the function `recProjTypes` which gives the full type of each projection function
-    let fieldTelList = drop pars (teleToList recordTelescope) --for example, this is: [A ; B] for the record `Pair`
+    let fieldTypesList = drop pars (teleToList recordTelescope) --for example, this is: [A ; B] for the record `Pair`
+
+    coreFieldTypes <- traverse (\fieldTypSurface -> do
+            Core.El fieldSortCore fieldTypeTermCore <- toCore fieldTypSurface    
+            Core.El recSortCore recTypeTermCore <- toCore typWithoutParams
+            pure $
+              Core.El
+                (Core.piSort fieldSortCore recSortCore)
+                (TPi (Core.El recSortCore recTypeTermCore) (Core.El fieldSortCore fieldTypeTermCore))
+            ) fieldTypesList
+
+    let  fieldsIndicesWithTypes :: [(Index, Core.Type)]
+         fieldsIndicesWithTypes = zip fieldsIndices coreFieldTypes
+
+    let recProjTypeLambdaHelper fieldProjIndex ps = case ps of
+          [] -> error "requested field index was not available in the list of pairs; should not happen"
+          (keyIndex, val):t_ps | equalsIndex fieldProjIndex keyIndex -> val
+                               | otherwise -> recProjTypeLambdaHelper fieldProjIndex t_ps
     
-    projTypes <- forM fieldTelList $ \typ -> do
-      Core.El fieldSortCore fieldTypeTermCore <- toCore typ
-      Core.El recSortCore recTypeTermCore <- toCore typWithoutParams
-      pure $
-        Core.El
-          (Core.piSort fieldSortCore recSortCore)
-          (TPi (Core.El recSortCore recTypeTermCore) (Core.El fieldSortCore fieldTypeTermCore))
-
-    let recProjTypeLambdaM :: Index -> ToCoreM Core.Type
-        recProjTypeLambdaM projFuncIndex = do
-              recordIndex <- getRecordIndexFromProjIndex projFuncIndex
-              -- fieldIndex = projFuncIndex - recordIndex - 1
-              let fieldIndex = minusIndex (minusIndex projFuncIndex recordIndex) (Scope.Suc Scope.Zero)
-              return (projTypes !! indexToInt fieldIndex)
-
-
+    let recProjTypeLambda fieldProjIndex = recProjTypeLambdaHelper fieldProjIndex fieldsIndicesWithTypes
+        
     let r = Core.Record{ recSort = sort,
                          recParTel = parsTel,
-                         recProjTypes = \n -> error "TODO"}
+                         recProjTypes = recProjTypeLambda}
 
     return $ Core.RecordDefn r
 
