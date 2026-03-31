@@ -166,9 +166,11 @@ data TyTerm {α} Γ where
          projFuncTypeFull = getProjectionType sig projFunc)
     (let desiredRecordType : Type α
          desiredRecordType = (El rsort (TRec rn instPars)))
+    (let projFuncTypeApplied : Type α
+         projFuncTypeApplied = (apply (singScope Γ) projFuncTypeFull recordTerm))
     → Γ ⊢ recordTerm ∶ desiredRecordType
       ------------------------------------
-    → Γ ⊢ TProj recordTerm projFunc ∶ (apply (singScope Γ) projFuncTypeFull recordTerm)
+    → Γ ⊢ TProj recordTerm projFunc ∶ projFuncTypeFull
 
   TyPi :
       Γ ⊢ u ∶ sortType k
@@ -346,7 +348,7 @@ tyProj' : {@0 Γ : Context α}
   (@0 projFuncTypeFull : Type α)
   → @0 getProjectionType sig projFunc ≡ projFuncTypeFull
   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-  → Γ ⊢ TProj recordTerm projFunc ∶ (apply (singScope Γ) projFuncTypeFull recordTerm)
+  → Γ ⊢ TProj recordTerm projFunc ∶ projFuncTypeFull
 tyProj' _ refl proof = TyProj proof
 {-# COMPILE AGDA2HS tyProj' #-}
 

@@ -128,7 +128,7 @@ inferProj {rn = rn} ctx recordTerm projFunc = do
       coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
       projFuncTypeFull ⟨ proofEq ⟩ ← tcmGetProjectionType projFunc
       let projFuncTypeApplied = (apply r projFuncTypeFull recordTerm)
-      return ( projFuncTypeApplied , tyProj' projFuncTypeFull proofEq coercedTypingDeriv)
+      return ( projFuncTypeFull , tyProj' projFuncTypeFull proofEq coercedTypingDeriv)
     )
     (tcError "not convertible")
 {-# COMPILE AGDA2HS inferProj #-}
