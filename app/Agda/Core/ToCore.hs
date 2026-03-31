@@ -8,7 +8,7 @@ module Agda.Core.ToCore
   , convert
   ) where
 
-import Control.Monad (when)
+import Control.Monad (when, forM)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
 import Control.Monad.Except (MonadError(throwError), withError)
 import Data.Functor ((<&>))
@@ -51,6 +51,8 @@ import Control.Exception (throw)
 import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 import Agda.Syntax.Common.Pretty(text, render)
+
+
 
 universeLevelFromSort :: I.Sort -> Integer
 universeLevelFromSort (I.Univ I.UType (I.Max i [])) = i
@@ -97,6 +99,11 @@ equalsIndex Scope.Zero Scope.Zero         = True
 equalsIndex Scope.Zero (Scope.Suc _)      = False
 equalsIndex (Scope.Suc _) Scope.Zero      = False
 equalsIndex (Scope.Suc x) (Scope.Suc y)   = equalsIndex x y
+
+minusIndex :: Index -> Index -> Index
+minusIndex Scope.Zero    _       = Scope.Zero
+minusIndex x       Scope.Zero    = x
+minusIndex (Scope.Suc x) (Scope.Suc y) = minusIndex x y
 
 -- Given an index i, tests whether `i` is an index pointing to a record type definition
 indexInRecs :: Index -> ToCoreM Bool
@@ -410,19 +417,27 @@ toCoreDefn (I.RecordDefn rd) ty =
 
 
     -- Construct the function `recProjTypes` which gives the full type of each projection function
-    let recTelList   = teleToList recordTelescope
-    let fieldTelList = drop pars recTelList
+    let fieldTelList = drop pars (teleToList recordTelescope) --for example, this is: [A ; B] for the record `Pair`
+    
+    projTypes <- forM fieldTelList $ \typ -> do
+      Core.El fieldSortCore fieldTypeTermCore <- toCore typ
+      Core.El recSortCore recTypeTermCore <- toCore typWithoutParams
+      pure $
+        Core.El
+          (Core.piSort fieldSortCore recSortCore)
+          (TPi (Core.El recSortCore recTypeTermCore) (Core.El fieldSortCore fieldTypeTermCore))
 
-    let recProjTypeLambdaM i = do
-            (Core.El fieldSortCore fieldTypeTermCore) <- toCore (fieldTelList !! indexToInt i)
-            (Core.El recSortCore recTypeTermCore) <- toCore typWithoutParams
-            return (Core.El (Core.piSort fieldSortCore recSortCore) 
-              (TPi (Core.El recSortCore recTypeTermCore) (Core.El fieldSortCore fieldTypeTermCore)))
+    let recProjTypeLambdaM :: Index -> ToCoreM Core.Type
+        recProjTypeLambdaM projFuncIndex = do
+              recordIndex <- getRecordIndexFromProjIndex projFuncIndex
+              -- fieldIndex = projFuncIndex - recordIndex - 1
+              let fieldIndex = minusIndex (minusIndex projFuncIndex recordIndex) (Scope.Suc Scope.Zero)
+              return (projTypes !! indexToInt fieldIndex)
 
 
     let r = Core.Record{ recSort = sort,
                          recParTel = parsTel,
-                         recProjTypes = recProjTypeLambda}
+                         recProjTypes = \n -> error "TODO"}
 
     return $ Core.RecordDefn r
 
