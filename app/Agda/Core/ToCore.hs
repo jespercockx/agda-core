@@ -62,20 +62,6 @@ tApp :: Term -> [Term] -> Term
 tApp t []     = t
 tApp t (e:es) = TApp t e `tApp` es
 
-createTAppAndTProj :: Term -> [(I.Elim, Term)] -> Term
-createTAppAndTProj t [] = t
-createTAppAndTProj t ((I.Apply _, compiledElim):elims) =
-  TApp t compiledElim `createTAppAndTProj` elims
--- When compiling an I.Proj _ _, the result must be a TDef `id`
-createTAppAndTProj t ((I.Proj _ _, TDef projFuncId):elims) =
-  let finalTerm = createTAppAndTProj t elims in
-  TProj finalTerm projFuncId
-createTAppAndTProj t _ =
-  error ("This case is impossible: either compiling an I.Proj _ _ did not " ++
-         "return a TDef, which is impossible, or the error '[When translating " ++
-         "an Elim] cubical endpoint application not supported' should be " ++
-         "thrown earlier instead")
-
 
 -- | Global definitions are represented as a mapping from @QName@s
 --   to proofs of global def scope membership.
@@ -105,6 +91,17 @@ asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 asksRec :: (Map QName (Index, Nat) -> a) -> ToCoreM a
 asksRec = asks . (. \ToCoreGlobal{globalRecs} -> globalRecs)
 
+
+equalsIndex :: Index -> Index -> Bool
+equalsIndex Scope.Zero Scope.Zero         = True
+equalsIndex Scope.Zero (Scope.Suc _)      = False
+equalsIndex (Scope.Suc _) Scope.Zero      = False
+equalsIndex (Scope.Suc x) (Scope.Suc y)   = equalsIndex x y
+
+-- Given an index i, tests whether `i` is an index pointing to a record type definition
+indexInRecs :: Index -> ToCoreM Bool
+indexInRecs i = asksRec (any (\(j, _) -> equalsIndex j i) . Map.elems)
+
 asksCon :: (Map QName (Index, Maybe Index) -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
@@ -123,6 +120,32 @@ lookupRec qn = asksRec (Map.!? qn)
 -- | Lookup a constructor name in the current module.
 lookupCon :: QName -> ToCoreM (Maybe (Index, Maybe Index))
 lookupCon qn = asksCon (Map.!? qn)
+
+
+getRecordIndexFromProjIndex :: Index -> ToCoreM Index
+getRecordIndexFromProjIndex Scope.Zero = do
+  indexInRecs Scope.Zero >>= \case
+    True -> return Scope.Zero
+    False -> throwError "Could not get record index from projection index"
+getRecordIndexFromProjIndex (Scope.Suc i') = do
+  indexInRecs (Scope.Suc i') >>= \case
+    True -> return (Scope.Suc i')
+    False -> getRecordIndexFromProjIndex i'
+
+createTAppAndTProj :: Term -> [(I.Elim, Term)] -> ToCoreM Term
+createTAppAndTProj t [] = return t
+createTAppAndTProj t ((I.Apply _, compiledElim):elims) =
+  TApp t compiledElim `createTAppAndTProj` elims
+-- When compiling an I.Proj _ _, the result must be a TDef `id`
+createTAppAndTProj t ((I.Proj _ _, TDef projFuncId):elims) = do
+  recordIndex <- getRecordIndexFromProjIndex projFuncId
+  finalTerm <- createTAppAndTProj t elims
+  return (TProj recordIndex finalTerm projFuncId)
+createTAppAndTProj t _ =
+  error ("This case is impossible: either compiling an I.Proj _ _ did not " ++
+         "return a TDef, which is impossible, or the error '[When translating " ++
+         "an Elim] cubical endpoint application not supported' should be " ++
+         "thrown earlier instead")
 
 
 -- | Class for things that can be converted to core syntax
@@ -202,7 +225,7 @@ instance ToCore I.Term where
           Just idx -> do
             let def = TDef idx
             coreEs <- toCore es
-            return (createTAppAndTProj def (zip es coreEs))
+            createTAppAndTProj def (zip es coreEs)
           Nothing -> do
             lookupData qn >>= \case
               Just (idx, (fullAmountOfParams, fullAmountOfIndices)) ->
