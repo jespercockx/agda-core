@@ -148,6 +148,13 @@ createTAppAndTProj t _ =
          "thrown earlier instead")
 
 
+teleToList :: I.Tele a -> [a]
+teleToList I.EmptyTel = []
+teleToList (I.ExtendTel a (I.Abs _ tel)) = a : teleToList tel
+teleToList (I.ExtendTel a (I.NoAbs _ tel)) = error "Impossible case: Abs is never NoAbs so this error cannot happen"
+
+
+
 -- | Class for things that can be converted to core syntax
 class ToCore a where
   type CoreOf a
@@ -344,17 +351,17 @@ toCoreDefn (I.FunctionDefn def) _ =
       , l      <- _funClauses
       -> throwError "pattern matching isn't supported"
 
-    -- I.FunctionData{_funProjection = Right p} -- the FunctionDefn being declared is a record projection function
-    --   | Just qn <- I.projProper p
-    --     -> do
-    --         --Looking up as a record must succeed
-    --         _ <- lookupRec qn >>= \case
-    --               Nothing -> throwError $ "Trying to access an unknown record definition: " <+> pretty qn
-    --               Just (recordIndex, _) -> pure recordIndex
-    --         -- a dummy Defn object which simply communicates that this Defn is a record projection
-    --         return Core.ProjDefn
+    I.FunctionData{_funProjection = Right p} -- the FunctionDefn being declared is a record projection function
+      | Just qn <- I.projProper p
+        -> do
+            --Looking up as a record must succeed
+            _ <- lookupRec qn >>= \case
+                  Nothing -> throwError $ "Trying to access an unknown record definition: " <+> pretty qn
+                  Just (recordIndex, _) -> pure recordIndex
+            throwError "Record projection functions are not compiled in Agda Core"
     I.FunctionData{}
       -> throwError "unsupported case (shouldn't happen)"
+
 
 toCoreDefn (I.DatatypeDefn dt) ty =
   withError (\e -> multiLineText $ "datatype definition failure: \n" <> Pretty.render (nest 1 e)) $ do
@@ -384,9 +391,10 @@ toCoreDefn (I.RecordDefn rd) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
     let I.RecordData{
       _recPars = pars,
-      _recFields = fields
+      _recFields = fields,
+      _recTel = recordTelescope 
     } = rd
-    let I.TelV{theTel = internalParsTel, theCore = returnType} = I.telView'UpTo pars ty
+    let I.TelV{theTel = internalParsTel, theCore = typWithoutParams} = I.telView'UpTo pars ty
     parsTel <- toCore internalParsTel
 
     fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
@@ -394,14 +402,27 @@ toCoreDefn (I.RecordDefn rd) ty =
             Just idx -> pure idx
           ) . unDom) fields
 
-    -- TODO: (atejandev) Verify that this is actually the sort of the record being compiled
+    -- TODO: (atejandev) The sort should actually be the one from the record, instead of always being 0
+    -- let sort = toCore (I.Univ I.UProp (I.Max 0 []))
     sort <- do
-          case returnType of 
-            I.El s _ -> toCore s
+      case typWithoutParams of 
+        I.El s _ -> toCore s
+
+
+    -- Construct the function `recProjTypes` which gives the full type of each projection function
+    let recTelList   = teleToList recordTelescope
+    let fieldTelList = drop pars recTelList
+
+    let recProjTypeLambdaM i = do
+            (Core.El fieldSortCore fieldTypeTermCore) <- toCore (fieldTelList !! indexToInt i)
+            (Core.El recSortCore recTypeTermCore) <- toCore typWithoutParams
+            return (Core.El (Core.piSort fieldSortCore recSortCore) 
+              (TPi (Core.El recSortCore recTypeTermCore) (Core.El fieldSortCore fieldTypeTermCore)))
+
 
     let r = Core.Record{ recSort = sort,
                          recParTel = parsTel,
-                         recProjTypes = \n -> error "TODO (atejandev): implement this"}
+                         recProjTypes = recProjTypeLambda}
 
     return $ Core.RecordDefn r
 
