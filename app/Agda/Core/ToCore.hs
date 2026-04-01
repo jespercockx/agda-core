@@ -112,29 +112,17 @@ lookupData qn = asksData (Map.!? qn)
 lookupCon :: QName -> ToCoreM (Maybe Constructor)
 lookupCon qn = asksCon (Map.!? qn)
 
--- withLocalState :: (OffsetList -> OffsetList) -> ToCoreM a -> ToCoreM a
--- withLocalState f action = do
---   saved <- gets id
---   modify f
---   result <- action
---   ToCoreM $ lift (state (\_ -> ((), saved)))  -- restore
---   return result
-
 localRenamings :: (RenamingList -> RenamingList) -> ToCoreM a -> ToCoreM a
 localRenamings f = local (\g -> g { renamingList = f (renamingList g) })
 
 -- Read a value from the map
 lookupOffset :: Int -> ToCoreM Int
 lookupOffset k = do 
-  asks (fromMaybe k . listToMaybe . drop k . renamingList) -- here ugly practice; to deal with data's and lambda's (need to figure out how to do properly)
-  -- asks ((!! k) . renamingList) -- in case we fix the system, seems complex though.
+  asks ((!! k) . renamingList)
 
 -- Insert/update a value, specialized to drop the value of the old variable
 insertOffsets :: Int -> [Int] -> RenamingList -> RenamingList
 insertOffsets pos inserted xs = take pos xs ++ inserted ++ drop (pos + 1) xs
-
--- updateValues :: (Int -> Int) -> ToCoreM ()
--- updateValues f = modify (map f)
 
 -- updates the list of offsets to reflect a pattern match from a case expression
 updateDBMapLocal :: Int -> Int -> ToCoreM a -> ToCoreM a
@@ -145,7 +133,7 @@ updateDBMapLocal paramIndexAgda constructParamCount =
     )
 
 updateDbMapLocalLam :: ToCoreM a -> ToCoreM a
-updateDbMapLocalLam = localRenamings (\l -> 0 : [] ++ map (+1) l) -- When we deal with a lambda, a new variable is introduced as 0 in both agda and agdacore, and all previous variables refer to 1 higher
+updateDbMapLocalLam = localRenamings (\l -> 0 : map (+1) l) -- When we deal with a lambda, a new variable is introduced as 0 in both agda and agdacore, and all previous variables refer to 1 higher
 
 -- | Class for things that can be converted to core syntax
 class ToCore a where
@@ -172,6 +160,7 @@ instance ToCore I.Term where
 
   toCore (I.Var k es) = do
       index <- lookupOffset k -- translate from Agda to Agda-core Debruijn index
+      l <- asks renamingList
       (TVar (var index) `tApp`) <$> toCore es
       where var :: Int -> Index
             var !n | n <= 0 = Scope.inHere
@@ -237,7 +226,7 @@ instance ToCore I.Term where
 
   toCore I.Con{} = throwError "cubical endpoint application to constructors not supported"
 
-  toCore (I.Pi dom codom) = TPi <$> toCore dom <*> toCore codom
+  toCore (I.Pi dom codom) = TPi <$> toCore dom <*> (updateDbMapLocalLam $ toCore codom)
 
   toCore (I.Sort s) = TSort <$> toCore s
 
@@ -392,18 +381,19 @@ toCoreDefn (I.DatatypeDefn dt) ty =
                       _dataIxs   = ixs,
                       _dataCons  = cons,
                       _dataSort  = sort} = dt
-  sort' <- toCore sort
-  let I.TelV{theTel = internalParsTel, theCore = ty1} = I.telView'UpTo pars ty
-  let I.TelV{theTel = internalIxsTel}                 = I.telView'UpTo ixs  ty1
-  parsTel <- toCore internalParsTel
-  ixsTel <- toCore internalIxsTel
-  cons_dt_indexes <- mapM (\mc -> maybe (throwError "constructor not found") return mc) =<< traverse lookupCon cons
-  let cons_indexes = map (\(Constructor c _) -> c) cons_dt_indexes
-  let d = Core.Datatype{  dataSort              = sort',
-                          dataParTel            = parsTel,
-                          dataIxTel             = ixsTel,
-                          dataConstructors      = cons_indexes}
-  return $ Core.DatatypeDefn d
+  localRenamings (\_ -> take (pars + ixs) (iterate (+1) 0)) $ do -- for processing a datatype, introduce its parameters and indices in the renaming list
+    sort' <- toCore sort
+    let I.TelV{theTel = internalParsTel, theCore = ty1} = I.telView'UpTo pars ty
+    let I.TelV{theTel = internalIxsTel}                 = I.telView'UpTo ixs  ty1
+    parsTel <- toCore internalParsTel
+    ixsTel <- toCore internalIxsTel
+    cons_dt_indexes <- mapM (\mc -> maybe (throwError "constructor not found") return mc) =<< traverse lookupCon cons
+    let cons_indexes = map (\(Constructor c _) -> c) cons_dt_indexes
+    let d = Core.Datatype{  dataSort              = sort',
+                            dataParTel            = parsTel,
+                            dataIxTel             = ixsTel,
+                            dataConstructors      = cons_indexes}
+    return $ Core.DatatypeDefn d
 
 toCoreDefn (I.RecordDefn rd) ty = throwError "records are not supported"
 
@@ -418,7 +408,7 @@ toCoreDefn (I.ConstructorDefn cs) ty =
   indTel <- toCore internalIndTel
   case tyCon of
     I.Def _ elims ->  do
-      caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs -> do
+      caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs -> localRenamings (\l -> (take (length ixs) (iterate (+1) 0)) ++ map (+ length ixs) l) $ do
           ixs' <- toCore ixs
           let conIxs = foldr Core.TSCons Core.TSNil ixs'
           let c = Core.Constructor{ conIndTel = indTel,
