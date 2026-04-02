@@ -128,7 +128,7 @@ inferProj {rn = rn} ctx recordTerm projFunc = do
       coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
       projFuncTypeFull ⟨ proofEq ⟩ ← tcmGetProjectionType projFunc
       let projFuncTypeApplied = (apply r projFuncTypeFull recordTerm)
-      return ( projFuncTypeFull , tyProj' projFuncTypeFull proofEq coercedTypingDeriv)
+      return ( projFuncTypeApplied , tyProj' projFuncTypeFull proofEq coercedTypingDeriv)
     )
     (tcError "not convertible")
 {-# COMPILE AGDA2HS inferProj #-}
@@ -236,7 +236,7 @@ checkDataCon : ∀ Γ
 checkDataCon ctx {d = d} c cargs (El s ty) = do
   let r = singScope ctx
   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
-    "can't typecheck a constructor TDataCon with a type that isn't a def application"
+    "can't typecheck a constructor TDataCon with a type that isn't a TData"
   ifDec (decIn (proj₂ d) (proj₂ d'))
     (λ where {{refl}} → do
         dt ⟨ dteq ⟩ ← tcmGetDatatype d
@@ -260,16 +260,18 @@ checkRecCon : ∀ Γ
 checkRecCon ctx rn cargs (El s ty) = do
   let r = singScope ctx
   rn' , params ⟨ rp ⟩ ← reduceToRec r ty 
-    "can't typecheck a constructor TRecCon with a type that isn't a rec application"
+    "can't typecheck a constructor TRecCon with a type that isn't a TRec"
   ifDec (decIn (proj₂ rn) (proj₂ rn'))
     (λ where {{refl}} → do
       rec ⟨ receq ⟩ ← tcmGetRecord rn
       
       let ctype = recordConstructorType rec params cargs
-      -- Check whether the type for which we have proven that TRecCon has that type, 
-      -- is convertible to (El s ty)
 
-      checkCoerce ctx (TRecCon rn cargs) ( ctype , tyRecCon' rec receq) (El s ty)
+
+      let ctel = instRecConArgTel rec params
+      tySubst ← checkTermS ctx ctel cargs
+
+      checkCoerce ctx (TRecCon rn cargs) ( ctype , tyRecCon' rec receq tySubst) (El s ty)
     )
     (tcError "record types not convertible")
 {-# COMPILE AGDA2HS checkRecCon #-}

@@ -45,7 +45,7 @@ import Scope.In qualified as Scope
 import Agda.Utils.Either (maybeRight)
 import qualified Agda.Syntax.Common.Pretty as Pretty
 import System.IO (withBinaryFile)
-import Agda.Compiler.Backend (Definition(defType))
+import Agda.Compiler.Backend (Definition(defType), reportSDoc)
 import Control.Exception (throw)
 
 import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
@@ -399,9 +399,14 @@ toCoreDefn (I.RecordDefn rd) ty =
     let I.RecordData{
       _recPars = pars,
       _recFields = fields,
-      _recTel = recordTelescope 
+      _recTel = recordTelescope
     } = rd
     let I.TelV{theTel = internalParsTel, theCore = typWithoutParams} = I.telView'UpTo pars ty
+
+    let internalParsTelPretty = pretty internalParsTel
+    let typWithoutParamsPretty = pretty typWithoutParams
+    let recordTelescopePretty = pretty recordTelescope
+
     parsTel <- toCore internalParsTel
 
     -- TODO: (atejandev) The sort should actually be the one from the record, instead of always being 0
@@ -416,28 +421,34 @@ toCoreDefn (I.RecordDefn rd) ty =
             Just idx -> pure idx
           ) . unDom) fields
 
-    -- Construct the function `recProjTypes` which gives the full type of each projection function
+ -- Construct the function `recProjTypes` which gives the full type of each projection function
     let fieldTypesList = drop pars (teleToList recordTelescope) --for example, this is: [A ; B] for the record `Pair`
-
     coreFieldTypes <- traverse (\fieldTypSurface -> do
-            Core.El fieldSortCore fieldTypeTermCore <- toCore fieldTypSurface    
+
             Core.El recSortCore recTypeTermCore <- toCore typWithoutParams
+            Core.El fieldSortCore fieldTypeTermCore <- toCore fieldTypSurface
             pure $
               Core.El
                 (Core.piSort fieldSortCore recSortCore)
                 (TPi (Core.El recSortCore recTypeTermCore) (Core.El fieldSortCore fieldTypeTermCore))
             ) fieldTypesList
 
-    let  fieldsIndicesWithTypes :: [(Index, Core.Type)]
-         fieldsIndicesWithTypes = zip fieldsIndices coreFieldTypes
+    let fieldsIndicesWithTypes :: [(Index, Core.Type)]
+        fieldsIndicesWithTypes = zip fieldsIndices coreFieldTypes
 
-    let recProjTypeLambdaHelper fieldProjIndex ps = case ps of
+    let recProjTypeLambdaHelper fieldProjIndex ps = traceCyan
+            (
+              "internalParsTel: " ++ show internalParsTelPretty
+                ++ "\ntypWithoutParams: " ++ show typWithoutParamsPretty
+                ++ "\nrecordTelescope: " ++ show recordTelescopePretty
+            )
+                case ps of
           [] -> error "requested field index was not available in the list of pairs; should not happen"
           (keyIndex, val):t_ps | equalsIndex fieldProjIndex keyIndex -> val
                                | otherwise -> recProjTypeLambdaHelper fieldProjIndex t_ps
-    
+
     let recProjTypeLambda fieldProjIndex = recProjTypeLambdaHelper fieldProjIndex fieldsIndicesWithTypes
-        
+
     let r = Core.Record{ recSort = sort,
                          recParTel = parsTel,
                          recProjTypes = recProjTypeLambda}

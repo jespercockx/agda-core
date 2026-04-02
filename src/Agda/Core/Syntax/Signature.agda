@@ -96,17 +96,19 @@ record Record (@0 rn : NameRec) : Set where
   private
     @0 pars : RScope Name
     pars = recParScope rn
-    @0 fields : RScope Name
-    fields = recFieldScope rn
   field
+    -- The telescope of all the arguments of the record constructor
+    recConArgTel    : Telescope (mempty ◂▸ pars) (recFieldScope rn)
     recSort         : Sort (mempty ◂▸ pars)
     recParTel       : Telescope mempty pars
     recProjTypes    : NameProj rn → Type α --gives full type of each projection function
                                               --for example, for `fst`, this should give:
                                               -- {A B : Set} → Pair A B → A
 
-
-
+  instRecConArgTel : TermS α (recParScope rn) → Telescope α (recFieldScope rn)
+  instRecConArgTel tPars = subst (extSubst ⌈⌉ tPars) recConArgTel
+  {-# COMPILE AGDA2HS instRecConArgTel inline #-}
+                                            
   instRecSort : TermS α (recParScope rn) → Sort α
   instRecSort tPars = subst (extSubst ⌈⌉ tPars) recSort
   {-# COMPILE AGDA2HS instRecSort inline #-}

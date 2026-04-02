@@ -19,6 +19,10 @@ data Vector (A : Set) : Nat → Set where
 data Σ (A : Set) (B : A → Set) : Set where
     _,_ : (x : A) → B x → Σ A B
 
+data Either (A B : Set) : Set where
+  Left  : A → Either A B
+  Right : B → Either A B
+
 -- 3 :: 4 :: nil
 list1 : List Nat
 list1 = Cons (Suc (Suc (Suc Zero))) (Cons (Suc (Suc (Suc (Suc Zero)))) Nil)
@@ -32,3 +36,12 @@ vector1 = Cons Zero ((Suc (Suc Zero))) Nil
 
 deppair0 : Σ Nat (Vector Bool)
 deppair0 = _,_ Zero Nil
+
+
+record DeciderContainer (A B : Set) : Set where
+  private 
+    myPrivateNum : Nat
+    myPrivateNum = Suc (Suc Zero)
+  field
+    decider : Vector Bool myPrivateNum → Either A B
+    
