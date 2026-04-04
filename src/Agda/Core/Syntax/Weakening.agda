@@ -17,12 +17,6 @@ private variable
   @0 c   : NameCon d
   @0 cs  : RScope (NameCon d)
 
-
-postulate
-  lookupVarInTel : (tel : Telescope α rγ) (x : NameInR rγ) → Type α
-  
-  
-
 weakenTerm     : α ⊆ β → Term α → Term β
 weakenTermS    : α ⊆ β → TermS α rγ → TermS β rγ
 weakenSort     : α ⊆ β → Sort α → Sort β
@@ -120,6 +114,7 @@ lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
   (λ _ → s))
 {-# COMPILE AGDA2HS lookupVar #-}
 
--- lookupVarInTel : (tel : Telescope α rγ) (x : NameInR rγ) → Type α
--- lookupVarInTel EmptyTel x = nameInRemptyCase x
--- lookupVarInTel (ExtendTel y typ smallerTel) x = {!!}
+lookupVarInTel : (tel : Telescope α rγ) (x : NameInR rγ) → Type α
+lookupVarInTel EmptyTel x = nameInRemptyCase x
+lookupVarInTel (ExtendTel y typ smallerTel) x = {!!}
+{-# COMPILE AGDA2HS lookupVarInTel #-}
