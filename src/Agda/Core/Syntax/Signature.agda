@@ -1,9 +1,10 @@
+
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 
 open import Agda.Core.Syntax.Term
 open import Agda.Core.Syntax.Context
-open import Agda.Core.Syntax.Weakening
+open import Agda.Core.Syntax.Weakening 
 open import Agda.Core.Syntax.Substitute
 
 
@@ -97,14 +98,13 @@ record Record (@0 rn : NameRec) : Set where
     @0 pars : RScope Name
     pars = recParScope rn
   field
+    recSort         : Sort (mempty ◂▸ pars)
+    -- The telescope of all the parameters of the record type
+    recParTel       : Telescope mempty pars
     -- The telescope of all the arguments of the record constructor
     recConArgTel    : Telescope (mempty ◂▸ pars) (recFieldScope rn)
-    recSort         : Sort (mempty ◂▸ pars)
-    recParTel       : Telescope mempty pars
-    recProjTypes    : NameProj rn → Type α --gives full type of each projection function
-                                              --for example, for `fst`, this should give:
-                                              -- {A B : Set} → Pair A B → A
 
+  -- instantiated telescope of the record constructor, given some parameters
   instRecConArgTel : TermS α (recParScope rn) → Telescope α (recFieldScope rn)
   instRecConArgTel tPars = subst (extSubst ⌈⌉ tPars) recConArgTel
   {-# COMPILE AGDA2HS instRecConArgTel inline #-}
@@ -150,11 +150,6 @@ getType sig x = subst ⌈⌉ (fst typeAndSigDef)
     -- TODO: investigate further
     typeAndSigDef = sigDefs sig x
 {-# COMPILE AGDA2HS getType #-}
-
-getProjectionType : {rn : NameRec} → Signature → (projFunc : NameProj rn) → Type α
-getProjectionType {rn = rn} sig projFunc = (recProjTypes (sigRecs sig rn)) projFunc
-{-# COMPILE AGDA2HS getProjectionType #-}
-  
 
 getDefinition : Signature → (x : NameIn defScope) → SigDefinition
 getDefinition sig x = snd typeAndSigDef

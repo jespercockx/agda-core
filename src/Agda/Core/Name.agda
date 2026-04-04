@@ -44,9 +44,16 @@ nameInEmptyCase : NameIn mempty → a
 nameInEmptyCase x = inEmptyCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInEmptyCase inline #-}
 
+nameInRemptyCase : NameInR mempty → a
+nameInRemptyCase x = inRemptyCase (proj₂ x)
+{-# COMPILE AGDA2HS nameInRemptyCase inline #-}
+
 nameInBindCase : ∀ {@0 y α} (x : NameIn (α ▸ y)) → (proj₁ x ∈ α → a) → (@0 proj₁ x ≡ y → a) → a
 nameInBindCase x = inBindCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInBindCase inline #-}
+
+-- nameInRBindCase : ∀ {@0 rβ y} (x : NameInR (y ◂ rβ)) →  {!!} → a
+-- nameInRBindCase = {!!}
 
 opaque
   unfolding RScope

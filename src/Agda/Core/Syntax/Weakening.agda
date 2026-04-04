@@ -1,3 +1,4 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax.Term
@@ -15,6 +16,12 @@ private variable
   @0 d   : NameData
   @0 c   : NameCon d
   @0 cs  : RScope (NameCon d)
+
+
+postulate
+  lookupVarInTel : (tel : Telescope α rγ) (x : NameInR rγ) → Type α
+  
+  
 
 weakenTerm     : α ⊆ β → Term α → Term β
 weakenTermS    : α ⊆ β → TermS α rγ → TermS β rγ
@@ -112,3 +119,7 @@ lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
   (λ q → lookupVar g (⟨ _ ⟩ q))
   (λ _ → s))
 {-# COMPILE AGDA2HS lookupVar #-}
+
+-- lookupVarInTel : (tel : Telescope α rγ) (x : NameInR rγ) → Type α
+-- lookupVarInTel EmptyTel x = nameInRemptyCase x
+-- lookupVarInTel (ExtendTel y typ smallerTel) x = {!!}

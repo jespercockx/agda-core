@@ -6,6 +6,7 @@ open import Agda.Core.Rules.Conversion
 open import Agda.Core.Rules.Typing
 open import Agda.Core.TCM.Instances
 open import Agda.Core.Checkers.Converter
+open import Agda.Core.Syntax.Weakening 
 
 module Agda.Core.Checkers.TypeCheck
     {{@0 globals : Globals}}
@@ -33,12 +34,6 @@ tcmGetType x = do
   rsig ← tcmSignature
   return (singCong (λ sig → getType sig x) rsig)
 {-# COMPILE AGDA2HS tcmGetType #-}
-
-tcmGetProjectionType : {rn : NameRec} (projName : NameProj rn) → TCM (Singleton (getProjectionType {α = α} sig projName))
-tcmGetProjectionType projName = do
-  rsig ← tcmSignature
-  return (singCong (λ sig → getProjectionType sig projName) rsig)
-{-# COMPILE AGDA2HS tcmGetProjectionType #-}
 
 tcmGetDefinition : (x : NameIn defScope) → TCM (Singleton (getDefinition sig x))
 tcmGetDefinition x = do
@@ -126,9 +121,9 @@ inferProj {rn = rn} ctx recordTerm projFunc = do
   ifDec (decIn (proj₂ rn) (proj₂ rn'))
     (λ where {{refl}} → do
       coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
-      projFuncTypeFull ⟨ proofEq ⟩ ← tcmGetProjectionType projFunc
-      let projFuncTypeApplied = (apply r projFuncTypeFull recordTerm)
-      return ( projFuncTypeApplied , tyProj' projFuncTypeFull proofEq coercedTypingDeriv)
+      sigRecord ⟨ defeq ⟩ ← tcmGetRecord rn
+      let projFuncType = lookupVarInTel (instRecConArgTel sigRecord params) projFunc
+      return ( projFuncType ,  tyProj' params sigRecord defeq coercedTypingDeriv)
     )
     (tcError "not convertible")
 {-# COMPILE AGDA2HS inferProj #-}
@@ -265,7 +260,7 @@ checkRecCon ctx rn cargs (El s ty) = do
     (λ where {{refl}} → do
       rec ⟨ receq ⟩ ← tcmGetRecord rn
       
-      let ctype = recordConstructorType rec params cargs
+      let ctype = recordConstructorType rec params
 
 
       let ctel = instRecConArgTel rec params
@@ -330,9 +325,10 @@ checkType ctx (TApp u e) ty = do
 checkType ctx (TCase d r u bs rt) ty = do
   tapp ← inferCase ctx d r u bs rt
   checkCoerce ctx (TCase d r u bs rt) tapp ty
-checkType ctx (TProj rt projFunc) ty = do
-    tproj ← inferProj ctx rt projFunc
-    checkCoerce ctx (TProj rt projFunc) tproj ty
+checkType ctx (TProj rt projFunc) ty = tcError "TODO"
+  -- do
+  --   tproj ← inferProj ctx rt projFunc
+  --   checkCoerce ctx (TProj rt projFunc) tproj ty
 checkType ctx (TPi x tu tv) ty = do
   tpi ← inferPi ctx x tu tv
   checkCoerce ctx (TPi x tu tv) tpi ty
@@ -355,7 +351,8 @@ inferType ctx (TRecCon rec x) = tcError "TODO: infer type of record constructor"
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
-inferType ctx (TProj rt projFunc) = inferProj ctx rt projFunc
+inferType ctx (TProj rt projFunc) = tcError "TODO"
+  -- inferProj ctx rt projFunc
 inferType ctx (TPi x a b) = inferPi ctx x a b
 inferType ctx (TSort s) = inferTySort ctx s
 inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"

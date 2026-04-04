@@ -23,6 +23,10 @@ record Pair (A B : Set) : Set where
         fst : A
         snd : B
 
+data PairAsData (A B : Set) : Set where
+  PairAsDataConstructor : A → B → PairAsData A B
+
+
 -- record PairNoEta (A B : Set) : Set where
 --     no-eta-equality
 --     pattern
@@ -39,15 +43,18 @@ record Pair (A B : Set) : Set where
 x : Pair Nat Nat
 x = record { fst = Zero; snd = Suc Zero }
 
--- x' : Pair Nat Nat
--- x' = Pair.constructor Zero (Suc Zero)
+xAsData : PairAsData Nat Nat
+xAsData = PairAsDataConstructor Zero (Suc Zero)
+
+x' : Pair Nat Nat
+x' = Pair.constructor Zero (Suc Zero)
 
 -- --example0 and example1 are both valid Agda epxressions
--- example0 : (A B : Set) → Set
--- example0 = Pair
+example0 : (A B : Set) → Set
+example0 = Pair
 
--- example1 : (B : Set) → Set
--- example1 = Pair Nat
+example1 : (B : Set) → Set
+example1 = Pair Nat
 
 proj_example : Nat
 proj_example = Pair.fst x

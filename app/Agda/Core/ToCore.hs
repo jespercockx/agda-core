@@ -30,6 +30,7 @@ import Agda.TypeChecking.Monad  qualified as I
 import Agda.Syntax.Internal     qualified as I
 import Agda.TypeChecking.Substitute qualified as I
 import Agda.TypeChecking.Telescope qualified as I
+import Agda.TypeChecking.DropArgs(dropArgs)
 
 
 import Agda.Core.Syntax.Term (Term(..), Sort(..))
@@ -153,13 +154,6 @@ createTAppAndTProj t _ =
          "return a TDef, which is impossible, or the error '[When translating " ++
          "an Elim] cubical endpoint application not supported' should be " ++
          "thrown earlier instead")
-
-
-teleToList :: I.Tele a -> [a]
-teleToList I.EmptyTel = []
-teleToList (I.ExtendTel a (I.Abs _ tel)) = a : teleToList tel
-teleToList (I.ExtendTel a (I.NoAbs _ tel)) = error "Impossible case: Abs is never NoAbs so this error cannot happen"
-
 
 
 -- | Class for things that can be converted to core syntax
@@ -399,80 +393,71 @@ toCoreDefn (I.RecordDefn rd) ty =
     let I.RecordData{
       _recPars = pars,
       _recFields = fields,
-      _recTel = recordTelescope
+      _recTel = recordTelescope --This is {A : Set} {B : Set} (fst : @1) (snd : @1)
     } = rd
-    let I.TelV{theTel = internalParsTel, theCore = typWithoutParams} = I.telView'UpTo pars ty
+    let I.TelV{theTel = internalParsTel} = I.telView'UpTo pars ty -- internalParsTel is (A : Set) (B : Set) for the record `Pair`
+    let recConArgTel = dropArgs pars recordTelescope -- This is (fst : @1) (snd : @1) (a telescope with unbound deBruijn indices)
+    recConArgTelCore <- toCore recConArgTel
+
 
     let internalParsTelPretty = pretty internalParsTel
-    let typWithoutParamsPretty = pretty typWithoutParams
     let recordTelescopePretty = pretty recordTelescope
 
-    parsTel <- toCore internalParsTel
+    parTelCore <- toCore internalParsTel
 
     -- TODO: (atejandev) The sort should actually be the one from the record, instead of always being 0
-    -- (I.Var 0 []) is irrelevant and is just there to make sure that the resulting type is `Sort' I.Term`
+    -- It should be the sort corresponding to `_dataSort` for record types, but I do not know what that is
     sort <- toCore (I.Univ I.UType (I.Max 0 ([] :: [I.PlusLevel' I.Term])))
-    -- sort <- do
-    --   case typWithoutParams of 
-    --     I.El s _ -> toCore s
 
-    fieldsIndices <- traverse ((\qn -> lookupDef qn >>= \case
-            Nothing -> throwError $ "[When compiling a RecordDefn] Trying to access an unknown definition: " <+> pretty qn
-            Just idx -> pure idx
-          ) . unDom) fields
+    let recProjTypeLambda fieldProjIndex = error "TODO"
 
- -- Construct the function `recProjTypes` which gives the full type of each projection function
-    let fieldTypesList = drop pars (teleToList recordTelescope) --for example, this is: [A ; B] for the record `Pair`
-    coreFieldTypes <- traverse (\fieldTypSurface -> do
-
-            Core.El recSortCore recTypeTermCore <- toCore typWithoutParams
-            Core.El fieldSortCore fieldTypeTermCore <- toCore fieldTypSurface
-            pure $
-              Core.El
-                (Core.piSort fieldSortCore recSortCore)
-                (TPi (Core.El recSortCore recTypeTermCore) (Core.El fieldSortCore fieldTypeTermCore))
-            ) fieldTypesList
-
-    let fieldsIndicesWithTypes :: [(Index, Core.Type)]
-        fieldsIndicesWithTypes = zip fieldsIndices coreFieldTypes
-
-    let recProjTypeLambdaHelper fieldProjIndex ps = traceCyan
+    let r = traceCyan
             (
-              "internalParsTel: " ++ show internalParsTelPretty
-                ++ "\ntypWithoutParams: " ++ show typWithoutParamsPretty
+              "recordInternalParsTel: " ++ show internalParsTelPretty
+                ++ "\nrecordInternalParsTelAsListLength: " ++ show (length (I.telToList internalParsTel))
                 ++ "\nrecordTelescope: " ++ show recordTelescopePretty
-            )
-                case ps of
-          [] -> error "requested field index was not available in the list of pairs; should not happen"
-          (keyIndex, val):t_ps | equalsIndex fieldProjIndex keyIndex -> val
-                               | otherwise -> recProjTypeLambdaHelper fieldProjIndex t_ps
-
-    let recProjTypeLambda fieldProjIndex = recProjTypeLambdaHelper fieldProjIndex fieldsIndicesWithTypes
-
-    let r = Core.Record{ recSort = sort,
-                         recParTel = parsTel,
-                         recProjTypes = recProjTypeLambda}
+                ++ "\nrecordTelescopeAsListLength: " ++ show (length (I.telToList recordTelescope))
+                ++ "\nrecConArgTel: " ++ show (pretty recConArgTel)
+                ++ "\nrecConArgTelLength: " ++ show (length (I.telToList recConArgTel))
+                ++ "\n"
+            ) Core.Record{
+                         recSort = sort,
+                         recParTel = parTelCore,
+                         recConArgTel = recConArgTelCore
+                         }
 
     return $ Core.RecordDefn r
 
 toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
   let I.ConstructorData{  _conPars  = pars,
-                          _conArity = arity}  = cs
-      I.TelV{ theCore = tyInd}                = I.telView'UpTo pars ty
-      I.TelV{ theTel = internalIndTel,
-              theCore = I.El{unEl = tyCon}}   = I.telView'UpTo arity tyInd
-  indTel <- toCore internalIndTel
-  case tyCon of
-    I.Def _ elims ->  do
-      caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs_m -> do
-          ixs <- toCore ixs_m
-          let ixsTermS = toTermS ixs
-          let c = Core.Constructor{ conIndTel = indTel,
-                                    conIx     = ixsTermS}
-          return $ Core.ConstructorDefn c
-    _ -> do
-      throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
+                          _conArity = arity,
+                          _conSrcCon = I.ConHead{conDataRecord = dataOrRecord}}  = cs
+
+  case dataOrRecord of
+    I.IsRecord _ -> throwError "Record constructors are not compiled in Agda Core"
+    I.IsData -> do
+      let I.TelV{ theCore = tyInd}            = I.telView'UpTo pars ty
+          I.TelV{ theTel = internalIndTel,
+                  theCore = I.El{unEl = tyCon}}   = I.telView'UpTo arity tyInd
+
+      indTel <- toCore internalIndTel
+      case tyCon of
+        I.Def _ elims ->  do
+          caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs_m -> do
+              ixs <- toCore ixs_m
+              let ixsTermS = toTermS ixs
+              let c =
+                    traceCyan (
+                        "internalIndTel: " ++ show (pretty internalIndTel)
+                          ++ "\ninternalIndTelAsListLength: " ++ show (length (I.telToList internalIndTel))
+                          ++ "\n"
+                        )
+                    Core.Constructor{ conIndTel = indTel,
+                                              conIx     = ixsTermS}
+              return $ Core.ConstructorDefn c
+        _ -> do
+          throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
 
 toCoreDefn (I.PrimitiveDefn _) _ =
   throwError "primitive are not supported"

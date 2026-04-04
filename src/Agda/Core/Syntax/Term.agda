@@ -121,12 +121,6 @@ dataType : (d : NameData)
 dataType d ds pars ixs = El ds (TData d pars ixs)
 {-# COMPILE AGDA2HS dataType #-}
 
-recordType : (rn : NameRec)
-           → Sort α
-           → (pars : TermS α (recParScope rn))
-           → Type α
-recordType rn rsort pars = El rsort (TRec rn pars)
-{-# COMPILE AGDA2HS recordType #-}
 
 -- case on Terms
 opaque

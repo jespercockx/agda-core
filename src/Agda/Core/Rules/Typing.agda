@@ -30,17 +30,12 @@ dataConstructorType {d = d} dt con pars us =
 {-# COMPILE AGDA2HS dataConstructorType #-}
 
 recordConstructorType : {rn : NameRec}
-              → (recTyp : Record rn)
+              → (sigRec : Record rn)
               → TermS α (recParScope rn)
-              → TermS α (recFieldScope rn)
               → Type α
-recordConstructorType {rn = rn} recTyp pars fields = recordType rn (instRecSort recTyp pars) pars
+recordConstructorType {rn = rn} sigRec pars = El (instRecSort sigRec pars) (TRec rn pars)
 {-# COMPILE AGDA2HS recordConstructorType #-}
 
-apply : Singleton α → Type α → Term α → Type α
-apply r (El _ (TPi x _ restType)) trm = substTop r trm restType
-apply _ typ _ = typ
-{-# COMPILE AGDA2HS apply #-}
 
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
 
@@ -114,7 +109,7 @@ data TyTerm {α} Γ where
          sigRecord = sigRecs sig rn)
     → Γ ⊢ˢ args ∶ instRecConArgTel sigRecord pars
     -----------------------------------------------------------
-    → Γ ⊢ TRecCon rn args ∶ recordConstructorType sigRecord pars args
+    → Γ ⊢ TRecCon rn args ∶ recordConstructorType sigRecord pars
 
   TyLam :
       Γ , x ∶ a ⊢ u ∶ b
@@ -163,13 +158,11 @@ data TyTerm {α} Γ where
     {rsort : Sort α}
     {projFunc : NameProj rn}
     {instPars : TermS α (recParScope rn)}
-    (let projFuncTypeFull : Type α
-         projFuncTypeFull = getProjectionType sig projFunc)
-    (let desiredRecordType : Type α
-         desiredRecordType = (El rsort (TRec rn instPars)))
-    → Γ ⊢ recordTerm ∶ desiredRecordType
-      ------------------------------------
-    → Γ ⊢ TProj recordTerm projFunc ∶ (apply (singScope Γ) projFuncTypeFull recordTerm)
+    (let sigRecord : Record rn
+         sigRecord = sigRecs sig rn)
+    → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
+    --------------------------------------------------------------------------
+    → Γ ⊢ TProj recordTerm projFunc ∶ lookupVarInTel (instRecConArgTel sigRecord instPars) projFunc
 
   TyPi :
       Γ ⊢ u ∶ sortType k
@@ -307,7 +300,7 @@ tyRecCon' : {@0 Γ : Context α}
   → {@0 args : TermS α (recFieldScope rn)}
   → Γ ⊢ˢ args ∶ instRecConArgTel sigRecord pars
   ----------------------------------------------
-  → Γ ⊢ TRecCon rn args ∶ recordConstructorType sigRecord pars args
+  → Γ ⊢ TRecCon rn args ∶ recordConstructorType sigRecord pars
 tyRecCon' sigRecord refl tySubst = TyRecCon tySubst
 {-# COMPILE AGDA2HS tyRecCon' #-}
 
@@ -339,17 +332,34 @@ tyCase' dt refl {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
   TyCase wfReturn tyCases tyu
 {-# COMPILE AGDA2HS tyCase' #-}
 
+
+-- tyDef' : {@0 Γ : Context α}
+--   {f : NameIn defScope}
+--   (@0 ty : Type α) → @0 getType sig f ≡ ty
+--   ----------------------------------------------
+--   → Γ ⊢ TDef f ∶ ty
+-- tyDef' ty refl = TyDef
+-- {-# COMPILE AGDA2HS tyDef' #-}
+
+
+-- lookupVarInTel
+--   (substTelescope (extSubst ⌈⌉ params)
+--    (recConArgTel (sigRecs sig rn)))
+--   projFunc
+--   != projFuncType
+
+
+
 tyProj' : {@0 Γ : Context α}
   {rn : NameRec}
   {recordTerm : Term α}
   {rsort : Sort α}
-  {instPars : TermS α (recParScope rn)}
   {projFunc : NameProj rn}
-  (@0 projFuncTypeFull : Type α)
-  → @0 getProjectionType sig projFunc ≡ projFuncTypeFull
+  (instPars : TermS α (recParScope rn))
+  (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-  → Γ ⊢ TProj recordTerm projFunc ∶ (apply (singScope Γ) projFuncTypeFull recordTerm)
-tyProj' _ refl proof = TyProj proof
+  → Γ ⊢ TProj recordTerm projFunc ∶ lookupVarInTel (instRecConArgTel sigRecord instPars) projFunc
+tyProj' instPars sigRecord refl proof = TyProj proof
 {-# COMPILE AGDA2HS tyProj' #-}
 
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
