@@ -33,10 +33,13 @@ instance
   globals = record
     { defScope = mempty
     ; dataScope = datas
+    ; recScope = mempty
     ; dataParScope = λ _ → mempty
     ; dataIxScope = λ _ → mempty
     ; dataConstructors = λ _ → boolConsSC
     ; dataFieldScope = λ _ → mempty
+    ; recParScope = λ _ → mempty 
+    ; recFieldScope = λ _ → mempty
     }
 open module @0 G = Globals globals
 
@@ -69,6 +72,7 @@ instance
   sig : Signature
   sig .sigData = λ _ → record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}
   sig .sigDefs = nameInEmptyCase
+  -- sig .sigRecs = nameInEmptyCase
   sig .sigCons d c = boolsigcons {d = d} c
 
 instance

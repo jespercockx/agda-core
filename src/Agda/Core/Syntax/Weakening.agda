@@ -114,7 +114,11 @@ lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
   (λ _ → s))
 {-# COMPILE AGDA2HS lookupVar #-}
 
-lookupVarInTel : (tel : Telescope α rγ) (x : NameInR rγ) → Type α
-lookupVarInTel EmptyTel x = nameInRemptyCase x
-lookupVarInTel (ExtendTel y typ smallerTel) x = {!!}
+lookupVarInTel : (tel : Telescope α rγ) (n : NameInR rγ) → Type α
+lookupVarInTel EmptyTel n = nameInRemptyCase n
+lookupVarInTel (ExtendTel y typ smallerTel) n = {!!}
 {-# COMPILE AGDA2HS lookupVarInTel #-}
+
+lookupNameRinTermS : TermS α rγ → NameInR rγ → Term α
+lookupNameRinTermS TSNil n = nameInRemptyCase n
+lookupNameRinTermS (x ↦ trm ◂ smallerTermS) n = {!!}

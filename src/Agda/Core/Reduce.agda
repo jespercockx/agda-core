@@ -174,13 +174,13 @@ step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
           (weakenStack (subExtScope r subRefl) s))
         Nothing  → Nothing
       (False  ⟨ _ ⟩) → Nothing
-step rsig (MkState e (TRecCon recName args) (FProj f ∷ s)) = Nothing
+step rsig (MkState e (TRecCon recName args) (FProj f ∷ s)) = --Nothing
   -- TODO
-  -- Just (MkState
-  --   e
-  --   {!!}
-  --   s -- stack with top element removed
-  -- ) 
+  Just (MkState
+    e
+    {!!} 
+    s -- stack with top element removed
+  ) 
 step rsig (MkState e (TRecCon rn args) s) = Nothing 
 step rsig (MkState e (TData d ps is) s) = Nothing
 step rsig (MkState e (TRec rn pars) s) = Nothing
