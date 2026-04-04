@@ -147,7 +147,7 @@ step rsig (MkState e (TVar (⟨ x ⟩ p)) s) =
     (Left _) → Nothing
     (Right v) → Just (MkState e v s)
 step rsig (MkState e (TApp v w) s) = Just (MkState e v (FApp w ∷ s))
-step rsig (MkState e (TProj v f) s) = Just (MkState e v (FProj f ∷ s))
+step rsig (MkState e (TProj recTerm nameProj) s) = Just (MkState e recTerm (FProj nameProj ∷ s))
 step rsig (MkState e (TCase d r v bs m) s) = Just (MkState e v (FCase d r bs m ∷ s))
 step rsig (MkState e (TLam x v) (FApp w ∷ s)) =
   Just (MkState
@@ -174,13 +174,14 @@ step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
           (weakenStack (subExtScope r subRefl) s))
         Nothing  → Nothing
       (False  ⟨ _ ⟩) → Nothing
-step rsig (MkState e (TRecCon recName args) (FProj f ∷ s)) = --Nothing
-  -- TODO
-  Just (MkState
-    e
-    {!!} 
-    s -- stack with top element removed
-  ) 
+step rsig (MkState e (TRecCon rn' args) (FProj {rn = rn} f ∷ s)) = 
+  case decNamesIn rn' rn of λ where
+    (True ⟨ refl ⟩) → Just (MkState 
+      e 
+      (lookupNameRinTermS args f) 
+      s
+      )
+    (False  ⟨ _ ⟩) → Nothing
 step rsig (MkState e (TRecCon rn args) s) = Nothing 
 step rsig (MkState e (TData d ps is) s) = Nothing
 step rsig (MkState e (TRec rn pars) s) = Nothing
