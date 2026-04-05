@@ -102,6 +102,9 @@ raise : Singleton rγ → Term α → Term (α ◂▸ rγ)
 raise r = weakenTerm (subExtScope r subRefl)
 {-# COMPILE AGDA2HS raise #-}
 
+raiseTyperscope : Singleton rγ → Type α → Type (α ◂▸ rγ)
+raiseTyperscope r = weakenType (subExtScope r subRefl)
+
 private -- it should use a RScope instead of β and then could be public
   raiseType : {@0 α β : Scope Name} → Singleton β → Type α → Type (α <> β)
   raiseType r = weakenType (subJoinDrop r subRefl)
@@ -114,9 +117,21 @@ lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
   (λ _ → s))
 {-# COMPILE AGDA2HS lookupVar #-}
 
+
+-- rScopeToRScope : RScope Name → Scope Name
+-- rScopeToRScope rβ = extScope mempty rβ
+
+-- thrm : (x : NameInR rγ) → ∃ (NameIn (extScope mempty rγ)) (λ y → y ≡ x)
+
 lookupVarInTel : (tel : Telescope α rγ) (n : NameInR rγ) → Type α
 lookupVarInTel EmptyTel n = nameInRemptyCase n
-lookupVarInTel (ExtendTel y typ smallerTel) n = {!!}
+lookupVarInTel (ExtendTel y typ smallerTel) n = 
+  let 
+      singRScope = singTel smallerTel
+      nameIn = nameInRtoNameIn {!!} {!!}
+  in
+
+  {!!}
 {-# COMPILE AGDA2HS lookupVarInTel #-}
 
 lookupNameRinTermS : TermS α rγ → NameInR rγ → Term α

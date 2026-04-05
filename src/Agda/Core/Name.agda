@@ -1,3 +1,4 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 open import Agda.Core.Prelude
 
 module Agda.Core.Name where
@@ -21,6 +22,17 @@ NameIn α = Σ0 Name λ x → x ∈ α
 NameInR : (@0 rα : RScope Name) → Set
 NameInR rα = Σ0 Name λ x → rα ∋ x
 {-# COMPILE AGDA2HS NameInR inline #-}
+
+nameInRtoNameInHelper : {@0 rα : RScope Name} (@0 x : Name) → Singleton rα → (rα ∋ x) → (x ∈ (extScope mempty rα))
+nameInRtoNameInHelper x srα (Zero ⟨ p ⟩) = inScopeInExtScope {!!} {!!}
+nameInRtoNameInHelper x srα (Suc n ⟨ p ⟩) = {!!}
+
+nameInRtoNameIn : {@0 rβ : RScope Name} (s : Singleton rβ) → (x : NameInR rβ) → NameIn (extScope mempty rβ)
+nameInRtoNameIn s x = 
+  -- let 
+  --   @0 name = (proj₁ x) 
+  -- in 
+  ⟨ (proj₁ x) ⟩ nameInRtoNameInHelper (proj₁ x) s (proj₂ x)
 
 decNamesIn : ∀ {@0 α} (x y : NameIn α) → Dec (x ≡ y)
 decNamesIn x y = decIn _ _

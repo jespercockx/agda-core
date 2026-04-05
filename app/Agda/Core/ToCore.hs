@@ -18,7 +18,7 @@ import Numeric.Natural (Natural)
 import Agda.Syntax.Common ( Arg(unArg) )
 import Agda.Syntax.Abstract.Name (QName, showQNameId, uglyShowName, qnameName)
 import Agda.Syntax.Internal (lensSort, unDom, unEl)
-import Agda.Syntax.Internal.Elim (allApplyElims, splitApplyElims)
+import Agda.Syntax.Internal.Elim (allApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
@@ -370,8 +370,6 @@ toCoreDefn (I.DatatypeDefn dt) ty =
                       _dataIxs   = ixs,
                       _dataCons  = cons,
                       _dataSort  = sort} = dt
-  -- let univLevel = universeLevelFromSort sort
-  -- traceMagenta ("datatypedefn universe level from _dataSort " ++ show univLevel)
   sort' <- toCore sort
   let I.TelV{theTel = internalParsTel, theCore = ty1} = I.telView'UpTo pars ty
   let I.TelV{theTel = internalIxsTel}                 = I.telView'UpTo ixs  ty1
@@ -397,25 +395,19 @@ toCoreDefn (I.RecordDefn rd) ty =
     } = rd
     let I.TelV{theTel = internalParsTel} = I.telView'UpTo pars ty -- internalParsTel is (A : Set) (B : Set) for the record `Pair`
     let recConArgTel = dropArgs pars recordTelescope -- This is (fst : @1) (snd : @1) (a telescope with unbound deBruijn indices)
-    recConArgTelCore <- toCore recConArgTel
-
-
-    let internalParsTelPretty = pretty internalParsTel
-    let recordTelescopePretty = pretty recordTelescope
-
-    parTelCore <- toCore internalParsTel
 
     -- TODO: (atejandev) The sort should actually be the one from the record, instead of always being 0
     -- It should be the sort corresponding to `_dataSort` for record types, but I do not know what that is
     sort <- toCore (I.Univ I.UType (I.Max 0 ([] :: [I.PlusLevel' I.Term])))
 
-    let recProjTypeLambda fieldProjIndex = error "TODO"
+    parTelCore <- toCore internalParsTel
+    recConArgTelCore <- toCore recConArgTel
 
     let r = traceCyan
             (
-              "recordInternalParsTel: " ++ show internalParsTelPretty
+              "recordInternalParsTel: " ++ show (pretty internalParsTel)
                 ++ "\nrecordInternalParsTelAsListLength: " ++ show (length (I.telToList internalParsTel))
-                ++ "\nrecordTelescope: " ++ show recordTelescopePretty
+                ++ "\nrecordTelescope: " ++ show (pretty recordTelescope)
                 ++ "\nrecordTelescopeAsListLength: " ++ show (length (I.telToList recordTelescope))
                 ++ "\nrecConArgTel: " ++ show (pretty recConArgTel)
                 ++ "\nrecConArgTelLength: " ++ show (length (I.telToList recConArgTel))
