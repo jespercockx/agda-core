@@ -145,7 +145,7 @@ data TerminatingBranch {α = α} {d = d} f nthArg env var rel where
   TerminatingBBranch :
               {@0 c : NameCon d}
               {rhs : Term (α ◂▸ (fieldScope c))}
-            → TerminatingTerm f nthArg (updateEnv env (fieldScope c) rel ) rhs
+            → TerminatingTerm f nthArg (updateEnv env (fieldScope c) rel) rhs
             → TerminatingBranch f nthArg env var rel (BBranch (sing c) ((fieldScope c) ⟨ refl ⟩) rhs)
 {-# COMPILE AGDA2HS TerminatingBranch #-}
 

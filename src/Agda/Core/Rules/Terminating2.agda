@@ -132,7 +132,88 @@ data TerminatingCycleS {@0 p : Program} (@0 g : Graph p) : @0 CycleS p g → Set
                           → TerminatingCycleS g (CycleSCons cycle cycles)
 {-# COMPILE AGDA2HS TerminatingCycleS #-}
 
-data GraphCoversCallsInBody {@0 p : Program} (@0 g : Graph p) : Term α → Set where
+data GraphTermS {@0 p : Program} (@0 g : Graph p) (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) : @0 (TermS α rβ) → Set
+data GraphTerm {@0 p : Program} (@0 g : Graph p) (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) : Term α → Set
+data GraphBranches {@0 p : Program} (@0 g : Graph p) {@0 d : NameData} (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
+data GraphBranch {@0 p : Program} (@0 g : Graph p) {@0 d : NameData} (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 c : NameCon d} → @0 Branch α c → Set
+data GraphBranches {α = α} g {d = d} f env var rel where
+  GraphNil : GraphBranches g f env var rel BsNil
+  GraphCons : ∀ {@0 c : NameCon d} {@0 cs : RScope (NameCon d)} {@0 b : Branch α c} {@0 bs : Branches α d cs}
+           → GraphBranch g f env var rel b
+           → GraphBranches g f env var rel bs
+           → GraphBranches g f env var rel (BsCons b bs)
+{-# COMPILE AGDA2HS GraphBranches #-}
+
+data GraphTerm {α} g f env where
+  GraphVar :
+    {x : NameIn α}
+    --------------------------------------------------------------
+    → GraphTerm g f env (TVar x)
+
+  GraphCon :
+    {d : NameData}
+    {c : NameCon d}
+    {@0 us  : TermS α (fieldScope c)}
+    → GraphTermS g f env us
+    --------------------------------------------------------------
+    → GraphTerm g f env (TCon c us)
+
+  GraphData :
+    {d : NameData}
+    {@0 pars : TermS α (dataParScope d)}
+    {@0 ixs  : TermS α (dataIxScope  d)}
+    ----------------------------------------------
+    → GraphTermS g f env pars
+    → GraphTermS g f env ixs
+    → GraphTerm g f env (TData d pars ixs)
+
+  GraphLam :
+    {@0 body : Term (bind α x)}
+    → GraphTerm g f (StEnvExtend x Unrelated env) body 
+    --------------------------------------------------------------
+    → GraphTerm g f env (TLam x body)
+
+  GraphLet :
+    {@0 body : Term α}
+    {@0 rest : Term (bind α x)}
+    → GraphTerm g f env body 
+    → GraphTerm g f (StEnvExtend x Unrelated env) rest 
+    --------------------------------------------------------------
+    → GraphTerm g f env (TLet x body rest)
+
+  GraphCase :
+    {d : NameData}                                                -- the name of a datatype
+    {@0 varName : NameIn α}                                       -- name of the variable we are pattern matching on (this only supports cases on variables)
+    (let iScope = dataIxScope d                                   -- indexes of d
+         α'     = α ◂▸ iScope                                     -- general scope + indexes
+         iRun   = sing iScope)                                    -- runtime index scope
+    {cases : Branches α d (AllNameCon d)}                         -- cases for constructors of dt
+    {return : Type (α' ▸ x)}                                      -- return type
+
+    → GraphBranches g f env varName (descend $ lookupSt env varName) cases          -- Proof that each branch is terminating
+
+    --------------------------------------------------
+    → GraphTerm g f env (TCase d iRun (TVar varName) cases return)
+
+
+data GraphBranch {α = α}  g {d = d} f env var rel where
+  GraphBBranch :
+              {@0 c : NameCon d}
+              {rhs : Term (α ◂▸ (fieldScope c))}
+            → GraphTerm g f (updateEnv env (fieldScope c) rel ) rhs
+            → GraphBranch g f env var rel (BBranch (sing c) ((fieldScope c) ⟨ refl ⟩) rhs)
+{-# COMPILE AGDA2HS GraphBranch #-}
+
+data GraphTermS {α} g f env where
+  GraphTermSNil : GraphTermS g f env TSNil
+  TerminatingTermSCons : 
+    {@0 term : Term α}
+    {@0 name : Name}
+    {@0 terml : (TermS α rβ)}
+    → GraphTerm g f env term
+    → GraphTermS g f env terml
+    → GraphTermS g f env (TSCons {x = name} term terml)
+{-# COMPILE AGDA2HS GraphTermS #-}
 
 data GraphCoversCalls {@0 p : Program} (@0 g : Graph p) : FunDefS α → Set where
   GraphCoversCallsNil :
@@ -142,7 +223,7 @@ data GraphCoversCalls {@0 p : Program} (@0 g : Graph p) : FunDefS α → Set whe
     {def : FunDefinition}
     {fds : FunDefS α}
     -- here add the actual check
-    → GraphCoversCallsInBody g (body def)
+    → GraphTerm g def (createStEnvFromScope (arity def)) (body def)
     → GraphCoversCalls g (FunDefSExtend defName def fds)
 
 record Terminating (@0 p : Program) (@0 g : Graph p) : Set where
