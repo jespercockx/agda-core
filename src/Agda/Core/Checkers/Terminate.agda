@@ -165,7 +165,6 @@ checkTermination : {α : Scope Name} → Scope Name → NameIn defScope → Term
 checkTermination c def (TLam x body) = checkTermination (c <> singleton x) def body
 checkTermination {α} c def body = do
   DescendingIndex r i ← checkTermination' (record { index = def; arity = α; body = body })
-  let env = createStEnvFromScope c
   Right ("The function is terminating in its " ++ show r)
 {-# COMPILE AGDA2HS checkTermination #-}
 

@@ -132,8 +132,8 @@ data TerminatingCycleS {@0 p : Program} (@0 g : Graph p) : @0 CycleS p g → Set
                           → TerminatingCycleS g (CycleSCons cycle cycles)
 {-# COMPILE AGDA2HS TerminatingCycleS #-}
 
-data GraphTermS {@0 p : Program} (@0 g : Graph p) (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) : @0 (TermS α rβ) → Set
-data GraphTerm {@0 p : Program} (@0 g : Graph p) (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) : Term α → Set
+data GraphTermS {@0 p : Program} (@0 g : Graph p) (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) : @0 TermS α rβ → Set
+data GraphTerm {@0 p : Program} (@0 g : Graph p) (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) : @0 Term α → Set
 data GraphBranches {@0 p : Program} (@0 g : Graph p) {@0 d : NameData} (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 cs : RScope (NameCon d)} → (@0 bs : Branches α d cs) → Set
 data GraphBranch {@0 p : Program} (@0 g : Graph p) {@0 d : NameData} (@0 f : FunDefinition) (@0 env : SubTermEnv (arity f) α) (@0 patternMatchedVariable : NameIn α) (@0 rel : Relation (arity f)) : {@0 c : NameCon d} → @0 Branch α c → Set
 data GraphBranches {α = α} g {d = d} f env var rel where
@@ -194,7 +194,7 @@ data GraphTerm {α} g f env where
 
     --------------------------------------------------
     → GraphTerm g f env (TCase d iRun (TVar varName) cases return)
-
+{-# COMPILE AGDA2HS GraphTerm #-}
 
 data GraphBranch {α = α}  g {d = d} f env var rel where
   GraphBBranch :
