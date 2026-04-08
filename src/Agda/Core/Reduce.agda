@@ -174,14 +174,14 @@ step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
           (weakenStack (subExtScope r subRefl) s))
         Nothing  → Nothing
       (False  ⟨ _ ⟩) → Nothing
-step rsig (MkState e (TRecCon rn' args) (FProj {rn = rn} f ∷ s)) = 
-  case decNamesIn rn' rn of λ where
-    (True ⟨ refl ⟩) → Just (MkState 
-      e 
-      (lookupNameRinTermS args f) 
-      s
-      )
-    (False  ⟨ _ ⟩) → Nothing
+step rsig (MkState e (TRecCon rn' args) (FProj {rn = rn} f ∷ s)) = Nothing --TODO
+  -- case decNamesIn rn' rn of λ where
+  --   (True ⟨ refl ⟩) → Just (MkState 
+  --     e 
+  --     (lookupNameRinTermS args f) 
+  --     s
+  --     )
+  --   (False  ⟨ _ ⟩) → Nothing
 step rsig (MkState e (TRecCon rn args) s) = Nothing 
 step rsig (MkState e (TData d ps is) s) = Nothing
 step rsig (MkState e (TRec rn pars) s) = Nothing

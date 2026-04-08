@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+-- {-# OPTIONS --allow-unsolved-metas #-}
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax.Term
@@ -98,23 +98,13 @@ instance
                                       {- Useful functions -}
 ---------------------------------------------------------------------------------------------------
 
-raise : Singleton rγ → Term α → Term (α ◂▸ rγ)
-raise r = weakenTerm (subExtScope r subRefl)
-{-# COMPILE AGDA2HS raise #-}
-
-raiseTyperscope : Singleton rγ → Type α → Type (α ◂▸ rγ)
-raiseTyperscope r = weakenType (subExtScope r subRefl)
-
-private -- it should use a RScope instead of β and then could be public
-  raiseType : {@0 α β : Scope Name} → Singleton β → Type α → Type (α <> β)
-  raiseType r = weakenType (subJoinDrop r subRefl)
-  {-# COMPILE AGDA2HS raiseType #-}
 
 lookupVar : (Γ : Context α) (x : NameIn α) → Type α
 lookupVar CtxEmpty x = nameInEmptyCase x
-lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
-  (λ q → lookupVar g (⟨ _ ⟩ q))
-  (λ _ → s))
+lookupVar (CtxExtend g y s) x = (nameInBindCase x
+  (λ q → (weakenType (subBindDrop subRefl) (lookupVar g (⟨ _ ⟩ q))))
+  (λ _ → (weakenType (subBindDrop subRefl) s))
+  )
 {-# COMPILE AGDA2HS lookupVar #-}
 
 
@@ -123,17 +113,14 @@ lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
 
 -- thrm : (x : NameInR rγ) → ∃ (NameIn (extScope mempty rγ)) (λ y → y ≡ x)
 
-lookupVarInTel : (tel : Telescope α rγ) (n : NameInR rγ) → Type α
-lookupVarInTel EmptyTel n = nameInRemptyCase n
-lookupVarInTel (ExtendTel y typ smallerTel) n = 
-  let 
-      singRScope = singTel smallerTel
-      nameIn = nameInRtoNameIn {!!} {!!}
-  in
+-- lookupVarInTel : (tel : Telescope α rγ) (n : NameInR rγ) → Type α
+-- lookupVarInTel EmptyTel n = nameInRemptyCase n
+-- lookupVarInTel (ExtendTel y typ smallerTel) x = (nameInRBindCase x 
+--   (λ q → {!!})
+--   (λ _ → {!!}) 
+--   )
+-- {-# COMPILE AGDA2HS lookupVarInTel #-}
 
-  {!!}
-{-# COMPILE AGDA2HS lookupVarInTel #-}
-
-lookupNameRinTermS : TermS α rγ → NameInR rγ → Term α
-lookupNameRinTermS TSNil n = nameInRemptyCase n
-lookupNameRinTermS (x ↦ trm ◂ smallerTermS) n = {!!}
+-- lookupNameRinTermS : TermS α rγ → NameInR rγ → Term α
+-- lookupNameRinTermS TSNil n = nameInRemptyCase n
+-- lookupNameRinTermS (x ↦ trm ◂ smallerTermS) n = {!!}

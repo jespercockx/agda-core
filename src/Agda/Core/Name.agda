@@ -23,16 +23,16 @@ NameInR : (@0 rα : RScope Name) → Set
 NameInR rα = Σ0 Name λ x → rα ∋ x
 {-# COMPILE AGDA2HS NameInR inline #-}
 
-nameInRtoNameInHelper : {@0 rα : RScope Name} (@0 x : Name) → Singleton rα → (rα ∋ x) → (x ∈ (extScope mempty rα))
-nameInRtoNameInHelper x srα (Zero ⟨ p ⟩) = inScopeInExtScope {!!} {!!}
-nameInRtoNameInHelper x srα (Suc n ⟨ p ⟩) = {!!}
+-- nameInRtoNameInHelper : {@0 rα : RScope Name} (@0 x : Name) → Singleton rα → (rα ∋ x) → (x ∈ (extScope mempty rα))
+-- nameInRtoNameInHelper x srα (Zero ⟨ p ⟩) = inScopeInExtScope {!!} {!!}
+-- nameInRtoNameInHelper x srα (Suc n ⟨ p ⟩) = {!!}
 
-nameInRtoNameIn : {@0 rβ : RScope Name} (s : Singleton rβ) → (x : NameInR rβ) → NameIn (extScope mempty rβ)
-nameInRtoNameIn s x = 
-  -- let 
-  --   @0 name = (proj₁ x) 
-  -- in 
-  ⟨ (proj₁ x) ⟩ nameInRtoNameInHelper (proj₁ x) s (proj₂ x)
+-- nameInRtoNameIn : {@0 rβ : RScope Name} (s : Singleton rβ) → (x : NameInR rβ) → NameIn (extScope mempty rβ)
+-- nameInRtoNameIn s x =
+--   ⟨ (proj₁ x) ⟩ nameInRtoNameInHelper (proj₁ x) s (proj₂ x)
+
+-- nameInRrbindtoNameInbind : {@0 rβ : RScope Name} {@0 y : Name} → (x : NameInR (y ◂ rβ)) → NameIn ((extScope mempty rβ) ▸ y)
+-- nameInRrbindtoNameInbind x = {!!}
 
 decNamesIn : ∀ {@0 α} (x y : NameIn α) → Dec (x ≡ y)
 decNamesIn x y = decIn _ _
@@ -64,8 +64,9 @@ nameInBindCase : ∀ {@0 y α} (x : NameIn (α ▸ y)) → (proj₁ x ∈ α →
 nameInBindCase x = inBindCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInBindCase inline #-}
 
--- nameInRBindCase : ∀ {@0 rβ y} (x : NameInR (y ◂ rβ)) →  {!!} → a
--- nameInRBindCase = {!!}
+-- nameInRBindCase : ∀ {@0 rβ y} (x : NameInR (y ◂ rβ)) → (rβ ∋ (proj₁ x) → a) → (@0 proj₁ x ≡ y → a) → a
+-- nameInRBindCase x = inRbindCase (proj₂ x)
+-- {-# COMPILE AGDA2HS nameInRBindCase inline #-}
 
 opaque
   unfolding RScope
