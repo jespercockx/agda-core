@@ -333,22 +333,6 @@ tyCase' dt refl {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
 {-# COMPILE AGDA2HS tyCase' #-}
 
 
--- tyDef' : {@0 Γ : Context α}
---   {f : NameIn defScope}
---   (@0 ty : Type α) → @0 getType sig f ≡ ty
---   ----------------------------------------------
---   → Γ ⊢ TDef f ∶ ty
--- tyDef' ty refl = TyDef
--- {-# COMPILE AGDA2HS tyDef' #-}
-
-
--- lookupVarInTel
---   (substTelescope (extSubst ⌈⌉ params)
---    (recConArgTel (sigRecs sig rn)))
---   projFunc
---   != projFuncType
-
-
 
 -- tyProj' : {@0 Γ : Context α}
 --   {rn : NameRec}
