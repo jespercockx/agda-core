@@ -18,6 +18,18 @@ private variable
   @0 a b c  : Type α
   @0 k l    : Sort α
 
+
+lookupVarInTel : (s : Singleton α) (tel : Telescope α rβ) (n : NameInR rβ) → Type α
+lookupVarInTel s EmptyTel x = nameInRemptyCase x
+lookupVarInTel {α} s (ExtendTel y (El typSort typTerm) smallerTel) x = nameInRBindCase x 
+  (λ q → 
+    let
+      -- substitution = SCons (idSubst s) typTerm
+      newTel = substTop s typTerm smallerTel
+    in
+    lookupVarInTel s newTel (⟨ _ ⟩ q)) 
+  (λ proof → (El typSort typTerm))
+
 dataConstructorType : {d : NameData}
                 → (dt : Datatype d)
                 → {c : NameCon d}
@@ -153,16 +165,16 @@ data TyTerm {α} Γ where
     --------------------------------------------------
     → Γ ⊢ TCase d iRun u cases return ∶ return'                   -- then the branching on u is well typed
 
-  -- TyProj : {rn : NameRec}
-  --   {recordTerm : Term α}
-  --   {rsort : Sort α}
-  --   {projFunc : NameProj rn}
-  --   {instPars : TermS α (recParScope rn)}
-  --   (let sigRecord : Record rn
-  --        sigRecord = sigRecs sig rn)
-  --   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-  --   --------------------------------------------------------------------------
-  --   → Γ ⊢ TProj recordTerm projFunc ∶ lookupVarInTel (instRecConArgTel sigRecord instPars) projFunc
+  TyProj : {rn : NameRec}
+    {recordTerm : Term α}
+    {rsort : Sort α}
+    {projFunc : NameProj rn}
+    {instPars : TermS α (recParScope rn)}
+    (let sigRecord : Record rn
+         sigRecord = sigRecs sig rn)
+    → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
+    --------------------------------------------------------------------------
+    → Γ ⊢ TProj recordTerm projFunc ∶ lookupVarInTel (singScope Γ) (instRecConArgTel sigRecord instPars) projFunc
 
   TyPi :
       Γ ⊢ u ∶ sortType k

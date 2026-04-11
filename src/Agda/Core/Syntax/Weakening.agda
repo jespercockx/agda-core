@@ -101,26 +101,21 @@ instance
 
 lookupVar : (Γ : Context α) (x : NameIn α) → Type α
 lookupVar CtxEmpty x = nameInEmptyCase x
-lookupVar (CtxExtend g y s) x = (nameInBindCase x
-  (λ q → (weakenType (subBindDrop subRefl) (lookupVar g (⟨ _ ⟩ q))))
+lookupVar (CtxExtend {α = α'} g y s) x = (nameInBindCase x
+  (λ q → (weakenType (subBindDrop subRefl) (lookupVar g (⟨ _ ⟩ q ))))
   (λ _ → (weakenType (subBindDrop subRefl) s))
   )
 {-# COMPILE AGDA2HS lookupVar #-}
-
-
--- rScopeToRScope : RScope Name → Scope Name
--- rScopeToRScope rβ = extScope mempty rβ
-
--- thrm : (x : NameInR rγ) → ∃ (NameIn (extScope mempty rγ)) (λ y → y ≡ x)
+  
 
 -- lookupVarInTel : (tel : Telescope α rγ) (n : NameInR rγ) → Type α
--- lookupVarInTel EmptyTel n = nameInRemptyCase n
--- lookupVarInTel (ExtendTel y typ smallerTel) x = (nameInRBindCase x 
---   (λ q → {!!})
---   (λ _ → {!!}) 
---   )
+-- lookupVarInTel EmptyTel n = {!!}
+-- lookupVarInTel (ExtendTel y typ smallerTel) x = {!!}
 -- {-# COMPILE AGDA2HS lookupVarInTel #-}
 
--- lookupNameRinTermS : TermS α rγ → NameInR rγ → Term α
--- lookupNameRinTermS TSNil n = nameInRemptyCase n
--- lookupNameRinTermS (x ↦ trm ◂ smallerTermS) n = {!!}
+lookupNameRinTermS : TermS α rγ → NameInR rγ → Term α
+lookupNameRinTermS TSNil x = nameInRemptyCase x
+lookupNameRinTermS (y ↦ trm ◂ smallerTermS) x = nameInRBindCase x 
+  (λ q → lookupNameRinTermS smallerTermS (⟨ _ ⟩ q)) 
+  (λ proof → trm)
+{-# COMPILE AGDA2HS lookupNameRinTermS #-}
