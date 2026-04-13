@@ -19,16 +19,15 @@ private variable
   @0 k l    : Sort α
 
 
-lookupVarInTel : (s : Singleton α) (tel : Telescope α rβ) (n : NameInR rβ) → Type α
-lookupVarInTel s EmptyTel x = nameInRemptyCase x
-lookupVarInTel {α} s (ExtendTel y (El typSort typTerm) smallerTel) x = nameInRBindCase x 
-  (λ q → 
-    let
-      -- substitution = SCons (idSubst s) typTerm
-      newTel = substTop s typTerm smallerTel
-    in
-    lookupVarInTel s newTel (⟨ _ ⟩ q)) 
-  (λ proof → (El typSort typTerm))
+lookupVarInTel : (rs : Singleton α) (tel : Telescope α rβ) (n : NameInR rβ) → Type α
+lookupVarInTel _ EmptyTel x = nameInRemptyCase x
+lookupVarInTel {α} rs (ExtendTel y (El typSort typTerm) smallerTel) x = 
+  let 
+    result = nameInRBindCase x 
+      (λ q → lookupVarInTel (singBind rs) smallerTel (⟨ _ ⟩ q)) 
+      (λ proof → weakenType (subBindDrop subRefl) (El typSort typTerm))
+  in
+  substTop rs typTerm result
 
 dataConstructorType : {d : NameData}
                 → (dt : Datatype d)
