@@ -19,15 +19,16 @@ private variable
   @0 k l    : Sort α
 
 
-lookupVarInTel : (rs : Singleton α) (tel : Telescope α rβ) (n : NameInR rβ) → Type α
-lookupVarInTel _ EmptyTel x = nameInRemptyCase x
-lookupVarInTel {α} rs (ExtendTel y (El typSort typTerm) smallerTel) x = 
+lookupNameRinTel : (rs : Singleton α) (tel : Telescope α rβ) (n : NameInR rβ) → Type α
+lookupNameRinTel _ EmptyTel x = nameInRemptyCase x
+lookupNameRinTel {α} rs (ExtendTel y (El typSort typTerm) smallerTel) x = 
   let 
     result = nameInRBindCase x 
-      (λ q → lookupVarInTel (singBind rs) smallerTel (⟨ _ ⟩ q)) 
+      (λ q → lookupNameRinTel (singBind rs) smallerTel (⟨ _ ⟩ q)) 
       (λ proof → weakenType (subBindDrop subRefl) (El typSort typTerm))
   in
   substTop rs typTerm result
+{-# COMPILE AGDA2HS lookupNameRinTel #-}
 
 dataConstructorType : {d : NameData}
                 → (dt : Datatype d)
@@ -173,7 +174,7 @@ data TyTerm {α} Γ where
          sigRecord = sigRecs sig rn)
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
     --------------------------------------------------------------------------
-    → Γ ⊢ TProj recordTerm projFunc ∶ lookupVarInTel (singScope Γ) (instRecConArgTel sigRecord instPars) projFunc
+    → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (instRecConArgTel sigRecord instPars) projFunc
 
   TyPi :
       Γ ⊢ u ∶ sortType k
@@ -345,17 +346,17 @@ tyCase' dt refl {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
 
 
 
--- tyProj' : {@0 Γ : Context α}
---   {rn : NameRec}
---   {recordTerm : Term α}
---   {rsort : Sort α}
---   {projFunc : NameProj rn}
---   (instPars : TermS α (recParScope rn))
---   (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
---   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
---   → Γ ⊢ TProj recordTerm projFunc ∶ lookupVarInTel (instRecConArgTel sigRecord instPars) projFunc
--- tyProj' instPars sigRecord refl proof = TyProj proof
--- {-# COMPILE AGDA2HS tyProj' #-}
+tyProj' : {@0 Γ : Context α}
+  {rn : NameRec}
+  {recordTerm : Term α}
+  {rsort : Sort α}
+  {projFunc : NameProj rn}
+  (instPars : TermS α (recParScope rn))
+  (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
+  → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
+  → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (instRecConArgTel sigRecord instPars) projFunc
+tyProj' instPars sigRecord refl proof = TyProj proof
+{-# COMPILE AGDA2HS tyProj' #-}
 
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
             {@0 ps : TermS α (dataParScope d)}

@@ -1,4 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 open import Agda.Core.Prelude
 
 module Agda.Core.Name where

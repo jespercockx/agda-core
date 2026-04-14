@@ -106,12 +106,6 @@ lookupVar (CtxExtend {α = α'} g y s) x = (nameInBindCase x
   (λ _ → (weakenType (subBindDrop subRefl) s))
   )
 {-# COMPILE AGDA2HS lookupVar #-}
-  
-
--- lookupVarInTel : (tel : Telescope α rγ) (n : NameInR rγ) → Type α
--- lookupVarInTel EmptyTel n = {!!}
--- lookupVarInTel (ExtendTel y typ smallerTel) x = {!!}
--- {-# COMPILE AGDA2HS lookupVarInTel #-}
 
 lookupNameRinTermS : TermS α rγ → NameInR rγ → Term α
 lookupNameRinTermS TSNil x = nameInRemptyCase x
