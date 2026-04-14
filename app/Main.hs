@@ -245,9 +245,9 @@ agdaCoreCompile env _ _ def = do
     -- if we encounter a  record projection function, skip adding it to tcg, since we already added it when processing `Internal.Record`
     Internal.Function{} | Map.member defName tcg_defs -> do
       reportSDoc "agda-core.check" 3 $ text "  Projection function name:" <+> prettyTCM name
-      -- TODO (atejandev): Add name of projection function to nameMap
+      let nnames_defs = Map.insert (indexToNat index) name nameDefs
       pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons, 
-        NameMap nameDefs nameData nameRecs nameCons)
+        NameMap nnames_defs nameData nameRecs nameCons)
     _ -> do
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
       let ntcg_defs = Map.insert defName index tcg_defs

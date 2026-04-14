@@ -85,7 +85,7 @@ prettyCoreTermAux m Something term =
     Core.TRecCon c trms -> "RecordConstructor" <> "[ " <> prettyCore m trms <>"]"
     Core.TData d pars ixs -> printNameData m d <> prettyCore m pars <> prettyCore m ixs
     Core.TRec rn pars -> printNameRec m rn <> prettyCore m pars
-    Core.TProj {} -> "projection not implemented"
+    Core.TProj rn trm projFunc -> prettyCore m trm <> " ." <> printDef m projFunc <> " from record type " <> printNameRec m rn
     Core.TCase d r u bs ty -> "Case" <> printNameData m d <> prettyCore m u <> "of" <> prettyCoreBranches m d bs <> ":" <> prettyCore m ty
     Core.TLet _ _  -> "let binding not implemented"
     Core.TAnn u ty -> "(" <>prettyCore m u <> " : " <> prettyCore m ty <> ")"
