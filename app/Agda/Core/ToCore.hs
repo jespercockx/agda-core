@@ -359,7 +359,7 @@ toCoreDefn (I.FunctionDefn def) _ =
             _ <- lookupRec qn >>= \case
                   Nothing -> throwError $ "Trying to access an unknown record definition: " <+> pretty qn
                   Just (recordIndex, _) -> pure recordIndex
-            throwError "Record projection functions are not compiled in Agda Core"
+            return Core.ProjDefn
     I.FunctionData{}
       -> throwError "unsupported case (shouldn't happen)"
 
@@ -427,7 +427,7 @@ toCoreDefn (I.ConstructorDefn cs) ty =
                           _conSrcCon = I.ConHead{conDataRecord = dataOrRecord}}  = cs
 
   case dataOrRecord of
-    I.IsRecord _ -> throwError "Record constructors are not compiled in Agda Core"
+    I.IsRecord _ -> return Core.RecordConstructorDefn
     I.IsData -> do
       let I.TelV{ theCore = tyInd}            = I.telView'UpTo pars ty
           I.TelV{ theTel = internalIndTel,
@@ -445,9 +445,9 @@ toCoreDefn (I.ConstructorDefn cs) ty =
                           ++ "\ninternalIndTelAsListLength: " ++ show (length (I.telToList internalIndTel))
                           ++ "\n"
                         )
-                    Core.Constructor{ conIndTel = indTel,
+                    Core.DataConstructor{ conIndTel = indTel,
                                               conIx     = ixsTermS}
-              return $ Core.ConstructorDefn c
+              return $ Core.DataConstructorDefn c
         _ -> do
           throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
 

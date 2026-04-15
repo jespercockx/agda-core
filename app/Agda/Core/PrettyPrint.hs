@@ -148,9 +148,9 @@ instance PrettyCore Core.Datatype where
   prettyCore m d = "Is a datatype"
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
-instance PrettyCore Core.Constructor where
-  prettyCore :: NameMap -> Core.Constructor -> String
-  prettyCore m d = "Is a constructor"
+instance PrettyCore Core.DataConstructor where
+  prettyCore :: NameMap -> Core.DataConstructor -> String
+  prettyCore m d = "Is a data constructor"
 
 instance PrettyCore Core.Record where
   prettyCore :: NameMap -> Core.Record -> String
@@ -163,10 +163,12 @@ instance PrettyCore Core.Defn where
     prettyCore m t
   prettyCore m (Core.DatatypeDefn    d) =
     prettyCore m d
-  prettyCore m (Core.ConstructorDefn c) =
+  prettyCore m (Core.DataConstructorDefn c) =
     prettyCore m c
   prettyCore m (Core.RecordDefn r) =
     prettyCore m r
+  prettyCore m (Core.RecordConstructorDefn) = 
+    "Is a record constructor"
   prettyCore m (Core.ProjDefn) = 
     "Is a Projection"
 

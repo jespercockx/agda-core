@@ -22,11 +22,10 @@ private variable
 
 
 ---------------------------------------------------------------------------------------------------
-                                        {- Constructor -}
+                                        {- DataConstructor -}
 ---------------------------------------------------------------------------------------------------
 
--- TODO (atejandev) Currently, the constructor of a record is also compiled to this `Constructor` type, meaning the translation is ill-scoped. This might need to be fixed some time
-record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
+record DataConstructor {@0 d : NameData} (@0 c : NameCon d) : Set where
   no-eta-equality
   private
     @0 pars : RScope Name
@@ -43,10 +42,10 @@ record Constructor {@0 d : NameData} (@0 c : NameCon d) : Set where
   instConIndTel tPars = subst (extSubst ⌈⌉ tPars) conIndTel
   {-# COMPILE AGDA2HS instConIndTel inline #-}
 
-open Constructor public
-{-# COMPILE AGDA2HS Constructor #-}
+open DataConstructor public
+{-# COMPILE AGDA2HS DataConstructor #-}
 
-instConIx : {@0 c : NameCon d} (con : Constructor c)
+instConIx : {@0 c : NameCon d} (con : DataConstructor c)
   → TermS α (dataParScope d) → TermS α (dataFieldScope c) → TermS α (dataIxScope d)
 instConIx con tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) (conIx con)
 {-# COMPILE AGDA2HS instConIx #-}
@@ -135,7 +134,7 @@ record Signature : Set where
     sigData : (d : NameData) → Datatype d
     sigDefs : (f : NameIn defScope)  → Type mempty × SigDefinition
     -- Do not erase d, (d,c) is needed to find the constructor
-    sigCons : (d : NameData) (c : NameCon d) → Constructor c
+    sigCons : (d : NameData) (c : NameCon d) → DataConstructor c
     sigRecs : (recordName : NameRec) → Record recordName
     
     
@@ -171,10 +170,9 @@ getBody sig x = case getDefinition sig x of λ where
 data Defn : Set where
   FunctionDefn : (funBody : Term mempty) → Defn
   DatatypeDefn :  (@0 d : NameData) → Datatype d → Defn
-  -- (atejandev): Stricly speaking, the type of `ConstructorDefn` is not correct on the Haskell side, 
-  -- because `d` can also be a `NameRec`
-  ConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → Constructor c → Defn
+  DataConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → DataConstructor c → Defn
   RecordDefn : (@0 r : NameRec) → Record r → Defn
+  RecordConstructorDefn : Defn
   ProjDefn : Defn
 {-# COMPILE AGDA2HS Defn #-}
 

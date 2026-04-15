@@ -12,11 +12,11 @@ data Nat : Set where
 --   True : Bool
 --   False : Bool
 
--- data _≡_ {A : Set} (x : A) : A → Set where
---  refl : x ≡ x
+data _≡_ {A : Set} (x : A) : A → Set where
+ refl : x ≡ x
 
--- const : (A : Set) → A → A → A
--- const = λ A → λ x → λ y → x
+const : (A : Set) → A → A → A
+const = λ A → λ x → λ y → x
 
 record Pair (A B : Set) : Set where
     field

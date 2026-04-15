@@ -53,7 +53,7 @@ boolcons = lookupAllR {p = λ c → c ∈ cons}
                                  (inThere inHere)))
   )
 
-boolsigcons : {@0 d : NameData} (c : NameCon d) → Constructor {d = d} c
+boolsigcons : {@0 d : NameData} (c : NameCon d) → DataConstructor {d = d} c
 boolsigcons _  = record { conIndTel = EmptyTel; conIx = TSNil }
 
 

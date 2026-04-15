@@ -134,7 +134,7 @@ backend = Backend'
 data PreSignature = PreSignature {
   preSigDefs      :: Map Natural Core.Definition,
   preSigData      :: Map Natural Core.Datatype,
-  preSigCons      :: Map (Natural, Natural) Core.Constructor,
+  preSigDataCons      :: Map (Natural, Natural) Core.DataConstructor,
   preSigRecs      :: Map Natural Core.Record
 }
 
@@ -202,7 +202,7 @@ agdaCoreCompile env _ _ def = do
     globalDefs = tcg_defs, globalDatas = tcg_datas, globalRecs = tcg_recs,
     globalCons = tcg_cons}                                        <- liftIO $ readIORef ioTcg
   NameMap {nameDefs, nameData, nameRecs, nameCons}                    <- liftIO $ readIORef ioNames
-  PreSignature {preSigDefs, preSigData, preSigCons, preSigRecs}       <- liftIO $ readIORef ioPreSig
+  PreSignature {preSigDefs, preSigData, preSigDataCons, preSigRecs}       <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
     -- if a datatype is encountered, add all constructors to the tcg environement
@@ -283,17 +283,17 @@ agdaCoreCompile env _ _ def = do
           PreSignature
             { preSigDefs = Map.insert (indexToNat index) def' preSigDefs
             , preSigData = preSigData
-            , preSigCons = preSigCons
+            , preSigDataCons = preSigDataCons
             , preSigRecs = preSigRecs
             }
         Core.DatatypeDefn dt -> liftIO $ writeIORef ioPreSig $
           PreSignature
             { preSigDefs = preSigDefs
             , preSigData = Map.insert (indexToNat index) dt preSigData
-            , preSigCons = preSigCons
+            , preSigDataCons = preSigDataCons
             , preSigRecs = preSigRecs
             }
-        Core.ConstructorDefn cons -> do
+        Core.DataConstructorDefn cons -> do
           -- It should not matter here whether one uses `tcg_cons` (old one) or `globalConsData ntcg` (new one), but let's use the new one to be safe
           let (dID, cID_m) = globalCons ntcg Map.! defName
           -- if there is no constructor index (it is a record), the constructor index must be Zero
@@ -302,7 +302,7 @@ agdaCoreCompile env _ _ def = do
             PreSignature
               {  preSigDefs = preSigDefs
               , preSigData = preSigData
-              , preSigCons = Map.insert (indexToNat dID, indexToNat constructorIndex) cons preSigCons
+              , preSigDataCons = Map.insert (indexToNat dID, indexToNat constructorIndex) cons preSigDataCons
               , preSigRecs = preSigRecs
               }
         Core.RecordDefn coreRecord -> do
@@ -310,16 +310,23 @@ agdaCoreCompile env _ _ def = do
             PreSignature
                 {  preSigDefs = preSigDefs
                 , preSigData = preSigData
-                , preSigCons = preSigCons
+                , preSigDataCons = preSigDataCons
                 , preSigRecs = Map.insert (indexToNat index) coreRecord preSigRecs
                 }
         Core.ProjDefn ->
           liftIO $ writeIORef ioPreSig $
             PreSignature
-                -- For now, we just save the projection function in preSigDefs
-                {  preSigDefs = Map.insert (indexToNat index) def' preSigDefs
+                {  preSigDefs = preSigDefs
                 , preSigData = preSigData
-                , preSigCons = preSigCons
+                , preSigDataCons = preSigDataCons
+                , preSigRecs = preSigRecs
+                }
+        Core.RecordConstructorDefn ->
+          liftIO $ writeIORef ioPreSig $
+            PreSignature
+                {  preSigDefs = preSigDefs
+                , preSigData = preSigData
+                , preSigDataCons = preSigDataCons
                 , preSigRecs = preSigRecs
                 }
       return $ pure def'
@@ -329,7 +336,7 @@ agdaCoreCompile env _ _ def = do
 -- PostModule
 -- do the typechecking
 preSignatureToSignature :: PreSignature -> Core.Signature
-preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons, preSigRecs}  =  do
+preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigDataCons, preSigRecs}  =  do
   let datas i  = case preSigData Map.!? indexToNat i of
         Just dt -> dt
         _ -> __IMPOSSIBLE__
@@ -339,7 +346,7 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons, preSig
         Just  Core.Definition{defType = ty, theDef = Core.ProjDefn} -> (ty, Core.ProjFunDef)
         _ -> __IMPOSSIBLE__
 
-  let cons d c = case preSigCons Map.!? (indexToNat d, indexToNat c) of
+  let cons d c = case preSigDataCons Map.!? (indexToNat d, indexToNat c) of
         Just ct -> ct
         _ -> __IMPOSSIBLE__
 
