@@ -359,7 +359,7 @@ toCoreDefn (I.FunctionDefn def) _ =
             _ <- lookupRec qn >>= \case
                   Nothing -> throwError $ "Trying to access an unknown record definition: " <+> pretty qn
                   Just (recordIndex, _) -> pure recordIndex
-            return (Core.ProjDefn (Core.ProjectionFunction))
+            return (Core.ProjDefn)
     I.FunctionData{}
       -> throwError "unsupported case (shouldn't happen)"
 
@@ -427,7 +427,7 @@ toCoreDefn (I.ConstructorDefn cs) ty =
                           _conSrcCon = I.ConHead{conDataRecord = dataOrRecord}}  = cs
 
   case dataOrRecord of
-    I.IsRecord _ -> return (Core.RecordConstructorDefn (Core.RecConstructor))
+    I.IsRecord _ -> return (Core.RecordConstructorDefn)
     I.IsData -> do
       let I.TelV{ theCore = tyInd}            = I.telView'UpTo pars ty
           I.TelV{ theTel = internalIndTel,
