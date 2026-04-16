@@ -134,7 +134,7 @@ backend = Backend'
 data PreSignature = PreSignature {
   preSigDefs      :: Map Natural Core.Definition,
   preSigData      :: Map Natural Core.Datatype,
-  preSigDataCons      :: Map (Natural, Natural) Core.DataConstructor,
+  preSigDataCons  :: Map (Natural, Natural) Core.DataConstructor,
   preSigRecs      :: Map Natural Core.Record
 }
 
@@ -316,7 +316,7 @@ agdaCoreCompile env _ _ def = do
         Core.ProjDefn ->
           liftIO $ writeIORef ioPreSig $
             PreSignature
-                {  preSigDefs = preSigDefs
+                {  preSigDefs = Map.insert (indexToNat index) def' preSigDefs
                 , preSigData = preSigData
                 , preSigDataCons = preSigDataCons
                 , preSigRecs = preSigRecs
@@ -343,10 +343,9 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigDataCons, pr
 
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
-        Just  Core.Definition{defType = ty, theDef = Core.ProjDefn} -> (ty, Core.ProjFunDef)
         _ -> __IMPOSSIBLE__
 
-  let cons d c = case preSigDataCons Map.!? (indexToNat d, indexToNat c) of
+  let dataCons d c = case preSigDataCons Map.!? (indexToNat d, indexToNat c) of
         Just ct -> ct
         _ -> __IMPOSSIBLE__
 
@@ -354,7 +353,11 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigDataCons, pr
         Just record -> record
         _ -> __IMPOSSIBLE__
 
-  Core.Signature datas defns cons recs
+  let recCons c = error "Illegal: Cannot lookup a record constructor in the Signature"
+  
+  let projs p = error "Illegal: Cannot lookup a projection function in the Signature"
+
+  Core.Signature datas defns dataCons recs 
 
 
 

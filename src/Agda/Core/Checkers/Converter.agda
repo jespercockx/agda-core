@@ -266,10 +266,6 @@ convertTermSs r (x ↦ u ◂ s0) t =
 
 {-# COMPILE AGDA2HS convertTermSs #-}
 
--- I don't think this is going to work because one can't pattern-match on an erased TermS
--- convertTermSsErased r ⌈⌉ _ = CSNil
--- convertTermSsErased r t _ = CSNil
-
 convertBranch : ⦃ fl : Fuel ⦄
               → Singleton α
               → {@0 d : NameData} {@0 c : NameCon d}
@@ -301,17 +297,16 @@ convertEtaFuncsGeneric r x f b = do
   convertCheck newScope b term
 {-# COMPILE AGDA2HS convertEtaFuncsGeneric #-}
 
-
-
--- equalsProof
---   : {rn : NameRec}
---   → (termS : TermS α (recFieldScope rn))
---   → singTermS termS ≡ sing (recFieldScope rn)
-
--- equalsProof (x ↦ u ◂ ts)
---   rewrite equalsProof ts
---   = refl
-
+convertEtaRecsGeneric : ⦃ fl : Fuel ⦄
+                    → {rn : NameRec}
+                    → Singleton α
+                    → (rt : Term α)
+                    → (argsTermS : TermS α (recFieldScope rn))
+                    → TCM (argsTermS ⇔ (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt))))
+convertEtaRecsGeneric {rn = rn} r rt argsTermS = 
+  convertTermSs r argsTermS (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt)))
+{-# COMPILE AGDA2HS convertEtaRecsGeneric #-}
+             
 
 convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
 convertWhnf r (TVar x) (TVar y) = convVars x y
@@ -336,19 +331,13 @@ convertWhnf r (TLam x b) functionTerm =
   do
     conversionProof <- convertEtaFuncsGeneric r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
-convertWhnf r rt (TRecCon rn argsTermS) = 
-  do
-    let 
-        singletonScope = singTermS argsTermS
-        func = (TProj {rn = rn} rt)
-        termSToConvertInto = (createDesiredTermS singletonScope func)
-    -- check whether argsTermS can be converted in the desired termSToConvertInto
-    convProof ← convertTermSs r argsTermS termSToConvertInto
-    --return proof that rt can be converted into (TRecCon rn argsTermS)
-    return (CEtaRecords rn rt argsTermS convProof)
-convertWhnf r (TRecCon rn argsTermS) rt = 
-  tcError "TODO: eta records symmetric case"
-convertWhnf r (TProj _ _) term = tcError "TODO: Tproj generic left case"
+convertWhnf r recTerm (TRecCon rn argsTermS) = do
+    convProof ← convertEtaRecsGeneric r recTerm argsTermS
+    return (CEtaRecordsLeft rn recTerm argsTermS convProof)
+convertWhnf r (TRecCon rn argsTermS) recTerm = do
+    convProof ← convertEtaRecsGeneric r recTerm argsTermS
+    return (CEtaRecordsRight rn recTerm argsTermS convProof)
+convertWhnf r (TProj _ _) term = tcError "TODO: TProj generic left case"
 convertWhnf r term (TProj _ _) = tcError "TODO: TProj generic right case"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 

@@ -21,11 +21,11 @@ private variable
 
 opaque
   unfolding RScope
-  createDesiredTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
-  createDesiredTermS ([] ⟨ refl ⟩)                   _  = TSNil
-  createDesiredTermS ((Erased name ∷ names) ⟨ refl ⟩) f =
-    name ↦ f (⟨ name ⟩ inRHere) ◂ createDesiredTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
-  {-# COMPILE AGDA2HS createDesiredTermS #-}
+  etaProjTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
+  etaProjTermS ([] ⟨ refl ⟩)                   _  = TSNil
+  etaProjTermS ((Erased name ∷ names) ⟨ refl ⟩) f =
+    name ↦ f (⟨ name ⟩ inRHere) ◂ etaProjTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
+  {-# COMPILE AGDA2HS etaProjTermS #-}
 
 
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
@@ -113,13 +113,20 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
-  CEtaRecords : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
+  CEtaRecordsLeft : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
     → let singScope = (singTermS argsTermS)
           func = λ projFuncName → (TProj {rn = rn} rt projFuncName)
-          termSToConvertInto = createDesiredTermS singScope func
+          termSToConvertInto = etaProjTermS singScope func
           in
       (argsTermS ⇔ termSToConvertInto)
     → rt ≅ (TRecCon rn argsTermS)
+  CEtaRecordsRight : (rn : NameRec) (rt : Term α) (argsTermS : TermS α (recFieldScope rn))
+    → let singScope = (singTermS argsTermS)
+          func = λ projFuncName → (TProj {rn = rn} rt projFuncName)
+          termSToConvertInto = etaProjTermS singScope func
+          in
+      (argsTermS ⇔ termSToConvertInto)
+    → (TRecCon rn argsTermS) ≅ rt 
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v

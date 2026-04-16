@@ -83,11 +83,6 @@ open Datatype public
 
 
 
-data Vec (a : Set) : (@0 n : Nat) → Set where
-  Nil : Vec a 0
-  Cons : {@0 n : Nat} → a → Vec a n → Vec a (suc n)
-{-# COMPILE AGDA2HS Vec #-}
-
 ---------------------------------------------------------------------------------------------------
                                           {- Record -}
 ---------------------------------------------------------------------------------------------------
@@ -121,11 +116,36 @@ open Record public
 {-# COMPILE AGDA2HS Record #-}
 
 ---------------------------------------------------------------------------------------------------
+                                          {- Projection function -}
+---------------------------------------------------------------------------------------------------
+record ProjectionFunction {@0 rn : NameRec} (@0 proj : NameProj rn) : Set where
+  no-eta-equality
+  private
+    @0 pars : RScope Name
+    pars = recParScope rn
+  field
+    recSort         : Sort (mempty ◂▸ pars)
+open ProjectionFunction public
+{-# COMPILE AGDA2HS ProjectionFunction #-}
+
+---------------------------------------------------------------------------------------------------
+                                          {- Record constructor -}
+---------------------------------------------------------------------------------------------------
+record RecConstructor {@0 rn : NameRec} (@0 c : NameRecCon rn) : Set where
+  no-eta-equality
+  private
+    @0 pars : RScope Name
+    pars = recParScope rn
+  field
+    recSort         : Sort (mempty ◂▸ pars)
+open RecConstructor public
+{-# COMPILE AGDA2HS RecConstructor #-}
+
+---------------------------------------------------------------------------------------------------
                                           {- Signature -}
 ---------------------------------------------------------------------------------------------------
 data SigDefinition : Set where
   FunctionDef : (funBody : Term mempty) → SigDefinition
-  ProjFunDef : SigDefinition
 {-# COMPILE AGDA2HS SigDefinition #-}
 
 record Signature : Set where
@@ -136,8 +156,8 @@ record Signature : Set where
     -- Do not erase d, (d,c) is needed to find the constructor
     sigCons : (d : NameData) (c : NameCon d) → DataConstructor c
     sigRecs : (recordName : NameRec) → Record recordName
-    
-    
+    sigRecCons : (rn : NameRec) (c : NameRecCon rn) → RecConstructor c
+    sigProjFuncs : (rn : NameRec) (proj : NameProj rn) → ProjectionFunction proj
 
 open Signature public
 {-# COMPILE AGDA2HS Signature #-}
@@ -160,7 +180,6 @@ getDefinition sig x = snd typeAndSigDef
 getBody : Signature → (x : NameIn defScope) → Maybe (Term mempty)
 getBody sig x = case getDefinition sig x of λ where
   (FunctionDef body) → Just body
-  ProjFunDef → Nothing
 {-# COMPILE AGDA2HS getBody #-}
 
 ---------------------------------------------------------------------------------------------------
@@ -172,8 +191,8 @@ data Defn : Set where
   DatatypeDefn :  (@0 d : NameData) → Datatype d → Defn
   DataConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → DataConstructor c → Defn
   RecordDefn : (@0 r : NameRec) → Record r → Defn
-  RecordConstructorDefn : Defn
-  ProjDefn : Defn
+  RecordConstructorDefn : (@0 rn : NameRec) → (@0 c : NameRecCon rn) → RecConstructor c → Defn
+  ProjDefn : (@0 rn : NameRec) → (@0 proj : NameProj rn) → ProjectionFunction proj → Defn
 {-# COMPILE AGDA2HS Defn #-}
 
 

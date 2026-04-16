@@ -15,6 +15,7 @@ record Globals : Set where
     recScope          : Scope Name
     recParScope       : NameIn recScope → RScope Name -- scope of the record's parameter list
     recFieldScope     : NameIn recScope → RScope Name -- scope of the record constructor and the projection functions of the record
+    recCon            : NameIn recScope → Name        
   NameData : Set
   NameData = NameIn dataScope
   NameCon : NameData → Set
@@ -23,6 +24,8 @@ record Globals : Set where
   NameRec = NameIn recScope
   NameProj : NameRec → Set
   NameProj rn = NameInR (recFieldScope rn)
+  NameRecCon : NameRec → Set
+  NameRecCon rn = NameIn [ recCon rn ] 
   opaque
     unfolding RScope
     AllNameCon : (d : NameData) → RScope (NameCon d)

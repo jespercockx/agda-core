@@ -56,8 +56,8 @@ example0 = Pair
 example1 : (B : Set) → Set
 example1 = Pair Nat
 
-proj_example : Nat
-proj_example = Pair.fst x
+-- proj_example : Nat
+-- proj_example = Pair.fst x
 
 -- proj_example_requires_proj_reduction : Pair.fst x ≡ Zero
 -- proj_example_requires_proj_reduction = refl
@@ -68,15 +68,19 @@ proj_example = Pair.fst x
 -- z : PairExplCon Nat Nat
 -- z = _,_ Zero (Suc Zero)
 
+--requirement for type checking eta-R-two
+eta-R-two_sub : (A B : Set) → (const (Pair A B → A) Pair.fst Pair.fst) ≡ Pair.fst
+eta-R-two_sub = λ A B → refl
+
 -- -- (diode-lang):
 -- -- keeping in mind Converter.agda, 
 -- -- it should be that:
 -- -- - rt = p
 -- -- - rn = Pair
 -- -- - argsTermS = [(const (Pair A B → A) Pair.fst Pair.fst) p; Pair.snd p]
--- eta-R-two : (A B : Set) (p : Pair A B) → 
---   p ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) p ; snd = Pair.snd p }
--- eta-R-two = λ A B → λ p → refl
+eta-R-two : (A B : Set) (p : Pair A B) → 
+  p ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) p ; snd = Pair.snd p }
+eta-R-two = λ A B → λ p → refl
 
 -- -- (diode-lang) only difference with eta-R-two is that constructor naming is explicit
 -- eta-R-two-expl-con : (A B : Set) (p : PairExplCon A B) → 
