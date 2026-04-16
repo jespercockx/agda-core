@@ -1,4 +1,4 @@
-module Agda.Core.Tests where
+module Agda.Core.TestProjection where
 
 open import Agda.Core.Prelude
 
@@ -72,7 +72,7 @@ opaque
 instance
   sig : Signature
   sig .sigData = λ _ → record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}
-  sig .sigDefs = nameInEmptyCase
+  sig .sigDefs n = nameInEmptyCase n
   sig .sigRecs rn = nameInEmptyCase rn
   sig .sigCons d c = boolsigcons {d = d} c
 
