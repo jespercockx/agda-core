@@ -146,6 +146,7 @@ open Record public
 ---------------------------------------------------------------------------------------------------
 data SigDefinition : Set where
   FunctionDef : (funBody : Term mempty) → SigDefinition
+  ProjectionDef : SigDefinition
 {-# COMPILE AGDA2HS SigDefinition #-}
 
 record Signature : Set where
@@ -180,6 +181,7 @@ getDefinition sig x = snd typeAndSigDef
 getBody : Signature → (x : NameIn defScope) → Maybe (Term mempty)
 getBody sig x = case getDefinition sig x of λ where
   (FunctionDef body) → Just body
+  ProjectionDef → Nothing
 {-# COMPILE AGDA2HS getBody #-}
 
 ---------------------------------------------------------------------------------------------------
