@@ -117,7 +117,7 @@ convertTermSs : {{fl : Fuel}} → Singleton α →
                 (s p : TermS α rβ)
               → TCM (s ⇔ p)
 convertBranches : {{fl : Fuel}} → Singleton α →
-                ∀ {@0 d : NameData} {@0 cs : RScope (NameCon d)}
+                ∀ {@0 d : NameData} {@0 cs : RScope (NameDataCon d)}
                   (bs bp : Branches α d cs)
                 → TCM (ConvBranches bs bp)
 
@@ -150,8 +150,8 @@ convRecs r rn1 rn2 pars1 pars2 = do
 
 convDataCons : {{fl : Fuel}} → Singleton α →
            {d d' : NameData}
-           (f : NameCon d)
-           (g : NameCon d')
+           (f : NameDataCon d)
+           (g : NameDataCon d')
            (lp : TermS α (dataFieldScope f))
            (lq : TermS α (dataFieldScope g))
          → TCM (Conv (TDataCon f lp) (TDataCon g lq))
@@ -268,7 +268,7 @@ convertTermSs r (x ↦ u ◂ s0) t =
 
 convertBranch : ⦃ fl : Fuel ⦄
               → Singleton α
-              → {@0 d : NameData} {@0 c : NameCon d}
+              → {@0 d : NameData} {@0 c : NameDataCon d}
               → (b1 : Branch α c) (b2 : Branch α c)
               → TCM (ConvBranch b1 b2)
 convertBranch r (BBranch rc rz1 rhs1) (BBranch rc' rz2 rhs2) =

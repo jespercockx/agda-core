@@ -32,7 +32,7 @@ lookupNameRinTel {α} rs (ExtendTel y (El typSort typTerm) smallerTel) x =
 
 dataConstructorType : {d : NameData}
                 → (dt : Datatype d)
-                → {c : NameCon d}
+                → {c : NameDataCon d}
                 → (con : DataConstructor c)
                 → (pars : TermS α (dataParScope d))
                 → TermS α (dataFieldScope c)
@@ -55,11 +55,11 @@ data TyTermS (@0 Γ : Context α) : @0 TermS α rβ → @0 Telescope α rβ → 
 
 data TyBranches (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
                 (@0 ps : TermS α (dataParScope d))
-                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 cs : RScope (NameCon d)} → @0 Branches α d cs → Set
+                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 cs : RScope (NameDataCon d)} → @0 Branches α d cs → Set
 
 data TyBranch   (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
                 (@0 ps : TermS α (dataParScope d))
-                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 c : NameCon d} → @0 Branch α c → Set
+                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 c : NameDataCon d} → @0 Branch α c → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -101,7 +101,7 @@ data TyTerm {α} Γ where
 
   TyDataCon :
       {d : NameData}
-      {c : NameCon d}
+      {c : NameDataCon d}
       {@0 pars : TermS α (dataParScope d)}
       {@0 us  : TermS α (dataFieldScope c)}
       (let dt  : Datatype d
@@ -209,7 +209,7 @@ data TyTerm {α} Γ where
 
 data TyBranches {α} Γ {d} dt ps rt where
   TyBsNil : TyBranches Γ dt ps rt BsNil
-  TyBsCons : ∀ {@0 c : NameCon d} {@0 cs : RScope (NameCon d)} {@0 b : Branch α c} {@0 bs : Branches α d cs}
+  TyBsCons : ∀ {@0 c : NameDataCon d} {@0 cs : RScope (NameDataCon d)} {@0 b : Branch α c} {@0 bs : Branches α d cs}
            → TyBranch Γ dt ps rt b
            → TyBranches Γ dt ps rt bs
            → TyBranches Γ dt ps rt (BsCons b bs)
@@ -217,7 +217,7 @@ data TyBranches {α} Γ {d} dt ps rt where
 {-# COMPILE AGDA2HS TyBranches #-}
 
 data TyBranch {α = α} {x} Γ {d = d} dt pars return where
-  TyBBranch : (c : NameCon d)
+  TyBBranch : (c : NameDataCon d)
               (let con : DataConstructor c
                    con = sigCons sig d c
                    fields = dataFieldScope c
@@ -297,7 +297,7 @@ tyRec' rt refl typars = TyRec typars
 
 tyDataCon' : {@0 Γ : Context α}
   {d : NameData} → (@0 dt : Datatype d) → @0 sigData sig d ≡ dt
-  → {c : NameCon d} (@0 con : DataConstructor c) → @0 sigCons sig d c ≡ con
+  → {c : NameDataCon d} (@0 con : DataConstructor c) → @0 sigCons sig d c ≡ con
   → {@0 pars : TermS α (dataParScope d)}
   → {@0 us : TermS α (dataFieldScope c)}
   → Γ ⊢ˢ us ∶ instConIndTel con pars
@@ -361,7 +361,7 @@ tyProj' instPars sigRecord refl proof = TyProj proof
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
             {@0 ps : TermS α (dataParScope d)}
             {@0 return : Type (α ◂▸ dataIxScope d ▸ x)}
-            (c : NameCon d)
+            (c : NameDataCon d)
             (let fields = dataFieldScope c
                  β = α ◂▸ fields)
             (@0 con : DataConstructor c)

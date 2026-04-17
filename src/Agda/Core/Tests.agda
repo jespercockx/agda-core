@@ -54,7 +54,7 @@ boolcons = lookupAllR {p = λ c → c ∈ cons}
                                  (inThere inHere)))
   )
 
-boolsigcons : {@0 d : NameData} (c : NameCon d) → DataConstructor {d = d} c
+boolsigcons : {@0 d : NameData} (c : NameDataCon d) → DataConstructor {d = d} c
 boolsigcons _  = record { conIndTel = EmptyTel; conIx = TSNil }
 
 
@@ -84,9 +84,9 @@ instance
 opaque
   unfolding ScopeThings nameBool
 
-  nameTrue : NameCon nameBool
+  nameTrue : NameDataCon nameBool
   nameTrue = ⟨ "true" ⟩ inRHere
-  nameFalse : NameCon nameBool
+  nameFalse : NameDataCon nameBool
   nameFalse = ⟨ "false" ⟩ inRThere inRHere
 
   `true : Term α

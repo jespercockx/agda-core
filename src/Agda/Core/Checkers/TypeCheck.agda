@@ -53,7 +53,7 @@ tcmGetRecord rn = do
   return (singCong (λ sig → sigRecs sig rn) rsig)
 {-# COMPILE AGDA2HS tcmGetRecord #-}
 
-tcmGetConstructor : {d : NameData} (c : NameCon d) → TCM (Singleton (sigCons sig d c))
+tcmGetConstructor : {d : NameData} (c : NameDataCon d) → TCM (Singleton (sigCons sig d c))
 tcmGetConstructor {d = d} c = do
   rsig ← tcmSignature
   return (singCong (λ sig → sigCons sig d c) rsig)
@@ -66,7 +66,7 @@ inferVar ctx x = return $ _ , TyTVar
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
 checkType : ∀ (Γ : Context α) u (ty : Type α) → TCM (Γ ⊢ u ∶ ty)
-checkBranches : ∀ {d : NameData} {@0 cons : RScope (NameCon d)}
+checkBranches : ∀ {d : NameData} {@0 cons : RScope (NameDataCon d)}
                   (Γ : Context α)
                   (rz : Singleton cons)
                   (bs : Branches α d cons)
@@ -184,7 +184,7 @@ inferRec ctx rn pars = do
   return (sortType (instRecSort rt pars) , tyRec' rt defeq typars)
 {-# COMPILE AGDA2HS inferRec #-}
 
-checkBranch : ∀ {d : NameData} {@0 con : NameCon d} (Γ : Context α)
+checkBranch : ∀ {d : NameData} {@0 con : NameDataCon d} (Γ : Context α)
                 (bs : Branch α con)
                 (dt : Datatype d)
                 (ps : TermS α (dataParScope d))
@@ -224,7 +224,7 @@ checkBranches {d = d} ctx (sing cons) bs dt ps rt =
 
 checkDataCon : ∀ Γ
            {d : NameData}
-           (c : NameCon d)
+           (c : NameDataCon d)
            (cargs : TermS α (dataFieldScope c))
            (ty : Type α)
          → TCM (Γ ⊢ TDataCon c cargs ∶ ty)

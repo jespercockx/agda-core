@@ -12,8 +12,8 @@ private variable
   @0 α β  : Scope Name
   @0 rγ   : RScope Name
   @0 d    : NameData
-  @0 c    : NameCon d
-  @0 cs   : RScope (NameCon d)
+  @0 c    : NameDataCon d
+  @0 cs   : RScope (NameDataCon d)
 
 strengthenTerm      : α ⊆ β → Term β → Maybe (Term α)
 strengthenTermS     : α ⊆ β → TermS β rγ → Maybe (TermS α rγ)

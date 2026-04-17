@@ -112,7 +112,7 @@ unState r (MkState e v s) = subst (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
-lookupBranch : {@0 cs : RScope (NameCon d)} → Branches α d cs → (c : NameCon d)
+lookupBranch : {@0 cs : RScope (NameDataCon d)} → Branches α d cs → (c : NameDataCon d)
              → Maybe ( Singleton (dataFieldScope c)
                      × Term (α ◂▸ dataFieldScope c))
 lookupBranch BsNil c = Nothing

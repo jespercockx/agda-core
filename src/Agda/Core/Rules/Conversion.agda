@@ -31,10 +31,10 @@ opaque
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
 
-data ConvBranch   {@0 α} {@0 d : NameData} {@0 c : NameCon d} : @0 Branch α c → @0 Branch α c → Set
-data ConvBranches {@0 α} {@0 d : NameData} : {@0 cs : RScope(NameCon d)} → @0 Branches α d cs → @0 Branches α d cs → Set where
+data ConvBranch   {@0 α} {@0 d : NameData} {@0 c : NameDataCon d} : @0 Branch α c → @0 Branch α c → Set
+data ConvBranches {@0 α} {@0 d : NameData} : {@0 cs : RScope(NameDataCon d)} → @0 Branches α d cs → @0 Branches α d cs → Set where
   CBranchesNil : {bs bp : Branches α d mempty} → ConvBranches bs bp
-  CBranchesCons : {@0 cn : NameCon d} {b1 b2 : Branch α cn} {@0 cs : RScope(NameCon d)} {bs1 bs2 : Branches α d cs}
+  CBranchesCons : {@0 cn : NameDataCon d} {b1 b2 : Branch α cn} {@0 cs : RScope(NameDataCon d)} {bs1 bs2 : Branches α d cs}
                 → ConvBranch b1 b2
                 → ConvBranches bs1 bs2
                 → ConvBranches (BsCons b1 bs1) (BsCons b2 bs2)
@@ -97,7 +97,7 @@ data Conv {α} where
          (@0 pars1 pars2 : TermS α (recParScope rn))
          → pars1 ⇔ pars2
          → TRec rn pars1 ≅ TRec rn pars2 
-  CDataCon : {@0 d : NameData} (c : NameCon d)
+  CDataCon : {@0 d : NameData} (c : NameDataCon d)
            {@0 us vs : TermS α (dataFieldScope c)}
          → us ⇔ vs
          → TDataCon c us ≅ TDataCon c vs

@@ -25,7 +25,7 @@ private variable
                                         {- DataConstructor -}
 ---------------------------------------------------------------------------------------------------
 
-record DataConstructor {@0 d : NameData} (@0 c : NameCon d) : Set where
+record DataConstructor {@0 d : NameData} (@0 c : NameDataCon d) : Set where
   no-eta-equality
   private
     @0 pars : RScope Name
@@ -45,7 +45,7 @@ record DataConstructor {@0 d : NameData} (@0 c : NameCon d) : Set where
 open DataConstructor public
 {-# COMPILE AGDA2HS DataConstructor #-}
 
-instConIx : {@0 c : NameCon d} (con : DataConstructor c)
+instConIx : {@0 c : NameDataCon d} (con : DataConstructor c)
   → TermS α (dataParScope d) → TermS α (dataFieldScope c) → TermS α (dataIxScope d)
 instConIx con tPars tInd = subst (extSubst (extSubst ⌈⌉ tPars) tInd) (conIx con)
 {-# COMPILE AGDA2HS instConIx #-}
@@ -64,7 +64,7 @@ record Datatype (@0 d : NameData) : Set where
     dataSort             : Sort (mempty ◂▸ pars)
     dataParTel           : Telescope mempty pars
     dataIxTel            : Telescope (mempty ◂▸ pars) ixs
-    dataConstructors     : List (NameCon d) -- for Haskell side
+    dataConstructors     : List (NameDataCon d) -- for Haskell side
 
   instDataSort : TermS α (dataParScope d) → Sort α
   instDataSort tPars = subst (extSubst ⌈⌉ tPars) dataSort
@@ -155,7 +155,7 @@ record Signature : Set where
     sigData : (d : NameData) → Datatype d
     sigDefs : (f : NameIn defScope)  → Type mempty × SigDefinition
     -- Do not erase d, (d,c) is needed to find the constructor
-    sigCons : (d : NameData) (c : NameCon d) → DataConstructor c
+    sigCons : (d : NameData) (c : NameDataCon d) → DataConstructor c
     sigRecs : (recordName : NameRec) → Record recordName
     -- sigRecCons : (rn : NameRec) (c : NameRecCon rn) → RecConstructor c
     -- sigProjFuncs : (rn : NameRec) (proj : NameProj rn) → ProjectionFunction proj
@@ -191,7 +191,7 @@ getBody sig x = case getDefinition sig x of λ where
 data Defn : Set where
   FunctionDefn : (funBody : Term mempty) → Defn
   DatatypeDefn :  (@0 d : NameData) → Datatype d → Defn
-  DataConstructorDefn : (@0 d : NameData) (@0 c : NameCon d) → DataConstructor c → Defn
+  DataConstructorDefn : (@0 d : NameData) (@0 c : NameDataCon d) → DataConstructor c → Defn
   RecordDefn : (@0 r : NameRec) → Record r → Defn
   RecordConstructorDefn : Defn
   ProjDefn : Defn

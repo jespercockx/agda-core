@@ -272,7 +272,7 @@ module UnificationStepAndStop where
       {pSubst : TermS α (dataParScope d)}                                              -- value of the parameters of d
       {iSubst : TermS α (dataIxScope d)}                                               -- value of the indices of d
       {Δe₀ : Telescope (α ▸ e₀) rβ}
-      (c : NameCon d)                      -- c is a constructor of d
+      (c : NameDataCon d)                      -- c is a constructor of d
       (let con = sigCons sig d c
            rγ : RScope Name
            rγ = dataFieldScope c)                                                     -- name of the arguments of c
@@ -304,7 +304,7 @@ module UnificationStepAndStop where
       {pSubst : TermS α pars}                                                    -- value of the parameters of d
       {iSubst₁ iSubst₂ : TermS α ixs}                                            -- value of the indices of d
       {Δe₀ixs : Telescope (α ◂▸ ixs ▸ e₀) rβ₀}
-      {c : NameCon d}                      -- c is a constructor of dt
+      {c : NameDataCon d}                      -- c is a constructor of dt
       (let con = sigCons sig d c
            ind : RScope Name
            ind = dataFieldScope c)                                                     -- name of the arguments of c
@@ -356,14 +356,14 @@ module UnificationStepAndStop where
   data CycleProof {α = α} x where
     BasicCycle :
       {d : NameData}
-      {c : NameCon d}
+      {c : NameDataCon d}
       {σ : TermS α (dataFieldScope c)}
       → InTermS (TVar x) σ
       → CycleProof x (TDataCon c σ)
     SubCycle :
       {u v : Term α}
       {d : NameData}
-      {c : NameCon d}
+      {c : NameDataCon d}
       {σ : TermS α (dataFieldScope c)}
       → CycleProof x v
       → InTermS v σ
@@ -372,7 +372,7 @@ module UnificationStepAndStop where
   data UnificationStop {α = α} Γ where
     ConflictData :
       {d d' : NameData}
-      {c : NameCon d} {c' : NameCon d'}
+      {c : NameDataCon d} {c' : NameDataCon d'}
       {σ₁ : TermS α (dataFieldScope c)}
       {σ₂ : TermS α (dataFieldScope c')}
       {Ξ : Telescope α (e₀ ◂ rβ)}
@@ -381,12 +381,12 @@ module UnificationStepAndStop where
       → Γ , (e₀ ↦ TDataCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TDataCon c' σ₂ ◂ δ₂) ∶ Ξ ↣ᵤ⊥
     ConflictCon :
       {d d' : NameData}
-      {c : NameCon d} {c' : NameCon d'}
+      {c : NameDataCon d} {c' : NameDataCon d'}
       {σ₁ : TermS α (dataFieldScope c)}
       {σ₂ : TermS α (dataFieldScope c')}
       {Ξ : Telescope α (e₀ ◂ rβ)}
       (e : d ≡ d')
-      → c' ≠ transport NameCon e c
+      → c' ≠ transport NameDataCon e c
       ------------------------------------------------------------
       → Γ , (e₀ ↦ TDataCon c σ₁ ◂ δ₁) ≟ (e₀ ↦ TDataCon c' σ₂ ◂ δ₂) ∶ Ξ ↣ᵤ⊥
     {- cycle right now isn't as strict as it should be to correspond to the

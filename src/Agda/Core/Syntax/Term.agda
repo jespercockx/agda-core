@@ -16,8 +16,8 @@ data Term     (@0 α : Scope Name) : Set
 data TermS    (@0 α : Scope Name) : (@0 rβ : RScope Name) → Set
 record Type   (@0 α : Scope Name) : Set
 data Sort     (@0 α : Scope Name) : Set
-data Branch   (@0 α : Scope Name) {@0 d : NameData} (@0 c : NameCon d) : Set
-data Branches (@0 α : Scope Name) (@0 d : NameData) : @0 RScope (NameCon d) → Set
+data Branch   (@0 α : Scope Name) {@0 d : NameData} (@0 c : NameDataCon d) : Set
+data Branches (@0 α : Scope Name) (@0 d : NameData) : @0 RScope (NameDataCon d) → Set
 
 
 data Term α where
@@ -28,7 +28,7 @@ data Term α where
         → (TermS α (dataIxScope d))
         → Term α
   TRec : (rn : NameRec) → TermS α (recParScope rn) → Term α
-  TDataCon  : {d : NameData} (c : NameCon d)
+  TDataCon  : {d : NameData} (c : NameDataCon d)
         → (TermS α (dataFieldScope c)) → Term α
   TRecCon : (r : NameRec) → (TermS α (recFieldScope r)) → Term α
   TLam  : (@0 x : Name) (v : Term (α ▸ x)) → Term α
@@ -73,7 +73,7 @@ data Branch α c where
 
 data Branches α d where
   BsNil  : Branches α d mempty
-  BsCons : {@0 c : NameCon d} {@0 cs : RScope (NameCon d)}
+  BsCons : {@0 c : NameDataCon d} {@0 cs : RScope (NameDataCon d)}
     → Branch α c → Branches α d cs → Branches α d (c ◂ cs)
 
 {-# COMPILE AGDA2HS Term deriving Show #-}
@@ -92,8 +92,8 @@ private variable
   @0 α      : Scope Name
   @0 rβ rγ  : RScope Name
   @0 d      : NameData
-  @0 c      : NameCon d
-  @0 cs     : RScope (NameCon d)
+  @0 c      : NameDataCon d
+  @0 cs     : RScope (NameDataCon d)
 
 -- shortcut fort sort and datatype
 

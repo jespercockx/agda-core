@@ -14,8 +14,8 @@ private variable
   @0 α β γ  : Scope Name
   @0 rγ     : RScope Name
   @0 d      : NameData
-  @0 c      : NameCon d
-  @0 cs     : RScope (NameCon d)
+  @0 c      : NameDataCon d
+  @0 cs     : RScope (NameDataCon d)
   t        : @0 Scope Name → Set
 
 data Subst : (@0 α β : Scope Name) → Set where
