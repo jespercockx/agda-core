@@ -424,7 +424,7 @@ toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
   let I.ConstructorData{  _conPars  = pars,
                           _conArity = arity,
-                          _conSrcCon = I.ConHead{conDataRecord = dataOrRecord}}  = cs
+                          _conSrcCon = I.ConHead{conName = conName, conDataRecord = dataOrRecord}}  = cs
 
   case dataOrRecord of
     I.IsRecord _ -> return (Core.RecordConstructorDefn)
@@ -441,7 +441,8 @@ toCoreDefn (I.ConstructorDefn cs) ty =
               let ixsTermS = toTermS ixs
               let c =
                     traceCyan (
-                        "internalIndTel: " ++ show (pretty internalIndTel)
+                        "debug info from data constructor " ++ (show (pretty conName))
+                          ++ "\ninternalIndTel: " ++ show (pretty internalIndTel)
                           ++ "\ninternalIndTelAsListLength: " ++ show (length (I.telToList internalIndTel))
                           ++ "\n"
                         )

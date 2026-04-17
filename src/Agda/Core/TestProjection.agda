@@ -16,43 +16,97 @@ private variable
   α : Scope Name
 
 datas = mempty ▸ "Bool" ▸ "Nat" ▸ "Vector"
-
-boolConsRSC = "True" ◂ "False" ◂ mempty
-
-cons = mempty ◂▸ boolConsRSC
+records = mempty ▸ "Σ"
 
 instance
   globals : Globals
   globals = record
-    { defScope = mempty
+    { defScope = {!!}
     ; dataScope = datas
-    ; recScope = mempty
-    ; dataParScope = λ _ → mempty
-    ; dataIxScope = λ _ → mempty
-    ; dataConstructors = λ _ → boolConsRSC
-    ; dataFieldScope = λ _ → mempty
-    ; recParScope = λ _ → mempty 
-    ; recFieldScope = λ _ → mempty
-    ; recCon = λ _ → mempty
+    ; recScope = records
+    ; dataParScope = λ where
+      --Vector
+      (⟨ name ⟩ (Zero ⟨ proof₁ ⟩)) -> rsingleton "A"
+      --Nat and Bool
+      _ -> mempty
+    ; dataIxScope = λ where
+      --Vector
+      (⟨ name ⟩ (Zero ⟨ proof₁ ⟩)) -> rsingleton "length"
+      --Nat and Bool
+      _ -> mempty
+    ; dataConstructors = λ where
+      --Vector
+      (⟨ name ⟩ (Zero ⟨ proof₁ ⟩)) -> "Nil" ◂ "Cons" ◂ mempty
+      --Nat 
+      (⟨ name ⟩ (Suc Zero ⟨ proof₁ ⟩)) -> "Zero" ◂ "Suc" ◂ mempty
+      -- and Bool
+      _ -> "True" ◂ "False" ◂ mempty 
+    ; dataFieldScope = λ where 
+      -- True
+      {d = ⟨ _ ⟩ (Suc (Suc Zero) ⟨ _ ⟩)} (⟨ _ ⟩ (Zero ⟨ _ ⟩)) → mempty
+      -- False
+      {d = ⟨ _ ⟩ (Suc (Suc Zero) ⟨ _ ⟩)} (⟨ _ ⟩ (Suc (Zero) ⟨ _ ⟩)) → mempty
+      -- Zero
+      {d = ⟨ _ ⟩ (Suc (Zero) ⟨ _ ⟩)} (⟨ _ ⟩ (Zero ⟨ _ ⟩)) → mempty
+      -- Suc
+      {d = ⟨ _ ⟩ (Suc (Zero) ⟨ _ ⟩)} (⟨ _ ⟩ (Suc (Zero) ⟨ _ ⟩)) → "base" ◂ mempty
+      -- Nil
+      {d = ⟨ _ ⟩ (Zero ⟨ _ ⟩)} (⟨ _ ⟩ (Zero ⟨ _ ⟩)) → {!   !}
+      -- Cons
+      _ → {!   !}
+    ; recParScope = λ where 
+      -- Σ
+      _ → "a" ◂ "b" ◂ mempty
+    ; recFieldScope = λ where 
+      -- Σ
+      _ → {!!}
+    ; recCon = λ where 
+      -- Σ
+      _ → {!!}
     }
 open module @0 G = Globals globals
-
-boolsigcons : {@0 d : NameData} (c : NameDataCon d) → DataConstructor {d = d} c
-boolsigcons _  = record { conIndTel = EmptyTel; conIx = TSNil }
 
 
 opaque
   unfolding ScopeThings
 
-  nameBool : NameIn datas
-  nameBool = {!!}
+  nameBool : NameData
+  nameBool = ⟨ "Bool" ⟩ (Suc (Suc Zero) ⟨ IsSuc (IsSuc (IsZero refl)) ⟩)
 
-instance
-  sig : Signature
-  sig .sigData = λ _ → record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}
-  sig .sigDefs n = nameInEmptyCase n
-  sig .sigRecs rn = nameInEmptyCase rn
-  sig .sigCons d c = boolsigcons {d = d} c
+  nameNat : NameData
+  nameNat = ⟨ "Nat" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)
+
+  nameVector : NameData
+  nameVector = ⟨ "Vector" ⟩ (Zero ⟨ IsZero refl ⟩)
+
+  
+
+
+
+
+-- sigDataInstance : (d : NameData) → Datatype d
+-- --Vector
+-- sigDataInstance (⟨ name ⟩ (Zero ⟨ proof₁ ⟩)) = 
+--   record { dataSort = STyp 0 ; dataParTel = {!!} ; dataIxTel = {!!}; dataConstructors = []}
+-- --Nat
+-- sigDataInstance (⟨ name ⟩ ((Suc Zero) ⟨ proof₁ ⟩)) = 
+--   record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}
+-- --Bool
+-- sigDataInstance (⟨ name ⟩ (sucsuczero ⟨ proof₁ ⟩)) = record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}
+
+
+
+-- boolsigcons : {@0 d : NameData} (c : NameDataCon d) → DataConstructor {d = d} c
+-- boolsigcons _  = record { conIndTel = EmptyTel; conIx = TSNil }
+
+
+-- instance
+--   sig : Signature
+--   sig .sigData = λ where 
+--               _ → record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}
+--   sig .sigDefs n = nameInEmptyCase n
+--   sig .sigRecs rn = nameInEmptyCase rn
+--   sig .sigCons d c = boolsigcons {d = d} c
 
 instance
   {-# TERMINATING #-}
@@ -60,35 +114,30 @@ instance
   fuel = More {{fuel}}
 
 opaque
-  unfolding ScopeThings nameBool
+  unfolding ScopeThings nameBool nameNat nameVector
 
   nameTrue : NameDataCon nameBool
-  nameTrue = ⟨ "True" ⟩ inRHere
+  nameTrue = ⟨ 'T' ∷ 'r' ∷ 'u' ∷ 'e' ∷ [] ⟩ (Zero ⟨ IsZeroR refl ⟩)
+
   nameFalse : NameDataCon nameBool
   nameFalse = ⟨ "False" ⟩ inRThere inRHere
 
-  `true : Term α
-  `true = TDataCon {d = nameBool} nameTrue TSNil
-  `false : Term α
-  `false = TDataCon {d = nameBool} nameFalse TSNil
+  nameZero : NameDataCon nameNat
+  nameZero = ⟨ "Zero" ⟩ inRHere
+
+  nameSuc : NameDataCon nameNat
+  nameSuc = ⟨ "Suc" ⟩ inRThere inRHere
+
+  nameNil : NameDataCon nameVector
+  nameNil = ⟨ "Nil" ⟩ inRHere
+
+  nameCons : NameDataCon nameVector
+  nameCons = ⟨ "Cons" ⟩ inRThere inRHere
+
 
 module TestTypechecker (@0 x y z : Name) where
 
   opaque
-    unfolding ScopeThings `true `false
 
     testTerm₁ : Term α
     testTerm₁ = TLam x (TVar (⟨ x ⟩ inHere))
-
-    testType₁ : Type α
-    testType₁ = El (STyp 0) (TPi y (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil)) (El (STyp 0) (TData (⟨ "Bool" ⟩ inHere) TSNil TSNil)))
-
-    testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
-    testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (sing _) fuel)
-
-    @0 testProp₁ : Set
-    test₁ : testProp₁
-
-    testProp₁ = testTC₁ ≡ Right _
-    test₁ = refl
-

@@ -64,11 +64,6 @@ opaque
   nameBool : NameIn datas
   nameBool = ⟨ "Bool" ⟩ inHere
 
-  -- bool : Datatype nameBool
-  -- bool .dataSort = STyp 0
-  -- bool .dataParTel = EmptyTel
-  -- bool .dataIxTel = EmptyTel
-
 instance
   sig : Signature
   sig .sigData = λ _ → record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}

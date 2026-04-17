@@ -9,15 +9,15 @@ data Bool : Set where
 
 data Nat : Set where
     Zero : Nat
-    Suc : Nat → Nat
+    Suc : (base : Nat) → Nat
 
-data Vector (A : Set) : Nat → Set where
+data Vector (A : Set) : (length : Nat) → Set where
     Nil : Vector A Zero
     Cons : {n : Nat} → A → Vector A n → Vector A (Suc n)
 
-sigmaRecordElement : Σ Nat (Vector Bool)
-sigmaRecordElement = Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil))
+-- sigmaRecordElement : Σ Nat (Vector Bool)
+-- sigmaRecordElement = Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil))
 
-sigmaRecordElementProjSnd : Vector Bool (Suc (Suc Zero))
-sigmaRecordElementProjSnd = sigmaRecordElement .Σ.snd
+-- sigmaRecordElementProjSnd : Vector Bool (Suc (Suc Zero))
+-- sigmaRecordElementProjSnd = sigmaRecordElement .Σ.snd
 
