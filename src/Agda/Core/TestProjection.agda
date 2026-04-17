@@ -79,10 +79,33 @@ nameNat = ⟨ "Nat" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)
 nameVector : NameData
 nameVector = ⟨ "Vector" ⟩ (Zero ⟨ IsZero refl ⟩)
 
+instance
+  {-# TERMINATING #-}
+  fuel : Fuel
+  fuel = More {{fuel}}
+
+nameTrue : NameDataCon nameBool
+nameTrue = ⟨ 'T' ∷ 'r' ∷ 'u' ∷ 'e' ∷ [] ⟩ (Zero ⟨ IsZeroR refl ⟩)
+
+nameFalse : NameDataCon nameBool
+nameFalse = ⟨ "False" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)
+
+nameZero : NameDataCon nameNat
+nameZero = ⟨ "Zero" ⟩ (Zero ⟨ IsZeroR refl ⟩)
+
+nameSuc : NameDataCon nameNat
+nameSuc = ⟨ "Suc" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)
+
+nameNil : NameDataCon nameVector
+nameNil = ⟨ "Nil" ⟩ (Zero ⟨ IsZeroR refl ⟩)
+
+nameCons : NameDataCon nameVector
+nameCons = ⟨ "Cons" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)
+
 
 sigDataInstance : (d : NameData) → Datatype d
 --Vector
-sigDataInstance (⟨ name ⟩ (Zero ⟨ proof₁ ⟩)) = 
+sigDataInstance (⟨ _ ⟩ (Zero ⟨ proof₁ ⟩)) = 
   record { dataSort = STyp 0 
     ; dataParTel = "A" ∶ (El (STyp 1) (TSort (STyp 0))) ◂ EmptyTel -- (A : Set)
     ; dataIxTel = "length" ∶ El (STyp 0) (TData nameNat TSNil TSNil) ◂ EmptyTel -- (length : Nat)
@@ -92,6 +115,44 @@ sigDataInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = Datatype.constru
 -- Bool 
 sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc value₁) ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
 
+
+
+
+opaque
+  unfolding ScopeThings RScope
+
+  sigConsInstance : (d : NameData) (c : NameDataCon d) → DataConstructor {d = d} c
+  -- Vector Nil
+  sigConsInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = 
+    DataConstructor.constructor 
+    EmptyTel 
+    (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)
+  -- Vector Cons
+  sigConsInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩)) = DataConstructor.constructor 
+      ("n" ∶ El (STyp 0) (TData nameNat TSNil TSNil) 
+      ◂ ("el" ∶ El (STyp 0) (TVar (⟨ "A" ⟩ inThere inHere)) 
+      ◂ ("vecSmaller" ∶ 
+            El (STyp 0) (TData nameVector 
+                          (TSCons (TVar (⟨ "A" ⟩ inThere (inThere inHere))) TSNil) 
+                          (TSCons (TVar (⟨ "n" ⟩ inThere inHere)) TSNil)) 
+      ◂ EmptyTel))) 
+    (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TVar (⟨ "n" ⟩ inThere (inThere inHere))) TSNil)) TSNil)
+  -- Nat Zero
+  sigConsInstance (⟨ _ ⟩ (Suc Zero ⟨ _ ⟩)) (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = DataConstructor.constructor 
+    EmptyTel
+    TSNil
+  -- Nat Suc
+  sigConsInstance (⟨ _ ⟩ (Suc Zero ⟨ _ ⟩)) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩)) = DataConstructor.constructor 
+    {!!}
+    TSNil
+  -- Bool True
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = DataConstructor.constructor 
+    {!!}
+    TSNil
+  -- Bool False
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩)) = DataConstructor.constructor 
+    {!!} 
+    TSNil
 
 
 
@@ -105,30 +166,9 @@ instance
   sig .sigData = sigDataInstance
   sig .sigDefs n = {!!}
   sig .sigRecs rn = {!!}
-  sig .sigCons d c = {!!}
+  sig .sigCons d c = sigConsInstance d c
 
-instance
-  {-# TERMINATING #-}
-  fuel : Fuel
-  fuel = More {{fuel}}
 
-nameTrue : NameDataCon nameBool
-nameTrue = ⟨ 'T' ∷ 'r' ∷ 'u' ∷ 'e' ∷ [] ⟩ (Zero ⟨ IsZeroR refl ⟩)
-
-nameFalse : NameDataCon nameBool
-nameFalse = ⟨ "False" ⟩ inRThere inRHere
-
-nameZero : NameDataCon nameNat
-nameZero = ⟨ "Zero" ⟩ inRHere
-
-nameSuc : NameDataCon nameNat
-nameSuc = ⟨ "Suc" ⟩ inRThere inRHere
-
-nameNil : NameDataCon nameVector
-nameNil = ⟨ "Nil" ⟩ inRHere
-
-nameCons : NameDataCon nameVector
-nameCons = ⟨ "Cons" ⟩ inRThere inRHere
 
 
 module TestTypechecker (@0 x y z : Name) where
