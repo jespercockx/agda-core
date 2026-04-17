@@ -113,7 +113,7 @@ sigDataInstance (⟨ _ ⟩ (Zero ⟨ proof₁ ⟩)) =
 -- Nat
 sigDataInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
 -- Bool 
-sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc value₁) ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
+sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc _) ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
 
 
 
@@ -142,17 +142,19 @@ opaque
     EmptyTel
     TSNil
   -- Nat Suc
-  sigConsInstance (⟨ _ ⟩ (Suc Zero ⟨ _ ⟩)) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩)) = DataConstructor.constructor 
-    {!!}
+  sigConsInstance (⟨ _ ⟩ (Suc Zero ⟨ _ ⟩)) (⟨ _ ⟩ (Suc Zero ⟨ _ ⟩)) = DataConstructor.constructor 
+    ("base" ∶ El (STyp 0) (TData nameNat TSNil TSNil) ◂ EmptyTel)
     TSNil
   -- Bool True
-  sigConsInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = DataConstructor.constructor 
-    {!!}
-    TSNil
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ _ ⟩)) (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = DataConstructor.constructor EmptyTel TSNil
   -- Bool False
-  sigConsInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩)) = DataConstructor.constructor 
-    {!!} 
-    TSNil
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ _ ⟩)) (⟨ _ ⟩ (Suc Zero ⟨ _ ⟩)) = DataConstructor.constructor EmptyTel TSNil
+
+-- Does not correspond to anything
+  sigConsInstance (⟨ _ ⟩ (Suc Zero ⟨ proof₁ ⟩)) (⟨ _ ⟩ (Suc (Suc value₂) ⟨ IsSucR (IsSucR ()) ⟩))
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ proof₁ ⟩)) (⟨ proj₃ ⟩ (Suc (Suc value₂) ⟨ IsSucR (IsSucR ()) ⟩))
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc (Suc value₁)) ⟨ IsSuc (IsSuc (IsSuc ())) ⟩)) (⟨ proj₃ ⟩ (value₂ ⟨ proof₂ ⟩))
+  
 
 
 
