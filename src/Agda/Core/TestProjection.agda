@@ -210,11 +210,6 @@ opaque
             ◂ ("snd" ∶ El (STyp 0) (TApp (TVar ((⟨ "b" ⟩ inThere inHere))) (TVar ((⟨ "fst" ⟩ inHere)))) 
             ◂ EmptyTel))
 
-
--- boolsigcons : {@0 d : NameData} (c : NameDataCon d) → DataConstructor {d = d} c
--- boolsigcons _  = record { conIndTel = EmptyTel; conIx = TSNil }
-
-
 instance
   sig : Signature
   sig .sigData = sigDataInstance
@@ -223,11 +218,27 @@ instance
   sig .sigCons d c = sigConsInstance d c
 
 
-
-
 module TestTypechecker (@0 x y z : Name) where
 
   opaque
+    unfolding ScopeThings
 
     testTerm₁ : Term α
-    testTerm₁ = TLam x (TVar (⟨ x ⟩ inHere))
+    testTerm₁ = (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
+      (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
+
+    testType₁ : Type α
+    testType₁ = El (STyp 0) (TData nameVector -- (atejandev: not sure if the sort should be 0 or 1)
+      (TSCons (TData nameBool TSNil TSNil) TSNil) 
+      (TSCons ((TDataCon {d = nameNat} nameSuc 
+        (TSCons (TDataCon {d = nameNat} nameSuc 
+          (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil))) TSNil)) 
+
+    testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
+    testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (sing sig) fuel)
+
+    @0 testProp₁ : Set
+    test₁ : testProp₁
+
+    testProp₁ = testTC₁ ≡ Right _
+    test₁ = refl
