@@ -15,9 +15,9 @@ data Vector (A : Set) : (length : Nat) → Set where
     Nil : Vector A Zero
     Cons : {n : Nat} → (el : A) → (vecSmaller : Vector A n) → Vector A (Suc n)
 
-sigmaRecordElement : Σ Nat (Vector Bool)
+sigmaRecordElement : Σ Nat (λ n → (Vector Bool n))
 sigmaRecordElement = Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil))
 
--- sigmaRecordElementProjSnd : Vector Bool (Suc (Suc Zero))
--- sigmaRecordElementProjSnd = sigmaRecordElement .Σ.snd
+sigmaRecordElementProjSnd : Vector Bool (Suc (Suc Zero))
+sigmaRecordElementProjSnd = sigmaRecordElement .Σ.snd
 

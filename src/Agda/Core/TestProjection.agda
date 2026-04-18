@@ -23,7 +23,7 @@ records = mempty ▸ "Σ"
 instance
   globals : Globals
   globals = record
-    { defScope = mempty ▸ "sigmaRecordElementProjSnd"
+    { defScope = mempty ▸ "sigmaRecordElement" ▸ "sigmaRecordElementProjSnd"
     ; dataScope = datas
     ; recScope = records
     ; dataParScope = λ where
@@ -69,6 +69,11 @@ instance
 open module @0 G = Globals globals
 
 
+nameSigmaRecordElement : NameIn defScope
+nameSigmaRecordElement = ⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)
+
+nameSigmaRecordElementProjSnd : NameIn defScope
+nameSigmaRecordElementProjSnd = ⟨ "sigmaRecordElementProjSnd" ⟩ (Zero ⟨ IsZero refl ⟩)
 
 nameBool : NameData
 nameBool = ⟨ "Bool" ⟩ (Suc (Suc Zero) ⟨ IsSuc (IsSuc (IsZero refl)) ⟩)
@@ -103,6 +108,9 @@ nameCons : NameDataCon nameVector
 nameCons = ⟨ "Cons" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)
 
 
+nameSigma : NameRec
+nameSigma = ⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩)
+
 sigDataInstance : (d : NameData) → Datatype d
 --Vector
 sigDataInstance (⟨ _ ⟩ (Zero ⟨ proof₁ ⟩)) = 
@@ -115,8 +123,23 @@ sigDataInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = Datatype.constru
 -- Bool 
 sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc _) ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
 
-
-
+sigDefInstance : (f : NameIn defScope)  → Type mempty × SigDefinition
+--sigmaRecordElementProjSnd
+sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = 
+  -- Σ Nat (λ n → (Vector Bool n))
+  El {!   !} (TRec nameSigma 
+    (TSCons (TData nameNat TSNil TSNil) 
+    (TSCons (TLam "n" (TData nameVector 
+      (TSCons (TData nameBool TSNil TSNil) TSNil) 
+      (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))) TSNil))) 
+  , 
+  FunctionDef (TRecCon nameSigma 
+    -- Suc (Suc Zero)
+    (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
+    -- (Cons False (Cons False Nil))
+    (TSCons (TDataCon {d = nameVector} nameCons (TSCons {!   !} {!   !})) TSNil)))
+--sigmaRecordElement
+sigDefInstance (⟨ proj₃ ⟩ (Suc value₁ ⟨ proof₁ ⟩)) = {!   !} , {!   !}
 
 opaque
   unfolding ScopeThings RScope
@@ -155,8 +178,19 @@ opaque
   sigConsInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ proof₁ ⟩)) (⟨ proj₃ ⟩ (Suc (Suc value₂) ⟨ IsSucR (IsSucR ()) ⟩))
   sigConsInstance (⟨ _ ⟩ (Suc (Suc (Suc value₁)) ⟨ IsSuc (IsSuc (IsSuc ())) ⟩)) (⟨ proj₃ ⟩ (value₂ ⟨ proof₂ ⟩))
   
-
-
+  sigRecsInstance : (recordName : NameRec) → Record recordName
+  sigRecsInstance rn = Record.constructor (STyp 0)
+            -- (a : Set) (b : a → Set)
+            ("a" ∶ El (STyp 1) (TSort (STyp 0)) --(a : Set)
+            ◂ ("b" ∶ El (STyp 0) -- (b : a → Set) (atejandev: I don't know whether this should be STyp 0 or STyp 1). I should turn back here if I have problems with getting this test accepted
+                (TPi "dummy" 
+                  (El (STyp 0) (TVar (⟨ "a" ⟩ (Zero ⟨ IsZero refl ⟩)))) --a
+                  (El (STyp 1) (TSort (STyp 0)))) -- → Set
+            ◂ EmptyTel)) 
+            -- (fst : a) (snd : b fst)
+            ("fst" ∶ El (STyp 0) (TVar (⟨ "a" ⟩ inThere inHere)) 
+            ◂ ("snd" ∶ El (STyp 0) (TApp (TVar ((⟨ "b" ⟩ inThere inHere))) (TVar ((⟨ "fst" ⟩ inHere)))) 
+            ◂ EmptyTel))
 
 
 -- boolsigcons : {@0 d : NameData} (c : NameDataCon d) → DataConstructor {d = d} c
@@ -166,8 +200,8 @@ opaque
 instance
   sig : Signature
   sig .sigData = sigDataInstance
-  sig .sigDefs n = {!!}
-  sig .sigRecs rn = {!!}
+  sig .sigDefs n = sigDefInstance n
+  sig .sigRecs = sigRecsInstance
   sig .sigCons d c = sigConsInstance d c
 
 
