@@ -64,7 +64,7 @@ instance
       _ → "fst" ◂ "snd" ◂ mempty
     ; recCon = λ where 
       -- Σ
-      _ → {!!}
+      _ → "this name is irrelevant and not used in the typechecker"
     }
 open module @0 G = Globals globals
 
@@ -127,7 +127,7 @@ sigDefInstance : (f : NameIn defScope)  → Type mempty × SigDefinition
 --sigmaRecordElementProjSnd
 sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = 
   -- Σ Nat (λ n → (Vector Bool n))
-  El {!   !} (TRec nameSigma 
+  El (STyp 0) (TRec nameSigma -- (atejandev: not sure if the sort should be 0 or 1)
     (TSCons (TData nameNat TSNil TSNil) 
     (TSCons (TLam "n" (TData nameVector 
       (TSCons (TData nameBool TSNil TSNil) TSNil) 
@@ -135,11 +135,29 @@ sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) =
   , 
   FunctionDef (TRecCon nameSigma 
     -- Suc (Suc Zero)
-    (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
-    -- (Cons False (Cons False Nil))
-    (TSCons (TDataCon {d = nameVector} nameCons (TSCons {!   !} {!   !})) TSNil)))
+    (TSCons (TDataCon {d = nameNat} nameSuc 
+      (TSCons (TDataCon {d = nameNat} nameSuc 
+        (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
+    -- (VCons (Suc Zero) False (VCons Zero False Nil))
+    (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+      (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) 
+      (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+      (TSCons (TDataCon {d = nameVector} nameCons 
+        (TSCons (TDataCon {d = nameNat} nameZero TSNil) 
+        (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+        (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
 --sigmaRecordElement
-sigDefInstance (⟨ proj₃ ⟩ (Suc value₁ ⟨ proof₁ ⟩)) = {!   !} , {!   !}
+sigDefInstance (⟨ proj₃ ⟩ (Suc value₁ ⟨ proof₁ ⟩)) = 
+  --Vector Bool (Suc (Suc Zero))
+  El (STyp 0) (TData nameVector -- (atejandev: not sure if the sort should be 0 or 1)
+    (TSCons (TData nameBool TSNil TSNil) TSNil) 
+    (TSCons ((TDataCon {d = nameNat} nameSuc 
+      (TSCons (TDataCon {d = nameNat} nameSuc 
+        (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil))) TSNil)) 
+  , 
+  --sigmaRecordElement .Σ.snd
+  FunctionDef (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
+    (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
 
 opaque
   unfolding ScopeThings RScope
