@@ -1,0 +1,73 @@
+/home/ajdev/git_repos/agda-core/src/Agda/Core/TestProjection.agda:274,17-21: error: [UnequalTerms]
+either Left
+(λ v →
+   runTCM
+   (checkCoerce CtxEmpty
+    (TRecCon (⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩))
+     (TSCons
+      (TDataCon nameSuc
+       (TSCons (TDataCon nameSuc (TSCons (TDataCon nameZero ⌈⌉) ⌈⌉)) ⌈⌉))
+      (TSCons
+       (TDataCon nameCons
+        (TSCons (TDataCon nameSuc (TSCons (TDataCon nameZero ⌈⌉) ⌈⌉))
+         (TSCons (TDataCon nameFalse ⌈⌉)
+          (TSCons
+           (TDataCon nameCons
+            (TSCons (TDataCon nameZero ⌈⌉)
+             (TSCons (TDataCon nameFalse ⌈⌉)
+              (TSCons (TDataCon nameNil ⌈⌉) ⌈⌉))))
+           ⌈⌉))))
+       ⌈⌉)))
+    (recordConstructorType
+     (sigRecsInstance (⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩)))
+     (substTermS (envToSubst (singScope CtxEmpty) EnvNil)
+      (TSCons (TData nameNat ⌈⌉ ⌈⌉)
+       (TSCons
+        (TLam "n"
+         (TData nameVector (TSCons (TData nameBool ⌈⌉ ⌈⌉) ⌈⌉)
+          (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) ⌈⌉)))
+        ⌈⌉)))
+     ,
+     tyRecCon' (sigRecsInstance (⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩)))
+     (cong (λ sig₁ → sigRecs sig₁ (⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩)))
+      refl)
+     v)
+    (El (STyp 0)
+     (TRec (⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩))
+      (TSCons (TData nameNat ⌈⌉ ⌈⌉)
+       (TSCons
+        (TLam "n"
+         (TData nameVector (TSCons (TData nameBool ⌈⌉ ⌈⌉) ⌈⌉)
+          (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) ⌈⌉)))
+        ⌈⌉)))))
+   (MkTCEnv (sig ⟨ refl ⟩) More))
+(runTCM
+ (checkTermS CtxEmpty
+  (substTelescope
+   (extSubst ⌈⌉
+    (substTermS (envToSubst (singScope CtxEmpty) EnvNil)
+     (TSCons (TData nameNat ⌈⌉ ⌈⌉)
+      (TSCons
+       (TLam "n"
+        (TData nameVector (TSCons (TData nameBool ⌈⌉ ⌈⌉) ⌈⌉)
+         (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) ⌈⌉)))
+       ⌈⌉))))
+   (recConArgTel (sigRecsInstance (⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩)))))
+  (TSCons
+   (TDataCon nameSuc
+    (TSCons (TDataCon nameSuc (TSCons (TDataCon nameZero ⌈⌉) ⌈⌉)) ⌈⌉))
+   (TSCons
+    (TDataCon nameCons
+     (TSCons (TDataCon nameSuc (TSCons (TDataCon nameZero ⌈⌉) ⌈⌉))
+      (TSCons (TDataCon nameFalse ⌈⌉)
+       (TSCons
+        (TDataCon nameCons
+         (TSCons (TDataCon nameZero ⌈⌉)
+          (TSCons (TDataCon nameFalse ⌈⌉)
+           (TSCons (TDataCon nameNil ⌈⌉) ⌈⌉))))
+        ⌈⌉))))
+    ⌈⌉)))
+ (MkTCEnv (sig ⟨ refl ⟩) More))
+!= Right (_941 (x = x) (y = y) (z = z)) of type
+Either String (TyTerm CtxEmpty testTerm₁_sub testType₁_sub)
+when checking that the expression refl has type testProp1_sub
