@@ -134,7 +134,7 @@ module TestTypechecker (@0 x y z : Name) where
     test₁ : testProp₁
 
     testProp₁ = testTC₁ ≡ Right _
-    test₁ = {!!}
+    test₁ = refl
 
 module TestUnifierSwap where
   open Swap

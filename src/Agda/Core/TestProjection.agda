@@ -124,15 +124,28 @@ sigDataInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = Datatype.constru
 sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc _) ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
 
 sigDefInstance : (f : NameIn defScope)  → Type mempty × SigDefinition
---sigmaRecordElementProjSnd
+--sigmaRecordElementProjSnd (corresponds to Zero)
 sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = 
+  --Vector Bool (Suc (Suc Zero))
+  El (STyp 0) (TData nameVector -- (atejandev: not sure if the sort should be 0 or 1)
+    (TSCons (TData nameBool TSNil TSNil) TSNil) 
+    (TSCons ((TDataCon {d = nameNat} nameSuc 
+      (TSCons (TDataCon {d = nameNat} nameSuc 
+        (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil))) TSNil)) 
+  , 
+  --sigmaRecordElement .Σ.snd
+  FunctionDef (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
+    (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
+--sigmaRecordElement (corresponds to (Suc Zero))
+sigDefInstance (⟨ proj₃ ⟩ (Suc value₁ ⟨ proof₁ ⟩)) = 
   -- Σ Nat (λ n → (Vector Bool n))
   El (STyp 0) (TRec nameSigma -- (atejandev: not sure if the sort should be 0 or 1)
     (TSCons (TData nameNat TSNil TSNil) 
     (TSCons (TLam "n" (TData nameVector 
       (TSCons (TData nameBool TSNil TSNil) TSNil) 
-      (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))) TSNil))) 
-  , 
+      (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))) TSNil)))
+  ,
+  --Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) 
   FunctionDef (TRecCon nameSigma 
     -- Suc (Suc Zero)
     (TSCons (TDataCon {d = nameNat} nameSuc 
@@ -146,18 +159,6 @@ sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) =
         (TSCons (TDataCon {d = nameNat} nameZero TSNil) 
         (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
         (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
---sigmaRecordElement
-sigDefInstance (⟨ proj₃ ⟩ (Suc value₁ ⟨ proof₁ ⟩)) = 
-  --Vector Bool (Suc (Suc Zero))
-  El (STyp 0) (TData nameVector -- (atejandev: not sure if the sort should be 0 or 1)
-    (TSCons (TData nameBool TSNil TSNil) TSNil) 
-    (TSCons ((TDataCon {d = nameNat} nameSuc 
-      (TSCons (TDataCon {d = nameNat} nameSuc 
-        (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil))) TSNil)) 
-  , 
-  --sigmaRecordElement .Σ.snd
-  FunctionDef (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
-    (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
 
 opaque
   unfolding ScopeThings RScope
@@ -223,10 +224,19 @@ module TestTypechecker (@0 x y z : Name) where
   opaque
     unfolding ScopeThings
 
+
+    testTerm₁_sub : Term α
+    testTerm₁_sub = {!!}
+
+    testType₁_sub : Type α 
+    testType₁_sub = {!!}
+
+    --sigmaRecordElement .Σ.snd
     testTerm₁ : Term α
     testTerm₁ = (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
       (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
 
+    --Vector Bool (Suc (Suc Zero))
     testType₁ : Type α
     testType₁ = El (STyp 0) (TData nameVector -- (atejandev: not sure if the sort should be 0 or 1)
       (TSCons (TData nameBool TSNil TSNil) TSNil) 
@@ -241,4 +251,4 @@ module TestTypechecker (@0 x y z : Name) where
     test₁ : testProp₁
 
     testProp₁ = testTC₁ ≡ Right _
-    test₁ = refl
+    test₁ = {!!}
