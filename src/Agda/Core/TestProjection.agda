@@ -224,12 +224,32 @@ module TestTypechecker (@0 x y z : Name) where
   opaque
     unfolding ScopeThings
 
-
+    --Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) 
     testTerm₁_sub : Term α
-    testTerm₁_sub = {!!}
+    testTerm₁_sub = TRecCon nameSigma 
+      -- Suc (Suc Zero)
+      (TSCons (TDataCon {d = nameNat} nameSuc 
+        (TSCons (TDataCon {d = nameNat} nameSuc 
+          (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
+      -- (VCons (Suc Zero) False (VCons Zero False Nil))
+      (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+        (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) 
+        (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+        (TSCons (TDataCon {d = nameVector} nameCons 
+          (TSCons (TDataCon {d = nameNat} nameZero TSNil) 
+          (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+          (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil))
 
+    --Σ Nat (λ n → (Vector Bool n))
     testType₁_sub : Type α 
-    testType₁_sub = {!!}
+    testType₁_sub = El (STyp 0) (TRec nameSigma -- (atejandev: not sure if the sort should be 0 or 1)
+      (TSCons (TData nameNat TSNil TSNil) 
+      (TSCons (TLam "n" (TData nameVector 
+        (TSCons (TData nameBool TSNil TSNil) TSNil) 
+        (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))) TSNil)))
+
+    testTC₁_sub : Either TCError (CtxEmpty ⊢ testTerm₁_sub ∶ testType₁_sub)
+    testTC₁_sub = runTCM (checkType CtxEmpty testTerm₁_sub testType₁_sub) (MkTCEnv (sing sig) fuel)
 
     --sigmaRecordElement .Σ.snd
     testTerm₁ : Term α
@@ -246,6 +266,12 @@ module TestTypechecker (@0 x y z : Name) where
 
     testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
     testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (sing sig) fuel)
+
+    @0 testProp1_sub : Set
+    test₁_sub : testProp1_sub
+
+    testProp1_sub = testTC₁_sub ≡ Right _
+    test₁_sub = refl
 
     @0 testProp₁ : Set
     test₁ : testProp₁
