@@ -313,7 +313,7 @@ tyRecCon' : {@0 Γ : Context α}
   → Γ ⊢ˢ args ∶ instRecConArgTel sigRecord pars
   ----------------------------------------------
   → Γ ⊢ TRecCon rn args ∶ recordConstructorType sigRecord pars
-tyRecCon' sigRecord refl tySubst = TyRecCon tySubst
+tyRecCon' sigRecord refl tysubst = TyRecCon tysubst
 {-# COMPILE AGDA2HS tyRecCon' #-}
 
 tyCase' : {@0 Γ : Context α}

@@ -127,7 +127,7 @@ sigDefInstance : (f : NameIn defScope)  → Type mempty × SigDefinition
 --sigmaRecordElementProjSnd (corresponds to Zero)
 sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = 
   --Vector Bool (Suc (Suc Zero))
-  El (STyp 0) (TData nameVector -- (atejandev: not sure if the sort should be 0 or 1)
+  El (STyp 0) (TData nameVector
     (TSCons (TData nameBool TSNil TSNil) TSNil) 
     (TSCons ((TDataCon {d = nameNat} nameSuc 
       (TSCons (TDataCon {d = nameNat} nameSuc 
@@ -139,7 +139,7 @@ sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) =
 --sigmaRecordElement (corresponds to (Suc Zero))
 sigDefInstance (⟨ proj₃ ⟩ (Suc value₁ ⟨ proof₁ ⟩)) = 
   -- Σ Nat (λ n → (Vector Bool n))
-  El (STyp 0) (TRec nameSigma -- (atejandev: not sure if the sort should be 0 or 1)
+  El (STyp 0) (TRec nameSigma
     (TSCons (TData nameNat TSNil TSNil) 
     (TSCons (TLam "n" (TData nameVector 
       (TSCons (TData nameBool TSNil TSNil) TSNil) 
@@ -201,7 +201,7 @@ opaque
   sigRecsInstance rn = Record.constructor (STyp 0)
             -- (a : Set) (b : a → Set)
             ("a" ∶ El (STyp 1) (TSort (STyp 0)) --(a : Set)
-            ◂ ("b" ∶ El (STyp 0) -- (b : a → Set) (atejandev: I don't know whether this should be STyp 0 or STyp 1). I should turn back here if I have problems with getting this test accepted
+            ◂ ("b" ∶ El (STyp 1) -- (b : a → Set) (atejandev: I don't know whether this sort should be STyp 0 or STyp 1). I should turn back here if I have problems with getting this test accepted
                 (TPi "dummy" 
                   (El (STyp 0) (TVar (⟨ "a" ⟩ (Zero ⟨ IsZero refl ⟩)))) --a
                   (El (STyp 1) (TSort (STyp 0)))) -- → Set
@@ -242,7 +242,7 @@ module TestTypechecker (@0 x y z : Name) where
 
     --Σ Nat (λ n → (Vector Bool n))
     testType₁_sub : Type α 
-    testType₁_sub = El (STyp 0) (TRec nameSigma -- (atejandev: not sure if the sort should be 0 or 1)
+    testType₁_sub = El (STyp 0) (TRec nameSigma
       (TSCons (TData nameNat TSNil TSNil) 
       (TSCons (TLam "n" (TData nameVector 
         (TSCons (TData nameBool TSNil TSNil) TSNil) 
@@ -258,7 +258,7 @@ module TestTypechecker (@0 x y z : Name) where
 
     --Vector Bool (Suc (Suc Zero))
     testType₁ : Type α
-    testType₁ = El (STyp 0) (TData nameVector -- (atejandev: not sure if the sort should be 0 or 1)
+    testType₁ = El (STyp 0) (TData nameVector
       (TSCons (TData nameBool TSNil TSNil) TSNil) 
       (TSCons ((TDataCon {d = nameNat} nameSuc 
         (TSCons (TDataCon {d = nameNat} nameSuc 
@@ -271,7 +271,7 @@ module TestTypechecker (@0 x y z : Name) where
     test₁_sub : testProp1_sub
 
     testProp1_sub = testTC₁_sub ≡ Right _
-    test₁_sub = refl
+    test₁_sub = {!!}
 
     @0 testProp₁ : Set
     test₁ : testProp₁
