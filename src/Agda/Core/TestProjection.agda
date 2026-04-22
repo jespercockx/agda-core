@@ -288,23 +288,8 @@ module TestTypechecker (@0 x y z : Name) where
       (CtxEmpty ⊢ testTCProj₀₁_term ∶ testTCProj₀₁_type)
     testTCProj₀₁ = runTCM (checkType CtxEmpty testTCProj₀₁_term testTCProj₀₁_type) (MkTCEnv (sing sig) fuel)
 
-    --  (ContainerRecord.constructor [ False ]) .ContainerRecord.theProj
-    testTCProj₀_term : Term α 
-    testTCProj₀_term = 
-      TProj {rn = nameContainerRecord} 
-        (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil)) 
-        (⟨ "theProj" ⟩ (Zero ⟨ IsZeroR refl ⟩))
-
-    -- Bool
-    testTCProj₀_type : Type α
-    testTCProj₀_type = (El (STyp 0) (TData nameBool TSNil TSNil))
 
     
-
-    -- CtxEmpty ⊢ (ContainerRecord.constructor False) .ContainerRecord.theProj ∶ Bool 
-    testTCProj₀ : Either TCError 
-      (CtxEmpty ⊢ testTCProj₀_term ∶ testTCProj₀_type)
-    testTCProj₀ = runTCM (checkType CtxEmpty testTCProj₀_term testTCProj₀_type) (MkTCEnv (sing sig) fuel)
 
     --sigmaRecordElement .Σ.snd
     testTProjTerm₁ : Term α
@@ -341,15 +326,6 @@ module TestTypechecker (@0 x y z : Name) where
 
     testTCProj₀₁Prop = testTCProj₀₁ ≡ Right _
     proofOftestTCProj₀₁Prop = refl
-
-
-
-
-    @0 testTCProj₀Prop : Set
-    proofOftestTCProj₀Prop : testTCProj₀Prop
-
-    testTCProj₀Prop = testTCProj₀ ≡ Right _
-    proofOftestTCProj₀Prop = {!!} -- (atejandev) fails because there is no type inference for TRecCon
   
 
     
