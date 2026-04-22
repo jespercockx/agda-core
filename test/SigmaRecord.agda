@@ -11,6 +11,9 @@ record ContainerRecord : Set where
     field
         theProj : Bool
 
+containerX : ContainerRecord
+containerX = (ContainerRecord.constructor False)
+
 data Nat : Set where
     Zero : Nat
     Suc : (base : Nat) → Nat

@@ -111,6 +111,9 @@ record Record (@0 rn : NameRec) : Set where
   instRecParTel = subst ⌈⌉ recParTel
   {-# COMPILE AGDA2HS instRecParTel inline #-}
 
+  -- argTermSFieldScopeToTermSParScope : TermS α (recFieldScope rn) → TermS α (recParScope rn)
+  -- argTermSFieldScopeToTermSParScope = {!!}
+
 
 open Record public
 {-# COMPILE AGDA2HS Record #-}

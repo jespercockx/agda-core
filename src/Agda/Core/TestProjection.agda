@@ -23,7 +23,7 @@ records = mempty ▸ "ContainerRecord" ▸ "Σ"
 instance
   globals : Globals
   globals = record
-    { defScope = mempty ▸ "sigmaRecordElement" ▸ "sigmaRecordElementProjSnd"
+    { defScope = mempty ▸ "containerX" ▸ "sigmaRecordElement" ▸ "sigmaRecordElementProjSnd"
     ; dataScope = datas
     ; recScope = records
     ; dataParScope = λ where
@@ -71,6 +71,8 @@ instance
     }
 open module @0 G = Globals globals
 
+nameContainerX : NameIn defScope
+nameContainerX = ⟨ "containerX" ⟩ (Suc (Suc Zero) ⟨ IsSuc (IsSuc (IsZero refl)) ⟩)
 
 nameSigmaRecordElement : NameIn defScope
 nameSigmaRecordElement = ⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)
@@ -142,7 +144,7 @@ sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) =
   FunctionDef (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
     (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
 --sigmaRecordElement (corresponds to (Suc Zero))
-sigDefInstance (⟨ proj₃ ⟩ (Suc value₁ ⟨ proof₁ ⟩)) = 
+sigDefInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = 
   -- Σ Nat (λ n → (Vector Bool n))
   El (STyp 0) (TRec nameSigma
     (TSCons (TData nameNat TSNil TSNil) 
@@ -164,6 +166,15 @@ sigDefInstance (⟨ proj₃ ⟩ (Suc value₁ ⟨ proof₁ ⟩)) =
         (TSCons (TDataCon {d = nameNat} nameZero TSNil) 
         (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
         (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
+-- containerX (corresponds to Suc Suc Zero)
+sigDefInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) = 
+  -- ContainerRecord 
+  El (STyp 0) (TRec nameContainerRecord TSNil)
+  , 
+  --  (ContainerRecord.constructor [ False ]) .ContainerRecord.theProj
+  FunctionDef (TProj {rn = nameContainerRecord} 
+        (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil)) 
+        (⟨ "theProj" ⟩ (Zero ⟨ IsZeroR refl ⟩)))
 
 opaque
   unfolding ScopeThings RScope
@@ -265,7 +276,19 @@ module TestTypechecker (@0 x y z : Name) where
     testTC₁_sub_as_TDef : Either TCError (CtxEmpty ⊢ TDef nameSigmaRecordElement  ∶ testType₁_sub)
     testTC₁_sub_as_TDef = runTCM (checkType CtxEmpty (TDef nameSigmaRecordElement) testType₁_sub) (MkTCEnv (sing sig) fuel)
 
-    --  (ContainerRecord.constructor False) .ContainerRecord.theProj
+    -- nameContainerX .theProj
+    testTCProj₀₁_term : Term α
+    testTCProj₀₁_term = TProj {rn = nameContainerRecord} (TDef nameContainerX) (⟨ "theProj" ⟩ (Zero ⟨ IsZeroR refl ⟩))
+
+    --Bool
+    testTCProj₀₁_type : Type α
+    testTCProj₀₁_type = (El (STyp 0) (TData nameBool TSNil TSNil))
+    
+    testTCProj₀₁ : Either TCError
+      (CtxEmpty ⊢ testTCProj₀₁_term ∶ testTCProj₀₁_type)
+    testTCProj₀₁ = runTCM (checkType CtxEmpty testTCProj₀₁_term testTCProj₀₁_type) (MkTCEnv (sing sig) fuel)
+
+    --  (ContainerRecord.constructor [ False ]) .ContainerRecord.theProj
     testTCProj₀_term : Term α 
     testTCProj₀_term = 
       TProj {rn = nameContainerRecord} 
@@ -275,6 +298,8 @@ module TestTypechecker (@0 x y z : Name) where
     -- Bool
     testTCProj₀_type : Type α
     testTCProj₀_type = (El (STyp 0) (TData nameBool TSNil TSNil))
+
+    
 
     -- CtxEmpty ⊢ (ContainerRecord.constructor False) .ContainerRecord.theProj ∶ Bool 
     testTCProj₀ : Either TCError 
@@ -310,11 +335,21 @@ module TestTypechecker (@0 x y z : Name) where
     testPropTC₁_sub_as_TDef = testTC₁_sub_as_TDef ≡ Right _
     test_sub_as_TDef = refl
 
+
+    @0 testTCProj₀₁Prop : Set
+    proofOftestTCProj₀₁Prop : testTCProj₀₁Prop
+
+    testTCProj₀₁Prop = testTCProj₀₁ ≡ Right _
+    proofOftestTCProj₀₁Prop = refl
+
+
+
+
     @0 testTCProj₀Prop : Set
     proofOftestTCProj₀Prop : testTCProj₀Prop
 
     testTCProj₀Prop = testTCProj₀ ≡ Right _
-    proofOftestTCProj₀Prop = refl
+    proofOftestTCProj₀Prop = {!!}
   
 
     

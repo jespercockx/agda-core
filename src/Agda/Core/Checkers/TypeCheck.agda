@@ -184,6 +184,17 @@ inferRec ctx rn pars = do
   return (sortType (instRecSort rt pars) , tyRec' rt defeq typars)
 {-# COMPILE AGDA2HS inferRec #-}
 
+-- inferRecCon : (Γ : Context α) (rn : NameRec)
+--           → (args : TermS α (recFieldScope rn))
+--           → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TRecCon rn args ∶ ty)
+-- inferRecCon ctx rn args = do
+--   rec ⟨ receq ⟩ ← tcmGetRecord rn
+--   let 
+--     recParTel = rec .recParTel
+    
+--     in {!!}
+
+
 checkBranch : ∀ {d : NameData} {@0 con : NameDataCon d} (Γ : Context α)
                 (bs : Branch α con)
                 (dt : Datatype d)
@@ -346,7 +357,8 @@ inferType ctx (TDef d) = inferDef ctx d
 inferType ctx (TData d ps is) = inferData ctx d ps is
 inferType ctx (TRec rn pars) = inferRec ctx rn pars
 inferType ctx (TDataCon c x) = tcError "non inferrable: can't infer the type of a data constructor"
-inferType ctx (TRecCon rec x) = tcError "non inferrable: can't infer type of record constructor"
+inferType ctx (TRecCon recname argsTermS) = tcError "non inferrable: can't infer type of record constructor"
+  -- inferRecCon ctx recname argsTermS
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
