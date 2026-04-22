@@ -192,11 +192,11 @@ opaque
   -- Bool False
   sigConsInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ _ ⟩)) (⟨ _ ⟩ (Suc Zero ⟨ _ ⟩)) = DataConstructor.constructor EmptyTel TSNil
 
--- Does not correspond to anything
+  -- Does not correspond to anything
   sigConsInstance (⟨ _ ⟩ (Suc Zero ⟨ proof₁ ⟩)) (⟨ _ ⟩ (Suc (Suc value₂) ⟨ IsSucR (IsSucR ()) ⟩))
   sigConsInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ proof₁ ⟩)) (⟨ proj₃ ⟩ (Suc (Suc value₂) ⟨ IsSucR (IsSucR ()) ⟩))
   sigConsInstance (⟨ _ ⟩ (Suc (Suc (Suc value₁)) ⟨ IsSuc (IsSuc (IsSuc ())) ⟩)) (⟨ proj₃ ⟩ (value₂ ⟨ proof₂ ⟩))
-  
+
   sigRecsInstance : (recordName : NameRec) → Record recordName
   sigRecsInstance rn = Record.constructor (STyp 0)
             -- (a : Set) (b : a → Set)
@@ -221,8 +221,10 @@ instance
 
 module TestTypechecker (@0 x y z : Name) where
 
+
   opaque
-    unfolding ScopeThings
+    -- TODO (atejandev): make this list of unfolding terms s.t. it is the minimum one required by each test
+    unfolding ScopeThings AllNameCon rScopeToRScopeNameInR extendEnvironment addTel subToSubst substExtScope caseBsNil caseBsCons caseTermSNil caseTermSCons termSrepeat sigRecsInstance
 
     --Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) 
     testTerm₁_sub : Term α
@@ -271,7 +273,7 @@ module TestTypechecker (@0 x y z : Name) where
     test₁_sub : testProp1_sub
 
     testProp1_sub = testTC₁_sub ≡ Right _
-    test₁_sub = {!!}
+    test₁_sub = refl
 
     @0 testProp₁ : Set
     test₁ : testProp₁
