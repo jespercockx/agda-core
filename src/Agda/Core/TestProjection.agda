@@ -262,28 +262,30 @@ module TestTypechecker (@0 x y z : Name) where
     testTC₁_sub : Either TCError (CtxEmpty ⊢ testTerm₁_sub ∶ testType₁_sub)
     testTC₁_sub = runTCM (checkType CtxEmpty testTerm₁_sub testType₁_sub) (MkTCEnv (sing sig) fuel)
 
-    @0 testProp1_sub : Set
-    test₁_sub : testProp1_sub
-
-    testProp1_sub = testTC₁_sub ≡ Right _
-    test₁_sub = refl
-
     testTC₁_sub_as_TDef : Either TCError (CtxEmpty ⊢ TDef nameSigmaRecordElement  ∶ testType₁_sub)
     testTC₁_sub_as_TDef = runTCM (checkType CtxEmpty (TDef nameSigmaRecordElement) testType₁_sub) (MkTCEnv (sing sig) fuel)
 
-    @0 testPropTC₁_sub_as_TDef : Set 
-    test_sub_as_TDef : testPropTC₁_sub_as_TDef
+    --  (ContainerRecord.constructor False) .ContainerRecord.theProj
+    testTCProj₀_term : Term α 
+    testTCProj₀_term = 
+      TProj {rn = nameContainerRecord} 
+        (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil)) 
+        (⟨ "theProj" ⟩ (Zero ⟨ IsZeroR refl ⟩))
 
-    testPropTC₁_sub_as_TDef = testTC₁_sub_as_TDef ≡ Right _
-    test_sub_as_TDef = refl
+    -- Bool
+    testTCProj₀_type : Type α
+    testTCProj₀_type = (El (STyp 0) (TData nameBool TSNil TSNil))
 
-    
+    -- CtxEmpty ⊢ (ContainerRecord.constructor False) .ContainerRecord.theProj ∶ Bool 
+    testTCProj₀ : Either TCError 
+      (CtxEmpty ⊢ testTCProj₀_term ∶ testTCProj₀_type)
+    testTCProj₀ = runTCM (checkType CtxEmpty testTCProj₀_term testTCProj₀_type) (MkTCEnv (sing sig) fuel)
+
     --sigmaRecordElement .Σ.snd
     testTProjTerm₁ : Term α
     testTProjTerm₁ = (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
       (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
 
-    
     --Vector Bool (Suc (Suc Zero))
     testTProjResultType₁ : Type α
     testTProjResultType₁ = El (STyp 0) (TData nameVector
@@ -294,6 +296,27 @@ module TestTypechecker (@0 x y z : Name) where
 
     testTCProj₁ : Either TCError (CtxEmpty ⊢ testTProjTerm₁ ∶ testTProjResultType₁)
     testTCProj₁ = runTCM (checkType CtxEmpty testTProjTerm₁ testTProjResultType₁) (MkTCEnv (sing sig) fuel)
+
+    @0 testProp1_sub : Set
+    test₁_sub : testProp1_sub
+
+    testProp1_sub = testTC₁_sub ≡ Right _
+    test₁_sub = refl
+
+
+    @0 testPropTC₁_sub_as_TDef : Set 
+    test_sub_as_TDef : testPropTC₁_sub_as_TDef
+
+    testPropTC₁_sub_as_TDef = testTC₁_sub_as_TDef ≡ Right _
+    test_sub_as_TDef = refl
+
+    @0 testTCProj₀Prop : Set
+    proofOftestTCProj₀Prop : testTCProj₀Prop
+
+    testTCProj₀Prop = testTCProj₀ ≡ Right _
+    proofOftestTCProj₀Prop = refl
+  
+
     
     @0 testTCProj₁Prop : Set
     testTCProj₁Prop₁ : testTCProj₁Prop
