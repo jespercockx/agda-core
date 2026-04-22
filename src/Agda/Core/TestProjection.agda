@@ -307,6 +307,21 @@ module TestTypechecker (@0 x y z : Name) where
     testTCProj₁ : Either TCError (CtxEmpty ⊢ testTProjTerm₁ ∶ testTProjResultType₁)
     testTCProj₁ = runTCM (checkType CtxEmpty testTProjTerm₁ testTProjResultType₁) (MkTCEnv (sing sig) fuel)
 
+    --sigmaRecordElement .Σ.fst
+    testTProjTerm₂ : Term α
+    testTProjTerm₂ = (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
+      (⟨ "fst" ⟩ (Zero ⟨ (IsZeroR refl) ⟩)))
+
+    -- Nat
+    testTProjResultType₂ : Type α
+    testTProjResultType₂ = El (STyp 0) (TData nameNat TSNil TSNil)
+
+
+    testTCProj₂ : Either TCError (CtxEmpty ⊢ testTProjTerm₂ ∶ testTProjResultType₂)
+    testTCProj₂ = runTCM (checkType CtxEmpty testTProjTerm₂ testTProjResultType₂) (MkTCEnv (sing sig) fuel)
+
+
+
     @0 testProp1_sub : Set
     test₁_sub : testProp1_sub
 
@@ -334,3 +349,11 @@ module TestTypechecker (@0 x y z : Name) where
 
     testTCProj₁Prop = testTCProj₁ ≡ Right _
     testTCProj₁Prop₁ = {!!}
+
+
+
+    @0 testTCProj₂Prop : Set 
+    proofOftestTCProj₂Prop : testTCProj₂Prop
+
+    testTCProj₂Prop = testTCProj₂ ≡ Right _
+    proofOftestTCProj₂Prop = refl
