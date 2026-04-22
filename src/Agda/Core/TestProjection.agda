@@ -349,7 +349,7 @@ module TestTypechecker (@0 x y z : Name) where
     proofOftestTCProj₀Prop : testTCProj₀Prop
 
     testTCProj₀Prop = testTCProj₀ ≡ Right _
-    proofOftestTCProj₀Prop = {!!}
+    proofOftestTCProj₀Prop = {!!} -- (atejandev) fails because there is no type inference for TRecCon
   
 
     
