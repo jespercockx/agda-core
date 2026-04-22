@@ -18,7 +18,7 @@ private variable
   α : Scope Name
 
 datas = mempty ▸ "Bool" ▸ "Nat" ▸ "Vector"
-records = mempty ▸ "Σ"
+records = mempty ▸ "ContainerRecord" ▸ "Σ"
 
 instance
   globals : Globals
@@ -58,12 +58,15 @@ instance
       _ → "n" ◂ "el" ◂ "vecSmaller" ◂ mempty
     ; recParScope = λ where 
       -- Σ
-      _ → "a" ◂ "b" ◂ mempty
+      (⟨ _ ⟩ (Zero ⟨ _ ⟩)) → "a" ◂ "b" ◂ mempty
+      -- ContainerRecord
+      (⟨ _ ⟩ (Suc _ ⟨ _ ⟩)) → mempty
     ; recFieldScope = λ where 
       -- Σ
-      _ → "fst" ◂ "snd" ◂ mempty
+      (⟨ proj₃ ⟩ (Zero ⟨ proof₁ ⟩)) → "fst" ◂ "snd" ◂ mempty
+      -- ContainerRecord
+      (⟨ proj₃ ⟩ (Suc _ ⟨ proof₁ ⟩)) → "theProj" ◂ mempty 
     ; recCon = λ where 
-      -- Σ
       _ → "this name is irrelevant and not used in the typechecker"
     }
 open module @0 G = Globals globals
@@ -107,9 +110,11 @@ nameNil = ⟨ "Nil" ⟩ (Zero ⟨ IsZeroR refl ⟩)
 nameCons : NameDataCon nameVector
 nameCons = ⟨ "Cons" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)
 
-
 nameSigma : NameRec
 nameSigma = ⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩)
+
+nameContainerRecord : NameRec 
+nameContainerRecord = ⟨ "ContainerRecord" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)
 
 sigDataInstance : (d : NameData) → Datatype d
 --Vector
@@ -198,7 +203,8 @@ opaque
   sigConsInstance (⟨ _ ⟩ (Suc (Suc (Suc value₁)) ⟨ IsSuc (IsSuc (IsSuc ())) ⟩)) (⟨ proj₃ ⟩ (value₂ ⟨ proof₂ ⟩))
 
   sigRecsInstance : (recordName : NameRec) → Record recordName
-  sigRecsInstance rn = Record.constructor (STyp 0)
+  --Σ
+  sigRecsInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = Record.constructor (STyp 0)
             -- (a : Set) (b : a → Set)
             ("a" ∶ El (STyp 1) (TSort (STyp 0)) --(a : Set)
             ◂ ("b" ∶ El (STyp 1) -- (b : a → Set) (atejandev: I don't know whether this sort should be STyp 0 or STyp 1). I should turn back here if I have problems with getting this test accepted
@@ -210,6 +216,9 @@ opaque
             ("fst" ∶ El (STyp 0) (TVar (⟨ "a" ⟩ inThere inHere)) 
             ◂ ("snd" ∶ El (STyp 0) (TApp (TVar ((⟨ "b" ⟩ inThere inHere))) (TVar ((⟨ "fst" ⟩ inHere)))) 
             ◂ EmptyTel))
+--ContainerRecord
+  sigRecsInstance (⟨ _ ⟩ ((Suc _) ⟨ _ ⟩)) = record 
+    { recSort = STyp 0 ; recParTel = EmptyTel ; recConArgTel = "theProj" ∶ El (STyp 0) (TData nameBool TSNil TSNil) ◂ EmptyTel }
 
 instance
   sig : Signature
@@ -253,30 +262,41 @@ module TestTypechecker (@0 x y z : Name) where
     testTC₁_sub : Either TCError (CtxEmpty ⊢ testTerm₁_sub ∶ testType₁_sub)
     testTC₁_sub = runTCM (checkType CtxEmpty testTerm₁_sub testType₁_sub) (MkTCEnv (sing sig) fuel)
 
-    --sigmaRecordElement .Σ.snd
-    testTerm₁ : Term α
-    testTerm₁ = (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
-      (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
-
-    --Vector Bool (Suc (Suc Zero))
-    testType₁ : Type α
-    testType₁ = El (STyp 0) (TData nameVector
-      (TSCons (TData nameBool TSNil TSNil) TSNil) 
-      (TSCons ((TDataCon {d = nameNat} nameSuc 
-        (TSCons (TDataCon {d = nameNat} nameSuc 
-          (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil))) TSNil)) 
-
-    testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
-    testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (sing sig) fuel)
-
     @0 testProp1_sub : Set
     test₁_sub : testProp1_sub
 
     testProp1_sub = testTC₁_sub ≡ Right _
     test₁_sub = refl
 
-    @0 testProp₁ : Set
-    test₁ : testProp₁
+    testTC₁_sub_as_TDef : Either TCError (CtxEmpty ⊢ TDef nameSigmaRecordElement  ∶ testType₁_sub)
+    testTC₁_sub_as_TDef = runTCM (checkType CtxEmpty (TDef nameSigmaRecordElement) testType₁_sub) (MkTCEnv (sing sig) fuel)
 
-    testProp₁ = testTC₁ ≡ Right _
-    test₁ = {!!}
+    @0 testPropTC₁_sub_as_TDef : Set 
+    test_sub_as_TDef : testPropTC₁_sub_as_TDef
+
+    testPropTC₁_sub_as_TDef = testTC₁_sub_as_TDef ≡ Right _
+    test_sub_as_TDef = refl
+
+    
+    --sigmaRecordElement .Σ.snd
+    testTProjTerm₁ : Term α
+    testTProjTerm₁ = (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
+      (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
+
+    
+    --Vector Bool (Suc (Suc Zero))
+    testTProjResultType₁ : Type α
+    testTProjResultType₁ = El (STyp 0) (TData nameVector
+      (TSCons (TData nameBool TSNil TSNil) TSNil) 
+      (TSCons ((TDataCon {d = nameNat} nameSuc 
+        (TSCons (TDataCon {d = nameNat} nameSuc 
+          (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil))) TSNil)) 
+
+    testTCProj₁ : Either TCError (CtxEmpty ⊢ testTProjTerm₁ ∶ testTProjResultType₁)
+    testTCProj₁ = runTCM (checkType CtxEmpty testTProjTerm₁ testTProjResultType₁) (MkTCEnv (sing sig) fuel)
+    
+    @0 testTCProj₁Prop : Set
+    testTCProj₁Prop₁ : testTCProj₁Prop
+
+    testTCProj₁Prop = testTCProj₁ ≡ Right _
+    testTCProj₁Prop₁ = {!!}

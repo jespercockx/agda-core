@@ -7,6 +7,10 @@ data Bool : Set where
     True : Bool
     False : Bool
 
+record ContainerRecord : Set where
+    field
+        theProj : Bool
+
 data Nat : Set where
     Zero : Nat
     Suc : (base : Nat) → Nat
@@ -18,6 +22,6 @@ data Vector (A : Set) : (length : Nat) → Set where
 sigmaRecordElement : Σ Nat (λ n → (Vector Bool n))
 sigmaRecordElement = Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil))
 
--- sigmaRecordElementProjSnd : Vector Bool (Suc (Suc Zero))
--- sigmaRecordElementProjSnd = sigmaRecordElement .Σ.snd
+sigmaRecordElementProjSnd : Vector Bool (Suc (Suc Zero))
+sigmaRecordElementProjSnd = sigmaRecordElement .Σ.snd
 
