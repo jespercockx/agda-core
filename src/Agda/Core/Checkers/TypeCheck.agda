@@ -116,14 +116,21 @@ inferProj : {rn : NameRec} (Γ : Context α) (recordTerm : Term α) (projFunc : 
 inferProj {rn = rn} ctx recordTerm projFunc = do
   let r = singScope ctx
 
+  rn'' , args ⟨ _ ⟩ ← reduceToTRecCon r recordTerm "Cannot type check a projection on a term that does not reduce to TRecCon"
+
   El rsort typeOfRecordTerm , typDerivRecTerm ← inferType ctx recordTerm
-  rn' , params ⟨ rp ⟩  ← reduceToRec r typeOfRecordTerm "cannot type check a projection that is not of a record type"
+  rn' , params ⟨ _ ⟩  ← reduceToRec r typeOfRecordTerm "cannot type check a projection that is not of a record type"
   ifDec (decIn (proj₂ rn) (proj₂ rn'))
     (λ where {{refl}} → do
-      coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
-      sigRecord ⟨ defeq ⟩ ← tcmGetRecord rn
-      let projFuncType = lookupNameRinTel r (instRecConArgTel sigRecord params) projFunc
-      return ( projFuncType ,  tyProj' params sigRecord defeq coercedTypingDeriv)
+      ifDec (decIn (proj₂ rn') (proj₂ rn''))
+        (λ where {{refl}} → do
+          convproof ← convert r recordTerm (TRecCon rn args) 
+          coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
+          sigRecord ⟨ defeq ⟩ ← tcmGetRecord rn
+          let projFuncType = lookupNameRinTel r (singTermS args) args (instRecConArgTel sigRecord params) projFunc
+          return ( projFuncType ,  tyProj' params args sigRecord defeq coercedTypingDeriv convproof)
+        )
+        (tcError "not convertible")
     )
     (tcError "not convertible")
 {-# COMPILE AGDA2HS inferProj #-}

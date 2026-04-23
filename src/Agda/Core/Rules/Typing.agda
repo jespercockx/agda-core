@@ -178,6 +178,7 @@ data TyTerm {α} Γ where
     (let sigRecord : Record rn
          sigRecord = sigRecs sig rn)
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
+    → recordTerm ≅ (TRecCon rn cargs) 
     --------------------------------------------------------------------------
     → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
 
@@ -360,8 +361,9 @@ tyProj' : {@0 Γ : Context α}
   (cargs : TermS α (recFieldScope rn))
   (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
+  → recordTerm ≅ (TRecCon rn cargs)
   → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
-tyProj' instPars cargs sigRecord refl proof = TyProj cargs proof
+tyProj' instPars cargs sigRecord refl proof1 proof2 = TyProj cargs proof1 proof2
 {-# COMPILE AGDA2HS tyProj' #-}
 
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}

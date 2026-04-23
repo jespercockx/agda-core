@@ -64,6 +64,17 @@ reduceToRec r v err = reduceTo r v >>= λ where
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToRec #-}
 
+reduceToTRecCon : {@0 α : Scope Name} (r : Singleton α)
+          → (v : Term α)
+          → String
+          → TCM (Σ[ rn ∈ NameIn recScope ]
+                 ∃[ args ∈ TermS α (recFieldScope rn)]
+                 ReducesTo v (TRecCon rn args))
+reduceToTRecCon r v err = reduceTo r v >>= λ where
+  (TRecCon rn args ⟨ redv ⟩) → return (rn , (args ⟨ redv ⟩))
+  _ → tcError err
+{-# COMPILE AGDA2HS reduceToTRecCon #-}
+
 reduceToSort : {@0 α : Scope Name} (r : Singleton α)
            → (v : Term α)
            → String

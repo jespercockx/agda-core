@@ -160,10 +160,10 @@ sigDefInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) =
         (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
     -- (VCons (Suc Zero) False (VCons Zero False Nil))
     (TSCons (TDataCon {d = nameVector} nameCons -- VCons
-      (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) 
+      (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) -- (Suc Zero)
       (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
-      (TSCons (TDataCon {d = nameVector} nameCons 
-        (TSCons (TDataCon {d = nameNat} nameZero TSNil) 
+      (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+        (TSCons (TDataCon {d = nameNat} nameZero TSNil) -- Zero
         (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
         (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
 -- containerX (corresponds to Suc Suc Zero)
@@ -172,9 +172,7 @@ sigDefInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) =
   El (STyp 0) (TRec nameContainerRecord TSNil)
   , 
   --  (ContainerRecord.constructor [ False ]) .ContainerRecord.theProj
-  FunctionDef (TProj {rn = nameContainerRecord} 
-        (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil)) 
-        (⟨ "theProj" ⟩ (Zero ⟨ IsZeroR refl ⟩)))
+  FunctionDef (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil))
 
 opaque
   unfolding ScopeThings RScope
@@ -244,7 +242,7 @@ module TestTypechecker (@0 x y z : Name) where
 
   opaque
     -- TODO (atejandev): make this list of unfolding terms s.t. it is the minimum one required by each test
-    unfolding ScopeThings AllNameCon rScopeToRScopeNameInR extendEnvironment addTel subToSubst substExtScope caseBsNil caseBsCons caseTermSNil caseTermSCons termSrepeat sigRecsInstance
+    unfolding ScopeThings AllNameCon rScopeToRScopeNameInR extendEnvironment addTel subToSubst substExtScope caseBsNil caseBsCons caseTermSNil caseTermSCons termSrepeat sigRecsInstance lookupNameRinTel
 
     --Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) 
     testTerm₁_sub : Term α
@@ -348,7 +346,7 @@ module TestTypechecker (@0 x y z : Name) where
     testTCProj₁Prop₁ : testTCProj₁Prop
 
     testTCProj₁Prop = testTCProj₁ ≡ Right _
-    testTCProj₁Prop₁ = {!!}
+    testTCProj₁Prop₁ = refl
 
 
 
