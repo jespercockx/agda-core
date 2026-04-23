@@ -23,7 +23,7 @@ records = mempty ▸ "ContainerRecord" ▸ "Σ"
 instance
   globals : Globals
   globals = record
-    { defScope = mempty ▸ "containerX" ▸ "sigmaRecordElement" ▸ "sigmaRecordElementProjSnd"
+    { defScope = mempty ▸ "eta-R-one_fixed" ▸ "containerX" ▸ "sigmaRecordElement" ▸ "sigmaRecordElementProjSnd"
     ; dataScope = datas
     ; recScope = records
     ; dataParScope = λ where
@@ -79,6 +79,9 @@ instance
       _ → "this name is irrelevant and not used in the typechecker"
     }
 open module @0 G = Globals globals
+
+nameEtaRoneFixed : NameIn defScope
+nameEtaRoneFixed = ⟨ "eta-R-one_fixed" ⟩ (Suc (Suc (Suc Zero)) ⟨ IsSuc (IsSuc (IsSuc (IsZero refl))) ⟩)
 
 nameContainerX : NameIn defScope
 nameContainerX = ⟨ "containerX" ⟩ (Suc (Suc Zero) ⟨ IsSuc (IsSuc (IsZero refl)) ⟩)
@@ -200,12 +203,29 @@ opaque
           (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
           (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
   -- containerX (corresponds to Suc Suc Zero)
-  sigDefInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) = 
+  sigDefInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ _ ⟩)) = 
     -- ContainerRecord 
     El (STyp 0) (TRec nameContainerRecord TSNil)
     , 
     --  (ContainerRecord.constructor [ False ]) .ContainerRecord.theProj
     FunctionDef (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil))
+  -- eta-R-one_fixed (corresponds to ) Suc Suc Suc Zero
+  sigDefInstance (⟨ _ ⟩ (Suc (Suc (Suc _)) ⟨ _ ⟩)) = 
+
+    --(c : ContainerRecord) → _≡_ ContainerRecord c (record { theProj = ContainerRecord.theProj c})
+    El 
+      (STyp 0) 
+      (TPi 
+        "c" 
+        (El (STyp 0) (TRec nameContainerRecord TSNil)) 
+        (El (STyp 0) (TData nameEquiv 
+          (TSCons (TRec nameContainerRecord TSNil) (TSCons (TVar (⟨ "c" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil)) --[ContainerRecord ; c]
+          (TSCons (TRecCon nameContainerRecord 
+            (TSCons (TProj {rn = nameContainerRecord} 
+              (TVar (⟨ "c" ⟩ (Zero ⟨ IsZero refl ⟩))) (⟨ "theProj" ⟩ (Zero ⟨ IsZeroR refl ⟩))) TSNil)) TSNil)))) -- [ TRecCon ContainerRecord [ContainerRecord.theProj c] ]
+    -- λ c → refl
+    , 
+    FunctionDef (TLam "c" (TDataCon {d = nameEquiv} nameRefl TSNil))
 
   sigConsInstance : (d : NameData) (c : NameDataCon d) → DataConstructor {d = d} c
   -- Vector Nil

@@ -21,8 +21,8 @@ record Σ (a : Set) (b : a → Set) : Set where
     fst : a
     snd : b fst
 
-const : (A : Set) → A → A → A
-const = λ A → λ x → λ y → x
+-- const : (A : Set) → A → A → A
+-- const = λ A → λ x → λ y → x
 
 eta-R-one_fixed : (c : ContainerRecord) → 
     _≡_ ContainerRecord c (record { theProj = ContainerRecord.theProj c})
