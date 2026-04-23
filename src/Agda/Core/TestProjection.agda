@@ -17,7 +17,7 @@ private variable
   x y : Name
   α : Scope Name
 
-datas = mempty ▸ "Bool" ▸ "Nat" ▸ "Vector"
+datas = mempty ▸ "_≡_" ▸ "Bool" ▸ "Nat" ▸ "Vector"
 records = mempty ▸ "ContainerRecord" ▸ "Σ"
 
 instance
@@ -27,13 +27,18 @@ instance
     ; dataScope = datas
     ; recScope = records
     ; dataParScope = λ where
-      --Vector
+      -- Vector
       (⟨ name ⟩ (Zero ⟨ proof₁ ⟩)) -> "A" ◂ mempty
+      --_≡_
+      -- _≡_
+      (⟨ _ ⟩ (Suc (Suc (Suc Zero)) ⟨ _ ⟩)) -> "A" ◂ "x" ◂ mempty
       --Nat and Bool
       _ -> mempty
     ; dataIxScope = λ where
       --Vector
       (⟨ name ⟩ (Zero ⟨ proof₁ ⟩)) -> "length" ◂ mempty
+      -- _≡_
+      (⟨ _ ⟩ (Suc (Suc (Suc Zero)) ⟨ _ ⟩)) -> "y" ◂ mempty
       --Nat and Bool
       _ -> mempty
     ; dataConstructors = λ where
@@ -41,9 +46,13 @@ instance
       (⟨ name ⟩ (Zero ⟨ proof₁ ⟩)) -> "Nil" ◂ "Cons" ◂ mempty
       --Nat 
       (⟨ name ⟩ (Suc Zero ⟨ proof₁ ⟩)) -> "Zero" ◂ "Suc" ◂ mempty
+      -- _≡_
+      (⟨ _ ⟩ (Suc (Suc (Suc Zero)) ⟨ _ ⟩)) -> "refl" ◂ mempty
       -- and Bool
       _ -> "True" ◂ "False" ◂ mempty 
     ; dataFieldScope = λ where 
+      -- refl of _≡_ 
+      {d = ⟨ _ ⟩ (Suc (Suc (Suc Zero)) ⟨ _ ⟩)} (⟨ _ ⟩ (Zero ⟨ _ ⟩)) → mempty
       -- True
       {d = ⟨ _ ⟩ (Suc (Suc Zero) ⟨ _ ⟩)} (⟨ _ ⟩ (Zero ⟨ _ ⟩)) → mempty
       -- False
@@ -89,6 +98,9 @@ nameNat = ⟨ "Nat" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)
 nameVector : NameData
 nameVector = ⟨ "Vector" ⟩ (Zero ⟨ IsZero refl ⟩)
 
+nameEquiv : NameData
+nameEquiv = ⟨ "_≡_" ⟩ (Suc (Suc (Suc Zero)) ⟨ IsSuc (IsSuc (IsSuc (IsZero refl))) ⟩)
+
 instance
   {-# TERMINATING #-}
   fuel : Fuel
@@ -112,77 +124,95 @@ nameNil = ⟨ "Nil" ⟩ (Zero ⟨ IsZeroR refl ⟩)
 nameCons : NameDataCon nameVector
 nameCons = ⟨ "Cons" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)
 
+
+nameRefl : NameDataCon nameEquiv
+nameRefl = ⟨ "refl" ⟩ (Zero ⟨ IsZeroR refl ⟩)
+
+
 nameSigma : NameRec
 nameSigma = ⟨ "Σ" ⟩ (Zero ⟨ IsZero refl ⟩)
 
 nameContainerRecord : NameRec 
 nameContainerRecord = ⟨ "ContainerRecord" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩)
 
-sigDataInstance : (d : NameData) → Datatype d
---Vector
-sigDataInstance (⟨ _ ⟩ (Zero ⟨ proof₁ ⟩)) = 
-  record { dataSort = STyp 0 
-    ; dataParTel = "A" ∶ (El (STyp 1) (TSort (STyp 0))) ◂ EmptyTel -- (A : Set)
-    ; dataIxTel = "length" ∶ El (STyp 0) (TData nameNat TSNil TSNil) ◂ EmptyTel -- (length : Nat)
-    ; dataConstructors = []}
--- Nat
-sigDataInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
--- Bool 
-sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc _) ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
 
-sigDefInstance : (f : NameIn defScope)  → Type mempty × SigDefinition
---sigmaRecordElementProjSnd (corresponds to Zero)
-sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = 
-  --Vector Bool (Suc (Suc Zero))
-  El (STyp 0) (TData nameVector
-    (TSCons (TData nameBool TSNil TSNil) TSNil) 
-    (TSCons ((TDataCon {d = nameNat} nameSuc 
-      (TSCons (TDataCon {d = nameNat} nameSuc 
-        (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil))) TSNil)) 
-  , 
-  --sigmaRecordElement .Σ.snd
-  FunctionDef (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
-    (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
---sigmaRecordElement (corresponds to (Suc Zero))
-sigDefInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = 
-  -- Σ Nat (λ n → (Vector Bool n))
-  El (STyp 0) (TRec nameSigma
-    (TSCons (TData nameNat TSNil TSNil) 
-    (TSCons (TLam "n" (TData nameVector 
-      (TSCons (TData nameBool TSNil TSNil) TSNil) 
-      (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))) TSNil)))
-  ,
-  --Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) 
-  FunctionDef (TRecCon nameSigma 
-    -- Suc (Suc Zero)
-    (TSCons (TDataCon {d = nameNat} nameSuc 
-      (TSCons (TDataCon {d = nameNat} nameSuc 
-        (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
-    -- (VCons (Suc Zero) False (VCons Zero False Nil))
-    (TSCons (TDataCon {d = nameVector} nameCons -- VCons
-      (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) -- (Suc Zero)
-      (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
-      (TSCons (TDataCon {d = nameVector} nameCons -- VCons
-        (TSCons (TDataCon {d = nameNat} nameZero TSNil) -- Zero
-        (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
-        (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
--- containerX (corresponds to Suc Suc Zero)
-sigDefInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) = 
-  -- ContainerRecord 
-  El (STyp 0) (TRec nameContainerRecord TSNil)
-  , 
-  --  (ContainerRecord.constructor [ False ]) .ContainerRecord.theProj
-  FunctionDef (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil))
 
 opaque
   unfolding ScopeThings RScope
+
+  sigDataInstance : (d : NameData) → Datatype d
+  --Vector
+  sigDataInstance (⟨ _ ⟩ (Zero ⟨ proof₁ ⟩)) = 
+    record { dataSort = STyp 0 
+      ; dataParTel = "A" ∶ (El (STyp 1) (TSort (STyp 0))) ◂ EmptyTel -- (A : Set)
+      ; dataIxTel = "length" ∶ El (STyp 0) (TData nameNat TSNil TSNil) ◂ EmptyTel -- (length : Nat)
+      ; dataConstructors = []} --empty because only used on the Haskell side
+  -- Nat
+  sigDataInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
+  -- Bool 
+  sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc Zero) ⟨ proof₁ ⟩)) = Datatype.constructor (STyp 0) EmptyTel EmptyTel []
+  -- _≡_
+  sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc (Suc Zero)) ⟨ _ ⟩)) = record
+    { dataSort = STyp 0
+    ; dataParTel = "A" ∶ (El (STyp 1) (TSort (STyp 0))) -- (A : Set)
+        ◂ ("x" ∶ (El (STyp 0) (TVar (⟨ "A" ⟩ (Zero ⟨ IsZero refl ⟩)))) ◂ EmptyTel) -- "x : A" 
+    ; dataIxTel = "y" ∶ El (STyp 0) (TVar (⟨ "x" ⟩ (Zero ⟨ IsZero refl ⟩))) ◂ EmptyTel -- "y : A"
+    ; dataConstructors = [] --empty because only used on the Haskell side
+    }
+  
+  -- Does not correspond to anything
+  sigDataInstance (⟨ proj₃ ⟩ (Suc (Suc (Suc (Suc a))) ⟨ IsSuc (IsSuc (IsSuc (IsSuc ()))) ⟩))
+
+  sigDefInstance : (f : NameIn defScope)  → Type mempty × SigDefinition
+  --sigmaRecordElementProjSnd (corresponds to Zero)
+  sigDefInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = 
+    --Vector Bool (Suc (Suc Zero))
+    El (STyp 0) (TData nameVector
+      (TSCons (TData nameBool TSNil TSNil) TSNil) 
+      (TSCons ((TDataCon {d = nameNat} nameSuc 
+        (TSCons (TDataCon {d = nameNat} nameSuc 
+          (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil))) TSNil)) 
+    , 
+    --sigmaRecordElement .Σ.snd
+    FunctionDef (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
+      (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
+  --sigmaRecordElement (corresponds to (Suc Zero))
+  sigDefInstance (⟨ proj₃ ⟩ (Suc Zero ⟨ proof₁ ⟩)) = 
+    -- Σ Nat (λ n → (Vector Bool n))
+    El (STyp 0) (TRec nameSigma
+      (TSCons (TData nameNat TSNil TSNil) 
+      (TSCons (TLam "n" (TData nameVector 
+        (TSCons (TData nameBool TSNil TSNil) TSNil) 
+        (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))) TSNil)))
+    ,
+    --Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) 
+    FunctionDef (TRecCon nameSigma 
+      -- Suc (Suc Zero)
+      (TSCons (TDataCon {d = nameNat} nameSuc 
+        (TSCons (TDataCon {d = nameNat} nameSuc 
+          (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
+      -- (VCons (Suc Zero) False (VCons Zero False Nil))
+      (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+        (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) -- (Suc Zero)
+        (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+        (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+          (TSCons (TDataCon {d = nameNat} nameZero TSNil) -- Zero
+          (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+          (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
+  -- containerX (corresponds to Suc Suc Zero)
+  sigDefInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ _ ⟩)) = 
+    -- ContainerRecord 
+    El (STyp 0) (TRec nameContainerRecord TSNil)
+    , 
+    --  (ContainerRecord.constructor [ False ]) .ContainerRecord.theProj
+    FunctionDef (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil))
 
   sigConsInstance : (d : NameData) (c : NameDataCon d) → DataConstructor {d = d} c
   -- Vector Nil
   sigConsInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) (⟨ _ ⟩ (Zero ⟨ _ ⟩)) = 
     DataConstructor.constructor 
     EmptyTel 
-    (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)
+    (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil) -- [ Zero ]
   -- Vector Cons
   sigConsInstance (⟨ _ ⟩ (Zero ⟨ _ ⟩)) (⟨ _ ⟩ (Suc _ ⟨ _ ⟩)) = DataConstructor.constructor 
       ("n" ∶ El (STyp 0) (TData nameNat TSNil TSNil) 
@@ -206,10 +236,17 @@ opaque
   -- Bool False
   sigConsInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ _ ⟩)) (⟨ _ ⟩ (Suc Zero ⟨ _ ⟩)) = DataConstructor.constructor EmptyTel TSNil
 
+  -- _≡_ refl
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc (Suc Zero)) ⟨ _ ⟩)) (⟨ proj₃ ⟩ (Zero ⟨ _ ⟩)) = record { 
+    conIndTel = EmptyTel 
+    ; conIx = TSCons (TVar (⟨ "x" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil }
+  
+
   -- Does not correspond to anything
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc (Suc Zero)) ⟨ IsSuc (IsSuc (IsSuc (IsZero x))) ⟩)) (⟨ proj₃ ⟩ (Suc value₂ ⟨ IsSucR () ⟩))
   sigConsInstance (⟨ _ ⟩ (Suc Zero ⟨ proof₁ ⟩)) (⟨ _ ⟩ (Suc (Suc value₂) ⟨ IsSucR (IsSucR ()) ⟩))
   sigConsInstance (⟨ _ ⟩ (Suc (Suc Zero) ⟨ proof₁ ⟩)) (⟨ proj₃ ⟩ (Suc (Suc value₂) ⟨ IsSucR (IsSucR ()) ⟩))
-  sigConsInstance (⟨ _ ⟩ (Suc (Suc (Suc value₁)) ⟨ IsSuc (IsSuc (IsSuc ())) ⟩)) (⟨ proj₃ ⟩ (value₂ ⟨ proof₂ ⟩))
+  sigConsInstance (⟨ _ ⟩ (Suc (Suc (Suc (Suc value₁))) ⟨ IsSuc (IsSuc (IsSuc (IsSuc ()))) ⟩)) (⟨ proj₃ ⟩ (value₂ ⟨ proof₂ ⟩))
 
   sigRecsInstance : (recordName : NameRec) → Record recordName
   --Σ
