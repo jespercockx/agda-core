@@ -10,6 +10,8 @@ open import Agda.Core.Reduce
 open import Agda.Core.TCM.TCM
 open import Agda.Core.Rules.Typing
 open import Agda.Core.Checkers.TypeCheck
+open import Agda.Core.Checkers.Converter
+open import Agda.Core.Rules.Conversion
 open import Agda.Core.Rules.Unification
 open import Agda.Core.Checkers.Unifier
 
@@ -209,7 +211,7 @@ opaque
     , 
     --  (ContainerRecord.constructor [ False ]) .ContainerRecord.theProj
     FunctionDef (TRecCon nameContainerRecord (TSCons (TDataCon {d = nameBool} nameFalse TSNil) TSNil))
-  -- eta-R-one_fixed (corresponds to ) Suc Suc Suc Zero
+  -- eta-R-one_fixed (nameEtaRoneFixed) (corresponds to  Suc Suc Suc Zero)
   sigDefInstance (⟨ _ ⟩ (Suc (Suc (Suc _)) ⟨ _ ⟩)) = 
 
     --(c : ContainerRecord) → _≡_ ContainerRecord c (record { theProj = ContainerRecord.theProj c})
@@ -299,7 +301,7 @@ module TestTypechecker (@0 x y z : Name) where
 
   opaque
     -- TODO (atejandev): make this list of unfolding terms s.t. it is the minimum one required by each test
-    unfolding ScopeThings AllNameCon rScopeToRScopeNameInR extendEnvironment addTel subToSubst substExtScope caseBsNil caseBsCons caseTermSNil caseTermSCons termSrepeat sigRecsInstance lookupNameRinTel
+    unfolding ScopeThings AllNameCon rScopeToRScopeNameInR extendEnvironment addTel subToSubst substExtScope caseBsNil caseBsCons caseTermSNil caseTermSCons termSrepeat sigRecsInstance lookupNameRinTel etaProjTermS
 
     --Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) 
     testTerm₁_sub : Term α
@@ -351,6 +353,34 @@ module TestTypechecker (@0 x y z : Name) where
     testTProjTerm₁ = (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
       (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
 
+    -- (Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil))) .Σ.snd 
+    testTCProjTerm₁asAnn : Term α
+    testTCProjTerm₁asAnn = 
+      (TProj {rn = nameSigma} 
+        (TAnn
+          (TRecCon nameSigma 
+          -- Suc (Suc Zero)
+          (TSCons (TDataCon {d = nameNat} nameSuc 
+            (TSCons (TDataCon {d = nameNat} nameSuc 
+              (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
+          -- (VCons (Suc Zero) False (VCons Zero False Nil))
+          (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+            (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) -- (Suc Zero)
+            (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+            (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+              (TSCons (TDataCon {d = nameNat} nameZero TSNil) -- Zero
+              (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+              (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
+          (El (STyp 0) (TRec nameSigma
+            (TSCons (TData nameNat TSNil TSNil) 
+            (TSCons (TLam "n" (TData nameVector 
+              (TSCons (TData nameBool TSNil TSNil) TSNil) 
+              (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))) TSNil))))
+        )
+        (⟨ "snd" ⟩ (Suc Zero ⟨ IsSucR (IsZeroR refl) ⟩)))
+
+      
+
     --Vector Bool (Suc (Suc Zero))
     testTProjResultType₁ : Type α
     testTProjResultType₁ = El (STyp 0) (TData nameVector
@@ -367,6 +397,32 @@ module TestTypechecker (@0 x y z : Name) where
     testTProjTerm₂ = (TProj {rn = nameSigma} (TDef (⟨ "sigmaRecordElement" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) 
       (⟨ "fst" ⟩ (Zero ⟨ (IsZeroR refl) ⟩)))
 
+    -- (Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) : ) .Σ.fst 
+    testTCProjTerm₂asAnn : Term α
+    testTCProjTerm₂asAnn = (TProj {rn = nameSigma}
+      (TAnn
+        (TRecCon nameSigma 
+        -- Suc (Suc Zero)
+        (TSCons (TDataCon {d = nameNat} nameSuc 
+          (TSCons (TDataCon {d = nameNat} nameSuc 
+            (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) TSNil)) 
+        -- (VCons (Suc Zero) False (VCons Zero False Nil))
+        (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+          (TSCons (TDataCon {d = nameNat} nameSuc (TSCons (TDataCon {d = nameNat} nameZero TSNil) TSNil)) -- (Suc Zero)
+          (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+          (TSCons (TDataCon {d = nameVector} nameCons -- VCons
+            (TSCons (TDataCon {d = nameNat} nameZero TSNil) -- Zero
+            (TSCons (TDataCon {d = nameBool} nameFalse TSNil) 
+            (TSCons (TDataCon {d = nameVector} nameNil TSNil) TSNil)))) TSNil)))) TSNil)))
+        (El (STyp 0) (TRec nameSigma
+          (TSCons (TData nameNat TSNil TSNil) 
+          (TSCons (TLam "n" (TData nameVector 
+            (TSCons (TData nameBool TSNil TSNil) TSNil) 
+            (TSCons (TVar (⟨ "n" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))) TSNil))))
+      )
+      (⟨ "fst" ⟩ (Zero ⟨ (IsZeroR refl) ⟩)))
+      
+
     -- Nat
     testTProjResultType₂ : Type α
     testTProjResultType₂ = El (STyp 0) (TData nameNat TSNil TSNil)
@@ -374,6 +430,54 @@ module TestTypechecker (@0 x y z : Name) where
 
     testTCProj₂ : Either TCError (CtxEmpty ⊢ testTProjTerm₂ ∶ testTProjResultType₂)
     testTCProj₂ = runTCM (checkType CtxEmpty testTProjTerm₂ testTProjResultType₂) (MkTCEnv (sing sig) fuel)
+
+
+    testEtaRecordsTerm1 : Term α
+    testEtaRecordsTerm1 = TDef nameEtaRoneFixed
+
+    -- λ c → refl
+    testEtaRecordsTerm1asAnn : Term α
+    testEtaRecordsTerm1asAnn = 
+      (TLam "c" 
+        (TAnn 
+          (TDataCon {d = nameEquiv} nameRefl TSNil) 
+          (El (STyp 0) (TData nameEquiv 
+            (TSCons (TRec nameContainerRecord TSNil) (TSCons (TVar (⟨ "c" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil)) 
+            (TSCons (TRecCon nameContainerRecord 
+              (TSCons (TProj {rn = nameContainerRecord} 
+                (TVar (⟨ "c" ⟩ (Zero ⟨ IsZero refl ⟩))) (⟨ "theProj" ⟩ (Zero ⟨ IsZeroR refl ⟩))) TSNil)) TSNil))))) 
+          
+
+
+    --(c : ContainerRecord) → _≡_ ContainerRecord c (record { theProj = ContainerRecord.theProj c})
+    testEtaRecordsType1 : Type α
+    testEtaRecordsType1 = 
+      El 
+      (STyp 0) 
+      (TPi 
+        "c" 
+        (El (STyp 0) (TRec nameContainerRecord TSNil)) 
+        (El (STyp 0) (TData nameEquiv 
+          (TSCons (TRec nameContainerRecord TSNil) (TSCons (TVar (⟨ "c" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil)) 
+          (TSCons (TRecCon nameContainerRecord 
+            (TSCons (TProj {rn = nameContainerRecord} 
+              (TVar (⟨ "c" ⟩ (Zero ⟨ IsZero refl ⟩))) (⟨ "theProj" ⟩ (Zero ⟨ IsZeroR refl ⟩))) TSNil)) TSNil))))
+  
+
+
+    testTCEtaRecords1 : Either TCError (CtxEmpty ⊢ testEtaRecordsTerm1 ∶ testEtaRecordsType1)
+    testTCEtaRecords1 = runTCM (checkType CtxEmpty testEtaRecordsTerm1 testEtaRecordsType1) (MkTCEnv (sing sig) fuel)
+
+
+
+    testTCProj₁asAnn : Either TCError (CtxEmpty ⊢ testTCProjTerm₁asAnn ∶ testTProjResultType₁)
+    testTCProj₁asAnn = runTCM (checkType CtxEmpty testTCProjTerm₁asAnn testTProjResultType₁) (MkTCEnv (sing sig) fuel)
+
+    testTCProj₂asAnn : Either TCError (CtxEmpty ⊢ testTCProjTerm₂asAnn ∶ testTProjResultType₂)
+    testTCProj₂asAnn = runTCM (checkType CtxEmpty testTCProjTerm₂asAnn testTProjResultType₂) (MkTCEnv (sing sig) fuel)
+
+    testTCEtaRecords1asAnn : Either TCError (CtxEmpty ⊢ testEtaRecordsTerm1asAnn ∶ testEtaRecordsType1)
+    testTCEtaRecords1asAnn = runTCM (checkType CtxEmpty testEtaRecordsTerm1asAnn testEtaRecordsType1) (MkTCEnv (sing sig) fuel)
 
 
 
@@ -412,3 +516,34 @@ module TestTypechecker (@0 x y z : Name) where
 
     testTCProj₂Prop = testTCProj₂ ≡ Right _
     proofOftestTCProj₂Prop = refl
+
+    @0 testTCEtaRecords1Prop : Set
+    proofOftestTCEtaRecords1Prop : testTCEtaRecords1Prop
+
+    testTCEtaRecords1Prop = testTCEtaRecords1 ≡ Right _
+    proofOftestTCEtaRecords1Prop = refl
+
+
+
+    @0 testTCProj₁asAnnProp : Set
+    proofOftestTCProj₁asAnnProp : testTCProj₁asAnnProp
+
+    testTCProj₁asAnnProp = testTCProj₁asAnn ≡ Right _
+    proofOftestTCProj₁asAnnProp = refl
+
+    
+    
+    @0 testTCProj₂asAnnProp : Set
+    proofOftestTCProj₂asAnnProp : testTCProj₂asAnnProp
+
+    testTCProj₂asAnnProp = testTCProj₂asAnn ≡ Right _
+    proofOftestTCProj₂asAnnProp = refl
+
+
+
+    @0 testTCEtaRecords1asAnnProp : Set 
+    proofOftestTCEtaRecords1asAnnProp : testTCEtaRecords1asAnnProp
+
+    testTCEtaRecords1asAnnProp = testTCEtaRecords1asAnn ≡ Right _
+    proofOftestTCEtaRecords1asAnnProp = refl
+

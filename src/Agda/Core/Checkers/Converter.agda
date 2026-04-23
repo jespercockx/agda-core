@@ -348,8 +348,8 @@ convertWhnf r recTerm (TRecCon rn argsTermS) = do
 convertWhnf r (TRecCon rn argsTermS) recTerm = do
     convProof ← convertEtaRecsGeneric r recTerm argsTermS
     return (CEtaRecordsRight rn recTerm argsTermS convProof)
-convertWhnf r (TProj _ _) term = tcError "TODO: TProj generic left case"
-convertWhnf r term (TProj _ _) = tcError "TODO: TProj generic right case"
+-- convertWhnf r (TProj _ _) term = tcError "TODO: TProj generic left case"
+-- convertWhnf r term (TProj _ _) = tcError "TODO: TProj generic right case"
 convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
 {-# COMPILE AGDA2HS convertWhnf #-}
