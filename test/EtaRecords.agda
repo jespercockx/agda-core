@@ -8,9 +8,9 @@ data Nat : Set where
 --   Nil : Vector A Zero
 --   Cons : (n : Nat) → Vector A n → Vector A (Suc n)
 
--- data Bool : Set where
---   True : Bool
---   False : Bool
+data Bool : Set where
+  True : Bool
+  False : Bool
 
 data _≡_ {A : Set} (x : A) : A → Set where
  refl : x ≡ x
@@ -67,6 +67,14 @@ example1 = Pair Nat
 
 -- z : PairExplCon Nat Nat
 -- z = _,_ Zero (Suc Zero)
+
+record ContainerRecord : Set where
+    field
+        theProj : Bool
+
+eta-R-one_fixed : (c : ContainerRecord) → 
+    _≡_ c (record { theProj = ContainerRecord.theProj c})
+eta-R-one_fixed = λ c → refl
 
 --requirement for type checking eta-R-two
 eta-R-two_sub : (A B : Set) → (const (Pair A B → A) Pair.fst Pair.fst) ≡ Pair.fst
