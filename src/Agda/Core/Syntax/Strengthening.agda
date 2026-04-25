@@ -12,8 +12,8 @@ private variable
   @0 α β  : Scope Name
   @0 rγ   : RScope Name
   @0 d    : NameData
-  @0 c    : NameCon d
-  @0 cs   : RScope (NameCon d)
+  @0 c    : NameDataCon d
+  @0 cs   : RScope (NameDataCon d)
 
 strengthenTerm      : α ⊆ β → Term β → Maybe (Term α)
 strengthenTermS     : α ⊆ β → TermS β rγ → Maybe (TermS α rγ)
@@ -25,7 +25,9 @@ strengthenBranches  : α ⊆ β → Branches β d cs → Maybe (Branches α d cs
 strengthenTerm p (TVar (⟨ x ⟩ q)) = diffCase p q (λ q → Just (TVar (⟨ x ⟩ q))) (λ _ → Nothing)
 strengthenTerm p (TDef d) = Just (TDef d)
 strengthenTerm p (TData d ps is) = TData d <$> strengthenTermS p ps <*> strengthenTermS p is
-strengthenTerm p (TCon c vs) = TCon c <$> strengthenTermS p vs
+strengthenTerm p (TRec rn pars) = TRec rn <$> strengthenTermS p pars
+strengthenTerm p (TDataCon c vs) = TDataCon c <$> strengthenTermS p vs
+strengthenTerm p (TRecCon r vs) = TRecCon r <$> strengthenTermS p vs
 strengthenTerm p (TLam x v) = TLam x <$> strengthenTerm (subBindKeep p) v
 strengthenTerm p (TApp v e) = TApp <$> strengthenTerm p v <*> strengthenTerm p e
 strengthenTerm p (TProj u f) = (λ v → TProj v f) <$> strengthenTerm p u

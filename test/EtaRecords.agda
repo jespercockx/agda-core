@@ -1,28 +1,101 @@
 module EtaRecords where
-
+  
 data Nat : Set where
   Zero : Nat
   Suc : Nat → Nat
 
--- data Bool : Set where
---   true : Bool
---   false : Bool
+-- data Vector (A : Set) : Nat → Set where
+--   Nil : Vector A Zero
+--   Cons : (n : Nat) → Vector A n → Vector A (Suc n)
 
--- data _≡_ {A : Set} (x : A) : A → Set where
---   refl : x ≡ x
+data Bool : Set where
+  True : Bool
+  False : Bool
+
+data _≡_ {A : Set} (x : A) : A → Set where
+ refl : x ≡ x
+
+const : (A : Set) → A → A → A
+const = λ A → λ x → λ y → x
 
 record Pair (A B : Set) : Set where
-    no-eta-equality
     field
         fst : A
         snd : B
 
+data PairAsData (A B : Set) : Set where
+  PairAsDataConstructor : A → B → PairAsData A B
+
+
+-- record PairNoEta (A B : Set) : Set where
+--     no-eta-equality
+--     pattern
+--     field
+--         fstnoE : A
+--         sndnoE : B
+
+-- record PairExplCon (A B : Set) : Set where 
+--     constructor _,_
+--     field
+--       fstE : A
+--       sndE : B
+
 x : Pair Nat Nat
 x = record { fst = Zero; snd = Suc Zero }
 
+xAsData : PairAsData Nat Nat
+xAsData = PairAsDataConstructor Zero (Suc Zero)
+
+x' : Pair Nat Nat
+x' = Pair.constructor Zero (Suc Zero)
+
+-- --example0 and example1 are both valid Agda epxressions
+example0 : (A B : Set) → Set
+example0 = Pair
+
+example1 : (B : Set) → Set
+example1 = Pair Nat
+
+-- proj_example : Nat
+-- proj_example = Pair.fst x
+
+-- proj_example_requires_proj_reduction : Pair.fst x ≡ Zero
+-- proj_example_requires_proj_reduction = refl
+
 -- y : Pair Nat Bool
--- y = record { fst = Pair.fst x; snd = Pair.snd x }
+-- y = record { fst = Pair.fst x; snd = False }
 
--- eta-R : {A B : Set} (x : Pair A B) → x ≡ record { fst = Pair.fst x ; snd = Pair.snd x }
--- eta-R r = {!!}
+-- z : PairExplCon Nat Nat
+-- z = _,_ Zero (Suc Zero)
 
+record ContainerRecord : Set where
+    field
+        theProj : Bool
+
+eta-R-one_fixed : (c : ContainerRecord) → 
+    _≡_ c (record { theProj = ContainerRecord.theProj c})
+eta-R-one_fixed = λ c → refl
+
+--requirement for type checking eta-R-two
+eta-R-two_sub : (A B : Set) → (const (Pair A B → A) Pair.fst Pair.fst) ≡ Pair.fst
+eta-R-two_sub = λ A B → refl
+
+-- -- (diode-lang):
+-- -- keeping in mind Converter.agda, 
+-- -- it should be that:
+-- -- - rt = p
+-- -- - rn = Pair
+-- -- - argsTermS = [(const (Pair A B → A) Pair.fst Pair.fst) p; Pair.snd p]
+eta-R-two : (A B : Set) (p : Pair A B) → 
+  p ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) p ; snd = Pair.snd p }
+eta-R-two = λ A B → λ p → refl
+
+-- -- (diode-lang) only difference with eta-R-two is that constructor naming is explicit
+-- eta-R-two-expl-con : (A B : Set) (p : PairExplCon A B) → 
+--   p ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fstE PairExplCon.fstE p) (PairExplCon.sndE p))
+-- eta-R-two-expl-con = λ A B → λ p → refl
+
+-- -- (diode-lang): I don't think this statement is actually provable, because we have turned off eta-equality
+-- -- eta-R-two_expl : (A B : Set) (x : PairNoEta A B) →
+-- --   x ≡ record { fst = PairNoEta.fst x ; snd = PairNoEta.snd x }
+-- -- eta-R-two_expl = λ A B → λ x → {!!}

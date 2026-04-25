@@ -1,3 +1,4 @@
+-- {-# OPTIONS --allow-unsolved-metas #-}
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax.Term
@@ -13,8 +14,8 @@ private variable
   @0 α β : Scope Name
   @0 rγ  : RScope Name
   @0 d   : NameData
-  @0 c   : NameCon d
-  @0 cs  : RScope (NameCon d)
+  @0 c   : NameDataCon d
+  @0 cs  : RScope (NameDataCon d)
 
 weakenTerm     : α ⊆ β → Term α → Term β
 weakenTermS    : α ⊆ β → TermS α rγ → TermS β rγ
@@ -26,7 +27,9 @@ weakenBranches : α ⊆ β → Branches α d cs → Branches β d cs
 weakenTerm p (TVar (⟨ x ⟩ k))  = TVar (⟨ x ⟩ coerce p k)
 weakenTerm p (TDef d)          = TDef d
 weakenTerm p (TData d ps is)   = TData d (weakenTermS p ps) (weakenTermS p is)
-weakenTerm p (TCon c vs)       = TCon c (weakenTermS p vs)
+weakenTerm p (TRec rn pars)    = TRec rn (weakenTermS p pars)
+weakenTerm p (TDataCon c vs)       = TDataCon c (weakenTermS p vs)
+weakenTerm p (TRecCon rc vs)       = TRecCon rc (weakenTermS p vs)
 weakenTerm p (TLam x v)        = TLam x (weakenTerm (subBindKeep p) v)
 weakenTerm p (TApp u e)        = TApp (weakenTerm p u) (weakenTerm p e)
 weakenTerm p (TProj u x)       = TProj (weakenTerm p u) x
@@ -95,18 +98,18 @@ instance
                                       {- Useful functions -}
 ---------------------------------------------------------------------------------------------------
 
-raise : Singleton rγ → Term α → Term (α ◂▸ rγ)
-raise r = weakenTerm (subExtScope r subRefl)
-{-# COMPILE AGDA2HS raise #-}
-
-private -- it should use a RScope instead of β and then could be public
-  raiseType : {@0 α β : Scope Name} → Singleton β → Type α → Type (α <> β)
-  raiseType r = weakenType (subJoinDrop r subRefl)
-  {-# COMPILE AGDA2HS raiseType #-}
 
 lookupVar : (Γ : Context α) (x : NameIn α) → Type α
 lookupVar CtxEmpty x = nameInEmptyCase x
-lookupVar (CtxExtend g y s) x = raiseType (sing _) (nameInBindCase x
-  (λ q → lookupVar g (⟨ _ ⟩ q))
-  (λ _ → s))
+lookupVar (CtxExtend {α = α'} g y s) x = (nameInBindCase x
+  (λ q → (weakenType (subBindDrop subRefl) (lookupVar g (⟨ _ ⟩ q ))))
+  (λ _ → (weakenType (subBindDrop subRefl) s))
+  )
 {-# COMPILE AGDA2HS lookupVar #-}
+
+lookupNameRinTermS : TermS α rγ → NameInR rγ → Term α
+lookupNameRinTermS TSNil x = nameInRemptyCase x
+lookupNameRinTermS (y ↦ trm ◂ smallerTermS) x = nameInRBindCase x 
+  (λ q → lookupNameRinTermS smallerTermS (⟨ _ ⟩ q)) 
+  (λ proof → trm)
+{-# COMPILE AGDA2HS lookupNameRinTermS #-}

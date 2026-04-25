@@ -11,17 +11,29 @@ record Globals : Set where
     dataParScope      : NameIn dataScope → RScope Name
     dataIxScope       : NameIn dataScope → RScope Name
     dataConstructors  : NameIn dataScope → RScope Name                                          -- TODO: change RScope for an erased list
-    fieldScope        : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name
+    dataFieldScope    : {d : NameIn dataScope } → NameInR (dataConstructors d) → RScope Name 
+    recScope          : Scope Name
+    recParScope       : NameIn recScope → RScope Name -- scope of the record's parameter list
+    recFieldScope     : NameIn recScope → RScope Name -- scope of the record constructor and the projection functions of the record
+    recCon            : NameIn recScope → Name        
   NameData : Set
   NameData = NameIn dataScope
-  NameCon : NameData → Set
-  NameCon d = NameInR (dataConstructors d)
+  NameDataCon : NameData → Set
+  NameDataCon d = NameInR (dataConstructors d)
+  NameRec : Set
+  NameRec = NameIn recScope
+  NameProj : NameRec → Set
+  NameProj rn = NameInR (recFieldScope rn)
+  NameRecCon : NameRec → Set
+  NameRecCon rn = NameIn [ recCon rn ] 
   opaque
     unfolding RScope
-    AllNameCon : (d : NameData) → RScope (NameCon d)
+    AllNameCon : (d : NameData) → RScope (NameDataCon d)
     AllNameCon d = rScopeToRScopeNameInR (dataConstructors d)
 open Globals public
 
 {-# COMPILE AGDA2HS NameData inline #-}
-{-# COMPILE AGDA2HS NameCon inline #-}
+{-# COMPILE AGDA2HS NameDataCon inline #-}
+{-# COMPILE AGDA2HS NameRec inline #-}
+{-# COMPILE AGDA2HS NameProj inline #-}
 {-# COMPILE AGDA2HS Globals #-}

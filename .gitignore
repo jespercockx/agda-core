@@ -13,3 +13,6 @@ dist-newstyle
 result
 .direnv
 src/**/*.hs
+
+latex/**
+src/Agda/overleaf_export/**

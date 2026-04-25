@@ -18,16 +18,40 @@ private variable
   @0 a b c  : Type α
   @0 k l    : Sort α
 
-constructorType : {d : NameData}
+opaque
+  unfolding Scope RScope
+  lookupNameRinTel : (rs : Singleton α) (rrs : Singleton rβ) 
+    (cargs : TermS α rβ) (tel : Telescope α rβ) (n : NameInR rβ) → Type α
+  lookupNameRinTel _ _ _ EmptyTel x = nameInRemptyCase x
+  lookupNameRinTel {α} rs ((_ ∷ rrs') ⟨ rrseq ⟩) (TSCons argTerm smallerTermS) (ExtendTel y typ smallerTel) x = 
+    let 
+      result : Type (α ▸ y)
+      result = nameInRBindCase x 
+        ((λ q → lookupNameRinTel 
+          (singBind rs) (singTermS smallerTermS) (weakenTermS (subBindDrop subRefl) smallerTermS) smallerTel (⟨ _ ⟩ q))) 
+        (λ proof → weakenType (subBindDrop subRefl) typ)
+    in
+    substTop rs argTerm result
+  {-# COMPILE AGDA2HS lookupNameRinTel #-}
+
+dataConstructorType : {d : NameData}
                 → (dt : Datatype d)
-                → {c : NameCon d}
-                → (con : Constructor c)
+                → {c : NameDataCon d}
+                → (con : DataConstructor c)
                 → (pars : TermS α (dataParScope d))
-                → TermS α (fieldScope c)
+                → TermS α (dataFieldScope c)
                 → Type α
-constructorType {d = d} dt con pars us =
+dataConstructorType {d = d} dt con pars us =
   dataType d (instDataSort dt pars) pars (instConIx con pars us)
-{-# COMPILE AGDA2HS constructorType #-}
+{-# COMPILE AGDA2HS dataConstructorType #-}
+
+recordConstructorType : {rn : NameRec}
+              → (sigRec : Record rn)
+              → TermS α (recParScope rn)
+              → Type α
+recordConstructorType {rn = rn} sigRec pars = El (instRecSort sigRec pars) (TRec rn pars)
+{-# COMPILE AGDA2HS recordConstructorType #-}
+
 
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
 
@@ -35,11 +59,11 @@ data TyTermS (@0 Γ : Context α) : @0 TermS α rβ → @0 Telescope α rβ → 
 
 data TyBranches (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
                 (@0 ps : TermS α (dataParScope d))
-                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 cs : RScope (NameCon d)} → @0 Branches α d cs → Set
+                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 cs : RScope (NameDataCon d)} → @0 Branches α d cs → Set
 
 data TyBranch   (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
                 (@0 ps : TermS α (dataParScope d))
-                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 c : NameCon d} → @0 Branch α c → Set
+                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 c : NameDataCon d} → @0 Branch α c → Set
 
 infix 3 TyTerm
 syntax TyTerm Γ u t = Γ ⊢ u ∶ t
@@ -69,20 +93,39 @@ data TyTerm {α} Γ where
     → Γ ⊢ˢ ixs  ∶ instDataIxTel dt pars
     ----------------------------------------------
     → Γ ⊢ TData d pars ixs ∶ sortType (instDataSort dt pars)
+  
+  TyRec : 
+    {rn : NameRec}
+    {@0 pars : TermS α (recParScope rn)}
+    (let rt : Record rn
+         rt = sigRecs sig rn)
+    → Γ ⊢ˢ pars ∶ instRecParTel rt
+    ----------------------------------------------
+    → Γ ⊢ TRec rn pars ∶ sortType (instRecSort rt pars)
 
-  TyCon :
+  TyDataCon :
       {d : NameData}
-      {c : NameCon d}
+      {c : NameDataCon d}
       {@0 pars : TermS α (dataParScope d)}
-      {@0 us  : TermS α (fieldScope c)}
+      {@0 us  : TermS α (dataFieldScope c)}
       (let dt  : Datatype d
            dt  = sigData sig d
-           con : Constructor c
+           con : DataConstructor c
            con = sigCons sig d c)
 
     → Γ ⊢ˢ us ∶ instConIndTel con pars
     -----------------------------------------------------------
-    → Γ ⊢ TCon c us ∶ constructorType dt con pars us
+    → Γ ⊢ TDataCon c us ∶ dataConstructorType dt con pars us
+
+  TyRecCon : 
+    {rn : NameRec}
+    {@0 pars : TermS α (recParScope rn)}
+    {@0 args : TermS α (recFieldScope rn)}
+    (let sigRecord : Record rn
+         sigRecord = sigRecs sig rn)
+    → Γ ⊢ˢ args ∶ instRecConArgTel sigRecord pars
+    -----------------------------------------------------------
+    → Γ ⊢ TRecCon rn args ∶ recordConstructorType sigRecord pars
 
   TyLam :
       Γ , x ∶ a ⊢ u ∶ b
@@ -126,7 +169,18 @@ data TyTerm {α} Γ where
     --------------------------------------------------
     → Γ ⊢ TCase d iRun u cases return ∶ return'                   -- then the branching on u is well typed
 
-  -- TODO: proj
+  TyProj : {rn : NameRec}
+    {recordTerm : Term α}
+    {rsort : Sort α}
+    {projFunc : NameProj rn}
+    {instPars : TermS α (recParScope rn)}
+    (cargs : TermS α (recFieldScope rn))
+    (let sigRecord : Record rn
+         sigRecord = sigRecs sig rn)
+    → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
+    → recordTerm ≅ (TRecCon rn cargs) 
+    --------------------------------------------------------------------------
+    → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
 
   TyPi :
       Γ ⊢ u ∶ sortType k
@@ -161,7 +215,7 @@ data TyTerm {α} Γ where
 
 data TyBranches {α} Γ {d} dt ps rt where
   TyBsNil : TyBranches Γ dt ps rt BsNil
-  TyBsCons : ∀ {@0 c : NameCon d} {@0 cs : RScope (NameCon d)} {@0 b : Branch α c} {@0 bs : Branches α d cs}
+  TyBsCons : ∀ {@0 c : NameDataCon d} {@0 cs : RScope (NameDataCon d)} {@0 b : Branch α c} {@0 bs : Branches α d cs}
            → TyBranch Γ dt ps rt b
            → TyBranches Γ dt ps rt bs
            → TyBranches Γ dt ps rt (BsCons b bs)
@@ -169,10 +223,10 @@ data TyBranches {α} Γ {d} dt ps rt where
 {-# COMPILE AGDA2HS TyBranches #-}
 
 data TyBranch {α = α} {x} Γ {d = d} dt pars return where
-  TyBBranch : (c : NameCon d)
-              (let con : Constructor c
+  TyBBranch : (c : NameDataCon d)
+              (let con : DataConstructor c
                    con = sigCons sig d c
-                   fields = fieldScope c
+                   fields = dataFieldScope c
                    α' = α ◂▸ fields
                    r = sing fields)
               (rhs : Term α')
@@ -192,7 +246,8 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
                    asubst = weaken (subExtScope r subRefl) (idSubst (singScope Γ))
 
                    bsubst : α ◂▸ dataIxScope d ▸ x ⇒ α'
-                   bsubst = (extSubst asubst ixs' ▹ x ↦ TCon c cargs)
+                   -- (atejandev): Not sure why a TDataCon is used here
+                   bsubst = (extSubst asubst ixs' ▹ x ↦ TDataCon c cargs)
 
                    return' : Type α'
                    return' = subst bsubst return)
@@ -236,17 +291,36 @@ tyData' : {@0 Γ : Context α}
 tyData' dt refl typars tyixs = TyData typars tyixs
 {-# COMPILE AGDA2HS tyData' #-}
 
+tyRec' : {@0 Γ : Context α}
+  {rn : NameRec}
+  (@0 rt : Record rn) → @0 sigRecs sig rn ≡ rt
+  → {@0 pars : TermS α (recParScope rn)}
+  → Γ ⊢ˢ pars ∶ instRecParTel rt
+  ----------------------------------------------
+  → Γ ⊢ TRec rn pars ∶ sortType (instRecSort rt pars)
+tyRec' rt refl typars = TyRec typars
+{-# COMPILE AGDA2HS tyRec' #-}
 
-tyCon' : {@0 Γ : Context α}
+tyDataCon' : {@0 Γ : Context α}
   {d : NameData} → (@0 dt : Datatype d) → @0 sigData sig d ≡ dt
-  → {c : NameCon d} (@0 con : Constructor c) → @0 sigCons sig d c ≡ con
+  → {c : NameDataCon d} (@0 con : DataConstructor c) → @0 sigCons sig d c ≡ con
   → {@0 pars : TermS α (dataParScope d)}
-  → {@0 us : TermS α (fieldScope c)}
+  → {@0 us : TermS α (dataFieldScope c)}
   → Γ ⊢ˢ us ∶ instConIndTel con pars
   ----------------------------------------------
-  → Γ ⊢ TCon c us ∶ constructorType dt con pars us
-tyCon' dt refl con refl tySubst = TyCon tySubst
-{-# COMPILE AGDA2HS tyCon' #-}
+  → Γ ⊢ TDataCon c us ∶ dataConstructorType dt con pars us
+tyDataCon' dt refl con refl tySubst = TyDataCon tySubst
+{-# COMPILE AGDA2HS tyDataCon' #-}
+
+tyRecCon' : {@0 Γ : Context α}
+  {rn : NameRec} → (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
+  → {@0 pars : TermS α (recParScope rn)}
+  → {@0 args : TermS α (recFieldScope rn)}
+  → Γ ⊢ˢ args ∶ instRecConArgTel sigRecord pars
+  ----------------------------------------------
+  → Γ ⊢ TRecCon rn args ∶ recordConstructorType sigRecord pars
+tyRecCon' sigRecord refl tysubst = TyRecCon tysubst
+{-# COMPILE AGDA2HS tyRecCon' #-}
 
 tyCase' : {@0 Γ : Context α}
   {d : NameData}
@@ -276,13 +350,29 @@ tyCase' dt refl {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
   TyCase wfReturn tyCases tyu
 {-# COMPILE AGDA2HS tyCase' #-}
 
+
+
+tyProj' : {@0 Γ : Context α}
+  {rn : NameRec}
+  {recordTerm : Term α}
+  {rsort : Sort α}
+  {projFunc : NameProj rn}
+  (instPars : TermS α (recParScope rn))
+  (cargs : TermS α (recFieldScope rn))
+  (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
+  → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
+  → recordTerm ≅ (TRecCon rn cargs)
+  → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
+tyProj' instPars cargs sigRecord refl proof1 proof2 = TyProj cargs proof1 proof2
+{-# COMPILE AGDA2HS tyProj' #-}
+
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
             {@0 ps : TermS α (dataParScope d)}
             {@0 return : Type (α ◂▸ dataIxScope d ▸ x)}
-            (c : NameCon d)
-            (let fields = fieldScope c
+            (c : NameDataCon d)
+            (let fields = dataFieldScope c
                  β = α ◂▸ fields)
-            (@0 con : Constructor c)
+            (@0 con : DataConstructor c)
             → @0 sigCons sig d c ≡ con
             → {@0 r : Singleton fields}
             (rhs : Term β)
@@ -302,7 +392,7 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
                  idsubst = weakenSubst (subExtScope r subRefl) (idSubst (singScope Γ))
 
                  bsubst : α ◂▸ dataIxScope d ▸ x ⇒ β
-                 bsubst = extSubst idsubst ixsubst ▹ x ↦ TCon c cargs
+                 bsubst = extSubst idsubst ixsubst ▹ x ↦ TDataCon c cargs
 
                  return' : Type β
                  return' = subst bsubst return)
