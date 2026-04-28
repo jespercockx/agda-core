@@ -241,9 +241,6 @@ agdaCoreCompile env _ _ def = do
 
     -- Data constructor (it is a data constructor if the defName is in tcg_cons)
     Internal.Constructor{} | Map.member defName tcg_cons -> do
-      -- (diode-lang) BAD: It seems that this will also match record constructors, 
-      -- and then it will be the case that `name=constructor`. 
-      -- One almost certainly does not want to add `name` to `nnames_cons` in that case
       reportSDoc "agda-core.check" 3 $ text "  Internal.Constructor name:" <+> prettyTCM name
       let (Constructor cID (Data dID _ _)) = tcg_cons Map.! defName
       let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
