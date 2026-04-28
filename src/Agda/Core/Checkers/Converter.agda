@@ -319,47 +319,45 @@ convertEtaRecsGeneric {rn = rn} r rt argsTermS =
 {-# COMPILE AGDA2HS convertEtaRecsGeneric #-}
              
 
-convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
-convertWhnf r (TVar x) (TVar y) = convVars x y
-convertWhnf r (TDef x) (TDef y) = convDefs x y
-convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
-convertWhnf r (TRec rn1 pars1) (TRec rn2 pars2) = convRecs r rn1 rn2 pars1 pars2
-convertWhnf r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r c c' lc ld
-convertWhnf r (TRecCon rn1 args1) (TRecCon rn2 args2) = convRecCons r rn1 rn2 args1 args2
-convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
-convertWhnf r (TApp u e) (TApp v f) = convApps r u v e f
-convertWhnf r (TProj {rn = rn1} recTerm1 f) (TProj {rn = rn2} recTerm2 g) = convProjs r rn1 rn2 recTerm1 recTerm2 f g
-convertWhnf r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
+convertTerms : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
+convertTerms r (TVar x) (TVar y) = convVars x y
+convertTerms r (TDef x) (TDef y) = convDefs x y
+convertTerms r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
+convertTerms r (TRec rn1 pars1) (TRec rn2 pars2) = convRecs r rn1 rn2 pars1 pars2
+convertTerms r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r c c' lc ld
+convertTerms r (TRecCon rn1 args1) (TRecCon rn2 args2) = convRecCons r rn1 rn2 args1 args2
+convertTerms r (TLam x u) (TLam y v) = convLams r x y u v
+convertTerms r (TApp u e) (TApp v f) = convApps r u v e f
+convertTerms r (TProj {rn = rn1} recTerm1 f) (TProj {rn = rn2} recTerm2 g) = convProjs r rn1 rn2 recTerm1 recTerm2 f g
+convertTerms r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
   convertCase r d d' ri ri' u u' bs bs' rt rt'
-convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
-convertWhnf r (TSort s) (TSort t) = convSorts s t
+convertTerms r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
+convertTerms r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
-convertWhnf r functionTerm (TLam x b) = 
+convertTerms r functionTerm (TLam x b) = 
   do
     conversionProof <- convertEtaFuncsGeneric r x functionTerm b
     return (CEtaFunctionsLeft x functionTerm b conversionProof)
-convertWhnf r (TLam x b) functionTerm = 
+convertTerms r (TLam x b) functionTerm = 
   do
     conversionProof <- convertEtaFuncsGeneric r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
-convertWhnf r recTerm (TRecCon rn argsTermS) = do
+convertTerms r recTerm (TRecCon rn argsTermS) = do
     convProof ← convertEtaRecsGeneric r recTerm argsTermS
     return (CEtaRecordsLeft rn recTerm argsTermS convProof)
-convertWhnf r (TRecCon rn argsTermS) recTerm = do
+convertTerms r (TRecCon rn argsTermS) recTerm = do
     convProof ← convertEtaRecsGeneric r recTerm argsTermS
     return (CEtaRecordsRight rn recTerm argsTermS convProof)
--- convertWhnf r (TProj _ _) term = tcError "TODO: TProj generic left case"
--- convertWhnf r term (TProj _ _) = tcError "TODO: TProj generic right case"
-convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
+convertTerms r _ _ = tcError "two terms are not the same and aren't convertible"
 
-{-# COMPILE AGDA2HS convertWhnf #-}
+{-# COMPILE AGDA2HS convertTerms #-}
 
 convertCheck ⦃ None ⦄ r t z =
   tcError "not enough fuel to check conversion"
 convertCheck ⦃ More ⦄ r t q = do
   t ⟨ tred ⟩ ← reduceTo r t
   q ⟨ qred ⟩ ← reduceTo r q
-  (CRedL tred ∘ CRedR qred) <$> convertWhnf r t q
+  (CRedL tred ∘ CRedR qred) <$> convertTerms r t q
 
 {-# COMPILE AGDA2HS convertCheck #-}
 
