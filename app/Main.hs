@@ -209,10 +209,14 @@ agdaCoreCompile env _ _ def = do
     -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataPars, dataIxs, dataCons} -> do
-      let ntcg_datas  = Map.insert defName (Data index dataPars dataIxs) tcg_datas
+      let
+          dataObj = Data index dataPars dataIxs
+          ntcg_datas  = Map.insert defName dataObj tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
-          tcg_data_cons = Map.fromList (zip dataCons (map ((\(dt, cons) -> Constructor cons (Just (Data dt dataPars dataIxs))) . (index,)) (iterate Suc Zero) ))
+
+          tcg_data_cons = Map.fromList (zip dataCons (map (`Constructor` dataObj) (iterate Suc Zero) ))
           ntcg_cons = Map.union tcg_cons tcg_data_cons
+
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
       pure (ToCoreGlobal tcg_defs ntcg_datas tcg_recs ntcg_cons,
         NameMap nameDefs nnames_datas nameRecs nameCons)
@@ -225,29 +229,39 @@ agdaCoreCompile env _ _ def = do
       let conName = Internal.conName recConHead
       let ntcg_recs = Map.insert defName (index, recPars) tcg_recs
           nnames_recs = Map.insert (indexToNat index) name nameRecs
+          -- The first projection function has index `Suc index` so we start from there
           tcg_proj_funcs = Map.fromList (zip (map unDom recFields) (iterate Suc (Suc index)))
           ntcg_defs = Map.union tcg_defs tcg_proj_funcs
-          --A record always has exactly one constructor, so we insert `Nothing` for the constructor index
-          ntcg_cons = Map.insert conName (Constructor index Nothing) tcg_cons
       reportSDoc "agda-core.check" 3 $ text "  Projection functions:" <+> prettyTCM (map unDom recFields)
       reportSDoc "agda-core.check" 3 $ text "  Constructor:" <+> prettyTCM conName
-      pure (ToCoreGlobal ntcg_defs tcg_datas ntcg_recs ntcg_cons,
-        NameMap nameDefs nameData nnames_recs nameCons)
-    Internal.Constructor{} -> do
-      -- (diode-lang) BADBADBAD: It seems that this will also match record constructor 
+
+      -- TODO (atejandev): Record translation is not supported yet: return the same defs
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons,
+        NameMap nameDefs nameData nameRecs nameCons)
+
+    -- Data constructor (it is a data constructor if the defName is in tcg_cons)
+    Internal.Constructor{} | Map.member defName tcg_cons -> do
+      -- (diode-lang) BAD: It seems that this will also match record constructors, 
       -- and then it will be the case that `name=constructor`. 
       -- One almost certainly does not want to add `name` to `nnames_cons` in that case
       reportSDoc "agda-core.check" 3 $ text "  Internal.Constructor name:" <+> prettyTCM name
-      let (Constructor cID dataOrRecordID) = tcg_cons Map.! defName
-      let nnames_cons = Map.insert (indexToNat dataOrRecordID, indexToNat (fromMaybe Zero cID)) name nameCons
+      let (Constructor cID (Data dID _ _)) = tcg_cons Map.! defName
+      let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
+
       pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons,
         NameMap nameDefs nameData nameRecs nnames_cons)
+    -- Record constructor
+    Internal.Constructor{} -> do
+      -- TODO (atejandev): Record translation is not supported yet: return the same tcg for now
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons,
+        NameMap nameDefs nameData nameRecs nameCons)
     -- if we encounter a  record projection function, skip adding it to tcg, since we already added it when processing `Internal.Record`
     Internal.Function{} | Map.member defName tcg_defs -> do
       reportSDoc "agda-core.check" 3 $ text "  Projection function name:" <+> prettyTCM name
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
       pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons,
         NameMap nnames_defs nameData nameRecs nameCons)
+    -- Definition
     _ -> do
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
       let ntcg_defs = Map.insert defName index tcg_defs
@@ -292,14 +306,13 @@ agdaCoreCompile env _ _ def = do
             }
         Core.DataConstructorDefn cons -> do
           -- It should not matter here whether one uses `tcg_cons` (old one) or `globalConsData ntcg` (new one), but let's use the new one to be safe
-          let (dID, cID_m) = globalCons ntcg Map.! defName
+          let (Constructor cID (Data dID _ _)) = globalCons ntcg Map.! defName
           -- if there is no constructor index (it is a record), the constructor index must be Zero
-          let constructorIndex = fromMaybe Zero cID_m
           liftIO $ writeIORef ioPreSig $
             PreSignature
               {  preSigDefs = preSigDefs
               , preSigData = preSigData
-              , preSigDataCons = Map.insert (indexToNat dID, indexToNat constructorIndex) cons preSigDataCons
+              , preSigDataCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigDataCons
               , preSigRecs = preSigRecs
               }
         Core.RecordDefn coreRecord -> do
@@ -313,7 +326,7 @@ agdaCoreCompile env _ _ def = do
         Core.ProjDefn ->
           liftIO $ writeIORef ioPreSig $
             PreSignature
-                {  preSigDefs = Map.insert (indexToNat index) def' preSigDefs
+                {  preSigDefs = preSigDefs
                 , preSigData = preSigData
                 , preSigDataCons = preSigDataCons
                 , preSigRecs = preSigRecs

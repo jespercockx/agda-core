@@ -79,7 +79,7 @@ tApp t (e:es) = TApp t e `tApp` es
 data Data = Data Index Nat Nat
 
 -- Representation of a constructor; stores its index within its datatype, and its datatype
-data Constructor = Constructor Index (Maybe Data)
+data Constructor = Constructor Index Data
 
 data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
                                    globalDatas :: Map QName Data,
@@ -222,11 +222,8 @@ instance ToCore I.Term where
     | Just args <- allApplyElims es
     = lookupCon (I.conName ch) >>= \case
         Nothing -> throwError $ "[When compiling a Con] Trying to access an unknown constructor: " <+> pretty (I.conName ch)
-        -- Constructor of a record type
-        Just (Constructor con Nothing) -> 
-          throwError "[When compiling a Con] Record constructor applications are not compiled for now"
         -- Constructor of a datatype
-        Just (Constructor con (Just (Data dt _ _))) -> do
+        Just (Constructor con (Data dt _ _)) -> do
           -- @l@ is the amount of arguments missing from the application.
           -- we need to eta-expand manually @l@ times to fully-apply the constructor.
           let l  = length (I.conFields ch) - length es
@@ -311,20 +308,16 @@ clauseToCore (CC.Case argNum c) ty paramCount = do
   result <- lookupCon (fst (branchList !! 0))
   -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
   
-  Constructor _ maybeData <- maybe (throwError "constructor not found") return result
+  Constructor _ (Data dt _ idcs) <- maybe (throwError "constructor not found") return result
 
-  case maybeData of
-    -- TODO (atejandev): Add case for constructor of record type 
-    Nothing -> throwError "Record constructor is not supported yet"
-    Just (Data dt params idcs) -> do
-      when (idcs > 0) $ throwError "Indexed datatypes are not yet supported"
-      -- iRun is the run-time representation of the index scope. The result will always be `[]`, however, once indexed datatypes are supported this will be important.
-      let iRun = iterate rbind [] !! idcs
-      -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
-      let index = intToIndex (paramCount - unArg argNum - 1) 
-      coreBranchList <- mapM (uncurry (createBranch ty paramCount)) branchList
-      let branches = foldr Core.BsCons Core.BsNil coreBranchList
-      return $ TCase dt iRun (TVar index) branches ty
+  when (idcs > 0) $ throwError "Indexed datatypes are not yet supported"
+  -- iRun is the run-time representation of the index scope. The result will always be `[]`, however, once indexed datatypes are supported this will be important.
+  let iRun = iterate rbind [] !! idcs
+  -- argNum is the number of the parameter being pattern matched on, hence we have to convert it to debruijn syntax
+  let index = intToIndex (paramCount - unArg argNum - 1) 
+  coreBranchList <- mapM (uncurry (createBranch ty paramCount)) branchList
+  let branches = foldr Core.BsCons Core.BsNil coreBranchList
+  return $ TCase dt iRun (TVar index) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
@@ -415,8 +408,7 @@ toCoreDefn (I.DatatypeDefn dt) ty =
     Just result -> pure result
     ) cons
   cons_indexes <- traverse (\case 
-      (Constructor _ Nothing) -> throwError ""
-      (Constructor cIndex (Just _)) -> pure cIndex
+      (Constructor cIndex _) -> pure cIndex
     ) cons_dt_indexes
   let d = Core.Datatype{  dataSort              = sort',
                           dataParTel            = parsTel,
