@@ -42,7 +42,7 @@ import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (intToIndex, listToUnitList, indexToNat, indexToInt, traceCyan)
+import Agda.Core.UtilsH (intToIndex, listToUnitList, indexToNat, indexToInt)
 
 
 import Scope.In (Index)
@@ -437,14 +437,7 @@ toCoreDefn (I.ConstructorDefn cs) ty =
           caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs_m -> do
               ixs <- toCore ixs_m
               let ixsTermS = toTermS ixs
-              let c =
-                    traceCyan (
-                        "debug info from data constructor " ++ (show (pretty conName))
-                          ++ "\ninternalIndTel: " ++ show (pretty internalIndTel)
-                          ++ "\ninternalIndTelAsListLength: " ++ show (length (I.telToList internalIndTel))
-                          ++ "\n"
-                        )
-                    Core.DataConstructor{ conIndTel = indTel,
+              let c = Core.DataConstructor{ conIndTel = indTel,
                                               conIx     = ixsTermS}
               return $ Core.DataConstructorDefn c
         _ -> do

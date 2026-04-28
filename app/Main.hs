@@ -1,6 +1,5 @@
 module Main where
 
-import Debug.Trace
 
 import Data.Either (partitionEithers)
 import Data.Foldable (for_, foldl')
