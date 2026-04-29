@@ -1,7 +1,7 @@
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
-open import Agda.Core.Rules.Conversion
+-- open import Agda.Core.Rules.Conversion
 
 module Agda.Core.Rules.Typing
     {{@0 globals : Globals}}
@@ -11,12 +11,14 @@ module Agda.Core.Rules.Typing
 private open module @0 G = Globals globals
 
 private variable
-  @0 x      : Name
-  @0 α      : Scope Name
+  @0 x y z      : Name
+  @0 α β γ     : Scope Name
   @0 rβ     : RScope Name
   @0 u v    : Term α
   @0 a b c  : Type α
   @0 k l    : Sort α
+
+
 
 opaque
   unfolding Scope RScope
@@ -51,6 +53,66 @@ recordConstructorType : {rn : NameRec}
               → Type α
 recordConstructorType {rn = rn} sigRec pars = El (instRecSort sigRec pars) (TRec rn pars)
 {-# COMPILE AGDA2HS recordConstructorType #-}
+
+
+-- opaque
+--   unfolding RScope
+--   etaProjTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
+--   etaProjTermS ([] ⟨ refl ⟩)                   _  = TSNil
+--   etaProjTermS ((Erased name ∷ names) ⟨ refl ⟩) f =
+--     name ↦ f (⟨ name ⟩ inRHere) ◂ etaProjTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
+--   {-# COMPILE AGDA2HS etaProjTermS #-}
+
+-- opaque
+--   unfolding RScope
+
+--   IsUnitType : {@0 α : Scope Name} (@0 typ : Term α) → Set
+--   IsUnitType rn = {!!}
+
+
+
+data Conv      {@0 α} (@0 Γ : Context α) : @0 Term α → @0 Term α → Set
+data ConvTermS {@0 α} (@0 Γ : Context α) : (@0 rβ : RScope Name) → @0 TermS α rβ → @0 TermS α rβ → Set
+
+
+infix 3 Conv
+syntax Conv Γ x y        = Γ ⊢ x ≅ y
+syntax ConvTermS Γ rscope us vs = Γ [ rscope ]  ⊢ us ⇔ vs 
+
+renameTop : Singleton α → Term  (α ▸ x) → Term  (α ▸ y)
+renameTop = subst ∘ liftBindSubst ∘ idSubst
+
+{-# COMPILE AGDA2HS renameTop #-}
+
+renameTopSort : Singleton α → Sort  (α ▸ x) → Sort  (α ▸ y)
+renameTopSort = subst ∘ liftBindSubst ∘ idSubst
+
+{-# COMPILE AGDA2HS renameTopSort #-}
+
+renameTopType : Singleton α → Type  (α ▸ x) → Type  (α ▸ y)
+renameTopType = subst ∘ liftBindSubst ∘ idSubst
+
+{-# COMPILE AGDA2HS renameTopType #-}
+
+data Conv {α} Γ where
+  CRefl : Γ ⊢ u ≅ u
+
+  -- ⊤ is unit type
+  -- Γ ⊢ a ∶ ⊤
+  -- Γ ⊢ b ∶ ⊤
+  ------------
+  -- Γ ⊢ a ≅ b
+  -- CUnit : (t : Type α)
+  --         → {!!}
+
+
+data ConvTermS {α} Γ where
+  CSNil : (us vs : TermS α mempty) → ConvTermS Γ mempty us vs
+  CSCons : {@0 x : Name} {@0 rscope : RScope Name}
+          (us vs : TermS α rscope)
+          → Γ ⊢ u ≅ v
+          → Γ [ rscope ] ⊢ us ⇔ vs
+           → Γ [ rbind x rscope ] ⊢ (TSCons {x = x} u us) ⇔ (TSCons {x = x} v vs)
 
 
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
@@ -178,7 +240,7 @@ data TyTerm {α} Γ where
     (let sigRecord : Record rn
          sigRecord = sigRecs sig rn)
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-    → recordTerm ≅ (TRecCon rn cargs) 
+    → Γ ⊢ recordTerm ≅ (TRecCon rn cargs) 
     --------------------------------------------------------------------------
     → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
 
@@ -206,7 +268,7 @@ data TyTerm {α} Γ where
 
   TyConv :
       Γ ⊢ u ∶ a
-    → unType a ≅ unType b
+    → Γ ⊢ unType a ≅ unType b
     ----------------
     → Γ ⊢ u ∶ b
     -- TODO: check that `b` is well-kinded?
@@ -361,7 +423,7 @@ tyProj' : {@0 Γ : Context α}
   (cargs : TermS α (recFieldScope rn))
   (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-  → recordTerm ≅ (TRecCon rn cargs)
+  → Γ ⊢ recordTerm ≅ (TRecCon rn cargs)
   → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
 tyProj' instPars cargs sigRecord refl proof1 proof2 = TyProj cargs proof1 proof2
 {-# COMPILE AGDA2HS tyProj' #-}
@@ -401,3 +463,7 @@ tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
           → TyBranch Γ dt ps return (BBranch (sing c) r rhs)
 tyBBranch' c0 con refl {r = sing fields} rsh crhs = TyBBranch c0 rsh crhs
 {-# COMPILE AGDA2HS tyBBranch' #-}
+
+-- These have to be here, see https://github.com/agda/agda2hs/issues/346
+{-# COMPILE AGDA2HS Conv     #-}
+{-# COMPILE AGDA2HS ConvTermS #-}

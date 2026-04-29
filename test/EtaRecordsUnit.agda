@@ -1,5 +1,10 @@
 module EtaRecordsUnit where
 
+data Bool : Set where
+    True : Bool
+    False : Bool
+
+
 data _≡_ {A : Set} (x : A) : A → Set where
  refl : x ≡ x
 
