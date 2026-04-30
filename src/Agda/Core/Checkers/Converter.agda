@@ -21,21 +21,6 @@ private variable
   @0 α β : Scope Name
   @0 rβ : RScope Name
 
-
-convNamesIn : (x y : NameIn α) → TCM (Erase (x ≡ y))
-convNamesIn x y =
-  ifEqualNamesIn x y
-    (λ where {{refl}} → return (Erased refl))
-    (tcError "names not equal")
-{-# COMPILE AGDA2HS convNamesIn #-}
-
-convNamesInR : (x y : NameInR rβ) → TCM (Erase (x ≡ y))
-convNamesInR x y = 
-  ifEqualNamesInR x y 
-    (λ where {{refl}} → return (Erased refl))
-    (tcError "names not equal")
-{-# COMPILE AGDA2HS convNamesInR #-}
-
 convVars : (x y : NameIn α)
          → TCM (Conv (TVar x) (TVar y))
 convVars x y = do
