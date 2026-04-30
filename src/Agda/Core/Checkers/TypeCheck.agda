@@ -2,10 +2,9 @@ open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
-open import Agda.Core.Rules.Conversion
 open import Agda.Core.Rules.Typing
 open import Agda.Core.TCM.Instances
-open import Agda.Core.Checkers.Converter
+open import Agda.Core.Checkers.ConverterUtils
 open import Agda.Core.Syntax.Weakening 
 
 module Agda.Core.Checkers.TypeCheck
@@ -19,15 +18,6 @@ private variable
   @0 x : Name
   @0 α : Scope Name
   @0 rβ : RScope Name
-
-checkCoerce : ∀ Γ (t : Term α)
-            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
-            → (cty : Type α)
-            → TCM (Γ ⊢ t ∶ cty)
-checkCoerce ctx t (gty , dgty) cty = do
-  let r = singScope ctx
-  TyConv dgty <$> convert r (unType gty) (unType cty)
-{-# COMPILE AGDA2HS checkCoerce #-}
 
 tcmGetType : (x : NameIn defScope) → TCM (Singleton (getType {α = α} sig x))
 tcmGetType x = do
@@ -59,9 +49,17 @@ tcmGetConstructor {d = d} c = do
   return (singCong (λ sig → sigCons sig d c) rsig)
 {-# COMPILE AGDA2HS tcmGetConstructor #-}
 
-inferVar : ∀ Γ (x : NameIn α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
-inferVar ctx x = return $ _ , TyTVar
-{-# COMPILE AGDA2HS inferVar #-}
+
+convert : Singleton α → ∀ (t q : Term α) → TCM (t ≅ q)
+
+checkCoerce : ∀ Γ (t : Term α)
+            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
+            → (cty : Type α)
+            → TCM (Γ ⊢ t ∶ cty)
+checkCoerce ctx t (gty , dgty) cty = do
+  let r = singScope ctx
+  TyConv dgty <$> convert r (unType gty) (unType cty)
+{-# COMPILE AGDA2HS checkCoerce #-}
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
@@ -74,6 +72,10 @@ checkBranches : ∀ {d : NameData} {@0 cons : RScope (NameDataCon d)}
                   (ps : TermS α (dataParScope d))
                   (rt : Type (α ◂▸ dataIxScope d ▸ x))
                 → TCM (TyBranches Γ dt ps rt bs)
+
+inferVar : ∀ Γ (x : NameIn α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶ t)
+inferVar ctx x = return $ _ , TyTVar
+{-# COMPILE AGDA2HS inferVar #-}
 
 inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
 inferApp ctx u v = do

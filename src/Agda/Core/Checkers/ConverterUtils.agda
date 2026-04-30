@@ -83,3 +83,18 @@ reduceToSort r v err = reduceTo r v >>= λ where
   (TSort s ⟨ redv ⟩) → return (s ⟨ redv ⟩)
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToSort #-}
+
+
+convNamesIn : (x y : NameIn α) → TCM (Erase (x ≡ y))
+convNamesIn x y =
+  ifEqualNamesIn x y
+    (λ where {{refl}} → return (Erased refl))
+    (tcError "names not equal")
+{-# COMPILE AGDA2HS convNamesIn #-}
+
+convNamesInR : (x y : NameInR rβ) → TCM (Erase (x ≡ y))
+convNamesInR x y = 
+  ifEqualNamesInR x y 
+    (λ where {{refl}} → return (Erased refl))
+    (tcError "names not equal")
+{-# COMPILE AGDA2HS convNamesInR #-}

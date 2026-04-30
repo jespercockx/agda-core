@@ -36,6 +36,27 @@ opaque
     substTop rs argTerm result
   {-# COMPILE AGDA2HS lookupNameRinTel #-}
 
+
+  -- isUnitType : Type α → Bool
+  -- isUnitType (El typeSort₁ (TVar x)) = {!   !}
+  -- isUnitType (El typeSort₁ (TDef d)) = {!   !}
+  -- isUnitType (El typeSort₁ (TData d x x₁)) = {!   !}
+  -- isUnitType (El (STyp zero) (TRec rn x)) = {!   !}
+  -- isUnitType (El (STyp (suc x₁)) (TRec rn x)) = {!   !}
+  -- isUnitType (El typeSort₁ (TDataCon c x)) = {!   !}
+  -- isUnitType (El typeSort₁ (TRecCon r x)) = {!   !}
+  -- isUnitType (El typeSort₁ (TLam x unType₁)) = {!   !}
+  -- isUnitType (El typeSort₁ (TApp unType₁ unType₂)) = {!   !}
+  -- isUnitType (El typeSort₁ (TProj unType₁ x)) = {!   !}
+  -- isUnitType (El typeSort₁ (TCase d x unType₁ bs m)) = {!   !}
+  -- isUnitType (El typeSort₁ (TPi x u v)) = {!   !}
+  -- isUnitType (El typeSort₁ (TSort x)) = {!   !}
+  -- isUnitType (El typeSort₁ (TLet x unType₁ unType₂)) = {!   !}
+  -- isUnitType (El typeSort₁ (TAnn unType₁ t)) = {!   !}
+
+
+
+
 dataConstructorType : {d : NameData}
                 → (dt : Datatype d)
                 → {c : NameDataCon d}
@@ -66,13 +87,36 @@ recordConstructorType {rn = rn} sigRec pars = El (instRecSort sigRec pars) (TRec
 -- opaque
 --   unfolding RScope
 
---   IsUnitType : {@0 α : Scope Name} (@0 typ : Term α) → Set
---   IsUnitType rn = {!!}
+
+data IsUnitType : {@0 α : Scope Name} (@0 typ : Type α) → Set where
+  TRecEmptyParsIsUnit : {@0 rn : NameRec} 
+    (emptyPars : TermS α (recParScope rn))
+    → ((recFieldScope rn) ≡ mempty) → IsUnitType (El (STyp 0) (TRec rn emptyPars))
+
+-- IsUnitType : {@0 α : Scope Name} (@0 typ : Term α) → Set
+-- IsUnitType rn = {!!}
 
 
 
 data Conv      {@0 α} (@0 Γ : Context α) : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} (@0 Γ : Context α) : (@0 rβ : RScope Name) → @0 TermS α rβ → @0 TermS α rβ → Set
+
+data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
+
+data TyTermS (@0 Γ : Context α) : @0 TermS α rβ → @0 Telescope α rβ → Set
+
+data TyBranches (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
+                (@0 ps : TermS α (dataParScope d))
+                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 cs : RScope (NameDataCon d)} → @0 Branches α d cs → Set
+
+data TyBranch   (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
+                (@0 ps : TermS α (dataParScope d))
+                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 c : NameDataCon d} → @0 Branch α c → Set
+
+infix 3 TyTerm
+syntax TyTerm Γ u t = Γ ⊢ u ∶ t
+infix 3 TyTermS
+syntax TyTermS Γ δ Δ = Γ ⊢ˢ δ ∶ Δ
 
 
 infix 3 Conv
@@ -97,13 +141,18 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 data Conv {α} Γ where
   CRefl : Γ ⊢ u ≅ u
 
+
+
   -- ⊤ is unit type
   -- Γ ⊢ a ∶ ⊤
   -- Γ ⊢ b ∶ ⊤
   ------------
   -- Γ ⊢ a ≅ b
-  -- CUnit : (t : Type α)
-  --         → {!!}
+  CUnit : (tUnit : Type α)
+          → IsUnitType tUnit
+          → Γ ⊢ u ∶ tUnit
+          → Γ ⊢ v ∶ tUnit
+          → Γ ⊢ u ≅ v
 
 
 data ConvTermS {α} Γ where
@@ -115,22 +164,7 @@ data ConvTermS {α} Γ where
            → Γ [ rbind x rscope ] ⊢ (TSCons {x = x} u us) ⇔ (TSCons {x = x} v vs)
 
 
-data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
 
-data TyTermS (@0 Γ : Context α) : @0 TermS α rβ → @0 Telescope α rβ → Set
-
-data TyBranches (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
-                (@0 ps : TermS α (dataParScope d))
-                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 cs : RScope (NameDataCon d)} → @0 Branches α d cs → Set
-
-data TyBranch   (@0 Γ : Context α) {@0 d : NameData} (@0 dt : Datatype d)
-                (@0 ps : TermS α (dataParScope d))
-                (@0 rt : Type (α ◂▸ dataIxScope d ▸ x)) : {@0 c : NameDataCon d} → @0 Branch α c → Set
-
-infix 3 TyTerm
-syntax TyTerm Γ u t = Γ ⊢ u ∶ t
-infix 3 TyTermS
-syntax TyTermS Γ δ Δ = Γ ⊢ˢ δ ∶ Δ
 
 data TyTerm {α} Γ where
 
