@@ -322,7 +322,9 @@ checkNonEmpty : {@0 rscope : RScope Name} →
   (singScope : Singleton rscope) →
   TCM (∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
 checkNonEmpty singScope with lengthOfRScope singScope
-checkNonEmpty singScope    | zero  = tcError "Cannot apply untyped eta-conversion for records on a record whose constructor takes zero arguments"
+checkNonEmpty singScope    | zero  = tcError "Cannot apply untyped eta-conversion 
+  for records on a record whose 
+  constructor takes zero arguments"
 checkNonEmpty singScope    | suc n = return (n ⟨ refl ⟩)
              
 
