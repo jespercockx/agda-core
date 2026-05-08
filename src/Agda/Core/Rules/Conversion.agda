@@ -124,8 +124,7 @@ data Conv {α} where
     (argsTermS : TermS α (recFieldScope rn))
     (singScope : Singleton (recFieldScope rn))
     (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
-    → let singScope = (singTermS argsTermS)
-          func = (TProj {rn = rn} rt)
+    → let func = (TProj {rn = rn} rt)
           termSToConvertInto = etaProjTermS singScope func
           in
       (argsTermS ⇔ termSToConvertInto)
