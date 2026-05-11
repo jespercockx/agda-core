@@ -158,7 +158,9 @@ module TestTypechecker (@0 x y z : Name) where
     proofOftestTC₁Prop : testTC₁Prop
 
     -- An implementation of untyped conversion should produce Left
-    testTC₁Prop = testTC₁ ≡ Left "Cannot apply untyped eta-conversion for records on a record whose constructor takes zero arguments"
+    testTC₁Prop = testTC₁ ≡ Left "Cannot apply untyped eta-conversion 
+  for records on a record whose 
+  constructor takes zero arguments"
     proofOftestTC₁Prop = refl
 
 
