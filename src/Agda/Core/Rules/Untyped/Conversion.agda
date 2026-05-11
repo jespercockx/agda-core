@@ -3,7 +3,7 @@ open import Agda.Core.Name
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
 
-module Agda.Core.Rules.Conversion
+module Agda.Core.Rules.Untyped.Conversion
   {{@0 globals : Globals}}
   {{@0 sig     : Signature}}
   where

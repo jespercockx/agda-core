@@ -1,12 +1,12 @@
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
-open import Agda.Core.Rules.Conversion
+open import Agda.Core.Rules.Untyped.Conversion
 open import Agda.Core.Reduce
 open import Agda.Core.TCM.Instances
 open import Agda.Core.Checkers.ConverterUtils
 
-module Agda.Core.Checkers.Converter
+module Agda.Core.Checkers.Untyped.Converter
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where
