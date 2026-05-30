@@ -118,32 +118,6 @@ record Record (@0 rn : NameRec) : Set where
 open Record public
 {-# COMPILE AGDA2HS Record #-}
 
--- ---------------------------------------------------------------------------------------------------
---                                           {- Projection function -}
--- ---------------------------------------------------------------------------------------------------
--- record ProjectionFunction {@0 rn : NameRec} (@0 proj : NameProj rn) : Set where
---   no-eta-equality
---   private
---     @0 pars : RScope Name
---     pars = recParScope rn
---   field
---     recSort         : Sort (mempty ◂▸ pars)
--- open ProjectionFunction public
--- {-# COMPILE AGDA2HS ProjectionFunction #-}
-
--- ---------------------------------------------------------------------------------------------------
---                                           {- Record constructor -}
--- ---------------------------------------------------------------------------------------------------
--- record RecConstructor {@0 rn : NameRec} (@0 c : NameRecCon rn) : Set where
---   no-eta-equality
---   private
---     @0 pars : RScope Name
---     pars = recParScope rn
---   field
---     recSort         : Sort (mempty ◂▸ pars)
--- open RecConstructor public
--- {-# COMPILE AGDA2HS RecConstructor #-}
-
 ---------------------------------------------------------------------------------------------------
                                           {- Signature -}
 ---------------------------------------------------------------------------------------------------
