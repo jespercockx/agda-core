@@ -152,10 +152,33 @@ module TestTypechecker (@0 x y z : Name) where
     testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
     testTC₁ = runTCM (checkType CtxEmpty testTerm₁ testType₁) (MkTCEnv (sing sig) fuel)
 
+    -- λ a b → refl [body of testUnitConvPositive]
+    testTerm₂ : Term α
+    testTerm₂ = TLam "a" (TLam "b" (TDataCon {d = nameEquiv} nameRefl ⌈⌉))
+
+    -- (a b : EmptyRecord) → (a ≡ b) [type of testUnitConvPositive]
+    testType₂ : Type α
+    testType₂ = 
+      El (STyp 0) (TPi "a" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉)) 
+      (El (STyp 0) (TPi "b" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉)) 
+      (El (STyp 0) (TData nameEquiv 
+        (TSCons ((TRec nameEmptyRecord ⌈⌉)) (TSCons (TVar (⟨ "a" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) ⌈⌉)) 
+        (TSCons (TVar (⟨ "b" ⟩ (Zero ⟨ IsZero refl ⟩))) ⌈⌉))))))
+
+    testTC₂ : Either TCError (CtxEmpty ⊢ testTerm₂ ∶ testType₂)
+    testTC₂ = runTCM (checkType CtxEmpty testTerm₂ testType₂) (MkTCEnv (sing sig) fuel)
+
     @0 testTC₁Prop : Set
     proofOftestTC₁Prop : testTC₁Prop
 
     -- An implementation of typed conversion should produce Right
     testTC₁Prop = testTC₁ ≡ Right _
     proofOftestTC₁Prop = refl
+
+    @0 testTC₂Prop : Set
+    proofOftestTC₂Prop : testTC₂Prop
+
+    -- An implementation of typed conversion should produce Right
+    testTC₂Prop = testTC₂ ≡ Right _
+    proofOftestTC₂Prop = refl
 

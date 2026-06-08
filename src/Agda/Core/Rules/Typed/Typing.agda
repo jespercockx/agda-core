@@ -98,7 +98,7 @@ data IsUnitType : {@0 α : Scope Name} (@0 typ : Type α) → Set where
 
 
 
-data Conv      {@0 α} (@0 Γ : Context α) : @0 Term α → @0 Term α → Set
+data Conv      {@0 α} (@0 Γ : Context α) : @0 Term α → @0 Term α → @0 Type α → Set
 data ConvTermS {@0 α} (@0 Γ : Context α) : (@0 rβ : RScope Name) → @0 TermS α rβ → @0 TermS α rβ → Set
 
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
@@ -120,7 +120,7 @@ syntax TyTermS Γ δ Δ = Γ ⊢ˢ δ ∶ Δ
 
 
 infix 3 Conv
-syntax Conv Γ x y        = Γ ⊢ x ≅ y
+syntax Conv Γ x y t        = Γ ⊢ x ≅ y ∶ t
 syntax ConvTermS Γ rscope us vs = Γ [ rscope ]  ⊢ us ⇔ vs 
 
 renameTop : Singleton α → Term  (α ▸ x) → Term  (α ▸ y)
@@ -139,9 +139,9 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 {-# COMPILE AGDA2HS renameTopType #-}
 
 data Conv {α} Γ where
-  CRefl : Γ ⊢ u ≅ u
-
-
+  CRefl : {ty : Type α} 
+    → Γ ⊢ u ∶ ty
+    → Γ ⊢ u ≅ u ∶ ty
 
   -- ⊤ is unit type
   -- Γ ⊢ a ∶ ⊤
@@ -152,14 +152,14 @@ data Conv {α} Γ where
           → IsUnitType tUnit
           → Γ ⊢ u ∶ tUnit
           → Γ ⊢ v ∶ tUnit
-          → Γ ⊢ u ≅ v
+          → Γ ⊢ u ≅ v ∶ tUnit
 
 
 data ConvTermS {α} Γ where
   CSNil : (us vs : TermS α mempty) → ConvTermS Γ mempty us vs
   CSCons : {@0 x : Name} {@0 rscope : RScope Name}
-          (us vs : TermS α rscope)
-          → Γ ⊢ u ≅ v
+          (us vs : TermS α rscope) (ty : Type α)
+          → Γ ⊢ u ≅ v ∶ ty
           → Γ [ rscope ] ⊢ us ⇔ vs
            → Γ [ rbind x rscope ] ⊢ (TSCons {x = x} u us) ⇔ (TSCons {x = x} v vs)
 
@@ -274,7 +274,7 @@ data TyTerm {α} Γ where
     (let sigRecord : Record rn
          sigRecord = sigRecs sig rn)
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-    → Γ ⊢ recordTerm ≅ (TRecCon rn cargs) 
+    → Γ ⊢ recordTerm ≅ (TRecCon rn cargs) ∶ (El rsort (TRec rn instPars))
     --------------------------------------------------------------------------
     → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
 
@@ -300,11 +300,11 @@ data TyTerm {α} Γ where
     ------------------
     → Γ ⊢ TAnn u a ∶ a
 
-  TyConv :
-      Γ ⊢ u ∶ a
-    → Γ ⊢ unType a ≅ unType b
-    ----------------
-    → Γ ⊢ u ∶ b
+  -- TyConv :
+  --     Γ ⊢ u ∶ a
+  --   → Γ ⊢ unType a ≅ unType b
+  --   ----------------
+  --   → Γ ⊢ u ∶ b
     -- TODO: check that `b` is well-kinded?
 
 {-# COMPILE AGDA2HS TyTerm #-}
@@ -457,7 +457,7 @@ tyProj' : {@0 Γ : Context α}
   (cargs : TermS α (recFieldScope rn))
   (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-  → Γ ⊢ recordTerm ≅ (TRecCon rn cargs)
+  → Γ ⊢ recordTerm ≅ (TRecCon rn cargs) ∶ (El rsort (TRec rn instPars))
   → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
 tyProj' instPars cargs sigRecord refl proof1 proof2 = TyProj cargs proof1 proof2
 {-# COMPILE AGDA2HS tyProj' #-}

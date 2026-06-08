@@ -2,14 +2,15 @@ open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
-open import Agda.Core.Rules.Untyped.Typing
-open import Agda.Core.Rules.Untyped.Conversion
+open import Agda.Core.Rules.Typed.Typing
+-- open import Agda.Core.Rules.Untyped.Typing
+-- open import Agda.Core.Rules.Untyped.Conversion
 open import Agda.Core.TCM.Instances
 open import Agda.Core.Checkers.ConverterUtils
-open import Agda.Core.Checkers.Untyped.Converter
+-- open import Agda.Core.Checkers.Untyped.Converter
 open import Agda.Core.Syntax.Weakening 
 
-module Agda.Core.Checkers.Untyped.TypeCheck
+module Agda.Core.Checkers.Typed.TypeCheck
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where
@@ -50,6 +51,9 @@ tcmGetConstructor {d = d} c = do
   rsig ← tcmSignature
   return (singCong (λ sig → sigCons sig d c) rsig)
 {-# COMPILE AGDA2HS tcmGetConstructor #-}
+
+-- convert : Singleton α → ∀ (t q : Term α) → TCM (t ≅ q)
+-- convert r t q = {!!}
 
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
@@ -366,6 +370,7 @@ inferType ctx (TData d ps is) = inferData ctx d ps is
 inferType ctx (TRec rn pars) = inferRec ctx rn pars
 inferType ctx (TDataCon c x) = tcError "non inferrable: can't infer the type of a data constructor"
 inferType ctx (TRecCon recname argsTermS) = tcError "non inferrable: can't infer type of record constructor"
+  -- inferRecCon ctx recname argsTermS
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
 inferType ctx (TApp u e) = inferApp ctx u e
 inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
