@@ -8,10 +8,10 @@ open import Agda.Core.Name
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
 open import Agda.Core.TCM.TCM
-open import Agda.Core.Rules.Typing
-open import Agda.Core.Checkers.TypeCheck
-open import Agda.Core.Checkers.Converter
-open import Agda.Core.Rules.Conversion
+open import Agda.Core.Rules.Untyped.Typing
+open import Agda.Core.Checkers.Untyped.TypeCheck
+open import Agda.Core.Checkers.Untyped.Converter
+open import Agda.Core.Rules.Untyped.Conversion
 open import Agda.Core.Rules.Unification
 open import Agda.Core.Checkers.Unifier
 

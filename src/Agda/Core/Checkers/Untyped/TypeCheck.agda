@@ -2,12 +2,14 @@ open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
-open import Agda.Core.Rules.Typing
+open import Agda.Core.Rules.Untyped.Typing
+open import Agda.Core.Rules.Untyped.Conversion
 open import Agda.Core.TCM.Instances
 open import Agda.Core.Checkers.ConverterUtils
+open import Agda.Core.Checkers.Untyped.Converter
 open import Agda.Core.Syntax.Weakening 
 
-module Agda.Core.Checkers.TypeCheck
+module Agda.Core.Checkers.Untyped.TypeCheck
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where
@@ -48,9 +50,6 @@ tcmGetConstructor {d = d} c = do
   rsig ← tcmSignature
   return (singCong (λ sig → sigCons sig d c) rsig)
 {-# COMPILE AGDA2HS tcmGetConstructor #-}
-
-
-convert : Singleton α → ∀ (t q : Term α) → TCM (t ≅ q)
 
 checkCoerce : ∀ Γ (t : Term α)
             → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty

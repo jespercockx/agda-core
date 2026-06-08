@@ -3,7 +3,7 @@ open import Agda.Core.Name
 open import Agda.Core.Syntax
 -- open import Agda.Core.Rules.Conversion
 
-module Agda.Core.Rules.Typing
+module Agda.Core.Rules.Typed.Typing
     {{@0 globals : Globals}}
     {{@0 sig     : Signature}}
   where
