@@ -1,6 +1,7 @@
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
+open import Agda.Core.Rules.ConversionUtils
 open import Agda.Core.Reduce
 
 module Agda.Core.Rules.Untyped.Conversion
@@ -48,20 +49,7 @@ infix 3 Conv
 syntax Conv x y        = x ≅ y
 syntax ConvTermS us vs = us ⇔ vs
 
-renameTop : Singleton α → Term  (α ▸ x) → Term  (α ▸ y)
-renameTop = subst ∘ liftBindSubst ∘ idSubst
 
-{-# COMPILE AGDA2HS renameTop #-}
-
-renameTopSort : Singleton α → Sort  (α ▸ x) → Sort  (α ▸ y)
-renameTopSort = subst ∘ liftBindSubst ∘ idSubst
-
-{-# COMPILE AGDA2HS renameTopSort #-}
-
-renameTopType : Singleton α → Type  (α ▸ x) → Type  (α ▸ y)
-renameTopType = subst ∘ liftBindSubst ∘ idSubst
-
-{-# COMPILE AGDA2HS renameTopType #-}
 
 
 data Conv {α} where

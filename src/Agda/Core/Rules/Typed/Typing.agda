@@ -139,9 +139,13 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 {-# COMPILE AGDA2HS renameTopType #-}
 
 data Conv {α} Γ where
-  CRefl : {ty : Type α} 
+  CRefl : {ty : Type α}
     → Γ ⊢ u ∶ ty
     → Γ ⊢ u ≅ u ∶ ty
+
+  CLam : {@0 r : Singleton α}
+    → CtxExtend Γ z a ⊢ renameTop {y = z} r u ≅ renameTop {y = z} r v ∶ b
+    → Γ ⊢ TLam y u ≅ TLam z v ∶ El k (TPi z a b)
 
   -- ⊤ is unit type
   -- Γ ⊢ a ∶ ⊤
