@@ -191,17 +191,6 @@ inferRec ctx rn pars = do
   return (sortType (instRecSort rt pars) , tyRec' rt defeq typars)
 {-# COMPILE AGDA2HS inferRec #-}
 
--- inferRecCon : (Γ : Context α) (rn : NameRec)
---           → (args : TermS α (recFieldScope rn))
---           → TCM (Σ[ ty ∈ Type α ] Γ ⊢ TRecCon rn args ∶ ty)
--- inferRecCon ctx rn args = do
---   rec ⟨ receq ⟩ ← tcmGetRecord rn
---   let 
---     recParTel = rec .recParTel
-    
---     in {!!}
-
-
 checkBranch : ∀ {d : NameData} {@0 con : NameDataCon d} (Γ : Context α)
                 (bs : Branch α con)
                 (dt : Datatype d)

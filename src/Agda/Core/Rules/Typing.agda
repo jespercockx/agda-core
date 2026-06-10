@@ -53,6 +53,17 @@ recordConstructorType {rn = rn} sigRec pars = El (instRecSort sigRec pars) (TRec
 {-# COMPILE AGDA2HS recordConstructorType #-}
 
 
+projectionType : {rn : NameRec}
+                (Γ : Context α)
+                (cargs : TermS α (recFieldScope rn))
+                (sigRecord : Record rn)
+                (instPars : TermS α (recParScope rn))
+                (projFunc : NameProj rn)
+                → Type α
+projectionType ctx cargs sigRecord instPars projFunc = lookupNameRinTel (singScope ctx) (singTermS cargs) cargs 
+      (instRecConArgTel sigRecord instPars) projFunc
+{-# COMPILE AGDA2HS projectionType #-}
+
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
 
 data TyTermS (@0 Γ : Context α) : @0 TermS α rβ → @0 Telescope α rβ → Set
@@ -178,9 +189,9 @@ data TyTerm {α} Γ where
     (let sigRecord : Record rn
          sigRecord = sigRecs sig rn)
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-    → recordTerm ≅ (TRecCon rn cargs) 
+    → recordTerm ≅ (TRecCon rn cargs)
     --------------------------------------------------------------------------
-    → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
+    → Γ ⊢ TProj recordTerm projFunc ∶ projectionType Γ cargs sigRecord instPars projFunc
 
   TyPi :
       Γ ⊢ u ∶ sortType k
@@ -246,7 +257,6 @@ data TyBranch {α = α} {x} Γ {d = d} dt pars return where
                    asubst = weaken (subExtScope r subRefl) (idSubst (singScope Γ))
 
                    bsubst : α ◂▸ dataIxScope d ▸ x ⇒ α'
-                   -- (atejandev): Not sure why a TDataCon is used here
                    bsubst = (extSubst asubst ixs' ▹ x ↦ TDataCon c cargs)
 
                    return' : Type α'

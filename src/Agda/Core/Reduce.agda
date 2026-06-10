@@ -161,12 +161,10 @@ step rsig (MkState e (TLet x v w) s) =
     (weakenStack (subBindDrop subRefl) s))
 step (sing sig) (MkState e (TDef d) s) =
   case getBody sig d of λ where
-    -- d points to a FunctionDef
-    (Just v) → Just (MkState e (weaken subEmpty v) s)
-    -- d points to a ProjFunDef
-    Nothing → Nothing --TODO (atejandev): I don't understand whether we need to reduce further in this case
+    v → Just (MkState e (weaken subEmpty v) s)
 step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
   case decNamesIn d' d of λ where
+      -- TODO (atejandev): Investigate whether we can get d' ≡ d without pattern matching on refl 
       (True  ⟨ refl ⟩) → case lookupBranch bs c of λ where
         (Just (r , v)) → Just (MkState
           (extendEnvironment vs e)
@@ -176,6 +174,7 @@ step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
       (False  ⟨ _ ⟩) → Nothing
 step rsig (MkState e (TRecCon rn' args) (FProj {rn = rn} f ∷ s)) = 
   case decNamesIn rn' rn of λ where
+    -- TODO (atejandev): Investigate whether we can get rn' ≡ rn without pattern matching on refl 
     (True ⟨ refl ⟩) → Just (MkState 
       e 
       (lookupNameRinTermS args f) 

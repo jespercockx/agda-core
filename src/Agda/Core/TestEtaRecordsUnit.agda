@@ -136,9 +136,7 @@ instance
 
 module TestTypechecker (@0 x y z : Name) where
   opaque
-    -- TODO (atejandev): make this list of unfolding terms s.t. it is the minimum one required by each test
     unfolding ScopeThings AllNameCon rScopeToRScopeNameInR extendEnvironment addTel subToSubst substExtScope caseBsNil caseBsCons caseTermSNil caseTermSCons termSrepeat sigRecsInstance lookupNameRinTel etaProjTermS
-
 
     -- λ a → refl [body of etaExpandEmptyRec]
     testTerm₁ : Term α
@@ -162,10 +160,3 @@ module TestTypechecker (@0 x y z : Name) where
   for records on a record whose 
   constructor takes zero arguments"
     proofOftestTC₁Prop = refl
-
-
-
-  
-  
-  
-

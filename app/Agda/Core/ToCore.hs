@@ -51,13 +51,11 @@ import Scope.Core (rbind)
 
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.Size
-import qualified Agda.Syntax.Common.Pretty as Pretty
 import System.IO (withBinaryFile)
 import Control.Exception (throw)
 
 import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
-import Agda.Syntax.Common.Pretty(text, render)
 
 
 

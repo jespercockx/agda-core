@@ -4,10 +4,6 @@ data Nat : Set where
   Zero : Nat
   Suc : Nat → Nat
 
--- data Vector (A : Set) : Nat → Set where
---   Nil : Vector A Zero
---   Cons : (n : Nat) → Vector A n → Vector A (Suc n)
-
 data Bool : Set where
   True : Bool
   False : Bool
@@ -27,18 +23,11 @@ data PairAsData (A B : Set) : Set where
   PairAsDataConstructor : A → B → PairAsData A B
 
 
--- record PairNoEta (A B : Set) : Set where
---     no-eta-equality
---     pattern
---     field
---         fstnoE : A
---         sndnoE : B
-
--- record PairExplCon (A B : Set) : Set where 
---     constructor _,_
---     field
---       fstE : A
---       sndE : B
+record PairExplCon (A B : Set) : Set where 
+    constructor _,_
+    field
+      fstE : A
+      sndE : B
 
 x : Pair Nat Nat
 x = record { fst = Zero; snd = Suc Zero }
@@ -56,17 +45,9 @@ example0 = Pair
 example1 : (B : Set) → Set
 example1 = Pair Nat
 
--- proj_example : Nat
--- proj_example = Pair.fst x
 
--- proj_example_requires_proj_reduction : Pair.fst x ≡ Zero
--- proj_example_requires_proj_reduction = refl
-
--- y : Pair Nat Bool
--- y = record { fst = Pair.fst x; snd = False }
-
--- z : PairExplCon Nat Nat
--- z = _,_ Zero (Suc Zero)
+z : PairExplCon Nat Nat
+z = _,_ Zero (Suc Zero)
 
 record ContainerRecord : Set where
     field
@@ -89,13 +70,3 @@ eta-R-two_sub = λ A B → refl
 eta-R-two : (A B : Set) (p : Pair A B) → 
   p ≡ record { fst = (const (Pair A B → A) Pair.fst Pair.fst) p ; snd = Pair.snd p }
 eta-R-two = λ A B → λ p → refl
-
--- -- (diode-lang) only difference with eta-R-two is that constructor naming is explicit
--- eta-R-two-expl-con : (A B : Set) (p : PairExplCon A B) → 
---   p ≡ (_,_ (const (PairExplCon A B → A) PairExplCon.fstE PairExplCon.fstE p) (PairExplCon.sndE p))
--- eta-R-two-expl-con = λ A B → λ p → refl
-
--- -- (diode-lang): I don't think this statement is actually provable, because we have turned off eta-equality
--- -- eta-R-two_expl : (A B : Set) (x : PairNoEta A B) →
--- --   x ≡ record { fst = PairNoEta.fst x ; snd = PairNoEta.snd x }
--- -- eta-R-two_expl = λ A B → λ x → {!!}

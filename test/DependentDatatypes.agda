@@ -48,4 +48,3 @@ record DeciderContainer (A B : Set) : Set where
     myPrivateNum = Suc (Suc Zero)
   field
     decider : Vector Bool myPrivateNum → Either A B
-    

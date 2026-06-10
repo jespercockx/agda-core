@@ -230,7 +230,7 @@ convProjs r rn1 rn2 recTerm1 recTerm2 f g = do
       crecTerm ← convertCheck r recTerm1 recTerm2 
       return (CProj crecTerm)
     )
-    (tcError "datatypes not convertible")
+    (tcError "projections not convertible")
 
 {-# COMPILE AGDA2HS convProjs #-} 
 
@@ -293,39 +293,51 @@ convertBranches r (BsCons bsh bst) bp =
                           CBranchesCons <$> convertBranch r bsh bph <*> convertBranches r bst bpt)
 {-# COMPILE AGDA2HS convertBranches #-}
 
-convertEtaFuncsGeneric : ⦃ fl : Fuel ⦄ 
+-- Returns a proof a body `b` of a function is convertible into the term `(f x)` 
+-- Used in both cases of untyped eta-conversion for functions
+convertEtaFuncsHelper : ⦃ fl : Fuel ⦄ 
                     → Singleton α 
                     → (@0 x : Name) 
                     → (f : Term α)
                     → (b : Term (α ▸ x)) 
                     → TCM (b ≅ (TApp (weakenTerm _ f) (TVar (VZero x))))
-convertEtaFuncsGeneric r x f b = do
+convertEtaFuncsHelper r x f b = do
   let
     subsetProof = subWeaken subRefl
     newScope    = singBind r
     term        = TApp (weakenTerm subsetProof f)
                        (TVar (VZero x))
   convertCheck newScope b term
-{-# COMPILE AGDA2HS convertEtaFuncsGeneric #-}
+{-# COMPILE AGDA2HS convertEtaFuncsHelper #-}
 
-convertEtaRecsGeneric : ⦃ fl : Fuel ⦄
+-- Returns a proof that the termS `argsTermS` is convertible into the termS `[fst p ; snd p ; ... nth p]`
+-- Used in both cases of untyped eta-conversion for records
+convertEtaRecsHelper : ⦃ fl : Fuel ⦄
                     → {rn : NameRec}
                     → Singleton α
                     → (rt : Term α)
                     → (argsTermS : TermS α (recFieldScope rn))
                     → TCM (argsTermS ⇔ (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt))))
-convertEtaRecsGeneric {rn = rn} r rt argsTermS = 
+convertEtaRecsHelper {rn = rn} r rt argsTermS = 
   convertTermSs r argsTermS (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt)))
-{-# COMPILE AGDA2HS convertEtaRecsGeneric #-}
+{-# COMPILE AGDA2HS convertEtaRecsHelper #-}
+
+checkNonEmptyHelper : {@0 rscope : RScope Name} 
+  → (singScope : Singleton rscope)
+  → (∃ Nat (λ n → lengthOfRScope singScope ≡ n))
+  → TCM (∃ Nat (λ n' → lengthOfRScope singScope ≡ suc n'))
+checkNonEmptyHelper a (zero ⟨ proof₁ ⟩) = tcError "Cannot apply untyped eta-conversion 
+  for records on a record whose 
+  constructor takes zero arguments"
+checkNonEmptyHelper a (suc value₁ ⟨ proof₁ ⟩) = return (value₁ ⟨ proof₁ ⟩)  
+{-# COMPILE AGDA2HS checkNonEmptyHelper #-}
+
 
 checkNonEmpty : {@0 rscope : RScope Name} →
   (singScope : Singleton rscope) →
   TCM (∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
-checkNonEmpty singScope with lengthOfRScope singScope
-checkNonEmpty singScope    | zero  = tcError "Cannot apply untyped eta-conversion 
-  for records on a record whose 
-  constructor takes zero arguments"
-checkNonEmpty singScope    | suc n = return (n ⟨ refl ⟩)
+checkNonEmpty singScope = checkNonEmptyHelper singScope ((lengthOfRScope singScope) ⟨ refl ⟩)
+{-# COMPILE AGDA2HS checkNonEmpty #-}
              
 
 convertTerms : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
@@ -345,21 +357,21 @@ convertTerms r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
 convertTerms r functionTerm (TLam x b) = 
   do
-    conversionProof <- convertEtaFuncsGeneric r x functionTerm b
+    conversionProof <- convertEtaFuncsHelper r x functionTerm b
     return (CEtaFunctionsLeft x functionTerm b conversionProof)
 convertTerms r (TLam x b) functionTerm = 
   do
-    conversionProof <- convertEtaFuncsGeneric r x functionTerm b
+    conversionProof <- convertEtaFuncsHelper r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
 convertTerms r recTerm (TRecCon rn argsTermS) = do
     let singScope = singTermS argsTermS
     proofNonEmpty ← checkNonEmpty singScope
-    convProof ← convertEtaRecsGeneric r recTerm argsTermS
+    convProof ← convertEtaRecsHelper r recTerm argsTermS
     return (CEtaRecordsLeft rn recTerm argsTermS singScope proofNonEmpty convProof)
 convertTerms r (TRecCon rn argsTermS) recTerm = do
     let singScope = singTermS argsTermS
     proofNonEmpty ← checkNonEmpty singScope
-    convProof ← convertEtaRecsGeneric r recTerm argsTermS
+    convProof ← convertEtaRecsHelper r recTerm argsTermS
     return (CEtaRecordsRight rn recTerm argsTermS singScope proofNonEmpty convProof)
 convertTerms r _ _ = tcError "two terms are not the same and aren't convertible"
 

@@ -1,4 +1,3 @@
--- {-# OPTIONS --allow-unsolved-metas #-}
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax.Term
