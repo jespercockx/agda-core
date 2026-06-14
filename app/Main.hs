@@ -349,7 +349,6 @@ preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigDataCons, pr
 
   let defns i  = case preSigDefs Map.!? indexToNat i of
         Just Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
-        Just Core.Definition{defType = ty, theDef = Core.ProjDefn} -> (ty, Core.ProjectionDef)
         _ -> __IMPOSSIBLE__
 
   let dataCons d c = case preSigDataCons Map.!? (indexToNat d, indexToNat c) of

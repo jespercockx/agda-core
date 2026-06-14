@@ -104,22 +104,6 @@ asksRec = asks . (. \ToCoreGlobal{globalRecs} -> globalRecs)
 asksCon :: (Map QName Constructor -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
-
-equalsIndex :: Index -> Index -> Bool
-equalsIndex Scope.Zero Scope.Zero         = True
-equalsIndex Scope.Zero (Scope.Suc _)      = False
-equalsIndex (Scope.Suc _) Scope.Zero      = False
-equalsIndex (Scope.Suc x) (Scope.Suc y)   = equalsIndex x y
-
-minusIndex :: Index -> Index -> Index
-minusIndex Scope.Zero    _       = Scope.Zero
-minusIndex x       Scope.Zero    = x
-minusIndex (Scope.Suc x) (Scope.Suc y) = minusIndex x y
-
--- Given an index i, tests whether `i` is an index pointing to a record type definition
-indexInRecs :: Index -> ToCoreM Bool
-indexInRecs i = asksRec (any (\(j, _) -> equalsIndex j i) . Map.elems)
-
 -- | Lookup a definition name in the current module.
 lookupDef :: QName -> ToCoreM (Maybe Index)
 lookupDef qn = asksDef (Map.!? qn)
@@ -149,12 +133,14 @@ toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
 
 
-createTAppAndTProj :: Term -> [(I.Elim, Term)] -> ToCoreM Term
+createTAppAndTProj :: Term -> [I.Elim] -> ToCoreM Term
 createTAppAndTProj t [] = return t
-createTAppAndTProj t ((I.Apply _, compiledElim):elims) =
+createTAppAndTProj t (elim@(I.Apply _):elims) = do
+  compiledElim <- toCore elim
   TApp t compiledElim `createTAppAndTProj` elims
 -- When compiling an I.Proj _ _, the result must be a TDef `id`
 createTAppAndTProj t _ = throwError "I.Proj is not supported for now"
+
 
 -- Helper for toCore (I.Def)
 compileToTDataOrTRec :: [I.Elim] -> Index -> Int -> Int -> Bool -> ToCoreM Term
@@ -206,7 +192,7 @@ instance ToCore I.Term where
           Just idx -> do
             let def = TDef idx
             coreEs <- toCore es
-            createTAppAndTProj def (zip es coreEs)
+            createTAppAndTProj def es
           Nothing -> do
             lookupData qn >>= \case
               Just (Data idx fullAmountOfParams fullAmountOfIndices) ->
