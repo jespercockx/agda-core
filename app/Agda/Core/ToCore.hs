@@ -11,30 +11,27 @@ module Agda.Core.ToCore
   , convert
   ) where
 
-import Control.Monad (when, forM)
+import Control.Monad (when)
 import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, asks)
 import Control.Monad.Except (MonadError(throwError), withError)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Numeric.Natural (Natural)
 
-import Agda.Syntax.Common ( Arg(unArg) )
+import Agda.Syntax.Common ( Arg(unArg), Nat )
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (unDom, unEl)
 import Agda.Syntax.Internal.Elim (allApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
-import Agda.Utils.Maybe (fromMaybeM, whenNothingM, isNothing, isJust, caseMaybe, fromMaybe)
-import Agda.Syntax.Common ( Nat )
+import Agda.Utils.Maybe (isNothing, caseMaybe)
 
 import Agda.TypeChecking.Monad  qualified as I
 import Agda.Syntax.Internal     qualified as I
 import qualified Agda.Syntax.Common.Pretty as Pretty
 import Agda.TypeChecking.Substitute qualified as I
 import Agda.TypeChecking.CompiledClause qualified as CC
-import Agda.TypeChecking.Telescope qualified as I
-import Agda.TypeChecking.DropArgs(dropArgs)
 
 
 import Agda.Core.Syntax.Term (Term(..), Sort(..))
@@ -42,7 +39,7 @@ import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (intToIndex, listToUnitList, indexToNat, indexToInt)
+import Agda.Core.UtilsH (intToIndex)
 
 
 import Scope.In (Index)
@@ -51,10 +48,6 @@ import Scope.Core (rbind)
 
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.Size
-import System.IO (withBinaryFile)
-import Control.Exception (throw)
-
-import Agda.TypeChecking.Pretty (PrettyTCM(prettyTCM))
 
 
 
