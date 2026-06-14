@@ -173,7 +173,7 @@ data ConvTermS {α} Γ where
 data TyTerm {α} Γ where
 
   TyTVar : {x : NameIn α}
-
+    
     ----------------------------------
     → Γ ⊢ TVar x ∶ lookupVar Γ x
 
@@ -304,12 +304,17 @@ data TyTerm {α} Γ where
     ------------------
     → Γ ⊢ TAnn u a ∶ a
 
-  -- TyConv :
-  --     Γ ⊢ u ∶ a
-  --   → Γ ⊢ unType a ≅ unType b
-  --   ----------------
-  --   → Γ ⊢ u ∶ b
-    -- TODO: check that `b` is well-kinded?
+  TyConv :
+    {ty : Type α}
+    → Γ ⊢ u ∶ a
+    → Γ ⊢ unType a ≅ unType b ∶ ty
+    ----------------
+    → Γ ⊢ u ∶ b
+
+  TyConvAlt : 
+    Γ ⊢ u ≅ v ∶ a
+    ----------------
+    → Γ ⊢ v ∶ a
 
 {-# COMPILE AGDA2HS TyTerm #-}
 

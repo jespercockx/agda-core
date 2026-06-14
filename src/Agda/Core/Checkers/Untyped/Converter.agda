@@ -1,6 +1,7 @@
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
+open import Agda.Core.Rules.ConversionUtils
 open import Agda.Core.Rules.Untyped.Conversion
 open import Agda.Core.Reduce
 open import Agda.Core.TCM.Instances

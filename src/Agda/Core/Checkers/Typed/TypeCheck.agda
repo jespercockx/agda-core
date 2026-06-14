@@ -4,7 +4,7 @@ open import Agda.Core.Syntax
 open import Agda.Core.Reduce
 open import Agda.Core.Rules.Typed.Typing
 -- open import Agda.Core.Rules.Untyped.Typing
--- open import Agda.Core.Rules.Untyped.Conversion
+open import Agda.Core.Rules.Typed.Typing
 open import Agda.Core.TCM.Instances
 open import Agda.Core.Checkers.ConverterUtils
 -- open import Agda.Core.Checkers.Untyped.Converter
@@ -52,17 +52,83 @@ tcmGetConstructor {d = d} c = do
   return (singCong (λ sig → sigCons sig d c) rsig)
 {-# COMPILE AGDA2HS tcmGetConstructor #-}
 
--- convert : Singleton α → ∀ (t q : Term α) → TCM (t ≅ q)
--- convert r t q = {!!}
+convVars : (Γ : Context α) → (ty : Type α) 
+         → (x y : NameIn α)
+         → (Γ ⊢ (TVar x) ∶ ty)
+         → TCM (Γ ⊢ (TVar x) ≅ (TVar y) ∶ ty)
+convVars ctx ty x y proof = do
+  Erased refl ← convNamesIn x y
+  return (CRefl proof)
 
-checkCoerce : ∀ Γ (t : Term α)
-            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
-            → (cty : Type α)
-            → TCM (Γ ⊢ t ∶ cty)
-checkCoerce ctx t (gty , dgty) cty = do
-  let r = singScope ctx
-  TyConv dgty <$> convert r (unType gty) (unType cty)
-{-# COMPILE AGDA2HS checkCoerce #-}
+convLams : {x1 x2 : Name} 
+      (Γ : Context α) 
+      → (ty : Type α)
+      → (b1 : Term (α ▸ x1)) 
+      → (b2 : Term (α ▸ x2)) 
+      → TyTerm Γ (TLam x1 b1) ty 
+      → TyTerm Γ (TLam x2 b2) ty 
+      → TCM (Γ ⊢ (TLam x1 b1) ≅ (TLam x2 b2) ∶ ty)
+convLams Γ ty b1 b2 proof1 proof2 = {!!}
+
+convApps : (Γ : Context α) (ty : Type α)
+      → (u v : Term α)
+      → (e f : Term α)
+      → Γ ⊢ (TApp u e) ∶ ty
+      → Γ ⊢ (TApp v f) ∶ ty  
+      → TCM (Γ ⊢ (TApp u e) ≅ (TApp v f) ∶ ty)
+convApps = {!!}
+
+
+-- convLams : {{fl : Fuel}}
+--          → Context α
+--          → (@0 x y : Name)
+--            (u : Term  (α ▸ x))
+--            (v : Term  (α ▸ y))
+--          → TCM (Conv (TLam x u) (TLam y v))
+-- convLams r x y u v = {!!}
+  
+  -- do
+  -- CLam <$> convertCheck (singBind r) (renameTop r u) (renameTop r v)
+
+convertTerms : ⦃ fl : Fuel ⦄ → (Γ : Context α) → (t q : Term α) 
+  → (ty : Type α)
+  → Γ ⊢ t ∶ ty
+  → Γ ⊢ q ∶ ty
+  → TCM (Γ ⊢ t ≅ q ∶ ty)
+convertTerms ctx (TVar x) (TVar y) ty proof _ = convVars ctx ty x y proof
+convertTerms ctx (TLam x1 b1) (TLam x2 b2) = {!!}
+convertTerms ctx (TApp u e) (TApp v f) = {!!}
+convertTerms ctx _ _ _ _ _ = tcError "two terms are not the same and are not convertible"
+
+
+convertCheck : {{fl : Fuel}} → (Γ : Context α) → (t q : Term α) (ty : Type α)
+  → Γ ⊢ t ∶ ty
+  → Γ ⊢ q ∶ ty
+  → TCM (Γ ⊢ t ≅ q ∶ ty)
+convertCheck ⦃ None ⦄ _ _ _ _ _ _ =
+  tcError "not enough fuel to check conversion"
+convertCheck ⦃ More ⦄ _ _ _ _ _ _ = {!!}
+
+convert : 
+        (Γ : Context α) 
+        → (t q : Term α) 
+        → (ty : Type α)
+        → Γ ⊢ t ∶ ty
+        → Γ ⊢ q ∶ ty
+        → TCM (Γ ⊢ t ≅ q ∶ ty)
+convert ctx t q ty proof1 proof2 = do
+  I ⦃ fl ⦄ ← tcmFuel
+  convertCheck ctx t q ty proof1 proof2
+
+-- checkCoerce : ∀ Γ (t : Term α)
+--             → (ty : Type α)
+--             → Γ ⊢ t ∶ ty
+--             → (ty' typeOfType : Type α)
+--             → (Γ ⊢ unType ty ≅ unType ty' ∶ typeOfType)
+--             → TCM (Γ ⊢ t ∶ ty')
+-- checkCoerce ctx t ty deriv ty' typeOfType f = do
+--   -- proof ← convert ctx {!!} {!!} {!!} {!!} 
+--   {!!}
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
@@ -80,65 +146,65 @@ inferVar : ∀ Γ (x : NameIn α) → TCM (Σ[ t ∈ Type α ] Γ ⊢ TVar x ∶
 inferVar ctx x = return $ _ , TyTVar
 {-# COMPILE AGDA2HS inferVar #-}
 
-inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
-inferApp ctx u v = do
-  let r = singScope ctx
-  tu , gtu ← inferType ctx u
-  ⟨ x ⟩ (at , rt) ⟨ rtp ⟩ ← reduceToPi r (unType tu)
-    "couldn't reduce term to a pi type"
-  gtv ← checkType ctx v at
-  let tytype = substTop r v rt
-      gc = CRedL rtp CRefl
-      gtu' =  TyConv {b = El (typeSort tu) (TPi x at rt)} gtu gc
-  return (tytype , TyApp gtu' gtv)
-{-# COMPILE AGDA2HS inferApp #-}
+-- inferApp : ∀ Γ u v → TCM (Σ[ t ∈ Type α ] Γ ⊢ TApp u v ∶ t)
+-- inferApp ctx u v = do
+--   let r = singScope ctx
+--   tu , gtu ← inferType ctx u
+--   ⟨ x ⟩ (at , rt) ⟨ rtp ⟩ ← reduceToPi r (unType tu)
+--     "couldn't reduce term to a pi type"
+--   gtv ← checkType ctx v at
+--   let tytype = substTop r v rt
+--       gc = CRedL rtp CRefl
+--       gtu' =  TyConv {b = El (typeSort tu) (TPi x at rt)} gtu gc
+--   return (tytype , TyApp gtu' gtv)
+-- {-# COMPILE AGDA2HS inferApp #-}
 
-inferCase : ∀ Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
-inferCase {α = α} ctx d rixs u bs rt = do
-  let r = singScope ctx
+-- inferCase : ∀ Γ d r u bs rt → TCM (Σ[ t ∈ Type α ] Γ ⊢ TCase {x = x} d r u bs rt ∶ t)
+-- inferCase {α = α} ctx d rixs u bs rt = do
+--   let r = singScope ctx
 
-  El s tu , gtu ← inferType ctx u
-  d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
-    "can't typecheck a constructor with a type that isn't a def application"
-  Erased refl ← convNamesIn d d'
-  df ⟨ deq ⟩ ← tcmGetDatatype d
-  let ds : Sort α
-      ds = instDataSort df params
-      gtu' : ctx ⊢ u ∶ dataType d ds params ixs
-      gtu' = TyConv gtu (CRedL rp CRefl)
+--   El s tu , gtu ← inferType ctx u
+--   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r tu
+--     "can't typecheck a constructor with a type that isn't a def application"
+--   Erased refl ← convNamesIn d d'
+--   df ⟨ deq ⟩ ← tcmGetDatatype d
+--   let ds : Sort α
+--       ds = instDataSort df params
+--       gtu' : ctx ⊢ u ∶ dataType d ds params ixs
+--       gtu' = TyConv gtu (CRedL rp CRefl)
 
-  grt ← checkType (_ , _ ∶ weaken (subExtScope rixs subRefl) (dataType d ds params ixs)) (unType rt) (sortType (typeSort rt))
+--   grt ← checkType (_ , _ ∶ weaken (subExtScope rixs subRefl) (dataType d ds params ixs)) (unType rt) (sortType (typeSort rt))
 
-  -- Erased refl ← checkCoverage df bs
-  cb ← checkBranches ctx (singBranches bs) bs df params rt
+--   -- Erased refl ← checkCoverage df bs
+--   cb ← checkBranches ctx (singBranches bs) bs df params rt
 
-  return (_ , tyCase' {k = ds} df deq {iRun = rixs} grt cb gtu')
+--   return (_ , tyCase' {k = ds} df deq {iRun = rixs} grt cb gtu')
 
-{-# COMPILE AGDA2HS inferCase #-}
+-- {-# COMPILE AGDA2HS inferCase #-}
 
-inferProj : {rn : NameRec} (Γ : Context α) (recordTerm : Term α) (projFunc : NameProj rn) →
-  TCM (Σ[ t ∈ Type α ] Γ ⊢ TProj recordTerm projFunc ∶ t)
-inferProj {rn = rn} ctx recordTerm projFunc = do
-  let r = singScope ctx
+-- inferProj : {rn : NameRec} (Γ : Context α) (recordTerm : Term α) (projFunc : NameProj rn) →
+--   TCM (Σ[ t ∈ Type α ] Γ ⊢ TProj recordTerm projFunc ∶ t)
+-- inferProj {rn = rn} ctx recordTerm projFunc = do
+--   let r = singScope ctx
 
-  rn'' , args ⟨ _ ⟩ ← reduceToTRecCon r recordTerm "Cannot type check a projection on a term that does not reduce to TRecCon"
+--   rn'' , args ⟨ _ ⟩ ← reduceToTRecCon r recordTerm "Cannot type check a projection on a term that does not reduce to TRecCon"
 
-  El rsort typeOfRecordTerm , typDerivRecTerm ← inferType ctx recordTerm
-  rn' , params ⟨ _ ⟩  ← reduceToRec r typeOfRecordTerm "cannot type check a projection that is not of a record type"
-  ifDec (decIn (proj₂ rn) (proj₂ rn'))
-    (λ where {{refl}} → do
-      ifDec (decIn (proj₂ rn') (proj₂ rn''))
-        (λ where {{refl}} → do
-          convproof ← convert r recordTerm (TRecCon rn args) 
-          coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
-          sigRecord ⟨ defeq ⟩ ← tcmGetRecord rn
-          let projFuncType = lookupNameRinTel r (singTermS args) args (instRecConArgTel sigRecord params) projFunc
-          return ( projFuncType ,  tyProj' params args sigRecord defeq coercedTypingDeriv convproof)
-        )
-        (tcError "not convertible")
-    )
-    (tcError "not convertible")
-{-# COMPILE AGDA2HS inferProj #-}
+--   El rsort typeOfRecordTerm , typDerivRecTerm ← inferType ctx recordTerm
+--   rn' , params ⟨ _ ⟩  ← reduceToRec r typeOfRecordTerm "cannot type check a projection that is not of a record type"
+--   ifDec (decIn (proj₂ rn) (proj₂ rn'))
+--     (λ where {{refl}} → do
+--       ifDec (decIn (proj₂ rn') (proj₂ rn''))
+--         (λ where {{refl}} → do
+--           convproof ← convert r recordTerm (TRecCon rn args) 
+--           coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
+--           sigRecord ⟨ defeq ⟩ ← tcmGetRecord rn
+--           let projFuncType = lookupNameRinTel r (singTermS args) args (instRecConArgTel sigRecord params) projFunc
+--           return ( projFuncType ,  tyProj' params args sigRecord defeq coercedTypingDeriv convproof)
+--         )
+--         (tcError "not convertible")
+--     )
+--     (tcError "not convertible")
+-- {-# COMPILE AGDA2HS inferProj #-}
 
 inferPi
   : ∀ Γ (@0 x : Name)
@@ -245,54 +311,54 @@ checkBranches {d = d} ctx (sing cons) bs dt ps rt =
                             <*> checkBranches ctx (singBranches bt) bt dt ps rt))
 {-# COMPILE AGDA2HS checkBranches #-}
 
-checkDataCon : ∀ Γ
-           {d : NameData}
-           (c : NameDataCon d)
-           (cargs : TermS α (dataFieldScope c))
-           (ty : Type α)
-         → TCM (Γ ⊢ TDataCon c cargs ∶ ty)
-checkDataCon ctx {d = d} c cargs (El s ty) = do
-  let r = singScope ctx
-  d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
-    "can't typecheck a constructor TDataCon with a type that isn't a TData"
-  ifDec (decIn (proj₂ d) (proj₂ d'))
-    (λ where {{refl}} → do
-        dt ⟨ dteq ⟩ ← tcmGetDatatype d
-        -- cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
-          -- "can't find a constructor with such a name"
-        con ⟨ ceq ⟩ ← tcmGetConstructor c
-        let ctel = instConIndTel con params
-            ctype = dataConstructorType dt con params cargs
-        tySubst ← checkTermS ctx ctel cargs
+-- checkDataCon : ∀ Γ
+--            {d : NameData}
+--            (c : NameDataCon d)
+--            (cargs : TermS α (dataFieldScope c))
+--            (ty : Type α)
+--          → TCM (Γ ⊢ TDataCon c cargs ∶ ty)
+-- checkDataCon ctx {d = d} c cargs (El s ty) = do
+--   let r = singScope ctx
+--   d' , (params , ixs) ⟨ rp ⟩ ← reduceToData r ty
+--     "can't typecheck a constructor TDataCon with a type that isn't a TData"
+--   ifDec (decIn (proj₂ d) (proj₂ d'))
+--     (λ where {{refl}} → do
+--         dt ⟨ dteq ⟩ ← tcmGetDatatype d
+--         -- cid ⟨ refl ⟩  ← liftMaybe (getConstructor c dt)
+--           -- "can't find a constructor with such a name"
+--         con ⟨ ceq ⟩ ← tcmGetConstructor c
+--         let ctel = instConIndTel con params
+--             ctype = dataConstructorType dt con params cargs
+--         tySubst ← checkTermS ctx ctel cargs
 
-        -- Check whether `ctype` can be converted to `El s ty`
-        checkCoerce ctx (TDataCon c cargs) (ctype , tyDataCon' dt dteq con ceq tySubst) (El s ty))
-    (tcError "datatypes not convertible")
-{-# COMPILE AGDA2HS checkDataCon #-}
+--         -- Check whether `ctype` can be converted to `El s ty`
+--         checkCoerce ctx (TDataCon c cargs) (ctype , tyDataCon' dt dteq con ceq tySubst) (El s ty))
+--     (tcError "datatypes not convertible")
+-- {-# COMPILE AGDA2HS checkDataCon #-}
 
-checkRecCon : ∀ Γ 
-          (rn : NameRec)
-          (cargs : TermS α (recFieldScope rn))
-          (ty : Type α)
-        → TCM (Γ ⊢ (TRecCon rn cargs) ∶ ty)
-checkRecCon ctx rn cargs (El s ty) = do
-  let r = singScope ctx
-  rn' , params ⟨ rp ⟩ ← reduceToRec r ty 
-    "can't typecheck a constructor TRecCon with a type that isn't a TRec"
-  ifDec (decIn (proj₂ rn) (proj₂ rn'))
-    (λ where {{refl}} → do
-      rec ⟨ receq ⟩ ← tcmGetRecord rn
+-- checkRecCon : ∀ Γ 
+--           (rn : NameRec)
+--           (cargs : TermS α (recFieldScope rn))
+--           (ty : Type α)
+--         → TCM (Γ ⊢ (TRecCon rn cargs) ∶ ty)
+-- checkRecCon ctx rn cargs (El s ty) = do
+--   let r = singScope ctx
+--   rn' , params ⟨ rp ⟩ ← reduceToRec r ty 
+--     "can't typecheck a constructor TRecCon with a type that isn't a TRec"
+--   ifDec (decIn (proj₂ rn) (proj₂ rn'))
+--     (λ where {{refl}} → do
+--       rec ⟨ receq ⟩ ← tcmGetRecord rn
       
-      let ctype = recordConstructorType rec params
+--       let ctype = recordConstructorType rec params
 
 
-      let ctel = instRecConArgTel rec params
-      tySubst ← checkTermS ctx ctel cargs
+--       let ctel = instRecConArgTel rec params
+--       tySubst ← checkTermS ctx ctel cargs
 
-      checkCoerce ctx (TRecCon rn cargs) ( ctype , tyRecCon' rec receq tySubst) (El s ty)
-    )
-    (tcError "record types not convertible")
-{-# COMPILE AGDA2HS checkRecCon #-}
+--       checkCoerce ctx (TRecCon rn cargs) ( ctype , tyRecCon' rec receq tySubst) (El s ty)
+--     )
+--     (tcError "record types not convertible")
+-- {-# COMPILE AGDA2HS checkRecCon #-}
 
 
 checkLambda : ∀ Γ (@0 x : Name)
@@ -308,10 +374,11 @@ checkLambda ctx x u (El s ty) = do
 
   d ← checkType (ctx , x ∶ tu) u (El (renameTopSort r tvs) (renameTop r tvt))
 
-  let gc = CRedR rtp (CPi CRefl CRefl)
-      sp = piSort (typeSort tu) tvs
+  -- let gc = {!!}
+  --     sp = piSort (typeSort tu) tvs
 
-  return $ TyConv (TyLam {k = sp} d) gc
+  -- return $ TyConv (TyLam {k = sp} d) gc
+  return {!!}
 
 {-# COMPILE AGDA2HS checkLambda #-}
 
@@ -329,38 +396,47 @@ checkLet ctx x u v ty = do
 
 checkType ctx (TVar x) ty = do
   tvar ← inferVar ctx x
-  checkCoerce ctx (TVar x) tvar ty
-checkType ctx (TDef d) ty = do
-  tdef ← inferDef ctx d
-  checkCoerce ctx (TDef d) tdef ty
-checkType ctx (TData d ps is) ty = do
-  tdef ← inferData ctx d ps is
-  checkCoerce ctx (TData d ps is) tdef ty
-checkType ctx (TRec rn pars) ty = do
-  trec ← inferRec ctx rn pars
-  checkCoerce ctx (TRec rn pars) trec ty
-checkType ctx (TDataCon c x) ty = checkDataCon ctx c x ty
-checkType ctx (TRecCon rec x) ty = checkRecCon ctx rec x ty
+  -- tvar has type Σ (t ∈ Type α) (TyTerm ctx (TVar x) t) 
+  -- but we need (TyTerm ctx (TVar x) ty)
+  -- But how can we get a conversion proof of `unType t` and `unType ty`?, 
+  -- if this again requires a derivation produced by `checkType`...
+  {!!}
+  -- checkCoerce {!   !} {!   !} {!   !} {!   !} {!   !} {!   !} {!   !}
+  -- checkCoerce ctx (TVar x) tvar ty
+  -- checkCoerce {!!}
+-- checkType ctx (TDef d) ty = do
+--   tdef ← inferDef ctx d
+--   checkCoerce ctx (TDef d) tdef ty
+-- checkType ctx (TData d ps is) ty = do
+--   tdef ← inferData ctx d ps is
+--   checkCoerce ctx (TData d ps is) tdef ty
+-- checkType ctx (TRec rn pars) ty = do
+--   trec ← inferRec ctx rn pars
+--   checkCoerce ctx (TRec rn pars) trec ty
+-- checkType ctx (TDataCon c x) ty = checkDataCon ctx c x ty
+-- checkType ctx (TRecCon rec x) ty = checkRecCon ctx rec x ty
 checkType ctx (TLam x te) ty = checkLambda ctx x te ty
 checkType ctx (TApp u e) ty = do
-  tapp ← inferApp ctx u e
-  checkCoerce ctx (TApp u e) tapp ty
-checkType ctx (TCase d r u bs rt) ty = do
-  tapp ← inferCase ctx d r u bs rt
-  checkCoerce ctx (TCase d r u bs rt) tapp ty
-checkType ctx (TProj rt projFunc) ty = do
-    tproj ← inferProj ctx rt projFunc
-    checkCoerce ctx (TProj rt projFunc) tproj ty
-checkType ctx (TPi x tu tv) ty = do
-  tpi ← inferPi ctx x tu tv
-  checkCoerce ctx (TPi x tu tv) tpi ty
-checkType ctx (TSort s) ty = do
-  tts ← inferTySort ctx s
-  checkCoerce ctx (TSort s) tts ty
-checkType ctx (TLet x u v) ty = checkLet ctx x u v ty
-checkType ctx (TAnn u t) ty = do
-  ct ← TyAnn <$> checkType ctx u t
-  checkCoerce ctx (TAnn u t) (t , ct) ty
+  -- tapp ← inferApp ctx u e
+  -- checkCoerce ctx (TApp u e) tapp ty
+  {!!}
+-- checkType ctx (TCase d r u bs rt) ty = do
+--   tapp ← inferCase ctx d r u bs rt
+--   checkCoerce ctx (TCase d r u bs rt) tapp ty
+-- checkType ctx (TProj rt projFunc) ty = do
+--     tproj ← inferProj ctx rt projFunc
+--     checkCoerce ctx (TProj rt projFunc) tproj ty
+-- checkType ctx (TPi x tu tv) ty = do
+--   tpi ← inferPi ctx x tu tv
+--   checkCoerce ctx (TPi x tu tv) tpi ty
+-- checkType ctx (TSort s) ty = do
+--   tts ← inferTySort ctx s
+--   checkCoerce ctx (TSort s) tts ty
+-- checkType ctx (TLet x u v) ty = checkLet ctx x u v ty
+-- checkType ctx (TAnn u t) ty = do
+--   ct ← TyAnn <$> checkType ctx u t
+--   checkCoerce ctx (TAnn u t) (t , ct) ty
+checkType ctx _ _ = tcError "TODO: implement this"
 
 {-# COMPILE AGDA2HS checkType #-}
 
@@ -372,13 +448,14 @@ inferType ctx (TDataCon c x) = tcError "non inferrable: can't infer the type of 
 inferType ctx (TRecCon recname argsTermS) = tcError "non inferrable: can't infer type of record constructor"
   -- inferRecCon ctx recname argsTermS
 inferType ctx (TLam x te) = tcError "non inferrable: can't infer the type of a lambda"
-inferType ctx (TApp u e) = inferApp ctx u e
-inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
-inferType ctx (TProj rt projFunc) = inferProj ctx rt projFunc
-inferType ctx (TPi x a b) = inferPi ctx x a b
-inferType ctx (TSort s) = inferTySort ctx s
-inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"
-inferType ctx (TAnn u t) = (_,_) t <$> (TyAnn <$> checkType ctx u t)
+inferType ctx (TApp u e) = {!!}
+-- inferType ctx (TCase d r u bs rt) = inferCase ctx d r u bs rt
+-- inferType ctx (TProj rt projFunc) = inferProj ctx rt projFunc
+-- inferType ctx (TPi x a b) = inferPi ctx x a b
+-- inferType ctx (TSort s) = inferTySort ctx s
+-- inferType ctx (TLet x te te₁) = tcError "non inferrable: can't infer the type of a let"
+-- inferType ctx (TAnn u t) = (_,_) t <$> (TyAnn <$> checkType ctx u t)
+inferType ctx _ = tcError "TODO: implement this case of inferType"
 
 {-# COMPILE AGDA2HS inferType #-}
 
@@ -386,7 +463,6 @@ inferSort ctx t = do
   let r = singScope ctx
   st , dt ← inferType ctx t
   s ⟨ rp ⟩ ← reduceToSort r (unType st) "couldn't reduce a term to a sort"
-  let cp = CRedL rp CRefl
-  return $ s , TyConv dt cp
+  return {!!}
 
 {-# COMPILE AGDA2HS inferSort #-}
