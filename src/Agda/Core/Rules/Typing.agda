@@ -1,6 +1,7 @@
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
+open import Agda.Core.Reduce
 open import Agda.Core.Rules.Conversion
 
 module Agda.Core.Rules.Typing
@@ -189,7 +190,7 @@ data TyTerm {α} Γ where
     (let sigRecord : Record rn
          sigRecord = sigRecs sig rn)
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-    → recordTerm ≅ (TRecCon rn cargs)
+    → @0 ReducesTo recordTerm (TRecCon rn cargs)
     --------------------------------------------------------------------------
     → Γ ⊢ TProj recordTerm projFunc ∶ projectionType Γ cargs sigRecord instPars projFunc
 
@@ -371,7 +372,7 @@ tyProj' : {@0 Γ : Context α}
   (cargs : TermS α (recFieldScope rn))
   (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-  → recordTerm ≅ (TRecCon rn cargs)
+  → @0 ReducesTo recordTerm (TRecCon rn cargs)
   → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
 tyProj' instPars cargs sigRecord refl proof1 proof2 = TyProj cargs proof1 proof2
 {-# COMPILE AGDA2HS tyProj' #-}
