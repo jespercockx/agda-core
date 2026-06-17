@@ -11,6 +11,16 @@ data _≡_ {A : Set} (x : A) : A → Set where
 record EmptyRecord : Set where
     constructor MkEmptyRecord
 
+
+a : EmptyRecord
+a = MkEmptyRecord
+
+b : EmptyRecord
+b = MkEmptyRecord
+
+ex : a ≡ b
+ex = refl
+
 -- (atejandev): What does it even mean if one writes `record {}`? Does Agda infer that it means constructor of EmptyRecord?
 -- eta_expand_empty_rec_two : (a : EmptyRecord) → (a ≡ record {})
 -- eta_expand_empty_rec_two = λ a → refl

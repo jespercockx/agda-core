@@ -157,6 +157,13 @@ data Conv {α} Γ where
           → Γ ⊢ u ∶ tUnit
           → Γ ⊢ v ∶ tUnit
           → Γ ⊢ u ≅ v ∶ tUnit
+  
+  -- CUntypedToTyped : 
+  --   u ≅ v
+  --   Γ ⊢ u ∶ ty
+  --   Γ ⊢ v ∶ ty
+  --   -------------
+  --   Γ ⊢ u ≅ v ∶ ty
 
 
 data ConvTermS {α} Γ where
@@ -304,17 +311,23 @@ data TyTerm {α} Γ where
     ------------------
     → Γ ⊢ TAnn u a ∶ a
 
-  TyConv :
-    {ty : Type α}
-    → Γ ⊢ u ∶ a
-    → Γ ⊢ unType a ≅ unType b ∶ ty
-    ----------------
-    → Γ ⊢ u ∶ b
+  -- TyConv :
+  --   {ty : Type α}
+  --   → Γ ⊢ u ∶ a
+  --   → unType a ≅ unType b
+  --   ----------------
+  --   → Γ ⊢ u ∶ b
 
   TyConvAlt : 
     Γ ⊢ u ≅ v ∶ a
     ----------------
     → Γ ⊢ v ∶ a
+  
+  -- TyConvAlt2 :
+  --   Γ ⊢ u ∶ a
+  --   Γ ⊢ v ∶ b
+  --   --------------------------------
+
 
 {-# COMPILE AGDA2HS TyTerm #-}
 
