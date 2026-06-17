@@ -61,8 +61,11 @@ projectionType : {rn : NameRec}
                 (instPars : TermS α (recParScope rn))
                 (projFunc : NameProj rn)
                 → Type α
-projectionType ctx cargs sigRecord instPars projFunc = lookupNameRinTel (singScope ctx) (singTermS cargs) cargs 
-      (instRecConArgTel sigRecord instPars) projFunc
+projectionType ctx cargs sigRecord instPars projFunc = lookupNameRinTel 
+  (singScope ctx) 
+  (singTermS cargs) 
+  cargs 
+  (instRecConArgTel sigRecord instPars) projFunc
 {-# COMPILE AGDA2HS projectionType #-}
 
 data TyTerm  (@0 Γ : Context α) : @0 Term α     → @0 Type α         → Set
@@ -192,7 +195,8 @@ data TyTerm {α} Γ where
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
     → @0 ReducesTo recordTerm (TRecCon rn cargs)
     --------------------------------------------------------------------------
-    → Γ ⊢ TProj recordTerm projFunc ∶ projectionType Γ cargs sigRecord instPars projFunc
+    → Γ ⊢ TProj recordTerm projFunc ∶ 
+      projectionType Γ cargs sigRecord instPars projFunc
 
   TyPi :
       Γ ⊢ u ∶ sortType k

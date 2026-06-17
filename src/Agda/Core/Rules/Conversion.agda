@@ -24,12 +24,16 @@ opaque
 
   lengthOfRScope : {@0 rscope : RScope Name} → Singleton rscope → Nat
   lengthOfRScope ([] ⟨ refl ⟩) = zero 
-  lengthOfRScope ((Erased name ∷ names) ⟨ refl ⟩) = suc (lengthOfRScope (names ⟨ refl ⟩))
+  lengthOfRScope ((Erased name ∷ names) ⟨ refl ⟩) = 
+    suc (lengthOfRScope (names ⟨ refl ⟩))
 
-  etaProjTermS : {@0 rscope : RScope Name} → Singleton rscope → (NameInR rscope → Term α) → TermS α rscope
+  etaProjTermS : {@0 rscope : RScope Name} → Singleton rscope 
+    → (NameInR rscope → Term α) → TermS α rscope
   etaProjTermS ([] ⟨ refl ⟩)                   _  = TSNil
   etaProjTermS ((Erased name ∷ names) ⟨ refl ⟩) f =
-    name ↦ f (⟨ name ⟩ inRHere) ◂ etaProjTermS (names ⟨ refl ⟩) (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
+    name ↦ f (⟨ name ⟩ inRHere) ◂ etaProjTermS 
+      (names ⟨ refl ⟩) 
+      (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
   {-# COMPILE AGDA2HS etaProjTermS #-}
 
 

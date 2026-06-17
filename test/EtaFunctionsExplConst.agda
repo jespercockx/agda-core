@@ -23,7 +23,8 @@ addTwo = λ x → (suc (suc x))
 eta-functions_expl' : (A B : Set) (f : A → B) → (f ≡ (λ x → (f (const A x x))))
 eta-functions_expl' = λ A B → λ f → refl
 
-eta-app-1 : (f : Nat -> Nat -> Nat) -> (λ x -> (f zero x)) ≡ (f (const Nat zero (suc zero)))
+eta-app-1 : (f : Nat -> Nat -> Nat) -> 
+  (λ x -> (f zero x)) ≡ (f (const Nat zero (suc zero)))
 eta-app-1 = λ f → refl
 
 eta-functions_expl'_reversed : (A B : Set) (f : A → B) → ((λ x → (f (const A x x))) ≡ f)
