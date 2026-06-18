@@ -1,7 +1,7 @@
 open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
--- open import Agda.Core.Rules.Conversion
+open import Agda.Core.Reduce
 
 module Agda.Core.Rules.Typed.Typing
     {{@0 globals : Globals}}
@@ -14,7 +14,7 @@ private variable
   @0 x y z      : Name
   @0 α β γ     : Scope Name
   @0 rβ     : RScope Name
-  @0 u v    : Term α
+  @0 u u' v v'    : Term α
   @0 a b c  : Type α
   @0 k l    : Sort α
 
@@ -139,12 +139,10 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 {-# COMPILE AGDA2HS renameTopType #-}
 
 data Conv {α} Γ where
-  CRefl : {ty : Type α}
-    → Γ ⊢ u ∶ ty
-    → Γ ⊢ u ≅ u ∶ ty
+  CRefl : Γ ⊢ u ≅ u ∶ a
 
   CLam : {@0 r : Singleton α}
-    → CtxExtend Γ z a ⊢ renameTop {y = z} r u ≅ renameTop {y = z} r v ∶ b
+    → Γ , z ∶ a ⊢ renameTop {y = z} r u ≅ renameTop {y = z} r v ∶ b
     → Γ ⊢ TLam y u ≅ TLam z v ∶ El k (TPi z a b)
 
   -- ⊤ is unit type
@@ -154,9 +152,16 @@ data Conv {α} Γ where
   -- Γ ⊢ a ≅ b
   CUnit : (tUnit : Type α)
           → IsUnitType tUnit
-          → Γ ⊢ u ∶ tUnit
-          → Γ ⊢ v ∶ tUnit
+          -- → Γ ⊢ u ∶ tUnit
+          -- → Γ ⊢ v ∶ tUnit
           → Γ ⊢ u ≅ v ∶ tUnit
+
+  CRedL  : @0 ReducesTo u u'
+         → Γ ⊢ u' ≅ v ∶ a
+         → Γ ⊢ u  ≅ v ∶ a
+  CRedR  : @0 ReducesTo v v'
+         → Γ ⊢ u  ≅ v' ∶ a
+         → Γ ⊢ u  ≅ v ∶ a
   
   -- CUntypedToTyped : 
   --   u ≅ v
@@ -311,17 +316,16 @@ data TyTerm {α} Γ where
     ------------------
     → Γ ⊢ TAnn u a ∶ a
 
-  -- TyConv :
-  --   {ty : Type α}
-  --   → Γ ⊢ u ∶ a
-  --   → unType a ≅ unType b
-  --   ----------------
-  --   → Γ ⊢ u ∶ b
-
-  TyConvAlt : 
-    Γ ⊢ u ≅ v ∶ a
+  TyConv :
+    Γ ⊢ u ∶ a
+    → Γ ⊢ unType a ≅ unType b ∶ (sortType (typeSort a))
     ----------------
-    → Γ ⊢ v ∶ a
+    → Γ ⊢ u ∶ b
+
+  -- TyConvAlt : 
+  --   Γ ⊢ u ≅ v ∶ a
+  --   ----------------
+  --   → Γ ⊢ v ∶ a
   
   -- TyConvAlt2 :
   --   Γ ⊢ u ∶ a

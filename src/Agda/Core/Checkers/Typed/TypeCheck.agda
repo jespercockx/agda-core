@@ -52,23 +52,30 @@ tcmGetConstructor {d = d} c = do
   return (singCong (λ sig → sigCons sig d c) rsig)
 {-# COMPILE AGDA2HS tcmGetConstructor #-}
 
+convertCheck : {{fl : Fuel}} → (Γ : Context α) → (t q : Term α) (ty : Type α)
+  → TCM (Γ ⊢ t ≅ q ∶ ty)
+
 convVars : (Γ : Context α) → (ty : Type α) 
          → (x y : NameIn α)
-         → (Γ ⊢ (TVar x) ∶ ty)
          → TCM (Γ ⊢ (TVar x) ≅ (TVar y) ∶ ty)
-convVars ctx ty x y proof = do
+convVars ctx ty x y = do
   Erased refl ← convNamesIn x y
-  return (CRefl proof)
+  return (CRefl)
 
-convLams : {x1 x2 : Name} 
+convLams : 
       (Γ : Context α) 
       → (ty : Type α)
+      → (@0 x1 x2 : Name)
       → (b1 : Term (α ▸ x1)) 
       → (b2 : Term (α ▸ x2)) 
-      → TyTerm Γ (TLam x1 b1) ty 
-      → TyTerm Γ (TLam x2 b2) ty 
+      -- → TyTerm Γ (TLam x1 b1) ty 
+      -- → TyTerm Γ (TLam x2 b2) ty 
       → TCM (Γ ⊢ (TLam x1 b1) ≅ (TLam x2 b2) ∶ ty)
-convLams Γ ty b1 b2 proof1 proof2 = {!!}
+convLams ctx ty x1 x2 b1 b2 = do
+  let r = singScope ctx
+  -- lambdaConversionProof ← convertCheck {!!} (renameTop r b1) (renameTop r b2) 
+  -- return (CLam {!!})
+  return {!!}
 
 convApps : (Γ : Context α) (ty : Type α)
       → (u v : Term α)
@@ -92,43 +99,38 @@ convApps = {!!}
 
 convertTerms : ⦃ fl : Fuel ⦄ → (Γ : Context α) → (t q : Term α) 
   → (ty : Type α)
-  → Γ ⊢ t ∶ ty
-  → Γ ⊢ q ∶ ty
   → TCM (Γ ⊢ t ≅ q ∶ ty)
-convertTerms ctx (TVar x) (TVar y) ty proof _ = convVars ctx ty x y proof
-convertTerms ctx (TLam x1 b1) (TLam x2 b2) = {!!}
+convertTerms ctx (TVar x) (TVar y) ty = convVars ctx ty x y
+convertTerms ctx (TLam x1 b1) (TLam x2 b2) ty = convLams ctx ty {!   !} {!   !} {!   !} {!   !}
 convertTerms ctx (TApp u e) (TApp v f) = {!!}
-convertTerms ctx _ _ _ _ _ = tcError "two terms are not the same and are not convertible"
+convertTerms ctx _ _ _ = tcError "two terms are not the same and are not convertible"
 
-
-convertCheck : {{fl : Fuel}} → (Γ : Context α) → (t q : Term α) (ty : Type α)
-  → Γ ⊢ t ∶ ty
-  → Γ ⊢ q ∶ ty
-  → TCM (Γ ⊢ t ≅ q ∶ ty)
-convertCheck ⦃ None ⦄ _ _ _ _ _ _ =
+convertCheck ⦃ None ⦄ _ _ _ _ =
   tcError "not enough fuel to check conversion"
-convertCheck ⦃ More ⦄ _ _ _ _ _ _ = {!!}
+convertCheck ⦃ More ⦄ ctx t q ty = do
+  let r = singScope ctx 
+  t ⟨ tred ⟩ ← reduceTo r t
+  q ⟨ qred ⟩ ← reduceTo r q
+  (CRedL tred ∘ CRedR qred) <$> convertTerms ctx t q ty
 
 convert : 
         (Γ : Context α) 
         → (t q : Term α) 
         → (ty : Type α)
-        → Γ ⊢ t ∶ ty
-        → Γ ⊢ q ∶ ty
         → TCM (Γ ⊢ t ≅ q ∶ ty)
-convert ctx t q ty proof1 proof2 = do
+convert ctx t q ty = do
   I ⦃ fl ⦄ ← tcmFuel
-  convertCheck ctx t q ty proof1 proof2
+  convertCheck ctx t q ty
 
--- checkCoerce : ∀ Γ (t : Term α)
---             → (ty : Type α)
---             → Γ ⊢ t ∶ ty
---             → (ty' typeOfType : Type α)
---             → (Γ ⊢ unType ty ≅ unType ty' ∶ typeOfType)
---             → TCM (Γ ⊢ t ∶ ty')
--- checkCoerce ctx t ty deriv ty' typeOfType f = do
---   -- proof ← convert ctx {!!} {!!} {!!} {!!} 
---   {!!}
+checkCoerce : ∀ Γ (t : Term α)
+            → Σ[ ty ∈ Type α ] Γ ⊢ t ∶ ty
+            → (ty' : Type α)
+            -- → 
+            → TCM (Γ ⊢ t ∶ ty')
+checkCoerce ctx t (ty , tyderiv) ty' = do
+-- proof has type (Γ ⊢ unType ty ≅ unType ty' ∶ (sortType (typeSort ty)))
+  proof ← convert ctx (unType ty) (unType ty') (sortType (typeSort ty))
+  return (TyConv tyderiv proof)
 
 inferSort : (Γ : Context α) (t : Term α) → TCM (Σ[ s ∈ Sort α ] Γ ⊢ t ∶ sortType s)
 inferType : ∀ (Γ : Context α) u → TCM (Σ[ t ∈ Type α ] Γ ⊢ u ∶ t)
@@ -400,10 +402,7 @@ checkType ctx (TVar x) ty = do
   -- but we need (TyTerm ctx (TVar x) ty)
   -- But how can we get a conversion proof of `unType t` and `unType ty`?, 
   -- if this again requires a derivation produced by `checkType`...
-  {!!}
-  -- checkCoerce {!   !} {!   !} {!   !} {!   !} {!   !} {!   !} {!   !}
-  -- checkCoerce ctx (TVar x) tvar ty
-  -- checkCoerce {!!}
+  checkCoerce ctx (TVar x) tvar ty
 -- checkType ctx (TDef d) ty = do
 --   tdef ← inferDef ctx d
 --   checkCoerce ctx (TDef d) tdef ty
