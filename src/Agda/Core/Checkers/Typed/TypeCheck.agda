@@ -71,9 +71,9 @@ convLams :
       -- → TyTerm Γ (TLam x1 b1) ty
       -- → TyTerm Γ (TLam x2 b2) ty 
       → TCM (Γ ⊢ (TLam x1 b1) ≅ (TLam x2 b2) ∶ ty)
-convLams ctx x1 x2 b1 b2 (El k ty) = do
+convLams ctx x1 x2 b1 b2 (El k termTy) = do
   let r = singScope ctx
-  ⟨ piTypeName ⟩ (piTypeInp , El piTypeOutpSort piTypeOutp) ⟨ rtp ⟩ ← reduceToPi r ty "couldn't reduce a term to a pi type"
+  ⟨ piTypeName ⟩ (piTypeInp , El piTypeOutpSort piTypeOutp) ⟨ rtp ⟩ ← reduceToPi r termTy "couldn't reduce a term to a pi type"
 
   lambdaConversionProof ← convertCheck (ctx , x2 ∶ piTypeInp) 
     (renameTop r b1) 
@@ -96,8 +96,18 @@ convPis : {{fl : Fuel}}
           (v' : Type  (α ▸ y))
           (ty : Type α)
         → TCM (Conv Γ (TPi x u v) (TPi y u' v') ty)
-convPis ctx x y u u' v v' ty = 
-  return {!!}
+convPis ctx x y u u' v v' (El k termTy) = do
+  let r = singScope ctx
+  piSortMember  ⟨ redv ⟩ ← reduceToSort r termTy "couldn't reduce a term to a sort type"
+
+  cpiProof1 ← convertCheck ctx (unType u) (unType u') (sortType (typeSort u))
+  cpiProof2 ← convertCheck (ctx , x ∶ u) (unType v) (renameTop r (unType v')) (sortType (typeSort v))
+
+  convTypsProof ← convertCheck ctx 
+    (unType (sortType (piSort (typeSort u) (typeSort v))))
+    (TSort piSortMember) 
+    (sortType (typeSort (sortType (piSort (typeSort u) (typeSort v)))))
+  return (CRedType redv (CConvType (CPi cpiProof1 cpiProof2) convTypsProof))
 
 convertTerms : ⦃ fl : Fuel ⦄ → (Γ : Context α) → (t q : Term α) 
   → (ty : Type α)

@@ -38,26 +38,6 @@ opaque
   {-# COMPILE AGDA2HS lookupNameRinTel #-}
 
 
-  -- isUnitType : Type α → Bool
-  -- isUnitType (El typeSort₁ (TVar x)) = {!   !}
-  -- isUnitType (El typeSort₁ (TDef d)) = {!   !}
-  -- isUnitType (El typeSort₁ (TData d x x₁)) = {!   !}
-  -- isUnitType (El (STyp zero) (TRec rn x)) = {!   !}
-  -- isUnitType (El (STyp (suc x₁)) (TRec rn x)) = {!   !}
-  -- isUnitType (El typeSort₁ (TDataCon c x)) = {!   !}
-  -- isUnitType (El typeSort₁ (TRecCon r x)) = {!   !}
-  -- isUnitType (El typeSort₁ (TLam x unType₁)) = {!   !}
-  -- isUnitType (El typeSort₁ (TApp unType₁ unType₂)) = {!   !}
-  -- isUnitType (El typeSort₁ (TProj unType₁ x)) = {!   !}
-  -- isUnitType (El typeSort₁ (TCase d x unType₁ bs m)) = {!   !}
-  -- isUnitType (El typeSort₁ (TPi x u v)) = {!   !}
-  -- isUnitType (El typeSort₁ (TSort x)) = {!   !}
-  -- isUnitType (El typeSort₁ (TLet x unType₁ unType₂)) = {!   !}
-  -- isUnitType (El typeSort₁ (TAnn unType₁ t)) = {!   !}
-
-
-
-
 dataConstructorType : {d : NameData}
                 → (dt : Datatype d)
                 → {c : NameDataCon d}
@@ -93,10 +73,6 @@ data IsUnitType : {@0 α : Scope Name} (@0 typ : Type α) → Set where
   TRecEmptyParsIsUnit : {@0 rn : NameRec} 
     (emptyPars : TermS α (recParScope rn))
     → ((recFieldScope rn) ≡ mempty) → IsUnitType (El (STyp 0) (TRec rn emptyPars))
-
--- IsUnitType : {@0 α : Scope Name} (@0 typ : Term α) → Set
--- IsUnitType rn = {!!}
-
 
 
 data Conv      {@0 α} (@0 Γ : Context α) : @0 Term α → @0 Term α → @0 Type α → Set
