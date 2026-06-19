@@ -88,24 +88,24 @@ convApps : (Γ : Context α) (ty : Type α)
       → TCM (Γ ⊢ (TApp u e) ≅ (TApp v f) ∶ ty)
 convApps = {!!}
 
-
--- convLams : {{fl : Fuel}}
---          → Context α
---          → (@0 x y : Name)
---            (u : Term  (α ▸ x))
---            (v : Term  (α ▸ y))
---          → TCM (Conv (TLam x u) (TLam y v))
--- convLams r x y u v = {!!}
-  
-  -- do
-  -- CLam <$> convertCheck (singBind r) (renameTop r u) (renameTop r v)
+convPis : {{fl : Fuel}}
+        → (Γ : Context α)
+        → (@0 x y : Name)
+          (u u' : Type α)
+          (v  : Type  (α ▸ x))
+          (v' : Type  (α ▸ y))
+          (ty : Type α)
+        → TCM (Conv Γ (TPi x u v) (TPi y u' v') ty)
+convPis ctx x y u u' v v' ty = 
+  return {!!}
 
 convertTerms : ⦃ fl : Fuel ⦄ → (Γ : Context α) → (t q : Term α) 
   → (ty : Type α)
   → TCM (Γ ⊢ t ≅ q ∶ ty)
 convertTerms ctx (TVar x) (TVar y) ty = convVars ctx ty x y
 convertTerms ctx (TLam x1 b1) (TLam x2 b2) ty = convLams ctx {!   !} {!   !} {!   !} {!   !} ty
-convertTerms ctx (TApp u e) (TApp v f) = {!!}
+convertTerms ctx (TApp u e) (TApp v f) ty = {!!}
+convertTerms ctx (TPi x u v) (TPi y u' v') ty = convPis ctx x y u u' v v' ty
 convertTerms ctx _ _ _ = tcError "two terms are not the same and are not convertible"
 
 convertCheck ⦃ None ⦄ _ _ _ _ =
