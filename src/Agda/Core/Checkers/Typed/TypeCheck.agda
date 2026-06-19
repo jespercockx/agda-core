@@ -3,11 +3,10 @@ open import Agda.Core.Name
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
 open import Agda.Core.Rules.Typed.Typing
--- open import Agda.Core.Rules.Untyped.Typing
 open import Agda.Core.Rules.Typed.Typing
 open import Agda.Core.TCM.Instances
 open import Agda.Core.Checkers.ConverterUtils
--- open import Agda.Core.Checkers.Untyped.Converter
+open import Agda.Core.Rules.ConversionUtils
 open import Agda.Core.Syntax.Weakening 
 
 module Agda.Core.Checkers.Typed.TypeCheck
@@ -63,20 +62,24 @@ convVars ctx ty x y = do
   return (CRefl)
 
 convLams : 
+      {{fl : Fuel}}
       (Γ : Context α) 
-      → (ty : Type α)
       → (@0 x1 x2 : Name)
       → (b1 : Term (α ▸ x1)) 
       → (b2 : Term (α ▸ x2)) 
-      -- → TyTerm Γ (TLam x1 b1) ty 
+      → (ty : Type α)
+      -- → TyTerm Γ (TLam x1 b1) ty
       -- → TyTerm Γ (TLam x2 b2) ty 
       → TCM (Γ ⊢ (TLam x1 b1) ≅ (TLam x2 b2) ∶ ty)
-convLams ctx ty x1 x2 b1 b2 = do
+convLams ctx x1 x2 b1 b2 (El k ty) = do
   let r = singScope ctx
-  -- lambdaConversionProof ← convertCheck {!!} (renameTop r b1) (renameTop r b2) 
-  -- return (CLam {!!})
-  return {!!}
+  ⟨ piTypeName ⟩ (piTypeInp , El piTypeOutpSort piTypeOutp) ⟨ rtp ⟩ ← reduceToPi r ty "couldn't reduce a term to a pi type"
 
+  lambdaConversionProof ← convertCheck (ctx , x2 ∶ piTypeInp) 
+    (renameTop r b1) 
+    (renameTop r b2) 
+    (renameTopType r (El piTypeOutpSort piTypeOutp))
+  return (CRedType rtp (CConvType (CLam {r = r} lambdaConversionProof) {!   !}))
 convApps : (Γ : Context α) (ty : Type α)
       → (u v : Term α)
       → (e f : Term α)
@@ -101,7 +104,7 @@ convertTerms : ⦃ fl : Fuel ⦄ → (Γ : Context α) → (t q : Term α)
   → (ty : Type α)
   → TCM (Γ ⊢ t ≅ q ∶ ty)
 convertTerms ctx (TVar x) (TVar y) ty = convVars ctx ty x y
-convertTerms ctx (TLam x1 b1) (TLam x2 b2) ty = convLams ctx ty {!   !} {!   !} {!   !} {!   !}
+convertTerms ctx (TLam x1 b1) (TLam x2 b2) ty = convLams ctx {!   !} {!   !} {!   !} {!   !} ty
 convertTerms ctx (TApp u e) (TApp v f) = {!!}
 convertTerms ctx _ _ _ = tcError "two terms are not the same and are not convertible"
 
@@ -115,9 +118,9 @@ convertCheck ⦃ More ⦄ ctx t q ty = do
 
 convert : 
         (Γ : Context α) 
-        → (t q : Term α) 
-        → (ty : Type α)
-        → TCM (Γ ⊢ t ≅ q ∶ ty)
+        → (t q : Term α)
+        → (typeOfT : Type α)
+        → TCM (Γ ⊢ t ≅ q ∶ typeOfT)
 convert ctx t q ty = do
   I ⦃ fl ⦄ ← tcmFuel
   convertCheck ctx t q ty
@@ -373,6 +376,7 @@ checkLambda ctx x u (El s ty) = do
   -- TODO: introduce helper function to avoid pattern match on codomain
   ⟨ y ⟩ (tu , El tvs tvt) ⟨ rtp ⟩ ← reduceToPi r ty
     "couldn't reduce a term to a pi type"
+
 
   d ← checkType (ctx , x ∶ tu) u (El (renameTopSort r tvs) (renameTop r tvt))
 

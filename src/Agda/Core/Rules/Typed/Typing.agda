@@ -2,6 +2,7 @@ open import Agda.Core.Prelude
 open import Agda.Core.Name
 open import Agda.Core.Syntax
 open import Agda.Core.Reduce
+open import Agda.Core.Rules.ConversionUtils
 
 module Agda.Core.Rules.Typed.Typing
     {{@0 globals : Globals}}
@@ -14,8 +15,8 @@ private variable
   @0 x y z      : Name
   @0 α β γ     : Scope Name
   @0 rβ     : RScope Name
-  @0 u u' v v'    : Term α
-  @0 a b c  : Type α
+  @0 s s' t t' u u' v v' w w'    : Term α
+  @0 a a' b b' c c'  : Type α
   @0 k l    : Sort α
 
 
@@ -123,27 +124,22 @@ infix 3 Conv
 syntax Conv Γ x y t        = Γ ⊢ x ≅ y ∶ t
 syntax ConvTermS Γ rscope us vs = Γ [ rscope ]  ⊢ us ⇔ vs 
 
-renameTop : Singleton α → Term  (α ▸ x) → Term  (α ▸ y)
-renameTop = subst ∘ liftBindSubst ∘ idSubst
-
-{-# COMPILE AGDA2HS renameTop #-}
-
-renameTopSort : Singleton α → Sort  (α ▸ x) → Sort  (α ▸ y)
-renameTopSort = subst ∘ liftBindSubst ∘ idSubst
-
-{-# COMPILE AGDA2HS renameTopSort #-}
-
-renameTopType : Singleton α → Type  (α ▸ x) → Type  (α ▸ y)
-renameTopType = subst ∘ liftBindSubst ∘ idSubst
-
-{-# COMPILE AGDA2HS renameTopType #-}
-
 data Conv {α} Γ where
-  CRefl : Γ ⊢ u ≅ u ∶ a
+
+  CRefl : 
+    ------------------------------------------------
+    Γ ⊢ u ≅ u ∶ a
 
   CLam : {@0 r : Singleton α}
     → Γ , z ∶ a ⊢ renameTop {y = z} r u ≅ renameTop {y = z} r v ∶ b
+    ------------------------------------------------
     → Γ ⊢ TLam y u ≅ TLam z v ∶ El k (TPi z a b)
+
+  CPi : {@0 r : Singleton α}
+    → Γ ⊢ unType a ≅ unType a' ∶ sortType k
+    → Γ , x ∶ a ⊢ unType b ≅ renameTop r (unType b') ∶ sortType l
+    ------------------------------------------------
+    → Γ ⊢ TPi x a b ≅ TPi y a' b' ∶ sortType (piSort k l)
 
   -- ⊤ is unit type
   -- Γ ⊢ a ∶ ⊤
@@ -156,13 +152,22 @@ data Conv {α} Γ where
           -- → Γ ⊢ v ∶ tUnit
           → Γ ⊢ u ≅ v ∶ tUnit
 
+  CConvType : Γ ⊢ u ≅ v ∶ a
+    → Γ ⊢ (unType a) ≅ (unType b) ∶ (sortType (typeSort a))
+    → Γ ⊢ u ≅ v ∶ b
+    
+
   CRedL  : @0 ReducesTo u u'
          → Γ ⊢ u' ≅ v ∶ a
          → Γ ⊢ u  ≅ v ∶ a
   CRedR  : @0 ReducesTo v v'
          → Γ ⊢ u  ≅ v' ∶ a
          → Γ ⊢ u  ≅ v ∶ a
-  
+
+  CRedType : @0 ReducesTo w w'
+        → Γ ⊢ u ≅ v ∶ El k w'
+        → Γ ⊢ u ≅ v ∶ El k w
+
   -- CUntypedToTyped : 
   --   u ≅ v
   --   Γ ⊢ u ∶ ty
