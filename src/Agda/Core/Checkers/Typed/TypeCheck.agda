@@ -65,7 +65,7 @@ convLams :
       {{fl : Fuel}}
       (Γ : Context α) 
       → (@0 x1 x2 : Name)
-      → (b1 : Term (α ▸ x1)) 
+      → (b1 : Term (α ▸ x1))
       → (b2 : Term (α ▸ x2)) 
       → (ty : Type α)
       -- → TyTerm Γ (TLam x1 b1) ty
@@ -76,10 +76,18 @@ convLams ctx x1 x2 b1 b2 (El k termTy) = do
   ⟨ piTypeName ⟩ (piTypeInp , El piTypeOutpSort piTypeOutp) ⟨ rtp ⟩ ← reduceToPi r termTy "couldn't reduce a term to a pi type"
 
   lambdaConversionProof ← convertCheck (ctx , x2 ∶ piTypeInp) 
-    (renameTop r b1) 
-    (renameTop r b2) 
-    (renameTopType r (El piTypeOutpSort piTypeOutp))
-  return (CRedType rtp (CConvType (CLam {r = r} lambdaConversionProof) {!   !}))
+    (renameTop {y = x2} r b1) 
+    (renameTop {y = x2} r b2) 
+    (renameTopType {y = x2} r (El piTypeOutpSort piTypeOutp))
+    
+  convTypsProof ← convertCheck ctx 
+    (TPi x2 piTypeInp (renameTopType r (El piTypeOutpSort piTypeOutp))) 
+    (TPi piTypeName piTypeInp (El piTypeOutpSort piTypeOutp)) 
+    (sortType (piSort (typeSort piTypeInp) (typeSort ((El piTypeOutpSort piTypeOutp)))))  -- ????????
+  
+  return (CRedType rtp (CConvType (CLam {r = r} lambdaConversionProof) convTypsProof))
+
+
 convApps : (Γ : Context α) (ty : Type α)
       → (u v : Term α)
       → (e f : Term α)
@@ -113,7 +121,7 @@ convertTerms : ⦃ fl : Fuel ⦄ → (Γ : Context α) → (t q : Term α)
   → (ty : Type α)
   → TCM (Γ ⊢ t ≅ q ∶ ty)
 convertTerms ctx (TVar x) (TVar y) ty = convVars ctx ty x y
-convertTerms ctx (TLam x1 b1) (TLam x2 b2) ty = convLams ctx {!   !} {!   !} {!   !} {!   !} ty
+convertTerms ctx (TLam x1 b1) (TLam x2 b2) ty = convLams ctx x1 x2 b1 b2 ty
 convertTerms ctx (TApp u e) (TApp v f) ty = {!!}
 convertTerms ctx (TPi x u v) (TPi y u' v') ty = convPis ctx x y u u' v v' ty
 convertTerms ctx _ _ _ = tcError "two terms are not the same and are not convertible"
