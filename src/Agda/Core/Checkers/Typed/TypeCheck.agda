@@ -91,8 +91,8 @@ convLams ctx x1 x2 b1 b2 (El k termTy) = do
 convApps : (Γ : Context α) (ty : Type α)
       → (u v : Term α)
       → (e f : Term α)
-      → Γ ⊢ (TApp u e) ∶ ty
-      → Γ ⊢ (TApp v f) ∶ ty  
+      -- → Γ ⊢ (TApp u e) ∶ ty
+      -- → Γ ⊢ (TApp v f) ∶ ty  
       → TCM (Γ ⊢ (TApp u e) ≅ (TApp v f) ∶ ty)
 convApps = {!!}
 
@@ -122,7 +122,7 @@ convertTerms : ⦃ fl : Fuel ⦄ → (Γ : Context α) → (t q : Term α)
   → TCM (Γ ⊢ t ≅ q ∶ ty)
 convertTerms ctx (TVar x) (TVar y) ty = convVars ctx ty x y
 convertTerms ctx (TLam x1 b1) (TLam x2 b2) ty = convLams ctx x1 x2 b1 b2 ty
-convertTerms ctx (TApp u e) (TApp v f) ty = {!!}
+convertTerms ctx (TApp u e) (TApp v f) ty = convApps ctx ty u v e f
 convertTerms ctx (TPi x u v) (TPi y u' v') ty = convPis ctx x y u u' v v' ty
 convertTerms ctx _ _ _ = tcError "two terms are not the same and are not convertible"
 
@@ -388,21 +388,32 @@ checkLambda : ∀ Γ (@0 x : Name)
               (u : Term  (α ▸ x))
               (ty : Type α)
               → TCM (Γ ⊢ TLam x u ∶ ty)
-checkLambda ctx x u (El s ty) = do
+checkLambda ctx x u (El s termTy) = do
   let r = singScope ctx
 
   -- TODO: introduce helper function to avoid pattern match on codomain
-  ⟨ y ⟩ (tu , El tvs tvt) ⟨ rtp ⟩ ← reduceToPi r ty
+  ⟨ y ⟩ (tu , El tvs tvt) ⟨ rtp ⟩ ← reduceToPi r termTy
     "couldn't reduce a term to a pi type"
 
 
   d ← checkType (ctx , x ∶ tu) u (El (renameTopSort r tvs) (renameTop r tvt))
 
-  -- let gc = {!!}
-  --     sp = piSort (typeSort tu) tvs
+  let 
+      -- subsubGc1 : ctx ⊢ unType tu ≅ unType tu ∶ sortType (typeSort tu)
+      -- subsubGc1 = CRefl
+      -- subsubGc2 : ctx , x ∶ tu ⊢ 
+      --   unType (El (renameTopSort r tvs) (renameTop r tvt)) ≅ renameTop r (unType (El tvs tvt)) 
+      --   ∶ sortType (renameTopSort r tvs)
+      -- subsubGc2 = CRefl
+      -- subGc : Conv ctx (TPi x tu (El (renameTopSort r tvs) (renameTop r tvt))) (TPi y tu (El tvs tvt)) (sortType (piSort (typeSort tu) tvs))
+      -- subGc  = (CConvType {a = (sortType (piSort (typeSort tu) {!!}))} (CPi CRefl CRefl) {!   !})
+
+      gc = CRedR rtp (CConvType {a = (sortType (piSort (typeSort tu) {!!}))} (CPi CRefl CRefl) {!!})
+            
+      sp  = piSort (typeSort tu) tvs
 
   -- return $ TyConv (TyLam {k = sp} d) gc
-  return {!!}
+  return (TyConv (TyLam {k = sp} d) gc)
 
 {-# COMPILE AGDA2HS checkLambda #-}
 
