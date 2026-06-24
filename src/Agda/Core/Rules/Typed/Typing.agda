@@ -117,6 +117,10 @@ data Conv {α} Γ where
     ------------------------------------------------
     → Γ ⊢ TPi x a b ≅ TPi y a' b' ∶ sortType (piSort k l)
 
+  CApp   : Γ ⊢ u ≅ u' ∶ El k (TPi x b c)
+         → Γ ⊢ w ≅ w' ∶ b
+         → Γ ⊢ TApp u w ≅ TApp u' w' ∶ substTop (singScope Γ) w c
+
   -- ⊤ is unit type
   -- Γ ⊢ a ∶ ⊤
   -- Γ ⊢ b ∶ ⊤

@@ -88,13 +88,30 @@ convLams ctx x1 x2 b1 b2 (El k termTy) = do
   return (CRedType rtp (CConvType (CLam {r = r} lambdaConversionProof) convTypsProof))
 
 
+--UNTYPED
+-- convApps : {{fl : Fuel}}
+--          → Singleton α
+--          → (u u' : Term α)
+--            (w w' : Term α)
+--          → TCM (Conv (TApp u w) (TApp u' w'))
+-- convApps r u u' w w' = do
+--   cu ← convertCheck r u u'
+--   cw ← convertCheck r w w'
+--   return (CApp cu cw)
+--UNTYPED
+
 convApps : (Γ : Context α) (ty : Type α)
       → (u v : Term α)
       → (e f : Term α)
       -- → Γ ⊢ (TApp u e) ∶ ty
       -- → Γ ⊢ (TApp v f) ∶ ty  
       → TCM (Γ ⊢ (TApp u e) ≅ (TApp v f) ∶ ty)
-convApps = {!!}
+convApps ctx (El k termTy) u v e f = do
+
+  
+  proof ← convertCheck ctx (substTop (singScope ctx) e c) {!!}
+
+  return {!!}
 
 convPis : {{fl : Fuel}}
         → (Γ : Context α)
