@@ -53,7 +53,7 @@ nameInBindCase x = inBindCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInBindCase inline #-}
 
 nameInRBindCase : ∀ {@0 rβ y} (x : NameInR (y ◂ rβ)) → (rβ ∋ (proj₁ x) → a) → (@0 proj₁ x ≡ y → a) → a
-nameInRBindCase x = inRBindCase (proj₂ x)
+nameInRBindCase x = inRbindCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInRBindCase inline #-}
 
 opaque
