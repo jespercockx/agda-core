@@ -109,7 +109,7 @@ convApps : (Γ : Context α) (ty : Type α)
 convApps ctx (El k termTy) u v e f = do
 
   
-  proof ← convertCheck ctx (substTop (singScope ctx) e c) {!!}
+  -- proof ← convertCheck ctx (substTop (singScope ctx) e {!!}) {!!}
 
   return {!!}
 
