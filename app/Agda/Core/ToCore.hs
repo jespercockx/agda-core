@@ -276,35 +276,43 @@ unnestPi n ty = case Core.unType ty of
   TPi _ dom -> unnestPi (n - 1) dom
   _ -> throwError "Incorrect Type, expected Pi"
 
--- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) (Both have case tree format instead of clause list format)
--- ty represents the type of the return of the case, and paramCount represents how many parameters have been pattern matched on the left hand side of the function clause
+-- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) 
+-- (Both have case tree format instead of clause list format)
+-- ty represents the type of the return of the case, 
+-- and lhsCount represents how many parameters have been pattern matched on the left hand side of the function clause
 clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) _ _ = toCore body
-clauseToCore (CC.Case paramNum c) ty paramCount = do
+clauseToCore (CC.Case matchTarget c) ty lhsCount = do
   let branchList = Map.toList (CC.conBranches c)
   result <- lookupCon (fst (branchList !! 0))
-  -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
+  -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, 
+    -- this will be an issue for something like the empty type)
   Constructor _ (Data dt params idcs) <- maybe (throwError "constructor not found") return result
 
   when (idcs > 0) $ throwError "Indexed datatypes are not yet supported"
 
-  -- iRun is the run-time representation of the index scope. The result will always be `[]`, however, once indexed datatypes are supported this will be important.
+  -- iRun is the run-time representation of the index scope. 
+  -- The result will always be `[]`, however, once indexed datatypes are supported this will be important.
   let iRun = iterate rbind [] !! idcs
 
-  let indexAgda = paramCount - unArg paramNum - 1 -- debruijn index in the Agda syntax (paramNum is the number of the parameter, starting from the left)
+  -- debruijn index in the Agda syntax 
+  -- matchTarget is the number of the argument being matched on, starting from the left
+  let indexAgda = lhsCount - unArg matchTarget - 1 
   indexAgdaCore <- lookupOffset indexAgda -- getting corresponding agda core db index
 
-  coreBranchList <- (mapM (uncurry (createBranch ty paramCount indexAgda)) branchList)
+  coreBranchList <- (mapM (uncurry (createBranch ty lhsCount indexAgda)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
   return $ TCase dt iRun (TVar $ intToIndex indexAgdaCore) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
-createBranch ty paramCount paramIndexAgda name wthAr = do
+createBranch ty lhsCount paramIndexAgda name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
-  clause <- updateDBMapLocal paramIndexAgda (CC.arity wthAr) $ -- update the state according to the pattern matched parameter and the arity of its constructor
-    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1) -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
+  -- update the state according to the pattern matched parameter and the arity of its constructor
+  clause <- updateDBMapLocal paramIndexAgda (CC.arity wthAr) $ 
+    -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
+    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + lhsCount - 1) 
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 

@@ -12,7 +12,6 @@ import Data.Version (showVersion)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
 import Control.DeepSeq ( NFData(..) )
-import Debug.Trace
 
 import Agda.Main (runAgda')
 import Agda.TypeChecking.Pretty (text, prettyTCM, (<+>), Doc)
