@@ -4,6 +4,7 @@ open import Agda.Core.Syntax
 open import Agda.Core.Rules.Conversion
 open import Agda.Core.Reduce
 open import Agda.Core.TCM.Instances
+-- open import Agda.Core.Checkers.TypeCheck
 
 module Agda.Core.Checkers.Converter
     {{@0 globals : Globals}}
@@ -48,9 +49,31 @@ reduceToData : {@0 α : Scope Name} (r : Singleton α)
                   ∃[ (pars , ixs) ∈ (TermS α (dataParScope d)) × (TermS α (dataIxScope d)) ]
                   ReducesTo v (TData d pars ixs))
 reduceToData r v err = reduceTo r v >>= λ where
-  (TData d pars ixs ⟨ redv ⟩) → return ((d , (pars , ixs) ⟨ redv ⟩))
+  (TData d pars ixs ⟨ redv ⟩) → return (d , (pars , ixs) ⟨ redv ⟩)
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToData #-}
+
+reduceToRec : {@0 α : Scope Name} (r : Singleton α)
+          → (v : Term α)
+          → String
+          → TCM (Σ[ rn ∈ NameIn recScope ]
+                 ∃[ pars ∈ TermS α (recParScope rn) ]
+                 ReducesTo v (TRec rn pars))
+reduceToRec r v err = reduceTo r v >>= λ where
+  (TRec rn pars ⟨ redv ⟩) → return (rn , pars ⟨ redv ⟩)
+  _ → tcError err
+{-# COMPILE AGDA2HS reduceToRec #-}
+
+reduceToTRecCon : {@0 α : Scope Name} (r : Singleton α)
+          → (v : Term α)
+          → String
+          → TCM (Σ[ rn ∈ NameIn recScope ]
+                 ∃[ args ∈ TermS α (recFieldScope rn)]
+                 ReducesTo v (TRecCon rn args))
+reduceToTRecCon r v err = reduceTo r v >>= λ where
+  (TRecCon rn args ⟨ redv ⟩) → return (rn , (args ⟨ redv ⟩))
+  _ → tcError err
+{-# COMPILE AGDA2HS reduceToTRecCon #-}
 
 reduceToSort : {@0 α : Scope Name} (r : Singleton α)
            → (v : Term α)
@@ -61,12 +84,21 @@ reduceToSort r v err = reduceTo r v >>= λ where
   _ → tcError err
 {-# COMPILE AGDA2HS reduceToSort #-}
 
+
+
 convNamesIn : (x y : NameIn α) → TCM (Erase (x ≡ y))
 convNamesIn x y =
   ifEqualNamesIn x y
     (λ where {{refl}} → return (Erased refl))
     (tcError "names not equal")
 {-# COMPILE AGDA2HS convNamesIn #-}
+
+convNamesInR : (x y : NameInR rβ) → TCM (Erase (x ≡ y))
+convNamesInR x y = 
+  ifEqualNamesInR x y 
+    (λ where {{refl}} → return (Erased refl))
+    (tcError "names not equal")
+{-# COMPILE AGDA2HS convNamesInR #-}
 
 convVars : (x y : NameIn α)
          → TCM (Conv (TVar x) (TVar y))
@@ -96,7 +128,7 @@ convertTermSs : {{fl : Fuel}} → Singleton α →
                 (s p : TermS α rβ)
               → TCM (s ⇔ p)
 convertBranches : {{fl : Fuel}} → Singleton α →
-                ∀ {@0 d : NameData} {@0 cs : RScope (NameCon d)}
+                ∀ {@0 d : NameData} {@0 cs : RScope (NameDataCon d)}
                   (bs bp : Branches α d cs)
                 → TCM (ConvBranches bs bp)
 
@@ -115,24 +147,51 @@ convDatas r d e ps qs is ks = do
 
 {-# COMPILE AGDA2HS convDatas #-}
 
-convCons : {{fl : Fuel}} → Singleton α →
+convRecs : {{fl : Fuel}} → Singleton α → (rn1 rn2 : NameRec)
+            (pars1 : TermS α (recParScope rn1)) (pars2 : TermS α (recParScope rn2))
+          → TCM (Conv (TRec rn1 pars1) (TRec rn2 pars2))
+convRecs r rn1 rn2 pars1 pars2 = do
+  ifDec (decIn (proj₂ rn1) (proj₂ rn2))
+    (λ where {{refl}} → do
+      cps ← convertTermSs r pars1 pars2
+      return $ (CRec rn1 pars1 pars2 cps)
+    )
+    (tcError "record types not convertible")
+{-# COMPILE AGDA2HS convRecs #-}
+
+convDataCons : {{fl : Fuel}} → Singleton α →
            {d d' : NameData}
-           (f : NameCon d)
-           (g : NameCon d')
-           (lp : TermS α (fieldScope f))
-           (lq : TermS α (fieldScope g))
-         → TCM (Conv (TCon f lp) (TCon g lq))
-convCons r {d} {d'} f g lp lq = do
+           (f : NameDataCon d)
+           (g : NameDataCon d')
+           (lp : TermS α (dataFieldScope f))
+           (lq : TermS α (dataFieldScope g))
+         → TCM (Conv (TDataCon f lp) (TDataCon g lq))
+convDataCons r {d} {d'} f g lp lq = do
   ifDec (decNamesIn d d')
     (λ where {{refl}} → do
       ifDec (decNamesInR f g)
         (λ where {{refl}} → do
           csp ← convertTermSs r lp lq
-          return $ CCon f csp)
+          return $ CDataCon f csp)
         (tcError "constructors not convertible"))
     (tcError "constructors are from not convertible datatypes")
 
-{-# COMPILE AGDA2HS convCons #-}
+{-# COMPILE AGDA2HS convDataCons #-}
+
+convRecCons : {{fl : Fuel}} → Singleton α → 
+          (rn1 : NameRec)
+          (rn2 : NameRec)
+          (args1 : TermS α (recFieldScope rn1))
+          (args2 : TermS α (recFieldScope rn2))
+        → TCM (Conv (TRecCon rn1 args1) (TRecCon rn2 args2))
+convRecCons r rn1 rn2 args1 args2 = do 
+  ifDec (decNamesIn rn1 rn2) 
+    (λ where {{refl}} → do
+      csp ← convertTermSs r args1 args2
+      return $ CRecCon rn1 csp
+    ) 
+    (tcError "record constructors are from non-convertible record types")
+{-# COMPILE AGDA2HS convRecCons #-}
 
 convLams : {{fl : Fuel}}
          → Singleton α
@@ -156,6 +215,24 @@ convApps r u u' w w' = do
   return (CApp cu cw)
 
 {-# COMPILE AGDA2HS convApps #-}
+
+convProjs : {{fl : Fuel}}
+          → Singleton α
+          → (rn1 rn2 : NameRec)
+          → (recTerm1 recTerm2 : Term α)
+          → (f : NameProj rn1)
+          → (g : NameProj rn2)
+          → TCM (Conv (TProj recTerm1 f) (TProj recTerm2 g))
+convProjs r rn1 rn2 recTerm1 recTerm2 f g = do
+  ifDec (decNamesIn rn1 rn2)
+    (λ where {{refl}} → do
+      Erased refl ← convNamesInR f g
+      crecTerm ← convertCheck r recTerm1 recTerm2 
+      return (CProj crecTerm)
+    )
+    (tcError "projections not convertible")
+
+{-# COMPILE AGDA2HS convProjs #-} 
 
 convertCase : {{fl : Fuel}}
             → Singleton α
@@ -202,7 +279,7 @@ convertTermSs r (x ↦ u ◂ s0) t =
 
 convertBranch : ⦃ fl : Fuel ⦄
               → Singleton α
-              → {@0 d : NameData} {@0 c : NameCon d}
+              → {@0 d : NameData} {@0 c : NameDataCon d}
               → (b1 : Branch α c) (b2 : Branch α c)
               → TCM (ConvBranch b1 b2)
 convertBranch r (BBranch rc rz1 rhs1) (BBranch rc' rz2 rhs2) =
@@ -216,53 +293,96 @@ convertBranches r (BsCons bsh bst) bp =
                           CBranchesCons <$> convertBranch r bsh bph <*> convertBranches r bst bpt)
 {-# COMPILE AGDA2HS convertBranches #-}
 
-convertEtaGeneric : ⦃ fl : Fuel ⦄ 
+-- Returns a proof a body `b` of a function is convertible into the term `(f x)` 
+-- Used in both cases of untyped eta-conversion for functions
+convertEtaFuncsHelper : ⦃ fl : Fuel ⦄ 
                     → Singleton α 
                     → (@0 x : Name) 
                     → (f : Term α)
                     → (b : Term (α ▸ x)) 
                     → TCM (b ≅ (TApp (weakenTerm _ f) (TVar (VZero x))))
-convertEtaGeneric r x f b = do
+convertEtaFuncsHelper r x f b = do
   let
     subsetProof = subWeaken subRefl
     newScope    = singBind r
     term        = TApp (weakenTerm subsetProof f)
                        (TVar (VZero x))
   convertCheck newScope b term
-{-# COMPILE AGDA2HS convertEtaGeneric #-}
+{-# COMPILE AGDA2HS convertEtaFuncsHelper #-}
+
+-- Returns a proof that the termS `argsTermS` is convertible into the termS `[fst p ; snd p ; ... nth p]`
+-- Used in both cases of untyped eta-conversion for records
+convertEtaRecsHelper : ⦃ fl : Fuel ⦄
+                    → {rn : NameRec}
+                    → Singleton α
+                    → (rt : Term α)
+                    → (argsTermS : TermS α (recFieldScope rn))
+                    → TCM (argsTermS ⇔ (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt))))
+convertEtaRecsHelper {rn = rn} r rt argsTermS = 
+  convertTermSs r argsTermS (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt)))
+{-# COMPILE AGDA2HS convertEtaRecsHelper #-}
+
+-- checkNonEmptyHelper : {@0 rscope : RScope Name} 
+--   → (singScope : Singleton rscope)
+--   → (∃ Nat (λ n → lengthOfRScope singScope ≡ n))
+--   → TCM (∃ Nat (λ n' → lengthOfRScope singScope ≡ suc n'))
+-- checkNonEmptyHelper a (zero ⟨ proof₁ ⟩) = tcError "Cannot apply untyped eta-conversion 
+--   for records on a record whose 
+--   constructor takes zero arguments"
+-- checkNonEmptyHelper a (suc value₁ ⟨ proof₁ ⟩) = return (value₁ ⟨ proof₁ ⟩)  
+-- {-# COMPILE AGDA2HS checkNonEmptyHelper #-}
 
 
-convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
-convertWhnf r (TVar x) (TVar y) = convVars x y
-convertWhnf r (TDef x) (TDef y) = convDefs x y
-convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
-convertWhnf r (TCon {d = d} c lc) (TCon {d = d'} c' ld) = convCons r c c' lc ld
-convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
-convertWhnf r (TApp u e) (TApp v f) = convApps r u v e f
-convertWhnf r (TProj u f) (TProj v g) = tcError "not implemented: conversion of projections"
-convertWhnf r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
+-- checkNonEmpty : {@0 rscope : RScope Name} →
+--   (singScope : Singleton rscope) →
+--   TCM (∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
+-- checkNonEmpty singScope = checkNonEmptyHelper singScope ((lengthOfRScope singScope) ⟨ refl ⟩)
+-- {-# COMPILE AGDA2HS checkNonEmpty #-}
+             
+
+convertTerms : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
+convertTerms r (TVar x) (TVar y) = convVars x y
+convertTerms r (TDef x) (TDef y) = convDefs x y
+convertTerms r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
+convertTerms r (TRec rn1 pars1) (TRec rn2 pars2) = convRecs r rn1 rn2 pars1 pars2
+convertTerms r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r c c' lc ld
+convertTerms r (TRecCon rn1 args1) (TRecCon rn2 args2) = convRecCons r rn1 rn2 args1 args2
+convertTerms r (TLam x u) (TLam y v) = convLams r x y u v
+convertTerms r (TApp u e) (TApp v f) = convApps r u v e f
+convertTerms r (TProj {rn = rn1} recTerm1 f) (TProj {rn = rn2} recTerm2 g) = convProjs r rn1 rn2 recTerm1 recTerm2 f g
+convertTerms r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
   convertCase r d d' ri ri' u u' bs bs' rt rt'
-convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
-convertWhnf r (TSort s) (TSort t) = convSorts s t
+convertTerms r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
+convertTerms r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
-convertWhnf r functionTerm (TLam x b) = 
+convertTerms r functionTerm (TLam x b) = 
   do
-    conversionProof <- convertEtaGeneric r x functionTerm b
+    conversionProof <- convertEtaFuncsHelper r x functionTerm b
     return (CEtaFunctionsLeft x functionTerm b conversionProof)
-convertWhnf r (TLam x b) functionTerm = 
+convertTerms r (TLam x b) functionTerm = 
   do
-    conversionProof <- convertEtaGeneric r x functionTerm b
+    conversionProof <- convertEtaFuncsHelper r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
-convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
+convertTerms r recTerm (TRecCon rn argsTermS) = do
+    let singScope = singTermS argsTermS
+    -- proofNonEmpty ← checkNonEmpty singScope
+    convProof ← convertEtaRecsHelper r recTerm argsTermS
+    return (CEtaRecordsLeft rn recTerm argsTermS singScope convProof)
+convertTerms r (TRecCon rn argsTermS) recTerm = do
+    let singScope = singTermS argsTermS
+    -- proofNonEmpty ← checkNonEmpty singScope
+    convProof ← convertEtaRecsHelper r recTerm argsTermS
+    return (CEtaRecordsRight rn recTerm argsTermS singScope convProof)
+convertTerms r _ _ = tcError "two terms are not the same and aren't convertible"
 
-{-# COMPILE AGDA2HS convertWhnf #-}
+{-# COMPILE AGDA2HS convertTerms #-}
 
 convertCheck ⦃ None ⦄ r t z =
   tcError "not enough fuel to check conversion"
 convertCheck ⦃ More ⦄ r t q = do
   t ⟨ tred ⟩ ← reduceTo r t
   q ⟨ qred ⟩ ← reduceTo r q
-  (CRedL tred ∘ CRedR qred) <$> convertWhnf r t q
+  (CRedL tred ∘ CRedR qred) <$> convertTerms r t q
 
 {-# COMPILE AGDA2HS convertCheck #-}
 

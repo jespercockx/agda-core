@@ -16,8 +16,8 @@ data Term     (@0 α : Scope Name) : Set
 data TermS    (@0 α : Scope Name) : (@0 rβ : RScope Name) → Set
 record Type   (@0 α : Scope Name) : Set
 data Sort     (@0 α : Scope Name) : Set
-data Branch   (@0 α : Scope Name) {@0 d : NameData} (@0 c : NameCon d) : Set
-data Branches (@0 α : Scope Name) (@0 d : NameData) : @0 RScope (NameCon d) → Set
+data Branch   (@0 α : Scope Name) {@0 d : NameData} (@0 c : NameDataCon d) : Set
+data Branches (@0 α : Scope Name) (@0 d : NameData) : @0 RScope (NameDataCon d) → Set
 
 
 data Term α where
@@ -27,13 +27,13 @@ data Term α where
         → (TermS α (dataParScope d))
         → (TermS α (dataIxScope d))
         → Term α
-  TCon  : {d : NameData} (c : NameCon d)
-        → (TermS α (fieldScope c)) → Term α
+  TRec : (rn : NameRec) → TermS α (recParScope rn) → Term α
+  TDataCon  : {d : NameData} (c : NameDataCon d)
+        → (TermS α (dataFieldScope c)) → Term α
+  TRecCon : (r : NameRec) → (TermS α (recFieldScope r)) → Term α
   TLam  : (@0 x : Name) (v : Term (α ▸ x)) → Term α
   TApp  : (u : Term α) (v : Term α) → Term α
-  -- TODO (diode-lang) : Add record terms
-  -- TRec : (d : NameData) → {!!} → Term α
-  TProj : (u : Term α) (x : NameIn defScope) → Term α
+  TProj : {rn : NameRec} (u : Term α) (x : NameProj rn) → Term α
   TCase : {@0 x : Name}
         → (d : NameData)                                  -- Datatype of the variable we are splitting on
         → Singleton (dataIxScope d)                            -- Run-time representation of index scope
@@ -68,12 +68,12 @@ data Sort α where
   -- TODO: universe polymorphism
 
 data Branch α c where
-  BBranch : Singleton c → Singleton (fieldScope c)
-          → Term (α ◂▸ fieldScope c) → Branch α c
+  BBranch : Singleton c → Singleton (dataFieldScope c)
+          → Term (α ◂▸ dataFieldScope c) → Branch α c
 
 data Branches α d where
   BsNil  : Branches α d mempty
-  BsCons : {@0 c : NameCon d} {@0 cs : RScope (NameCon d)}
+  BsCons : {@0 c : NameDataCon d} {@0 cs : RScope (NameDataCon d)}
     → Branch α c → Branches α d cs → Branches α d (c ◂ cs)
 
 {-# COMPILE AGDA2HS Term deriving Show #-}
@@ -92,8 +92,8 @@ private variable
   @0 α      : Scope Name
   @0 rβ rγ  : RScope Name
   @0 d      : NameData
-  @0 c      : NameCon d
-  @0 cs     : RScope (NameCon d)
+  @0 c      : NameDataCon d
+  @0 cs     : RScope (NameDataCon d)
 
 -- shortcut fort sort and datatype
 
@@ -121,8 +121,8 @@ dataType : (d : NameData)
 dataType d ds pars ixs = El ds (TData d pars ixs)
 {-# COMPILE AGDA2HS dataType #-}
 
--- case on Terms
 
+-- case on Terms
 opaque
   unfolding RScope
   caseBsNil : (bs : Branches α d mempty)
@@ -189,7 +189,9 @@ unAppsView (TApp t es)
 unAppsView (TVar _)          = refl
 unAppsView (TDef _)          = refl
 unAppsView (TData _ _ _)     = refl
-unAppsView (TCon _ _)        = refl
+unAppsView (TRec _ _)        = refl
+unAppsView (TDataCon _ _)    = refl
+unAppsView (TRecCon _ _)     = refl
 unAppsView (TProj _ _)       = refl
 unAppsView (TCase _ _ _ _ _) = refl
 unAppsView (TLam _ _)        = refl

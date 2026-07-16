@@ -19,14 +19,31 @@ private variable
   @0 a a' b b' c c' : Type α
   @0 us vs          : TermS α rβ
 
+opaque
+  unfolding RScope
+
+  lengthOfRScope : {@0 rscope : RScope Name} → Singleton rscope → Nat
+  lengthOfRScope ([] ⟨ refl ⟩) = zero 
+  lengthOfRScope ((Erased name ∷ names) ⟨ refl ⟩) = 
+    suc (lengthOfRScope (names ⟨ refl ⟩))
+
+  etaProjTermS : {@0 rscope : RScope Name} → Singleton rscope 
+    → (NameInR rscope → Term α) → TermS α rscope
+  etaProjTermS ([] ⟨ refl ⟩)                   _  = TSNil
+  etaProjTermS ((Erased name ∷ names) ⟨ refl ⟩) f =
+    name ↦ f (⟨ name ⟩ inRHere) ◂ etaProjTermS 
+      (names ⟨ refl ⟩) 
+      (λ where (⟨ x ⟩ p) → f (⟨ x ⟩ inRThere p))
+  {-# COMPILE AGDA2HS etaProjTermS #-}
+
 
 data Conv      {@0 α} : @0 Term α → @0 Term α → Set
 data ConvTermS {@0 α} : @0 TermS α rβ → @0 TermS α rβ → Set
 
-data ConvBranch   {@0 α} {@0 d : NameData} {@0 c : NameCon d} : @0 Branch α c → @0 Branch α c → Set
-data ConvBranches {@0 α} {@0 d : NameData} : {@0 cs : RScope(NameCon d)} → @0 Branches α d cs → @0 Branches α d cs → Set where
+data ConvBranch   {@0 α} {@0 d : NameData} {@0 c : NameDataCon d} : @0 Branch α c → @0 Branch α c → Set
+data ConvBranches {@0 α} {@0 d : NameData} : {@0 cs : RScope(NameDataCon d)} → @0 Branches α d cs → @0 Branches α d cs → Set where
   CBranchesNil : {bs bp : Branches α d mempty} → ConvBranches bs bp
-  CBranchesCons : {@0 cn : NameCon d} {b1 b2 : Branch α cn} {@0 cs : RScope(NameCon d)} {bs1 bs2 : Branches α d cs}
+  CBranchesCons : {@0 cn : NameDataCon d} {b1 b2 : Branch α cn} {@0 cs : RScope(NameDataCon d)} {bs1 bs2 : Branches α d cs}
                 → ConvBranch b1 b2
                 → ConvBranches bs1 bs2
                 → ConvBranches (BsCons b1 bs1) (BsCons b2 bs2)
@@ -50,6 +67,7 @@ renameTopType = subst ∘ liftBindSubst ∘ idSubst
 
 {-# COMPILE AGDA2HS renameTopType #-}
 
+
 data Conv {α} where
   CRefl  : u ≅ u
   CLam   : {@0 r : Singleton α}
@@ -72,17 +90,30 @@ data Conv {α} where
            ≅ renameTop {y = z} (singExtScope r r2) (unType mp)
          → ConvBranches bs bp
          → TCase {x = x} d r1 u bs ms ≅ TCase {x = y} d r2 u' bp mp
-  -- TODO: CProj : {!   !}
+  CProj : 
+          {rn : NameRec}
+          {f : NameProj rn}
+          {recTerm1 recTerm2 : Term α}
+          → recTerm1 ≅ recTerm2
+          → (TProj recTerm1 f) ≅ (TProj recTerm2 f)
   CData  : (@0 d : NameData)
            {@0 ps qs : TermS α (dataParScope d)}
            {@0 is ks : TermS α (dataIxScope d)}
          → ps ⇔ qs
          → is ⇔ ks
          → TData d ps is ≅ TData d qs ks
-  CCon   : {@0 d : NameData} (c : NameCon d)
-           {@0 us vs : TermS α (fieldScope c)}
+  CRec : (@0 rn : NameRec)
+         (@0 pars1 pars2 : TermS α (recParScope rn))
+         → pars1 ⇔ pars2
+         → TRec rn pars1 ≅ TRec rn pars2 
+  CDataCon : {@0 d : NameData} (c : NameDataCon d)
+           {@0 us vs : TermS α (dataFieldScope c)}
          → us ⇔ vs
-         → TCon c us ≅ TCon c vs
+         → TDataCon c us ≅ TDataCon c vs
+  CRecCon : (rn : NameRec) 
+            {@0 args1 args2 : TermS α (recFieldScope rn)}
+          → args1 ⇔ args2
+          → TRecCon rn args1 ≅ TRecCon rn args2
   CEtaFunctionsLeft : (@0 x : Name) (f : Term α) (b : Term (α ▸ x)) → 
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
@@ -91,6 +122,28 @@ data Conv {α} where
     let subsetProof = subWeaken subRefl in
       b ≅ (TApp (weakenTerm subsetProof f) (TVar (VZero x)))
       → (TLam x b) ≅ f 
+  CEtaRecordsLeft : 
+    (rn : NameRec) 
+    (rt : Term α) 
+    (argsTermS : TermS α (recFieldScope rn))
+    (singScope : Singleton (recFieldScope rn))
+    -- (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
+    → let func = (TProj {rn = rn} rt)
+          termSToConvertInto = etaProjTermS singScope func
+          in
+      (argsTermS ⇔ termSToConvertInto)
+    → rt ≅ (TRecCon rn argsTermS)
+  CEtaRecordsRight : 
+    (rn : NameRec) 
+    (rt : Term α)
+    (argsTermS : TermS α (recFieldScope rn))
+    (singScope : Singleton (recFieldScope rn))
+    -- (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
+    → let func = (TProj {rn = rn} rt)
+          termSToConvertInto = etaProjTermS singScope func
+          in
+      (argsTermS ⇔ termSToConvertInto)
+    → (TRecCon rn argsTermS) ≅ rt 
   CRedL  : @0 ReducesTo u u'
          → u' ≅ v
          → u  ≅ v
@@ -101,8 +154,8 @@ data Conv {α} where
   
 
 data ConvBranch {α = α} {c = c} where
-  CBBranch :  (cr1 cr2 : Singleton c) (r1 r2 : Singleton (fieldScope c))
-             (t1 : Term (α ◂▸ fieldScope c)) (t2 : Term (α ◂▸ fieldScope c))
+  CBBranch :  (cr1 cr2 : Singleton c) (r1 r2 : Singleton (dataFieldScope c))
+             (t1 : Term (α ◂▸ dataFieldScope c)) (t2 : Term (α ◂▸ dataFieldScope c))
            → t1 ≅ t2
            → ConvBranch (BBranch cr1 r1 t1) (BBranch cr2 r2 t2)
 

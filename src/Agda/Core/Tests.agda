@@ -33,10 +33,14 @@ instance
   globals = record
     { defScope = mempty
     ; dataScope = datas
+    ; recScope = mempty
     ; dataParScope = λ _ → mempty
     ; dataIxScope = λ _ → mempty
     ; dataConstructors = λ _ → boolConsSC
-    ; fieldScope = λ _ → mempty
+    ; dataFieldScope = λ _ → mempty
+    ; recParScope = λ _ → mempty 
+    ; recFieldScope = λ _ → mempty
+    ; recCon = λ _ → mempty
     }
 open module @0 G = Globals globals
 
@@ -50,7 +54,7 @@ boolcons = lookupAllR {p = λ c → c ∈ cons}
                                  (inThere inHere)))
   )
 
-boolsigcons : {@0 d : NameData} (c : NameCon d) → Constructor {d = d} c
+boolsigcons : {@0 d : NameData} (c : NameDataCon d) → DataConstructor {d = d} c
 boolsigcons _  = record { conIndTel = EmptyTel; conIx = TSNil }
 
 
@@ -60,15 +64,11 @@ opaque
   nameBool : NameIn datas
   nameBool = ⟨ "Bool" ⟩ inHere
 
-  -- bool : Datatype nameBool
-  -- bool .dataSort = STyp 0
-  -- bool .dataParTel = EmptyTel
-  -- bool .dataIxTel = EmptyTel
-
 instance
   sig : Signature
   sig .sigData = λ _ → record { dataSort = STyp 0 ; dataParTel = EmptyTel ; dataIxTel = EmptyTel; dataConstructors = []}
   sig .sigDefs = nameInEmptyCase
+  sig .sigRecs rn = nameInEmptyCase rn
   sig .sigCons d c = boolsigcons {d = d} c
 
 instance
@@ -79,15 +79,15 @@ instance
 opaque
   unfolding ScopeThings nameBool
 
-  nameTrue : NameCon nameBool
+  nameTrue : NameDataCon nameBool
   nameTrue = ⟨ "true" ⟩ inRHere
-  nameFalse : NameCon nameBool
+  nameFalse : NameDataCon nameBool
   nameFalse = ⟨ "false" ⟩ inRThere inRHere
 
   `true : Term α
-  `true = TCon {d = nameBool} nameTrue TSNil
+  `true = TDataCon {d = nameBool} nameTrue TSNil
   `false : Term α
-  `false = TCon {d = nameBool} nameFalse TSNil
+  `false = TDataCon {d = nameBool} nameFalse TSNil
 
 module TestReduce (@0 x y z : Name) where
 

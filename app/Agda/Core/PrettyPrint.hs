@@ -18,12 +18,13 @@ data AboveCoreTerm =
     Something
   | IsForall
   | IsLeftApp
-  | IsRigthApp
+  | IsRightApp
   | IsLambda Natural
 
 data NameMap = NameMap {
   nameDefs      :: Map Natural String,
   nameData      :: Map Natural String,
+  nameRecs      :: Map Natural String,
   nameCons      :: Map (Natural, Natural) String
 }
 class PrettyCore a where
@@ -34,7 +35,9 @@ class PrettyCore a where
 printDef :: NameMap -> Index -> String
 printDef m n = let k = indexToNat n in fromMaybe ("F" <> show k) (Map.lookup k (nameDefs m))
 printNameData :: NameMap -> Index -> String
-printNameData m d = let k = indexToNat d in fromMaybe ("D" <> show k) (Map.lookup k (nameDefs m))
+printNameData m d = let k = indexToNat d in fromMaybe ("D" <> show k) (Map.lookup k (nameData m))
+printNameRec :: NameMap -> Index -> String 
+printNameRec m rn = let k = indexToNat rn in fromMaybe ("R" <> show k) (Map.lookup k (nameRecs m))
 printNameCon :: NameMap -> Index -> Index -> String
 printNameCon m d c = let k = (indexToNat d, indexToNat c) in fromMaybe ("C" <> show k) (Map.lookup k (nameCons m))
 
@@ -48,7 +51,7 @@ requiresParentheses _ (Core.TSort _)  = False
 requiresParentheses _ (Core.TAnn {})  = False
 requiresParentheses _ (Core.TCase {}) = False
 requiresParentheses IsLeftApp    _ = True
-requiresParentheses IsRigthApp   _ = True
+requiresParentheses IsRightApp   _ = True
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 instance PrettyCore Core.Term where
@@ -58,13 +61,13 @@ instance PrettyCore Core.Term where
   prettyCore ma = prettyCoreTermAux ma Something
 
 prettyCoreTermAux :: NameMap -> AboveCoreTerm -> Core.Term -> String
-prettyCoreTermAux m IsRigthApp term = -- to avoid parenthesis
-  if requiresParentheses IsRigthApp term then
+prettyCoreTermAux m IsRightApp term = -- to avoid parenthesis
+  if requiresParentheses IsRightApp term then
     "(" <> prettyCoreTermAux m Something term <> ")"
   else
     prettyCoreTermAux m Something term
 prettyCoreTermAux m IsLeftApp (Core.TApp u v) =
-  prettyCoreTermAux m IsLeftApp u <> " • " <> prettyCoreTermAux m IsRigthApp v
+  prettyCoreTermAux m IsLeftApp u <> " • " <> prettyCoreTermAux m IsRightApp v
 prettyCoreTermAux m IsLeftApp term = -- to avoid parenthesis
     if requiresParentheses IsLeftApp term then
     "(" <> prettyCoreTermAux m Something term <> ")"
@@ -77,10 +80,12 @@ prettyCoreTermAux m Something term =
     Core.TDef n -> printDef m n
     Core.TPi (Core.El _ a) (Core.El _ b) -> "∀(" <> prettyCoreTermAux m Something a <> ")" <> prettyCoreTermAux m IsForall b
     Core.TLam t -> prettyCoreTermAux m (IsLambda 1) t
-    Core.TApp u v -> prettyCoreTermAux m IsLeftApp u <> " • " <> prettyCoreTermAux m IsRigthApp v
-    Core.TCon d c trms -> printNameCon m d c <> "[ " <> prettyCore m trms <>"]"
+    Core.TApp u v -> prettyCoreTermAux m IsLeftApp u <> " • " <> prettyCoreTermAux m IsRightApp v
+    Core.TDataCon d c trms -> printNameCon m d c <> "[ " <> prettyCore m trms <>"]"
+    Core.TRecCon c trms -> "RecordConstructor" <> "[ " <> prettyCore m trms <>"]"
     Core.TData d pars ixs -> printNameData m d <> prettyCore m pars <> prettyCore m ixs
-    Core.TProj _ _ -> "projection not implemented"
+    Core.TRec rn pars -> printNameRec m rn <> prettyCore m pars
+    Core.TProj rn trm projFunc -> prettyCore m trm <> " ." <> printDef m projFunc <> " from record type " <> printNameRec m rn
     Core.TCase d r u bs ty -> "Case" <> printNameData m d <> prettyCore m u <> "of" <> prettyCoreBranches m d bs <> ":" <> prettyCore m ty
     Core.TLet _ _  -> "let binding not implemented"
     Core.TAnn u ty -> "(" <>prettyCore m u <> " : " <> prettyCore m ty <> ")"
@@ -97,7 +102,7 @@ prettyCoreTermAux m (IsLambda n) term = -- when we have several λ
 instance PrettyCore Core.TermS where
   prettyCore :: NameMap -> Core.TermS -> String
   prettyCore m Core.TSNil = ""
-  prettyCore m (Core.TSCons t ts) = prettyCoreTermAux m IsRigthApp t <> " " <> prettyCore m ts
+  prettyCore m (Core.TSCons t ts) = prettyCoreTermAux m IsRightApp t <> " " <> prettyCore m ts
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 instance PrettyCore Core.Sort where
@@ -143,9 +148,13 @@ instance PrettyCore Core.Datatype where
   prettyCore m d = "Is a datatype"
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
-instance PrettyCore Core.Constructor where
-  prettyCore :: NameMap -> Core.Constructor -> String
-  prettyCore m d = "Is a constructor"
+instance PrettyCore Core.DataConstructor where
+  prettyCore :: NameMap -> Core.DataConstructor -> String
+  prettyCore m d = "Is a data constructor"
+
+instance PrettyCore Core.Record where
+  prettyCore :: NameMap -> Core.Record -> String
+  prettyCore _ _ = "Is a record"
 
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 instance PrettyCore Core.Defn where
@@ -154,8 +163,14 @@ instance PrettyCore Core.Defn where
     prettyCore m t
   prettyCore m (Core.DatatypeDefn    d) =
     prettyCore m d
-  prettyCore m (Core.ConstructorDefn c) =
+  prettyCore m (Core.DataConstructorDefn c) =
     prettyCore m c
+  prettyCore m (Core.RecordDefn r) =
+    prettyCore m r
+  prettyCore m (Core.RecordConstructorDefn) = 
+    "Is a record constructor"
+  prettyCore m (Core.ProjDefn) = 
+    "Is a Projection"
 
 instance PrettyCore Core.Definition where
   prettyCore :: NameMap -> Core.Definition -> String
