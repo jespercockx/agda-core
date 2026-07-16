@@ -147,7 +147,7 @@ data ACEnv = ACEnv {
 
 agdaCorePreCompile :: AgdaCoreOptions -> TCM ACEnv
 agdaCorePreCompile Options{optTypecheck} = do
-  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty Map.empty
+  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty Map.empty []
   names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty Map.empty
   preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty Map.empty
   i       <- liftIO $ newIORef Zero
@@ -217,7 +217,7 @@ agdaCoreCompile env _ _ def = do
           ntcg_cons = Map.union tcg_cons tcg_data_cons
 
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
-      pure (ToCoreGlobal tcg_defs ntcg_datas tcg_recs ntcg_cons,
+      pure (ToCoreGlobal tcg_defs ntcg_datas tcg_recs ntcg_cons [],
         NameMap nameDefs nnames_datas nameRecs nameCons)
     -- if a record type is encountered, 
       -- first add its index to globalRecs
@@ -235,7 +235,7 @@ agdaCoreCompile env _ _ def = do
       reportSDoc "agda-core.check" 3 $ text "  Constructor:" <+> prettyTCM conName
 
       -- TODO (atejandev): Record translation is not supported yet: return the same defs
-      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons,
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons [],
         NameMap nameDefs nameData nameRecs nameCons)
 
     -- Data constructor (it is a data constructor if the defName is in tcg_cons)
@@ -244,24 +244,24 @@ agdaCoreCompile env _ _ def = do
       let (Constructor cID (Data dID _ _)) = tcg_cons Map.! defName
       let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
 
-      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons,
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons [],
         NameMap nameDefs nameData nameRecs nnames_cons)
     -- Record constructor
     Internal.Constructor{} -> do
       -- TODO (atejandev): Record translation is not supported yet: return the same tcg for now
-      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons,
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons [],
         NameMap nameDefs nameData nameRecs nameCons)
     -- if we encounter a  record projection function, skip adding it to tcg, since we already added it when processing `Internal.Record`
     Internal.Function{} | Map.member defName tcg_defs -> do
       reportSDoc "agda-core.check" 3 $ text "  Projection function name:" <+> prettyTCM name
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
-      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons,
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons [],
         NameMap nnames_defs nameData nameRecs nameCons)
     -- Definition
     _ -> do
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
       let ntcg_defs = Map.insert defName index tcg_defs
-      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_recs tcg_cons,
+      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_recs tcg_cons [],
         NameMap nnames_defs nameData nameRecs nameCons)
 
   liftIO $ writeIORef ioTcg   ntcg

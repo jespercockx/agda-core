@@ -127,7 +127,7 @@ data Conv {α} where
     (rt : Term α) 
     (argsTermS : TermS α (recFieldScope rn))
     (singScope : Singleton (recFieldScope rn))
-    (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
+    -- (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
     → let func = (TProj {rn = rn} rt)
           termSToConvertInto = etaProjTermS singScope func
           in
@@ -138,7 +138,7 @@ data Conv {α} where
     (rt : Term α)
     (argsTermS : TermS α (recFieldScope rn))
     (singScope : Singleton (recFieldScope rn))
-    (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
+    -- (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
     → let func = (TProj {rn = rn} rt)
           termSToConvertInto = etaProjTermS singScope func
           in
