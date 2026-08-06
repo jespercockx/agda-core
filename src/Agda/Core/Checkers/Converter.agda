@@ -322,45 +322,15 @@ convertEtaRecsHelper {rn = rn} r rt argsTermS =
   convertTermSs r argsTermS (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt)))
 {-# COMPILE AGDA2HS convertEtaRecsHelper #-}
 
--- checkNonEmptyHelper : {@0 rscope : RScope Name} 
---   → (singScope : Singleton rscope)
---   → (∃ Nat (λ n → lengthOfRScope singScope ≡ n))
---   → TCM (∃ Nat (λ n' → lengthOfRScope singScope ≡ suc n'))
--- checkNonEmptyHelper a (zero ⟨ proof₁ ⟩) = tcError "Cannot apply untyped eta-conversion 
---   for records on a record whose 
---   constructor takes zero arguments"
--- checkNonEmptyHelper a (suc value₁ ⟨ proof₁ ⟩) = return (value₁ ⟨ proof₁ ⟩)  
--- {-# COMPILE AGDA2HS checkNonEmptyHelper #-}
-
--- checkNonEmptyHelper : {@0 rscope : RScope Name}
---   → (singScope : Singleton rscope)
---   → (n : Nat) 
---   → lengthOfRScope singScope ≡ n
---   → TCM (Erase (n ≡ zero → ⊥))
--- checkNonEmptyHelper _ zero _ = tcError "Cannot apply untyped eta-conversion 
---   for records on a record whose 
---   constructor takes zero arguments"
--- checkNonEmptyHelper _ (suc _) _ = return (Erased λ ())
--- {-# COMPILE AGDA2HS checkNonEmptyHelper #-}
-
-checkNonEmptyHelper : {@0 rscope : RScope Name}
-  → (singScope : Singleton rscope)
-  → (n : Nat) 
-  → @0 lengthOfRScope singScope ≡ n
-  → TCM (Erase (n ≡ zero → ⊥))
-checkNonEmptyHelper _ n _ = ifDec (n ≟ 0) 
-  (λ where {{refl}} → tcError "Cannot apply untyped eta-conversion 
-  for records on a record whose 
-  constructor takes zero arguments") 
-  (λ {{n≠0}} →  return (Erased n≠0))
-{-# COMPILE AGDA2HS checkNonEmptyHelper #-}
-
 checkNonEmpty : {@0 rscope : RScope Name} 
   → (singScope : Singleton rscope) 
   → TCM (Erase (lengthOfRScope singScope ≡ zero → ⊥))
-checkNonEmpty singScope = checkNonEmptyHelper singScope (lengthOfRScope singScope) refl
+checkNonEmpty singScope = ifDec ((lengthOfRScope singScope) ≟ 0) 
+  (λ where {{n=0}} → tcError "Cannot apply untyped eta-conversion 
+  for records on a record whose 
+  constructor takes zero arguments") 
+  (λ {{n≠0}} →  return (Erased n≠0))
 {-# COMPILE AGDA2HS checkNonEmpty #-}
-             
 
 convertTerms : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
 convertTerms r (TVar x) (TVar y) = convVars x y
