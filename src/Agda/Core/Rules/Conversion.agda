@@ -26,6 +26,7 @@ opaque
   lengthOfRScope ([] ⟨ refl ⟩) = zero 
   lengthOfRScope ((Erased name ∷ names) ⟨ refl ⟩) = 
     suc (lengthOfRScope (names ⟨ refl ⟩))
+  {-# COMPILE AGDA2HS lengthOfRScope #-}
 
   etaProjTermS : {@0 rscope : RScope Name} → Singleton rscope 
     → (NameInR rscope → Term α) → TermS α rscope
@@ -127,7 +128,7 @@ data Conv {α} where
     (rt : Term α) 
     (argsTermS : TermS α (recFieldScope rn))
     (singScope : Singleton (recFieldScope rn))
-    -- (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
+    (@0 proofNonEmpty : lengthOfRScope singScope ≡ zero → ⊥)
     → let func = (TProj {rn = rn} rt)
           termSToConvertInto = etaProjTermS singScope func
           in
@@ -138,7 +139,7 @@ data Conv {α} where
     (rt : Term α)
     (argsTermS : TermS α (recFieldScope rn))
     (singScope : Singleton (recFieldScope rn))
-    -- (proofNonEmpty : ∃ Nat (λ n → lengthOfRScope singScope ≡ suc n))
+    (@0 proofNonEmpty : lengthOfRScope singScope ≡ zero → ⊥)
     → let func = (TProj {rn = rn} rt)
           termSToConvertInto = etaProjTermS singScope func
           in
