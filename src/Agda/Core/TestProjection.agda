@@ -300,7 +300,6 @@ module TestTypechecker (@0 x y z : Name) where
 
 
   opaque
-    -- TODO (atejandev): make this list of unfolding terms s.t. it is the minimum one required by each test
     unfolding ScopeThings AllNameCon rScopeToRScopeNameInR extendEnvironment addTel subToSubst substExtScope caseBsNil caseBsCons caseTermSNil caseTermSCons termSrepeat sigRecsInstance lookupNameRinTel etaProjTermS
 
     --Σ.constructor (Suc (Suc Zero)) (Cons False (Cons False Nil)) 
