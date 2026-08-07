@@ -126,7 +126,7 @@ inferProj {rn = rn} ctx recordTerm projFunc = do
         (λ where {{refl}} → do
           coercedTypingDeriv ← checkCoerce ctx recordTerm ( (El rsort typeOfRecordTerm), typDerivRecTerm ) (El rsort (TRec rn params))
           sigRecord ⟨ defeq ⟩ ← tcmGetRecord rn
-          let projFuncType = lookupNameRinTel r (singTermS args) args (instRecConArgTel sigRecord params) projFunc
+          let projFuncType = lookupNameRinTel r args (instRecConArgTel sigRecord params) projFunc
           return ( projFuncType ,  tyProj' params args sigRecord defeq coercedTypingDeriv redProof)
         )
         (tcError "not convertible")

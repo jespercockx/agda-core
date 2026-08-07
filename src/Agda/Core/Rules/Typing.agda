@@ -21,15 +21,15 @@ private variable
 
 opaque
   unfolding Scope RScope
-  lookupNameRinTel : (rs : Singleton α) (rrs : Singleton rβ) 
-    (cargs : TermS α rβ) (tel : Telescope α rβ) (n : NameInR rβ) → Type α
-  lookupNameRinTel _ _ _ EmptyTel x = nameInRemptyCase x
-  lookupNameRinTel {α} rs ((_ ∷ rrs') ⟨ rrseq ⟩) (TSCons argTerm smallerTermS) (ExtendTel y typ smallerTel) x = 
+  lookupNameRinTel : (rs : Singleton α) 
+    (cargs : TermS α rβ) (tel : Telescope α rβ) (x : NameInR rβ) → Type α
+  lookupNameRinTel _ _ EmptyTel x = nameInRemptyCase x
+  lookupNameRinTel {α} rs (TSCons argTerm smallerTermS) (ExtendTel y typ smallerTel) x = 
     let 
       result : Type (α ▸ y)
       result = nameInRBindCase x 
         ((λ q → lookupNameRinTel 
-          (singBind rs) (singTermS smallerTermS) (weakenTermS (subBindDrop subRefl) smallerTermS) smallerTel (⟨ _ ⟩ q))) 
+          (singBind rs) (weakenTermS (subBindDrop subRefl) smallerTermS) smallerTel (⟨ _ ⟩ q))) 
         (λ proof → weakenType (subBindDrop subRefl) typ)
     in
     substTop rs argTerm result
@@ -62,8 +62,7 @@ projectionType : {rn : NameRec}
                 (projFunc : NameProj rn)
                 → Type α
 projectionType ctx cargs sigRecord instPars projFunc = lookupNameRinTel 
-  (singScope ctx) 
-  (singTermS cargs) 
+  (singScope ctx)  
   cargs 
   (instRecConArgTel sigRecord instPars) projFunc
 {-# COMPILE AGDA2HS projectionType #-}
@@ -377,7 +376,7 @@ tyProj' : {@0 Γ : Context α}
   (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
   → @0 ReducesTo recordTerm (TRecCon rn cargs)
-  → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) (singTermS cargs) cargs (instRecConArgTel sigRecord instPars) projFunc
+  → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) cargs (instRecConArgTel sigRecord instPars) projFunc
 tyProj' instPars cargs sigRecord refl proof1 proof2 = TyProj cargs proof1 proof2
 {-# COMPILE AGDA2HS tyProj' #-}
 
