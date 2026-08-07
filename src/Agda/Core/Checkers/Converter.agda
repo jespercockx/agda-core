@@ -332,49 +332,50 @@ checkNonEmpty singScope = ifDec ((lengthOfRScope singScope) ≟ 0)
   (λ {{n≠0}} →  return (Erased n≠0))
 {-# COMPILE AGDA2HS checkNonEmpty #-}
 
-convertTerms : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
-convertTerms r (TVar x) (TVar y) = convVars x y
-convertTerms r (TDef x) (TDef y) = convDefs x y
-convertTerms r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
-convertTerms r (TRec rn1 pars1) (TRec rn2 pars2) = convRecs r rn1 rn2 pars1 pars2
-convertTerms r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r c c' lc ld
-convertTerms r (TRecCon rn1 args1) (TRecCon rn2 args2) = convRecCons r rn1 rn2 args1 args2
-convertTerms r (TLam x u) (TLam y v) = convLams r x y u v
-convertTerms r (TApp u e) (TApp v f) = convApps r u v e f
-convertTerms r (TProj {rn = rn1} recTerm1 f) (TProj {rn = rn2} recTerm2 g) = convProjs r rn1 rn2 recTerm1 recTerm2 f g
-convertTerms r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
+-- Take two terms that are in whnf and decide whether they are convertible
+convertWhnf : ⦃ fl : Fuel ⦄ → Singleton α → (t q : Term α) → TCM (t ≅ q)
+convertWhnf r (TVar x) (TVar y) = convVars x y
+convertWhnf r (TDef x) (TDef y) = convDefs x y
+convertWhnf r (TData d ps is) (TData e qs ks) = convDatas r d e ps qs is ks
+convertWhnf r (TRec rn1 pars1) (TRec rn2 pars2) = convRecs r rn1 rn2 pars1 pars2
+convertWhnf r (TDataCon {d = d} c lc) (TDataCon {d = d'} c' ld) = convDataCons r c c' lc ld
+convertWhnf r (TRecCon rn1 args1) (TRecCon rn2 args2) = convRecCons r rn1 rn2 args1 args2
+convertWhnf r (TLam x u) (TLam y v) = convLams r x y u v
+convertWhnf r (TApp u e) (TApp v f) = convApps r u v e f
+convertWhnf r (TProj {rn = rn1} recTerm1 f) (TProj {rn = rn2} recTerm2 g) = convProjs r rn1 rn2 recTerm1 recTerm2 f g
+convertWhnf r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
   convertCase r d d' ri ri' u u' bs bs' rt rt'
-convertTerms r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
-convertTerms r (TSort s) (TSort t) = convSorts s t
+convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
+convertWhnf r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
-convertTerms r functionTerm (TLam x b) = 
+convertWhnf r functionTerm (TLam x b) = 
   do
     conversionProof <- convertEtaFuncsHelper r x functionTerm b
     return (CEtaFunctionsLeft x functionTerm b conversionProof)
-convertTerms r (TLam x b) functionTerm = 
+convertWhnf r (TLam x b) functionTerm = 
   do
     conversionProof <- convertEtaFuncsHelper r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
-convertTerms r recTerm (TRecCon rn argsTermS) = do
+convertWhnf r recTerm (TRecCon rn argsTermS) = do
     let singScope = singTermS argsTermS
     Erased proofNonEmpty ← checkNonEmpty singScope
     convProof ← convertEtaRecsHelper r recTerm argsTermS
     return (CEtaRecordsLeft rn recTerm argsTermS singScope proofNonEmpty convProof)
-convertTerms r (TRecCon rn argsTermS) recTerm = do
+convertWhnf r (TRecCon rn argsTermS) recTerm = do
     let singScope = singTermS argsTermS
     Erased proofNonEmpty ← checkNonEmpty singScope
     convProof ← convertEtaRecsHelper r recTerm argsTermS
     return (CEtaRecordsRight rn recTerm argsTermS singScope proofNonEmpty convProof)
-convertTerms r _ _ = tcError "two terms are not the same and aren't convertible"
+convertWhnf r _ _ = tcError "two terms are not the same and aren't convertible"
 
-{-# COMPILE AGDA2HS convertTerms #-}
+{-# COMPILE AGDA2HS convertWhnf #-}
 
 convertCheck ⦃ None ⦄ r t z =
   tcError "not enough fuel to check conversion"
 convertCheck ⦃ More ⦄ r t q = do
   t ⟨ tred ⟩ ← reduceTo r t
   q ⟨ qred ⟩ ← reduceTo r q
-  (CRedL tred ∘ CRedR qred) <$> convertTerms r t q
+  (CRedL tred ∘ CRedR qred) <$> convertWhnf r t q
 
 {-# COMPILE AGDA2HS convertCheck #-}
 
