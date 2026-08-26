@@ -37,16 +37,16 @@ instance
     ; dataConstructors = λ where
       -- _≡_
       _ -> "refl" ◂ mempty
-    ; dataFieldScope = λ where 
-      -- refl of _≡_ 
+    ; dataFieldScope = λ where
+      -- refl of _≡_
       _ → mempty
-    ; recParScope = λ where 
+    ; recParScope = λ where
       -- EmptyRecord
       _ -> mempty
-    ; recFieldScope = λ where 
+    ; recFieldScope = λ where
       -- EmptyRecord
       _ -> mempty
-    ; recCon = λ where 
+    ; recCon = λ where
       _ → "this name is irrelevant and not used in the typechecker"
     }
 open module @0 G = Globals globals
@@ -80,7 +80,7 @@ opaque
   sigDataInstance (⟨ _ ⟩ (Zero ⟨ IsZero refl ⟩)) = record
     { dataSort = STyp 0
     ; dataParTel = "A" ∶ (El (STyp 1) (TSort (STyp 0))) -- (A : Set)
-        ◂ ("x" ∶ (El (STyp 0) (TVar (⟨ "A" ⟩ (Zero ⟨ IsZero refl ⟩)))) ◂ EmptyTel) -- "x : A" 
+        ◂ ("x" ∶ (El (STyp 0) (TVar (⟨ "A" ⟩ (Zero ⟨ IsZero refl ⟩)))) ◂ EmptyTel) -- "x : A"
     ; dataIxTel = "y" ∶ El (STyp 0) (TVar (⟨ "x" ⟩ (Zero ⟨ IsZero refl ⟩))) ◂ EmptyTel -- "y : A"
     ; dataConstructors = [] --empty because only used on the Haskell side
     }
@@ -88,7 +88,7 @@ opaque
 
   sigConsInstance : (d : NameData) (c : NameDataCon d) → DataConstructor {d = d} c
   -- _≡_ refl
-  sigConsInstance (⟨ proj₃ ⟩ (Zero ⟨ proof₁ ⟩)) (⟨ proj₄ ⟩ (Zero ⟨ proof₂ ⟩)) = record { 
+  sigConsInstance (⟨ proj₃ ⟩ (Zero ⟨ proof₁ ⟩)) (⟨ proj₄ ⟩ (Zero ⟨ proof₂ ⟩)) = record {
         conIndTel = EmptyTel
     ; conIx = TSCons (TVar (⟨ "x" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil }
   sigConsInstance (⟨ proj₃ ⟩ (Zero ⟨ proof₁ ⟩)) (⟨ proj₄ ⟩ (Suc value₁ ⟨ IsSucR () ⟩))
@@ -96,33 +96,33 @@ opaque
 
   sigRecsInstance : (recordName : NameRec) → Record recordName
   --EmptyRecord
-  sigRecsInstance (⟨ _ ⟩ (Zero ⟨ IsZero refl ⟩)) = record { 
-    recSort = STyp 0 ; 
-    recParTel = ⌈⌉ ; 
+  sigRecsInstance (⟨ _ ⟩ (Zero ⟨ IsZero refl ⟩)) = record {
+    recSort = STyp 0 ;
+    recParTel = ⌈⌉ ;
     recConArgTel = ⌈⌉ }
   sigRecsInstance (⟨ _ ⟩ (Suc _ ⟨ IsSuc () ⟩))
 
   sigDefInstance : (f : NameIn defScope)  → Type mempty × SigDefinition
-  --testUnitConvPositive 
-  sigDefInstance (⟨ _ ⟩ (Zero ⟨ IsZero refl ⟩)) = 
+  --testUnitConvPositive
+  sigDefInstance (⟨ _ ⟩ (Zero ⟨ IsZero refl ⟩)) =
     -- (a b : EmptyRecord) → a ≡ b
     El (STyp 0) (TPi "a" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉))
-      (El (STyp 0) (TPi "b" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉)) 
-        (El (STyp 0) (TData nameEquiv 
-          (TSCons (TRec nameEmptyRecord ⌈⌉) (TSCons (TVar (⟨ "a" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) TSNil)) 
-          (TSCons (TVar (⟨ "b" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil)))))) 
+      (El (STyp 0) (TPi "b" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉))
+        (El (STyp 0) (TData nameEquiv
+          (TSCons (TRec nameEmptyRecord ⌈⌉) (TSCons (TVar (⟨ "a" ⟩ (Suc Zero ⟨ IsSuc (IsZero refl) ⟩))) TSNil))
+          (TSCons (TVar (⟨ "b" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))))))
     ,
-    -- λ a b → refl 
+    -- λ a b → refl
     FunctionDef (TLam "a" (TLam "b" (TDataCon {d = nameEquiv} nameRefl ⌈⌉)))
   --etaExpandEmptyRec
-  sigDefInstance (⟨ _ ⟩ (Suc Zero ⟨ IsSuc proof ⟩)) = 
+  sigDefInstance (⟨ _ ⟩ (Suc Zero ⟨ IsSuc proof ⟩)) =
     --(a : EmptyRecord) → (a ≡ EmptyRecord.constructor)
-    El (STyp 0) (TPi "a" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉)) 
-      (El (STyp 0) (TData nameEquiv 
-        (TSCons (TRec nameEmptyRecord ⌈⌉) (TSCons (TVar (⟨ "a" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil)) 
-        (TSCons (TRecCon nameEmptyRecord ⌈⌉) TSNil)))) 
+    El (STyp 0) (TPi "a" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉))
+      (El (STyp 0) (TData nameEquiv
+        (TSCons (TRec nameEmptyRecord ⌈⌉) (TSCons (TVar (⟨ "a" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))
+        (TSCons (TRecCon nameEmptyRecord ⌈⌉) TSNil))))
     ,
-    -- λ a → refl 
+    -- λ a → refl
     FunctionDef (TLam "a" (TDataCon {d = nameEquiv} nameRefl ⌈⌉))
   sigDefInstance (⟨ _ ⟩ (Suc (Suc _) ⟨ IsSuc (IsSuc ()) ⟩))
 
@@ -144,9 +144,9 @@ module TestTypechecker (@0 x y z : Name) where
 
     -- (a : EmptyRecord) → (a ≡ EmptyRecord.constructor) [type of etaExpandEmptyRec]
     testType₁ : Type α
-    testType₁ = El (STyp 0) (TPi "a" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉)) 
-      (El (STyp 0) (TData nameEquiv 
-        (TSCons (TRec nameEmptyRecord ⌈⌉) (TSCons (TVar (⟨ "a" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil)) 
+    testType₁ = El (STyp 0) (TPi "a" (El (STyp 0) (TRec nameEmptyRecord ⌈⌉))
+      (El (STyp 0) (TData nameEquiv
+        (TSCons (TRec nameEmptyRecord ⌈⌉) (TSCons (TVar (⟨ "a" ⟩ (Zero ⟨ IsZero refl ⟩))) TSNil))
         (TSCons (TRecCon nameEmptyRecord ⌈⌉) TSNil))))
 
     testTC₁ : Either TCError (CtxEmpty ⊢ testTerm₁ ∶ testType₁)
@@ -156,7 +156,7 @@ module TestTypechecker (@0 x y z : Name) where
     proofOftestTC₁Prop : testTC₁Prop
 
     -- An implementation of untyped conversion should produce Left
-    testTC₁Prop = testTC₁ ≡ Left "Cannot apply untyped eta-conversion 
-  for records on a record whose 
+    testTC₁Prop = testTC₁ ≡ Left "Cannot apply untyped eta-conversion
+  for records on a record whose
   constructor takes zero arguments"
     proofOftestTC₁Prop = refl
