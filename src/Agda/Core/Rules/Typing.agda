@@ -188,11 +188,12 @@ data TyTerm {α} Γ where
     {rsort : Sort α}
     {projFunc : NameProj rn}
     {instPars : TermS α (recParScope rn)}
-    (cargs : TermS α (recFieldScope rn))
+    (rfields : Singleton (recFieldScope rn))
     (let sigRecord : Record rn
          sigRecord = sigRecs sig rn)
+    (let cargs : TermS α (recFieldScope rn)
+         cargs = etaProjTermS rfields (TProj {rn = rn} recordTerm))
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-    → @0 ReducesTo recordTerm (TRecCon rn cargs)
     --------------------------------------------------------------------------
     → Γ ⊢ TProj recordTerm projFunc ∶
       projectionType Γ cargs sigRecord instPars projFunc
@@ -370,12 +371,13 @@ tyProj' : {@0 Γ : Context α}
   {rsort : Sort α}
   {projFunc : NameProj rn}
   (instPars : TermS α (recParScope rn))
-  (cargs : TermS α (recFieldScope rn))
+  (rfields : Singleton (recFieldScope rn))
   (@0 sigRecord : Record rn) → @0 sigRecs sig rn ≡ sigRecord
   → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
-  → @0 ReducesTo recordTerm (TRecCon rn cargs)
+  → (let cargs : TermS α (recFieldScope rn)
+         cargs = etaProjTermS rfields (TProj {rn = rn} recordTerm))
   → Γ ⊢ TProj recordTerm projFunc ∶ lookupNameRinTel (singScope Γ) cargs (instRecConArgTel sigRecord instPars) projFunc
-tyProj' instPars cargs sigRecord refl proof1 proof2 = TyProj cargs proof1 proof2
+tyProj' instPars rfields sigRecord refl proof1 = TyProj rfields proof1
 {-# COMPILE AGDA2HS tyProj' #-}
 
 tyBBranch' : {@0 Γ : Context α} {@0 d : NameData} {@0 dt : Datatype d}
