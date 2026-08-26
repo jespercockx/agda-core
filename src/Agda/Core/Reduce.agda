@@ -49,7 +49,7 @@ envToSubst r (env , x ↦ v) =
 
 data Frame (@0 α : Scope Name) : Set where
   FApp  : (u : Term α) → Frame α
-  FProj : (x : NameIn defScope) → Frame α
+  FProj : {rn : NameRec} (x : NameProj rn) → Frame α
   FCase : (d : NameData) (r : Singleton (dataIxScope d))
           (bs : Branches α d (AllNameCon d)) (m : Type (α ◂▸ dataIxScope d ▸ x)) → Frame α
 
@@ -112,9 +112,9 @@ unState r (MkState e v s) = subst (envToSubst r e) (unStack s v)
 
 {-# COMPILE AGDA2HS unState #-}
 
-lookupBranch : {@0 cs : RScope (NameCon d)} → Branches α d cs → (c : NameCon d)
-             → Maybe ( Singleton (fieldScope c)
-                     × Term (α ◂▸ fieldScope c))
+lookupBranch : {@0 cs : RScope (NameDataCon d)} → Branches α d cs → (c : NameDataCon d)
+             → Maybe ( Singleton (dataFieldScope c)
+                     × Term (α ◂▸ dataFieldScope c))
 lookupBranch BsNil c = Nothing
 lookupBranch {d = d} (BsCons (BBranch (sing c') aty u) bs) c =
     case decNamesInR c' c of λ where
@@ -147,7 +147,7 @@ step rsig (MkState e (TVar (⟨ x ⟩ p)) s) =
     (Left _) → Nothing
     (Right v) → Just (MkState e v s)
 step rsig (MkState e (TApp v w) s) = Just (MkState e v (FApp w ∷ s))
-step rsig (MkState e (TProj v f) s) = Just (MkState e v (FProj f ∷ s))
+step rsig (MkState e (TProj recTerm nameProj) s) = Just (MkState e recTerm (FProj nameProj ∷ s))
 step rsig (MkState e (TCase d r v bs m) s) = Just (MkState e v (FCase d r bs m ∷ s))
 step rsig (MkState e (TLam x v) (FApp w ∷ s)) =
   Just (MkState
@@ -162,8 +162,9 @@ step rsig (MkState e (TLet x v w) s) =
 step (sing sig) (MkState e (TDef d) s) =
   case getBody sig d of λ where
     v → Just (MkState e (weaken subEmpty v) s)
-step rsig (MkState e (TCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
+step rsig (MkState e (TDataCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
   case decNamesIn d' d of λ where
+      -- TODO (atejandev): Investigate whether we can get d' ≡ d without pattern matching on refl (they will always be equal)
       (True  ⟨ refl ⟩) → case lookupBranch bs c of λ where
         (Just (r , v)) → Just (MkState
           (extendEnvironment vs e)
@@ -171,9 +172,20 @@ step rsig (MkState e (TCon {d = d'} c vs) (FCase d r bs _ ∷ s)) =
           (weakenStack (subExtScope r subRefl) s))
         Nothing  → Nothing
       (False  ⟨ _ ⟩) → Nothing
+step rsig (MkState e (TRecCon rn' args) (FProj {rn = rn} f ∷ s)) = 
+  case decNamesIn rn' rn of λ where
+    -- TODO (atejandev): Investigate whether we can get rn' ≡ rn without pattern matching on refl (they will always be equal)
+    (True ⟨ refl ⟩) → Just (MkState 
+      e 
+      (lookupNameRinTermS args f) 
+      s
+      )
+    (False  ⟨ _ ⟩) → Nothing
+step rsig (MkState e (TRecCon rn args) s) = Nothing 
 step rsig (MkState e (TData d ps is) s) = Nothing
-step rsig (MkState e (TCon c vs) (FProj f ∷ s)) = Nothing -- TODO
-step rsig (MkState e (TCon c x) s) = Nothing
+step rsig (MkState e (TRec rn pars) s) = Nothing
+step rsig (MkState e (TDataCon c vs) (FProj f ∷ s)) = Nothing
+step rsig (MkState e (TDataCon c x) s) = Nothing
 step rsig (MkState e (TLam x v) s) = Nothing
 step rsig (MkState e (TPi x a b) s) = Nothing
 step rsig (MkState e (TSort n) s) = Nothing

@@ -13,8 +13,8 @@ private variable
   @0 α  : Scope Name
   @0 rγ : RScope Name
   @0 d  : NameData
-  @0 c  : NameCon d
-  @0 cs : RScope (NameCon d)
+  @0 c  : NameDataCon d
+  @0 cs : RScope (NameDataCon d)
 
 opaque
   unfolding Scope
@@ -46,7 +46,9 @@ varInBranch : Branch α {d = d} c → List (NameIn α)
 varInTerm (TVar x) = x ∷ []
 varInTerm (TDef d) = []
 varInTerm (TData d ps is) = varInTermS is <> (varInTermS ps)
-varInTerm (TCon c vs) = varInTermS vs
+varInTerm (TRec rn ixs)   = varInTermS ixs
+varInTerm (TDataCon c vs) = varInTermS vs
+varInTerm (TRecCon r vs) = varInTermS vs
 varInTerm (TLam x v) = liftBindListNameIn (varInTerm v)
 varInTerm (TApp t₀ t₁) = varInTerm t₀ <> (varInTerm t₁)
 varInTerm (TProj t x) = varInTerm t

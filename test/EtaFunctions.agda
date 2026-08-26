@@ -32,4 +32,3 @@ eta-higher = λ A B C → λ f → refl
 
 eta-counterexample-simple : addOne ≡ (λ x → (suc (const x x)))
 eta-counterexample-simple = refl
-
