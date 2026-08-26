@@ -6,7 +6,7 @@ open import Agda.Core.Rules.Conversion
 open import Agda.Core.Rules.Typing
 open import Agda.Core.TCM.Instances
 open import Agda.Core.Checkers.Converter
-open import Agda.Core.Syntax.Weakening 
+open import Agda.Core.Syntax.Weakening
 
 module Agda.Core.Checkers.TypeCheck
     {{@0 globals : Globals}}
@@ -253,19 +253,19 @@ checkDataCon ctx {d = d} c cargs (El s ty) = do
     (tcError "datatypes not convertible")
 {-# COMPILE AGDA2HS checkDataCon #-}
 
-checkRecCon : ∀ Γ 
+checkRecCon : ∀ Γ
           (rn : NameRec)
           (cargs : TermS α (recFieldScope rn))
           (ty : Type α)
         → TCM (Γ ⊢ (TRecCon rn cargs) ∶ ty)
 checkRecCon ctx rn cargs (El s ty) = do
   let r = singScope ctx
-  rn' , params ⟨ rp ⟩ ← reduceToRec r ty 
+  rn' , params ⟨ rp ⟩ ← reduceToRec r ty
     "can't typecheck a constructor TRecCon with a type that isn't a TRec"
   ifDec (decIn (proj₂ rn) (proj₂ rn'))
     (λ where {{refl}} → do
       rec ⟨ receq ⟩ ← tcmGetRecord rn
-      
+
       let ctype = recordConstructorType rec params
 
 

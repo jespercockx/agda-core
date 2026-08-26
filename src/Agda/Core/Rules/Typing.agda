@@ -21,15 +21,15 @@ private variable
 
 opaque
   unfolding Scope RScope
-  lookupNameRinTel : (rs : Singleton α) 
+  lookupNameRinTel : (rs : Singleton α)
     (cargs : TermS α rβ) (tel : Telescope α rβ) (x : NameInR rβ) → Type α
   lookupNameRinTel _ _ EmptyTel x = nameInRemptyCase x
-  lookupNameRinTel {α} rs (TSCons argTerm smallerTermS) (ExtendTel y typ smallerTel) x = 
-    let 
+  lookupNameRinTel {α} rs (TSCons argTerm smallerTermS) (ExtendTel y typ smallerTel) x =
+    let
       result : Type (α ▸ y)
-      result = nameInRBindCase x 
-        ((λ q → lookupNameRinTel 
-          (singBind rs) (weakenTermS (subBindDrop subRefl) smallerTermS) smallerTel (⟨ _ ⟩ q))) 
+      result = nameInRBindCase x
+        ((λ q → lookupNameRinTel
+          (singBind rs) (weakenTermS (subBindDrop subRefl) smallerTermS) smallerTel (⟨ _ ⟩ q)))
         (λ proof → weakenType (subBindDrop subRefl) typ)
     in
     substTop rs argTerm result
@@ -61,9 +61,9 @@ projectionType : {rn : NameRec}
                 (instPars : TermS α (recParScope rn))
                 (projFunc : NameProj rn)
                 → Type α
-projectionType ctx cargs sigRecord instPars projFunc = lookupNameRinTel 
-  (singScope ctx)  
-  cargs 
+projectionType ctx cargs sigRecord instPars projFunc = lookupNameRinTel
+  (singScope ctx)
+  cargs
   (instRecConArgTel sigRecord instPars) projFunc
 {-# COMPILE AGDA2HS projectionType #-}
 
@@ -107,8 +107,8 @@ data TyTerm {α} Γ where
     → Γ ⊢ˢ ixs  ∶ instDataIxTel dt pars
     ----------------------------------------------
     → Γ ⊢ TData d pars ixs ∶ sortType (instDataSort dt pars)
-  
-  TyRec : 
+
+  TyRec :
     {rn : NameRec}
     {@0 pars : TermS α (recParScope rn)}
     (let rt : Record rn
@@ -131,7 +131,7 @@ data TyTerm {α} Γ where
     -----------------------------------------------------------
     → Γ ⊢ TDataCon c us ∶ dataConstructorType dt con pars us
 
-  TyRecCon : 
+  TyRecCon :
     {rn : NameRec}
     {@0 pars : TermS α (recParScope rn)}
     {@0 args : TermS α (recFieldScope rn)}
@@ -194,7 +194,7 @@ data TyTerm {α} Γ where
     → Γ ⊢ recordTerm ∶ (El rsort (TRec rn instPars))
     → @0 ReducesTo recordTerm (TRecCon rn cargs)
     --------------------------------------------------------------------------
-    → Γ ⊢ TProj recordTerm projFunc ∶ 
+    → Γ ⊢ TProj recordTerm projFunc ∶
       projectionType Γ cargs sigRecord instPars projFunc
 
   TyPi :
@@ -363,8 +363,6 @@ tyCase' : {@0 Γ : Context α}
 tyCase' dt refl {iRun = iScope ⟨ refl ⟩} wfReturn tyCases tyu =
   TyCase wfReturn tyCases tyu
 {-# COMPILE AGDA2HS tyCase' #-}
-
-
 
 tyProj' : {@0 Γ : Context α}
   {rn : NameRec}

@@ -94,8 +94,8 @@ convNamesIn x y =
 {-# COMPILE AGDA2HS convNamesIn #-}
 
 convNamesInR : (x y : NameInR rβ) → TCM (Erase (x ≡ y))
-convNamesInR x y = 
-  ifEqualNamesInR x y 
+convNamesInR x y =
+  ifEqualNamesInR x y
     (λ where {{refl}} → return (Erased refl))
     (tcError "names not equal")
 {-# COMPILE AGDA2HS convNamesInR #-}
@@ -178,18 +178,18 @@ convDataCons r {d} {d'} f g lp lq = do
 
 {-# COMPILE AGDA2HS convDataCons #-}
 
-convRecCons : {{fl : Fuel}} → Singleton α → 
+convRecCons : {{fl : Fuel}} → Singleton α →
           (rn1 : NameRec)
           (rn2 : NameRec)
           (args1 : TermS α (recFieldScope rn1))
           (args2 : TermS α (recFieldScope rn2))
         → TCM (Conv (TRecCon rn1 args1) (TRecCon rn2 args2))
-convRecCons r rn1 rn2 args1 args2 = do 
-  ifDec (decNamesIn rn1 rn2) 
+convRecCons r rn1 rn2 args1 args2 = do
+  ifDec (decNamesIn rn1 rn2)
     (λ where {{refl}} → do
       csp ← convertTermSs r args1 args2
       return $ CRecCon rn1 csp
-    ) 
+    )
     (tcError "record constructors are from non-convertible record types")
 {-# COMPILE AGDA2HS convRecCons #-}
 
@@ -227,12 +227,12 @@ convProjs r rn1 rn2 recTerm1 recTerm2 f g = do
   ifDec (decNamesIn rn1 rn2)
     (λ where {{refl}} → do
       Erased refl ← convNamesInR f g
-      crecTerm ← convertCheck r recTerm1 recTerm2 
+      crecTerm ← convertCheck r recTerm1 recTerm2
       return (CProj crecTerm)
     )
     (tcError "projections not convertible")
 
-{-# COMPILE AGDA2HS convProjs #-} 
+{-# COMPILE AGDA2HS convProjs #-}
 
 convertCase : {{fl : Fuel}}
             → Singleton α
@@ -293,13 +293,13 @@ convertBranches r (BsCons bsh bst) bp =
                           CBranchesCons <$> convertBranch r bsh bph <*> convertBranches r bst bpt)
 {-# COMPILE AGDA2HS convertBranches #-}
 
--- Returns a proof a body `b` of a function is convertible into the term `(f x)` 
+-- Returns a proof a body `b` of a function is convertible into the term `(f x)`
 -- Used in both cases of untyped eta-conversion for functions
-convertEtaFuncsHelper : ⦃ fl : Fuel ⦄ 
-                    → Singleton α 
-                    → (@0 x : Name) 
+convertEtaFuncsHelper : ⦃ fl : Fuel ⦄
+                    → Singleton α
+                    → (@0 x : Name)
                     → (f : Term α)
-                    → (b : Term (α ▸ x)) 
+                    → (b : Term (α ▸ x))
                     → TCM (b ≅ (TApp (weakenTerm _ f) (TVar (VZero x))))
 convertEtaFuncsHelper r x f b = do
   let
@@ -318,17 +318,17 @@ convertEtaRecsHelper : ⦃ fl : Fuel ⦄
                     → (rt : Term α)
                     → (argsTermS : TermS α (recFieldScope rn))
                     → TCM (argsTermS ⇔ (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt))))
-convertEtaRecsHelper {rn = rn} r rt argsTermS = 
+convertEtaRecsHelper {rn = rn} r rt argsTermS =
   convertTermSs r argsTermS (etaProjTermS (singTermS argsTermS) ((TProj {rn = rn} rt)))
 {-# COMPILE AGDA2HS convertEtaRecsHelper #-}
 
-checkNonEmpty : {@0 rscope : RScope Name} 
-  → (singScope : Singleton rscope) 
+checkNonEmpty : {@0 rscope : RScope Name}
+  → (singScope : Singleton rscope)
   → TCM (Erase (lengthOfRScope singScope ≡ zero → ⊥))
-checkNonEmpty singScope = ifDec ((lengthOfRScope singScope) ≟ 0) 
-  (λ where {{n=0}} → tcError "Cannot apply untyped eta-conversion 
-  for records on a record whose 
-  constructor takes zero arguments") 
+checkNonEmpty singScope = ifDec ((lengthOfRScope singScope) ≟ 0)
+  (λ where {{n=0}} → tcError "Cannot apply untyped eta-conversion
+  for records on a record whose
+  constructor takes zero arguments")
   (λ {{n≠0}} →  return (Erased n≠0))
 {-# COMPILE AGDA2HS checkNonEmpty #-}
 
@@ -348,11 +348,11 @@ convertWhnf r (TCase d ri u bs rt) (TCase d' ri' u' bs' rt') =
 convertWhnf r (TPi x tu tv) (TPi y tw tz) = convPis r x y tu tw tv tz
 convertWhnf r (TSort s) (TSort t) = convSorts s t
 --let and ann shouldn't appear here since they get reduced away
-convertWhnf r functionTerm (TLam x b) = 
+convertWhnf r functionTerm (TLam x b) =
   do
     conversionProof <- convertEtaFuncsHelper r x functionTerm b
     return (CEtaFunctionsLeft x functionTerm b conversionProof)
-convertWhnf r (TLam x b) functionTerm = 
+convertWhnf r (TLam x b) functionTerm =
   do
     conversionProof <- convertEtaFuncsHelper r x functionTerm b
     return (CEtaFunctionsRight x functionTerm b conversionProof)
