@@ -35,13 +35,26 @@ ifEqualNamesIn : ∀ {@0 α} (x y : NameIn α)
 ifEqualNamesIn x y = ifDec (decNamesIn x y)
 {-# COMPILE AGDA2HS ifEqualNamesIn inline #-}
 
+ifEqualNamesInR : ∀ {@0 rα} (x y : NameInR rα)
+               → (@0 {{x ≡ y}} → b) → (@0 {{x ≡ y → ⊥}} → b) → b
+ifEqualNamesInR x y = ifDec (decNamesInR x y)
+{-# COMPILE AGDA2HS ifEqualNamesInR inline #-}
+
 nameInEmptyCase : NameIn mempty → a
 nameInEmptyCase x = inEmptyCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInEmptyCase inline #-}
 
+nameInRemptyCase : NameInR mempty → a
+nameInRemptyCase x = inRemptyCase (proj₂ x)
+{-# COMPILE AGDA2HS nameInRemptyCase inline #-}
+
 nameInBindCase : ∀ {@0 y α} (x : NameIn (α ▸ y)) → (proj₁ x ∈ α → a) → (@0 proj₁ x ≡ y → a) → a
 nameInBindCase x = inBindCase (proj₂ x)
 {-# COMPILE AGDA2HS nameInBindCase inline #-}
+
+nameInRBindCase : ∀ {@0 rβ y} (x : NameInR (y ◂ rβ)) → (rβ ∋ (proj₁ x) → a) → (@0 proj₁ x ≡ y → a) → a
+nameInRBindCase x = inRbindCase (proj₂ x)
+{-# COMPILE AGDA2HS nameInRBindCase inline #-}
 
 opaque
   unfolding RScope

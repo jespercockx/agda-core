@@ -1,6 +1,5 @@
 module Main where
 
-import Debug.Trace
 
 import Data.Either (partitionEithers)
 import Data.Foldable (for_, foldl')
@@ -12,14 +11,13 @@ import Data.Version (showVersion)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Maybe (MaybeT (runMaybeT))
 import Control.DeepSeq ( NFData(..) )
-import Debug.Trace
 
 import Agda.Main (runAgda')
 import Agda.TypeChecking.Pretty (text, prettyTCM, (<+>), Doc)
 import Agda.Compiler.Backend (Flag, IsMain(..), Backend', Backend_boot(Backend), Backend'_boot(Backend'),
  TCM, Recompile(Recompile, Skip), reportSDoc)
 import Agda.Compiler.Backend qualified as Internal
-import Agda.Syntax.Internal ( clausePats, Clause(clauseBody), Abs (unAbs) )
+import Agda.Syntax.Internal ( clausePats, Clause(clauseBody), Abs (unAbs) , unDom )
 import Agda.Syntax.Internal qualified as Internal
 import Agda.TypeChecking.Telescope qualified as Internal
 import Agda.TypeChecking.Substitute qualified as Internal
@@ -70,6 +68,7 @@ import Agda.TypeChecking.SizedTypes.WarshallSolver (Error)
 import qualified Agda.TypeChecking.Primitive as I
 import Agda.Benchmarking (Phase(Definition))
 import Agda.Compiler.JS.Compiler (global)
+
 {- ───────────────────────────────────────────────────────────────────────────────────────────── -}
 -- main function
 
@@ -134,7 +133,8 @@ backend = Backend'
 data PreSignature = PreSignature {
   preSigDefs      :: Map Natural Core.Definition,
   preSigData      :: Map Natural Core.Datatype,
-  preSigCons      :: Map (Natural, Natural) Core.Constructor
+  preSigDataCons  :: Map (Natural, Natural) Core.DataConstructor,
+  preSigRecs      :: Map Natural Core.Record
 }
 
 data ACEnv = ACEnv {
@@ -147,9 +147,9 @@ data ACEnv = ACEnv {
 
 agdaCorePreCompile :: AgdaCoreOptions -> TCM ACEnv
 agdaCorePreCompile Options{optTypecheck} = do
-  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty []
-  names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty
-  preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty
+  tcg     <- liftIO $ newIORef $ ToCoreGlobal Map.empty Map.empty Map.empty Map.empty []
+  names   <- liftIO $ newIORef $ NameMap Map.empty Map.empty Map.empty Map.empty
+  preSig  <- liftIO $ newIORef $ PreSignature Map.empty Map.empty Map.empty Map.empty
   i       <- liftIO $ newIORef Zero
   pure $ ACEnv { toCoreGlobal          = tcg
                , toCoreNames           = names
@@ -197,30 +197,72 @@ agdaCoreCompile env _ _ def = do
   let name = show $ Pretty.pretty $ last $ Internal.qnameToList0 defName            -- name of term that we are compiling
   reportSDoc "agda-core.check" 2 $ text $ "Compilation of " <> name <> " :"
 
-  ToCoreGlobal {globalDefs = tcg_defs, globalDatas = tcg_datas, globalCons = tcg_cons}  <- liftIO $ readIORef ioTcg
-  NameMap {nameDefs, nameData, nameCons}                              <- liftIO $ readIORef ioNames
-  PreSignature {preSigDefs, preSigData, preSigCons}                   <- liftIO $ readIORef ioPreSig
+  ToCoreGlobal {
+    globalDefs = tcg_defs, globalDatas = tcg_datas, globalRecs = tcg_recs,
+    globalCons = tcg_cons}                                        <- liftIO $ readIORef ioTcg
+  NameMap {nameDefs, nameData, nameRecs, nameCons}                    <- liftIO $ readIORef ioNames
+  PreSignature {preSigDefs, preSigData, preSigDataCons, preSigRecs}       <- liftIO $ readIORef ioPreSig
   index                                                               <- liftIO $ readIORef ioIndex    -- index of our new definition
 
-    -- if a datatype is encountered, add all constructors to the environement
+    -- if a datatype is encountered, add all constructors to the tcg environement
     -- if a constructor is encountered, skip it to avoid conflict
   (ntcg, nnames)  <-  case theDef of
     Internal.Datatype{dataPars, dataIxs, dataCons} -> do
-      constInfo <- Internal.getConstInfo defName
-      let ntcg_datas  = Map.insert defName (Data index dataPars dataIxs) tcg_datas
+      let
+          dataObj = Data index dataPars dataIxs
+          ntcg_datas  = Map.insert defName dataObj tcg_datas
           nnames_datas = Map.insert  (indexToNat index) name nameData
-          tcg_data_cons = Map.fromList (zip dataCons (map (\(dt, cons) -> (Constructor cons (Data dt dataPars dataIxs))) ((map (index,) (iterate Suc Zero))) ))
+
+          tcg_data_cons = Map.fromList (zip dataCons (map (`Constructor` dataObj) (iterate Suc Zero) ))
           ntcg_cons = Map.union tcg_cons tcg_data_cons
+
       reportSDoc "agda-core.check" 3 $ text "  Constructors:" <+> prettyTCM dataCons
-      pure (ToCoreGlobal tcg_defs ntcg_datas ntcg_cons [], NameMap nameDefs nnames_datas nameCons)
-    Internal.Constructor{} -> do
-      let Constructor cID (Data dID _ _) = tcg_cons Map.! defName
+      pure (ToCoreGlobal tcg_defs ntcg_datas tcg_recs ntcg_cons [],
+        NameMap nameDefs nnames_datas nameRecs nameCons)
+    -- if a record type is encountered, 
+      -- first add its index to globalRecs
+      -- then add all of its fields to the tcg environment,
+      -- then add its constructor to the tcg environment, as this seems to be the compilation order that Agda is doing
+    -- if a record projection definition or constructor is encountered, skip it to avoid conflict
+    Internal.Record{recPars, recFields, recConHead} -> do
+      let conName = Internal.conName recConHead
+      let ntcg_recs = Map.insert defName (index, recPars) tcg_recs
+          nnames_recs = Map.insert (indexToNat index) name nameRecs
+          -- The first projection function has index `Suc index` so we start from there
+          tcg_proj_funcs = Map.fromList (zip (map unDom recFields) (iterate Suc (Suc index)))
+          ntcg_defs = Map.union tcg_defs tcg_proj_funcs
+      reportSDoc "agda-core.check" 3 $ text "  Projection functions:" <+> prettyTCM (map unDom recFields)
+      reportSDoc "agda-core.check" 3 $ text "  Constructor:" <+> prettyTCM conName
+
+      -- TODO (atejandev): Record translation is not supported yet: return the same defs
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons [],
+        NameMap nameDefs nameData nameRecs nameCons)
+
+    -- Data constructor (it is a data constructor if the defName is in tcg_cons)
+    Internal.Constructor{} | Map.member defName tcg_cons -> do
+      reportSDoc "agda-core.check" 3 $ text "  Internal.Constructor name:" <+> prettyTCM name
+      let (Constructor cID (Data dID _ _)) = tcg_cons Map.! defName
       let nnames_cons = Map.insert (indexToNat dID, indexToNat cID) name nameCons
-      pure (ToCoreGlobal tcg_defs tcg_datas tcg_cons [], NameMap nameDefs nameData nnames_cons)
+
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons [],
+        NameMap nameDefs nameData nameRecs nnames_cons)
+    -- Record constructor
+    Internal.Constructor{} -> do
+      -- TODO (atejandev): Record translation is not supported yet: return the same tcg for now
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons [],
+        NameMap nameDefs nameData nameRecs nameCons)
+    -- if we encounter a  record projection function, skip adding it to tcg, since we already added it when processing `Internal.Record`
+    Internal.Function{} | Map.member defName tcg_defs -> do
+      reportSDoc "agda-core.check" 3 $ text "  Projection function name:" <+> prettyTCM name
+      let nnames_defs = Map.insert (indexToNat index) name nameDefs
+      pure (ToCoreGlobal tcg_defs tcg_datas tcg_recs tcg_cons [],
+        NameMap nnames_defs nameData nameRecs nameCons)
+    -- Definition
     _ -> do
       let nnames_defs = Map.insert (indexToNat index) name nameDefs
       let ntcg_defs = Map.insert defName index tcg_defs
-      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_cons [], NameMap nnames_defs nameData nameCons)
+      pure (ToCoreGlobal ntcg_defs tcg_datas tcg_recs tcg_cons [],
+        NameMap nnames_defs nameData nameRecs nameCons)
 
   liftIO $ writeIORef ioTcg   ntcg
   liftIO $ writeIORef ioNames nnames
@@ -248,22 +290,51 @@ agdaCoreCompile env _ _ def = do
           PreSignature
             { preSigDefs = Map.insert (indexToNat index) def' preSigDefs
             , preSigData = preSigData
-            , preSigCons = preSigCons
+            , preSigDataCons = preSigDataCons
+            , preSigRecs = preSigRecs
             }
         Core.DatatypeDefn dt -> liftIO $ writeIORef ioPreSig $
           PreSignature
             { preSigDefs = preSigDefs
             , preSigData = Map.insert (indexToNat index) dt preSigData
-            , preSigCons = preSigCons
+            , preSigDataCons = preSigDataCons
+            , preSigRecs = preSigRecs
             }
-        Core.ConstructorDefn cons -> do
-          let (Constructor cID (Data dID _ _)) = tcg_cons Map.! defName
+        Core.DataConstructorDefn cons -> do
+          -- It should not matter here whether one uses `tcg_cons` (old one) or `globalConsData ntcg` (new one), but let's use the new one to be safe
+          let (Constructor cID (Data dID _ _)) = globalCons ntcg Map.! defName
+          -- if there is no constructor index (it is a record), the constructor index must be Zero
           liftIO $ writeIORef ioPreSig $
             PreSignature
               {  preSigDefs = preSigDefs
               , preSigData = preSigData
-              , preSigCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigCons
+              , preSigDataCons = Map.insert (indexToNat dID, indexToNat cID) cons preSigDataCons
+              , preSigRecs = preSigRecs
               }
+        Core.RecordDefn coreRecord -> do
+          liftIO $ writeIORef ioPreSig $
+            PreSignature
+                {  preSigDefs = preSigDefs
+                , preSigData = preSigData
+                , preSigDataCons = preSigDataCons
+                , preSigRecs = Map.insert (indexToNat index) coreRecord preSigRecs
+                }
+        Core.ProjDefn ->
+          liftIO $ writeIORef ioPreSig $
+            PreSignature
+                {  preSigDefs = preSigDefs
+                , preSigData = preSigData
+                , preSigDataCons = preSigDataCons
+                , preSigRecs = preSigRecs
+                }
+        Core.RecordConstructorDefn ->
+          liftIO $ writeIORef ioPreSig $
+            PreSignature
+                {  preSigDefs = preSigDefs
+                , preSigData = preSigData
+                , preSigDataCons = preSigDataCons
+                , preSigRecs = preSigRecs
+                }
       return $ pure def'
 
 
@@ -271,19 +342,29 @@ agdaCoreCompile env _ _ def = do
 -- PostModule
 -- do the typechecking
 preSignatureToSignature :: PreSignature -> Core.Signature
-preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigCons}  =  do
+preSignatureToSignature PreSignature {preSigDefs, preSigData, preSigDataCons, preSigRecs}  =  do
   let datas i  = case preSigData Map.!? indexToNat i of
         Just dt -> dt
         _ -> __IMPOSSIBLE__
 
   let defns i  = case preSigDefs Map.!? indexToNat i of
-        Just  Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
+        Just Core.Definition{defType = ty, theDef = Core.FunctionDefn body} -> (ty, Core.FunctionDef body)
         _ -> __IMPOSSIBLE__
 
-  let cons d c = case preSigCons Map.!? (indexToNat d, indexToNat c) of
+  let dataCons d c = case preSigDataCons Map.!? (indexToNat d, indexToNat c) of
         Just ct -> ct
         _ -> __IMPOSSIBLE__
-  Core.Signature datas defns cons
+
+  let recs r = case preSigRecs Map.!? indexToNat r of
+        Just record -> record
+        _ -> __IMPOSSIBLE__
+
+  let recCons c = error "Illegal: Cannot lookup a record constructor in the Signature"
+
+  let projs p = error "Illegal: Cannot lookup a projection function in the Signature"
+
+  Core.Signature datas defns dataCons recs
+
 
 
 agdaCorePostModule :: ACEnv -> ACMEnv -> IsMain -> TopLevelModuleName -> [ACSyntax] -> TCM ACMod
@@ -294,7 +375,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
   reportSDoc "agda-core.check" 1 . boxInDoc $ "Typechecking module " <> show (Pretty.pretty tlm)
   liftIO $ setSGR []
   reportSDoc "agda-core.check" 2 lineInDoc
-  reportSDocWarning "agda-core.check" 1 $ text "Warning : Typechecking backend is in developpement"
+  reportSDocWarning "agda-core.check" 1 $ text "Warning : Typechecking backend is in development"
   reportSDocWarning "agda-core.check" 1 $ text "__IMPOSSIBLE__ will be called if terms for which compilation failed are called"
   for_ defs \def -> do
     case def of
@@ -305,7 +386,7 @@ agdaCorePostModule ACEnv{toCorePreSignature = ioPreSig} _ _ tlm defs = do
         let sig = preSignatureToSignature preSig
         let fl  = Core.More fl
             env = Core.MkTCEnv sig fl
-        trace ("Typeching the following body: \n" ++ show funBody) $ case Core.runTCM (checkType CtxEmpty funBody defType) env of
+        case Core.runTCM (checkType CtxEmpty funBody defType) env of
               Left err -> reportSDocFailure "agda-core.check" $ text $ "  Type checking error: " ++ err
               Right ok -> reportSDoc "agda-core.check" 1 $ text "  Type checking success"
       Right Core.Definition{ defName } ->

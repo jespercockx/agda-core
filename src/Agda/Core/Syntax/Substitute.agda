@@ -14,8 +14,8 @@ private variable
   @0 α β γ  : Scope Name
   @0 rγ     : RScope Name
   @0 d      : NameData
-  @0 c      : NameCon d
-  @0 cs     : RScope (NameCon d)
+  @0 c      : NameDataCon d
+  @0 cs     : RScope (NameDataCon d)
   t        : @0 Scope Name → Set
 
 data Subst : (@0 α β : Scope Name) → Set where
@@ -101,7 +101,9 @@ substTermS   : α ⇒ β → TermS α rγ → TermS β rγ
 substTerm f (TVar (⟨ x ⟩ k))  = lookupSubst f x k
 substTerm f (TDef d)          = TDef d
 substTerm f (TData d ps is)   = TData d (substTermS f ps) (substTermS f is)
-substTerm f (TCon c vs)       = TCon c (substTermS f vs)
+substTerm f (TRec rn pars)    = TRec rn (substTermS f pars)
+substTerm f (TDataCon c vs)       = TDataCon c (substTermS f vs)
+substTerm f (TRecCon r vs)        = TRecCon r (substTermS f vs)
 substTerm f (TLam x v)        = TLam x (substTerm (liftBindSubst f) v)
 substTerm f (TApp u v)        = TApp (substTerm f u) (substTerm f v)
 substTerm f (TProj u p)       = TProj (substTerm f u) p

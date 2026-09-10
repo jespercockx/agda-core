@@ -20,14 +20,14 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Numeric.Natural (Natural)
 
-import Agda.Syntax.Common ( Arg(unArg) )
+import Agda.Syntax.Common ( Arg(unArg), Nat )
 import Agda.Syntax.Abstract.Name (QName)
 import Agda.Syntax.Internal (unDom, unEl)
 import Agda.Syntax.Internal.Elim (allApplyElims)
 import Agda.Syntax.Common.Pretty ( Doc, Pretty(pretty), (<+>), nest, multiLineText )
 import Agda.TypeChecking.Substitute ()
 import Agda.TypeChecking.Substitute.Class (Subst, absBody, raise)
-import Agda.Syntax.Common ( Nat )
+import Agda.Utils.Maybe (isNothing, caseMaybe)
 
 import Agda.TypeChecking.Monad  qualified as I
 import Agda.Syntax.Internal     qualified as I
@@ -35,11 +35,14 @@ import qualified Agda.Syntax.Common.Pretty as Pretty
 import Agda.TypeChecking.Substitute qualified as I
 import Agda.TypeChecking.CompiledClause qualified as CC
 
+
 import Agda.Core.Syntax.Term (Term(..), Sort(..))
 import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
+
 import Agda.Core.UtilsH (intToIndex)
+
 
 import Scope.In (Index)
 import Scope.In qualified as Scope
@@ -47,13 +50,20 @@ import Scope.Core (rbind)
 
 import Agda.Utils.Either (maybeRight)
 import Agda.Utils.Size
-import Agda.Utils.Maybe (isNothing, isJust, caseMaybe)
+
+
+
+
+universeLevelFromSort :: I.Sort -> Integer
+universeLevelFromSort (I.Univ I.UType (I.Max i [])) = i
+universeLevelFromSort _ = error "unsupported universe level"
 
 -- TODO(flupe): move this to Agda.Core.Syntax
 -- | Apply a core term to elims
 tApp :: Term -> [Term] -> Term
 tApp t []     = t
 tApp t (e:es) = TApp t e `tApp` es
+
 
 -- | Global definitions are represented as a mapping from @QName@s
 --   to proofs of global def scope membership.
@@ -66,11 +76,11 @@ data Constructor = Constructor Index Data
 
 type RenamingList = [Int]
 
-data ToCoreGlobal = ToCoreGlobal { globalDefs   :: Map QName Index,
-                                   globalDatas  :: Map QName Data,
-                                   globalCons   :: Map QName Constructor,
+data ToCoreGlobal = ToCoreGlobal { globalDefs  :: Map QName Index,
+                                   globalDatas :: Map QName Data,
+                                   globalRecs  :: Map QName (Index, Nat),
+                                   globalCons  :: Map QName Constructor, 
                                    renamingList :: RenamingList}
-
 
 -- | Custom monad used for translating to core syntax.
 --   Gives access to global terms
@@ -85,6 +95,10 @@ asksDef = asks . (.  \ToCoreGlobal{globalDefs} -> globalDefs)
 asksData :: (Map QName Data -> a) -> ToCoreM a
 asksData = asks . (. \ToCoreGlobal{globalDatas} -> globalDatas)
 
+
+asksRec :: (Map QName (Index, Nat) -> a) -> ToCoreM a
+asksRec = asks . (. \ToCoreGlobal{globalRecs} -> globalRecs)
+
 asksCon :: (Map QName Constructor -> a) -> ToCoreM a
 asksCon = asks . (. \ToCoreGlobal{globalCons} -> globalCons)
 
@@ -95,6 +109,10 @@ lookupDef qn = asksDef (Map.!? qn)
 -- | Lookup a datatype name in the current module.
 lookupData :: QName -> ToCoreM (Maybe Data)
 lookupData qn = asksData (Map.!? qn)
+
+-- | Lookup a record name in the current module.
+lookupRec :: QName -> ToCoreM (Maybe (Index, Nat))
+lookupRec qn = asksRec (Map.!? qn)
 
 -- | Lookup a constructor name in the current module.
 lookupCon :: QName -> ToCoreM (Maybe Constructor)
@@ -136,6 +154,40 @@ convert tcg t =
 toTermS :: [Term] -> Core.TermS
 toTermS = foldr Core.TSCons Core.TSNil
 
+
+createTAppAndTProj :: Term -> [I.Elim] -> ToCoreM Term
+createTAppAndTProj t [] = return t
+createTAppAndTProj t (elim@(I.Apply _):elims) = do
+  compiledElim <- toCore elim
+  TApp t compiledElim `createTAppAndTProj` elims
+-- When compiling an I.Proj _ _, the result must be a TDef `id`
+createTAppAndTProj t _ = throwError "I.Proj is not supported for now"
+
+
+-- Helper for toCore (I.Def)
+compileToTDataOrTRec :: [I.Elim] -> Index -> Int -> Int -> Bool -> ToCoreM Term
+compileToTDataOrTRec elims idx fullAmountOfParams fullAmountOfIndices toTData = do
+
+  let givenParameterList = take fullAmountOfParams elims
+  let givenIndexList = drop fullAmountOfParams elims -- has length 0 if any parameters are missing
+
+  let missingParams = fullAmountOfParams - length givenParameterList
+  let missingIndices = fullAmountOfIndices - length givenIndexList
+  let totalMissing = missingParams + missingIndices
+
+  -- we get [TVar 2, TVar 1, TVar 0, ...] of length @totalMissing@
+  let additionalVars = reverse $ take totalMissing $ TVar <$> iterate Scope.inThere Scope.inHere
+  compiledArgs <- fmap (++ additionalVars) (toCore (raise totalMissing elims))
+
+  let paramTermS = toTermS (take fullAmountOfParams compiledArgs)
+  let idxTermS = toTermS (drop fullAmountOfParams compiledArgs)
+
+  let baseTerm =
+        if toTData
+        then TData idx paramTermS idxTermS
+        else TRec idx paramTermS
+  -- in the end, we have (TLam (TLam (TLam ...))) of depth `totalMissing`
+  return (iterate TLam baseTerm !! totalMissing)
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
 {-                                      Instances of ToCore                                       -}
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
@@ -161,44 +213,25 @@ instance ToCore I.Term where
   toCore (I.Lit l) = throwError "literals not supported"
 
   toCore (I.Def qn es)
-    | Just args <- allApplyElims es
     = do
-        -- Try looking up as definition first
-        maybe_idx <- lookupDef qn
-        case maybe_idx of
+        lookupDef qn >>= \case
           Just idx -> do
             let def = TDef idx
-            coreEs <- toCore es
-            return (tApp def coreEs)
-          -- Otherwise, try looking up as datatype (must succeed, else fail with error message)
+            createTAppAndTProj def es
           Nothing -> do
             lookupData qn >>= \case
-              Nothing -> throwError $ "Trying to access an unknown definition: " <+> pretty qn
-
-              Just (Data idx amountOfParams amountOfIndices) -> do
-                --always take all parameters
-                paramTermS <- toTermS <$> toCore (take amountOfParams args)
-
-                -- @m@ is the amount of arguments to the index list which are missing
-                let indexListGiven = drop amountOfParams args
-                let m = amountOfIndices - length indexListGiven
-
-                -- Construct @m@ additional deBruijn indices
-                -- so we get [TVar 2, TVar 1, TVar 0, ...] of length m
-                let additionalVars = reverse $ take m $ TVar <$> iterate Scope.inThere Scope.inHere
-
-                indexTermS <- toTermS . (++ additionalVars) <$> toCore (raise m indexListGiven)
-                let tdata = TData idx paramTermS indexTermS
-
-                -- in the end, we have (TLam (TLam (TLam ...))) of depth m
-                return (iterate TLam tdata !! m)
-
-  toCore I.Def{} = throwError "cubical endpoint application to definitions/datatypes not supported"
+              Just (Data idx fullAmountOfParams fullAmountOfIndices) ->
+                compileToTDataOrTRec es idx fullAmountOfParams fullAmountOfIndices True
+              Nothing -> lookupRec qn >>= \case
+                Nothing -> throwError $ "[When compiling an I.Def] Trying to access an unknown definition: " <+> pretty qn
+                Just (idx, fullAmountOfParams) ->
+                  throwError "Applications of record types are not translated for now"
 
   toCore (I.Con ch _ es)
     | Just args <- allApplyElims es
     = lookupCon (I.conName ch) >>= \case
-        Nothing -> throwError $ "Trying to access an unknown constructor: " <+> pretty (I.conName ch)
+        Nothing -> throwError $ "[When compiling a Con] Trying to access an unknown constructor: " <+> pretty (I.conName ch)
+        -- Constructor of a datatype
         Just (Constructor con (Data dt _ _)) -> do
           -- @l@ is the amount of arguments missing from the application.
           -- we need to eta-expand manually @l@ times to fully-apply the constructor.
@@ -206,9 +239,8 @@ instance ToCore I.Term where
           -- Construct @l@ additional deBruijn indices
           let additionalVars = reverse $ take l $ TVar <$> iterate Scope.inThere Scope.inHere
 
-          t <- TCon dt con . toTermS . (++ additionalVars) <$> toCore (raise l args)
-
-          -- in the end, we bind @l@ fresh deBruijn indices
+          let constructor = (TDataCon dt) con
+          t <- constructor . toTermS . (++ additionalVars) <$> toCore (raise l args)
           pure (iterate TLam t !! l)
 
 
@@ -276,35 +308,43 @@ unnestPi n ty = case Core.unType ty of
   TPi _ dom -> unnestPi (n - 1) dom
   _ -> throwError "Incorrect Type, expected Pi"
 
--- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) (Both have case tree format instead of clause list format)
--- ty represents the type of the return of the case, and paramCount represents how many parameters have been pattern matched on the left hand side of the function clause
+-- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) 
+-- (Both have case tree format instead of clause list format)
+-- ty represents the type of the return of the case, 
+-- and lhsCount represents how many parameters have been pattern matched on the left hand side of the function clause
 clauseToCore :: CC.CompiledClauses -> Core.Type -> Int -> ToCoreM Core.Term
 clauseToCore (CC.Done args body) _ _ = toCore body
-clauseToCore (CC.Case paramNum c) ty paramCount = do
+clauseToCore (CC.Case matchTarget c) ty lhsCount = do
   let branchList = Map.toList (CC.conBranches c)
   result <- lookupCon (fst (branchList !! 0))
-  -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, this will be an issue for something like the empty type)
-  Constructor _ (Data dt params idcs) <- maybe (throwError "constructor not found") return result
+  -- Getting the datatype of the constructor (assumes there is at least one constructor in the list, 
+    -- this will be an issue for something like the empty type)
+  Constructor _ (Data dt _ idcs) <- maybe (throwError "constructor not found") return result
 
   when (idcs > 0) $ throwError "Indexed datatypes are not yet supported"
 
-  -- iRun is the run-time representation of the index scope. The result will always be `[]`, however, once indexed datatypes are supported this will be important.
+  -- iRun is the run-time representation of the index scope. 
+  -- The result will always be `[]`, however, once indexed datatypes are supported this will be important.
   let iRun = iterate rbind [] !! idcs
 
-  let indexAgda = paramCount - unArg paramNum - 1 -- debruijn index in the Agda syntax (paramNum is the number of the parameter, starting from the left)
+  -- debruijn index in the Agda syntax 
+  -- matchTarget is the number of the argument being matched on, starting from the left
+  let indexAgda = lhsCount - unArg matchTarget - 1 
   indexAgdaCore <- lookupOffset indexAgda -- getting corresponding agda core db index
 
-  coreBranchList <- (mapM (uncurry (createBranch ty paramCount indexAgda)) branchList)
+  coreBranchList <- (mapM (uncurry (createBranch ty lhsCount indexAgda)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
   return $ TCase dt iRun (TVar $ intToIndex indexAgdaCore) branches ty
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
-createBranch ty paramCount paramIndexAgda name wthAr = do
+createBranch ty lhsCount paramIndexAgda name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
-  clause <- updateDBMapLocal paramIndexAgda (CC.arity wthAr) $ -- update the state according to the pattern matched parameter and the arity of its constructor
-    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + paramCount - 1) -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
+  -- update the state according to the pattern matched parameter and the arity of its constructor
+  clause <- updateDBMapLocal paramIndexAgda (CC.arity wthAr) $ 
+    -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
+    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + lhsCount - 1) 
   return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
 
 
@@ -357,11 +397,18 @@ toCoreDefn (I.FunctionDefn def) ty =
       | isNothing (maybeRight _funProjection >>= I.projProper) -- discard record projections
       , l      <- _funClauses
       -> throwError "pattern matching isn't supported"
-    I.FunctionData{..}
-      | isJust (maybeRight _funProjection >>= I.projProper) -- record projections case
-      -> throwError "record projections aren't supported"
+
+    I.FunctionData{_funProjection = Right p} -- the FunctionDefn being declared is a record projection function
+      | Just qn <- I.projProper p
+        -> do
+            --Looking up as a record must succeed
+            _ <- lookupRec qn >>= \case
+                  Nothing -> throwError $ "Trying to access an unknown record definition: " <+> pretty qn
+                  Just (recordIndex, _) -> pure recordIndex
+            return (Core.ProjDefn)
     I.FunctionData{}
       -> throwError "unsupported case (shouldn't happen)"
+
 
 toCoreDefn (I.DatatypeDefn dt) ty =
   withError (\e -> multiLineText $ "datatype definition failure: \n" <> Pretty.render (nest 1 e)) $ do
@@ -369,14 +416,20 @@ toCoreDefn (I.DatatypeDefn dt) ty =
                       _dataIxs   = ixs,
                       _dataCons  = cons,
                       _dataSort  = sort} = dt
-  localRenamings (\_ -> take (pars + ixs) (iterate (+1) 0)) $ do -- for processing a datatype, introduce its parameters and indices in the renaming list
+  -- for processing a datatype, introduce its parameters and indices in the renaming list
+  localRenamings (\_ -> take (pars + ixs) (iterate (+1) 0)) $ do 
     sort' <- toCore sort
     let I.TelV{theTel = internalParsTel, theCore = ty1} = I.telView'UpTo pars ty
     let I.TelV{theTel = internalIxsTel}                 = I.telView'UpTo ixs  ty1
     parsTel <- toCore internalParsTel
     ixsTel <- toCore internalIxsTel
-    cons_dt_indexes <- mapM (\mc -> maybe (throwError "constructor not found") return mc) =<< traverse lookupCon cons
-    let cons_indexes = map (\(Constructor c _) -> c) cons_dt_indexes
+    cons_dt_indexes <- traverse (\qn -> lookupCon qn >>= \case
+      Nothing -> throwError $ "[When compiling a DataTypeDefn] Trying to access an unknown constructor: " <+> pretty qn
+      Just result -> pure result
+      ) cons
+    cons_indexes <- traverse (\case 
+        (Constructor cIndex _) -> pure cIndex
+      ) cons_dt_indexes
     let d = Core.Datatype{  dataSort              = sort',
                             dataParTel            = parsTel,
                             dataIxTel             = ixsTel,
@@ -389,21 +442,29 @@ toCoreDefn (I.ConstructorDefn cs) ty =
   withError (\e -> multiLineText $ "constructor definition failure:\n" <> Pretty.render (nest 1 e)) $ do
   let I.ConstructorData{  _conPars  = pars,
                           _conArity = arity,
-                          _conData  = dname}  = cs
-      I.TelV{ theCore = tyInd}                = I.telView'UpTo pars ty
-      I.TelV{ theTel = internalIndTel,
-              theCore = I.El{unEl = tyCon}}   = I.telView'UpTo arity tyInd
-  indTel <- toCore internalIndTel
-  case tyCon of
-    I.Def _ elims ->  do
-      caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") $ \ixs -> localRenamings (\l -> (take (length ixs) (iterate (+1) 0)) ++ map (+ length ixs) l) $ do
-          ixs' <- toCore ixs
-          let conIxs = foldr Core.TSCons Core.TSNil ixs'
-          let c = Core.Constructor{ conIndTel = indTel,
-                                    conIx     = conIxs}
-          return $ Core.ConstructorDefn c
-    _ -> do
-      throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
+                          _conSrcCon = I.ConHead{conName = conName, 
+                            conDataRecord = dataOrRecord}}  = cs
+
+  case dataOrRecord of 
+    I.IsRecord _ -> return (Core.RecordConstructorDefn)
+
+    I.IsData -> do
+      let I.TelV{ theCore = tyInd}                = I.telView'UpTo pars ty
+          I.TelV{ theTel = internalIndTel,
+                  theCore = I.El{unEl = tyCon}}   = I.telView'UpTo arity tyInd
+      indTel <- toCore internalIndTel
+      case tyCon of
+        I.Def _ elims ->  do
+          caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") 
+            $ \ixs_m -> localRenamings (\l -> (take (length ixs_m) (iterate (+1) 0)) ++ map (+ length ixs_m) l) $ do
+                ixs' <- toCore ixs_m
+                let ixsTermS = toTermS ixs'
+                let c = Core.DataConstructor{ conIndTel = indTel,
+                                          conIx     = ixsTermS}
+                return $ Core.DataConstructorDefn c
+        _ -> do
+          throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
+
 
 toCoreDefn (I.PrimitiveDefn _) _ =
   throwError "primitive are not supported"
@@ -451,10 +512,12 @@ instance ToCore I.Elim where
   type CoreOf I.Elim = Term
   toCore :: I.Elim -> ToCoreM Term
   toCore (I.Apply x)   = toCore x
-  --TODO (diode-lang) : Support projection as an Elim
-  -- toCore (I.Proj _ qn) = TDef <$> lookupDefOrData qn
-  toCore (I.Proj _ qn) = throwError "record projection not supported"
-  toCore I.IApply{}    = throwError "cubical endpoint application not supported"
+  toCore (I.Proj _ qn) = do
+    let m_idx = lookupDef qn >>= \case
+          Nothing -> throwError $ "[When translating an Elim] Trying to access an unknown definition: " <+> pretty qn
+          Just ident -> pure ident
+    TDef <$> m_idx
+  toCore I.IApply{} = throwError "[When translating an Elim] cubical endpoint application not supported"
 
 
 instance ToCore a => ToCore [a] where

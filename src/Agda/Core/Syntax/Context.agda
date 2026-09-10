@@ -17,7 +17,7 @@ private variable
 ---------------------------------------------------------------------------------------------------
 data Context : @0 Scope Name → Set where
   CtxEmpty  : Context mempty
-  CtxExtend : Context α → (@0 x : Name) → Type α → Context  (α ▸ x)
+  CtxExtend : Context α → (@0 x : Name) → Type α → Context  (α ▸ x) 
 
 infix 4 _,_∶_
 pattern _,_∶_ Γ x a = CtxExtend Γ x a
