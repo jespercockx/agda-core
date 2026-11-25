@@ -452,18 +452,21 @@ toCoreDefn (I.ConstructorDefn cs) ty =
       let I.TelV{ theCore = tyInd}                = I.telView'UpTo pars ty
           I.TelV{ theTel = internalIndTel,
                   theCore = I.El{unEl = tyCon}}   = I.telView'UpTo arity tyInd
-      indTel <- toCore internalIndTel
-      case tyCon of
-        I.Def _ elims ->  do
-          caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") 
-            $ \ixs_m -> localRenamings (\l -> (take (length ixs_m) (iterate (+1) 0)) ++ map (+ length ixs_m) l) $ do
-                ixs' <- toCore ixs_m
-                let ixsTermS = toTermS ixs'
-                let c = Core.DataConstructor{ conIndTel = indTel,
-                                          conIx     = ixsTermS}
-                return $ Core.DataConstructorDefn c
-        _ -> do
-          throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
+      -- the parameters and the arguments of the constructor are bound by the
+      -- same deBruijn indices in Agda and in the core syntax
+      localRenamings (\_ -> take (pars + arity) (iterate (+1) 0)) $ do
+        indTel <- toCore internalIndTel
+        case tyCon of
+          I.Def _ elims ->  do
+            caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope")
+              $ \ixs_m -> do
+                  ixs' <- toCore ixs_m
+                  let ixsTermS = toTermS ixs'
+                  let c = Core.DataConstructor{ conIndTel = indTel,
+                                            conIx     = ixsTermS}
+                  return $ Core.DataConstructorDefn c
+          _ -> do
+            throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
 
 
 toCoreDefn (I.PrimitiveDefn _) _ =
