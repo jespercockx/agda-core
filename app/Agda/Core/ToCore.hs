@@ -36,12 +36,12 @@ import Agda.TypeChecking.Substitute qualified as I
 import Agda.TypeChecking.CompiledClause qualified as CC
 
 
-import Agda.Core.Syntax.Term (Term(..), Sort(..))
+import Agda.Core.Syntax.Term (Term(..), TermS(..), Type(..), Sort(..), Branch(..), Branches(..))
 import Agda.Core.Syntax.Term      qualified as Core
 import Agda.Core.Syntax.Context   qualified as Core
 import Agda.Core.Syntax.Signature qualified as Core
 
-import Agda.Core.UtilsH (intToIndex)
+import Agda.Core.UtilsH (intToIndex, indexToInt)
 
 
 import Scope.In (Index)
@@ -308,6 +308,56 @@ unnestPi n ty = case Core.unType ty of
   TPi _ dom -> unnestPi (n - 1) dom
   _ -> throwError "Incorrect Type, expected Pi"
 
+-- | Rename the free variables of a core term.  @rho@ maps a deBruijn index
+--   (0 is the most recently bound variable) relative to the term's context to
+--   its new index.  Under binders the renaming is lifted so that bound
+--   variables stay in place while the renaming is applied to the older
+--   variables.
+renameTermAt :: (Int -> Int) -> Int -> Core.Term -> Core.Term
+renameTermAt rho d (TVar ix) =
+  TVar $ intToIndex $ let k = indexToInt ix in if k < d then k else rho (k - d) + d
+renameTermAt _   _ (TDef i)           = TDef i
+renameTermAt rho d (TData i ps is)    = TData i (renameTermSAt rho d ps) (renameTermSAt rho d is)
+renameTermAt rho d (TRec i ps)        = TRec i (renameTermSAt rho d ps)
+renameTermAt rho d (TDataCon i j ts)  = TDataCon i j (renameTermSAt rho d ts)
+renameTermAt rho d (TRecCon i ts)     = TRecCon i (renameTermSAt rho d ts)
+renameTermAt rho d (TLam t)           = TLam (renameTermAt rho (d + 1) t)
+renameTermAt rho d (TApp u v)         = TApp (renameTermAt rho d u) (renameTermAt rho d v)
+renameTermAt rho d (TProj i t j)      = TProj i (renameTermAt rho d t) j
+renameTermAt rho d (TCase i r u bs m) =
+  TCase i r (renameTermAt rho d u) (renameBranchesAt rho d bs)
+    (renameTypeAt rho (d + length r + 1) m)
+renameTermAt rho d (TPi a b)          = TPi (renameTypeAt rho d a) (renameTypeAt rho (d + 1) b)
+renameTermAt _   _ (TSort s)          = TSort s
+renameTermAt rho d (TLet u v)         = TLet (renameTermAt rho d u) (renameTermAt rho (d + 1) v)
+renameTermAt rho d (TAnn u a)         = TAnn (renameTermAt rho d u) (renameTypeAt rho d a)
+
+renameTermSAt :: (Int -> Int) -> Int -> Core.TermS -> Core.TermS
+renameTermSAt _   _ TSNil         = TSNil
+renameTermSAt rho d (TSCons u ts) = TSCons (renameTermAt rho d u) (renameTermSAt rho d ts)
+
+renameTypeAt :: (Int -> Int) -> Int -> Core.Type -> Core.Type
+renameTypeAt rho d (El s t) = El s (renameTermAt rho d t)
+
+renameBranchAt :: (Int -> Int) -> Int -> Core.Branch -> Core.Branch
+renameBranchAt rho d (BBranch i r t) = BBranch i r (renameTermAt rho (d + length r) t)
+
+renameBranchesAt :: (Int -> Int) -> Int -> Core.Branches -> Core.Branches
+renameBranchesAt _   _ BsNil         = BsNil
+renameBranchesAt rho d (BsCons b bs) = BsCons (renameBranchAt rho d b) (renameBranchesAt rho d bs)
+
+-- | Weaken a core type by introducing @n@ new binders on top of its context.
+shiftType :: Int -> Core.Type -> Core.Type
+shiftType n = renameTypeAt (\j -> j + n) 0
+
+-- | The return type of a case is checked in the scope extended with the
+--   datatype indices and the scrutinee.  This maps the matched variable to the
+--   freshly bound scrutinee and shifts every other variable past the new
+--   binders.
+caseReturnType :: Int -> Int -> Core.Type -> Core.Type
+caseReturnType idcs matched = renameTypeAt rho 0
+  where rho j = if j == matched then 0 else j + idcs + 1
+
 -- Converts a CompiledClauses (Agda syntax) to a term (Agda Core syntax) 
 -- (Both have case tree format instead of clause list format)
 -- ty represents the type of the return of the case, 
@@ -334,18 +384,24 @@ clauseToCore (CC.Case matchTarget c) ty lhsCount = do
 
   coreBranchList <- (mapM (uncurry (createBranch ty lhsCount indexAgda)) branchList)
   let branches = foldr Core.BsCons Core.BsNil coreBranchList
-  return $ TCase dt iRun (TVar $ intToIndex indexAgdaCore) branches ty
+  -- the expected return type is expressed in the scope extended with the
+  -- indices and the scrutinee
+  let rt = caseReturnType idcs indexAgdaCore ty
+  return $ TCase dt iRun (TVar $ intToIndex indexAgdaCore) branches rt
 clauseToCore _ _ _ = throwError "not supported"
 
 createBranch :: Core.Type -> Int -> Int -> QName -> CC.WithArity CC.CompiledClauses -> ToCoreM Core.Branch
 createBranch ty lhsCount paramIndexAgda name wthAr = do
   result <- lookupCon name
   Constructor constructor _ <- maybe (throwError "constructor not found") return result
-  -- update the state according to the pattern matched parameter and the arity of its constructor
-  clause <- updateDBMapLocal paramIndexAgda (CC.arity wthAr) $ 
+  let arity = CC.arity wthAr
+  -- update the state according to the pattern matched parameter and the arity of its constructor.
+  -- the branch body is checked in a context where the matched variable is replaced by the
+  -- arguments of the constructor, so we weaken the return type accordingly.
+  clause <- updateDBMapLocal paramIndexAgda arity $ 
     -- recursive call, total amount of parameters increased to reflect new pattern matched constructor parameters
-    clauseToCore (CC.content wthAr) ty ((CC.arity wthAr) + lhsCount - 1) 
-  return (Core.BBranch constructor (iterate rbind [] !! CC.arity wthAr) clause)
+    clauseToCore (CC.content wthAr) (shiftType arity ty) (arity + lhsCount - 1) 
+  return (Core.BBranch constructor (iterate rbind [] !! arity) clause)
 
 
 {- ────────────────────────────────────────────────────────────────────────────────────────────── -}
@@ -452,18 +508,21 @@ toCoreDefn (I.ConstructorDefn cs) ty =
       let I.TelV{ theCore = tyInd}                = I.telView'UpTo pars ty
           I.TelV{ theTel = internalIndTel,
                   theCore = I.El{unEl = tyCon}}   = I.telView'UpTo arity tyInd
-      indTel <- toCore internalIndTel
-      case tyCon of
-        I.Def _ elims ->  do
-          caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope") 
-            $ \ixs_m -> localRenamings (\l -> (take (length ixs_m) (iterate (+1) 0)) ++ map (+ length ixs_m) l) $ do
-                ixs' <- toCore ixs_m
-                let ixsTermS = toTermS ixs'
-                let c = Core.DataConstructor{ conIndTel = indTel,
-                                          conIx     = ixsTermS}
-                return $ Core.DataConstructorDefn c
-        _ -> do
-          throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
+      -- the parameters and the arguments of the constructor are bound by the
+      -- same deBruijn indices in Agda and in the core syntax
+      localRenamings (\_ -> take (pars + arity) (iterate (+1) 0)) $ do
+        indTel <- toCore internalIndTel
+        case tyCon of
+          I.Def _ elims ->  do
+            caseMaybe (I.allApplyElims $ drop pars elims) (throwError "index using variable not in scope")
+              $ \ixs_m -> do
+                  ixs' <- toCore ixs_m
+                  let ixsTermS = toTermS ixs'
+                  let c = Core.DataConstructor{ conIndTel = indTel,
+                                            conIx     = ixsTermS}
+                  return $ Core.DataConstructorDefn c
+          _ -> do
+            throwError $ "expected " <> Pretty.pretty tyCon <> "to be a Def"
 
 
 toCoreDefn (I.PrimitiveDefn _) _ =
